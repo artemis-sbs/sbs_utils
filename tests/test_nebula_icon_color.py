@@ -93,12 +93,20 @@ class TestDerivation(unittest.TestCase):
                 self.assertEqual(max(_rgb(entry["radar_color_override"])), NEB_ICON_PEAK,
                                  f"{name} does not peak at {NEB_ICON_PEAK:#04x}")
 
-    def test_red_is_red_not_magenta(self):
-        """The specific regression: 0ae545ea rewrote red's cloud to [1.0, 0.3, 0.1] and
-        carried its icon line across byte-identical, leaving the magenta inherited from
-        LegendaryMissions' 2025 '#e0e'."""
+    def test_red_stays_red_dominant(self):
+        """Red may LEAN magenta, but red must still dominate.
+
+        This began as test_red_is_red_not_magenta, guarding a regression: 0ae545ea rewrote
+        red's cloud to [1.0, 0.3, 0.1] and carried its icon line across byte-identical,
+        leaving the magenta inherited from LegendaryMissions' 2025 '#e0e'. That icon was
+        wrong because it disagreed with its own CLOUD, not because magenta is forbidden.
+
+        Red has since been retuned toward magenta deliberately, on a look, to part it from
+        orange - so the guard is now the weaker, still-meaningful one: the red channel leads
+        both others. Equal red and blue would be magenta proper, and `red` would be misnamed
+        again, which is what this still catches."""
         r, g, b = _rgb(_neb_colors["red"]["radar_color_override"])
-        self.assertGreater(r, b, "red's icon still has more blue than red -- magenta")
+        self.assertGreater(r, b, "red's icon has more blue than red -- that is magenta")
         self.assertGreater(r, g)
 
     def test_derivation_is_pure(self):
@@ -171,19 +179,27 @@ class TestCallerSuppliedColors(unittest.TestCase):
                 delta=0.01, msg=f"{icon} drifted off purple's hue")
 
 
-# Two entries render as a color their NAME does not claim, so honest icons make them
-# look alike on radar. This is a defect in the CLOUD (the shader values), not in the
+# BOTH KNOWN COLLISIONS ARE FIXED. They were:
+#
+#     red    emission [1.00, 0.30, 0.10] -> rendered [1.00, 0.29, 0.10]
+#     orange emission [1.00, 0.28, 0.06] -> rendered [1.00, 0.27, 0.05]   same as red
+#     yellow emission [0.40, 1.00, 0.30] -> rendered [0.41, 1.00, 0.30]   chartreuse
+#
+# i.e. two entries rendered as a color their NAME did not claim, so honest icons made them
+# look alike on radar. The defect was in the CLOUD (the shader values), never in the
 # derivation -- confirmed by running the engine's own raymarch
-# (data/graphics/shader-emissivenebula.ps:152-180) over each entry:
+# (data/graphics/shader-emissivenebula.ps:152-180) over each entry.
 #
-#     red    emission [1.00, 0.30, 0.10] -> renders [1.00, 0.29, 0.10]
-#     orange emission [1.00, 0.28, 0.06] -> renders [1.00, 0.27, 0.05]   same as red
-#     yellow emission [0.40, 1.00, 0.30] -> renders [0.41, 1.00, 0.30]   chartreuse
+# Retuned on a LOOK, which is the only way this call can be made: `red` was pushed toward
+# magenta (hue 13 -> 335, which also parts it from orange) and `yellow` off chartreuse and
+# onto yellow (hue 111 -> 61). Their absorption moved with their emission, because in a
+# thick cloud the rendered color tends to emission/(absorption+scattering) -- so leaving
+# red absorbing blue at 1.5 would have kept the magenta out of the CLOUD while putting it
+# in the icon, which is the exact split this whole derivation exists to close.
 #
-# Fixing it means retuning those clouds, which changes what nebulae LOOK like in game --
-# a separate, visible call. Listed here so the pair test still guards every OTHER pair,
-# and so retuning one surfaces as a failing test that says "update this list".
-KNOWN_CLOUD_COLLISIONS = {frozenset(("red", "orange")), frozenset(("yellow", "green"))}
+# Kept as an (empty) set rather than deleted: it is the seam where a future retune that
+# collapses two colors again gets caught, and the pair test reads better with it present.
+KNOWN_CLOUD_COLLISIONS = set()
 MIN_ICON_SEPARATION = 60.0
 
 
