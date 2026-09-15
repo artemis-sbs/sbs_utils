@@ -547,7 +547,7 @@ class SpaceObject(Agent):
         if not self._alive:
             return
         v = Vec3(*args)
-        FrameContext.context.sim.reposition_space_object(self._engine_object, v.x, v.y, v.z)
+        FrameContext.context.sbs.reposition_space_object(self._engine_object, v.x, v.y, v.z)
 
 
 
@@ -556,7 +556,7 @@ class MSpawn:
         self.spawn_pos = FrameContext.context.sbs.vec3(x,y,z)
         self._engine_object = obj
 
-        FrameContext.context.sim.reposition_space_object(obj, x, y, z)
+        FrameContext.context.sbs.reposition_space_object(obj, x, y, z)
         self.add()
         self.add_role(self.__class__.__name__)
         self.add_role("__SPACE_OBJECT__")

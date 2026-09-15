@@ -434,9 +434,9 @@ def set_pos(id_or_obj, x, y=None, z=None):
             eo = object.engine_object
             if eo:
                 if y is None:
-                    FrameContext.context.sim.reposition_space_object(eo, x.x, x.y, x.z)
+                    FrameContext.context.sbs.reposition_space_object(eo, x.x, x.y, x.z)
                 else:
-                    FrameContext.context.sim.reposition_space_object(eo, x, y, z)
+                    FrameContext.context.sbs.reposition_space_object(eo, x, y, z)
 
 def get_engineering_value(id_or_obj, name, default=None):
     """Get a named engineering control value from a ship.

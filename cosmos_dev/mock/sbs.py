@@ -1236,6 +1236,19 @@ def query_client_widget_state(clientID: int, widgetName: str, fullScreenFlag: in
 def remove_gui_hotkey(clientID: int, tag: str) -> None:
     """tells the targeted client (0 = server screen) to delete an existing hot key for a certain retained gui element."""
 
+def reposition_space_object(spaceObject: space_object, x: float, y: float, z: float) -> None:
+    """immediately changes the position of a spaceobject.
+
+    The engine exposes this on the MODULE as well as on `simulation`, and the library
+    calls the module one - so the mock has to answer there too. Missing it here made
+    every spawn raise AttributeError in `spawn_common`, which is the whole headless
+    surface: unit tests, --test runs, soaks and the mockgui.
+
+    Delegates rather than duplicating the write, so the two can never disagree.
+    """
+    if sim is not None:
+        sim.reposition_space_object(spaceObject, x, y, z)
+
 def request_client_string(clientComputerID: int, string_key: str) -> None:
     """requests a string value from the client computer.  This results in a script message, 'client_string'"""
     _pending_client_string_events.append((clientComputerID, string_key))

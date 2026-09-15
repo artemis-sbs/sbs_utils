@@ -984,7 +984,7 @@ def respawn_player_ship(id_or_obj):
     engine_obj = so.space_object()
     if engine_obj is None:
         return
-    FrameContext.context.sim.reposition_space_object(engine_obj, so.spawn_pos.x, so.spawn_pos.y, so.spawn_pos.z)
+    FrameContext.context.sbs.reposition_space_object(engine_obj, so.spawn_pos.x, so.spawn_pos.y, so.spawn_pos.z)
     so.set_art_id(art_id)
     remove_role(ship_id, "exploded")
 
