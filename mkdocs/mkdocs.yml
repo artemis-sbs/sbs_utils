@@ -79,6 +79,7 @@ nav:
     - Tile maps: build/tile-maps.md
     - Sides, lifeforms & faces: build/sides-lifeforms.md
     - Player ships & consoles: build/players-consoles.md
+    - The ePADD (console apps): build/epadd.md
     - Crew rosters: build/crew.md
     - Control Gallery (browse every control): cosmos/control-gallery.md
     - GUI: cosmos/gui.md
@@ -180,6 +181,7 @@ nav:
       - map_picker: api/procedural/map_picker.md
       - markers: api/procedural/markers.md
       - media: api/procedural/media.md
+      - messages: api/procedural/messages.md
       - mission: api/procedural/mission.md
       - modifiers: api/procedural/modifiers.md
       - mount: api/procedural/mount.md

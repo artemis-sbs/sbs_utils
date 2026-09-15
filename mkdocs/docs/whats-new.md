@@ -1,22 +1,529 @@
-# What's New in v1.4.0 ✨
+# What's New ✨
 
-A tour of everything that landed in v1.4.0, **best bits first** — across the
+What has landed in Artemis Cosmos, newest release first — across the
 **LegendaryMissions** content and the **sbs_utils** library that powers it.
-
-Start at the top and stop whenever you like: it runs from the new things to *play*,
-through the things you already do that now work better, to mission writing, the tools,
-and finally the library changes. Links go to the relevant docs.
 
 ---
 
+## v1.4.0 { #v1-4-0 }
 
-# Take it for a spin
+Start at the top and stop whenever you like: each part runs from the new things to
+*play*, through the things you already do that now work better, to mission writing, the
+tools, and finally the library changes. Links go to the relevant docs.
+
+### The short version { #v1-4-0-highlights }
+
+| | What it is |
+|---|---|
+| **[The ePADD](#epadd)** | One button on every console opens a screen of apps — mail, quests, cargo, the away team — each with a live badge you can read without opening it. |
+| **["On screen"](#on-screen)** | The captain says it and science can finally do it: hand the main screen a shot of whatever science has selected. |
+| **[Incoming hails](#incoming-hails)** | Comms stops being something only the crew start. The mission calls you, and waits until somebody answers. |
+| **[The old missions fly again](#old-missions)** | All 27 Artemis 2.8 missions in our archive crossed over, and they play — same fleets, same tempers, same voice over comms. |
+| **[A living bestiary](#a-living-bestiary)** | Seven new species over one behavior, each one aging from Young to Ancient. Scan it before you shoot it. |
+| **[Grav-tether](#grav-tether)** | Reel, tow and lock — on a beam that now feels the weight, and tells you when it is struggling. |
+| **[Engineering has something to do](#engineering)** | Systems wear, and a well-run ship can be tuned above spec. Work orders, a three-tab panel, and eight effectiveness numbers nobody could see before. |
+| **[The console picker](#console-picker)** | The first screen of the night now tells you who you are about to be. |
+| **[Beacons & the Fabricator](#beacons)** | Engineering builds ordnance over a timer and hands it to the tube. The coordination is the gameplay. |
+| **[Write the mission, don't program it](#amd)** | Quests, dialogue, drops, markers and whole missions as readable AMD documents. |
+| **[The Casino](#casino)** | Eight games, a bar with rumors, and a grey market for anyone the regulars come to trust. |
+| **[The Director](#director)** | Cut your stream like a broadcast: rundowns, preview and program, titles that write themselves. |
+
+---
+
+### Take it for a spin
 
 The new things to *do* — whole systems that were not there before. Start here.
 
 ---
 
-## 🎬 The Director — stream your game like a broadcast
+#### 📟 The ePADD — every console gets apps { #epadd }
+
+The tab strip along the top of a console was a junk drawer. It held `help`, `library`,
+`upgrade`, `quest` and, on Engineering, `fabricate` and `cargo` — seven of the eight
+slots it allows, in no particular order, each labeled with the raw lowercase name of
+whatever wrote it. Anything else rolled into `More (7)`.
+
+One button replaces all of it. **ePADD** opens a screen of app tiles, named and
+described and grouped, with only the ones this station should see:
+
+```
+[ ePADD ][ back ]                                    Artemis        T+00:14:22
+
+  Ship
+   [ Away Team ]   [ Status  2 ]   [ Messages  3 ]   [ Cargo ]
+   [ Fabricate 1 ] [ Upgrades ]
+
+  Mission
+   [ Quests  2 ]   [ Library ]     [ Help ]
+```
+
+- **A tile tells you whether it is worth opening.** The number on it is live: three
+  unread, two things building, the quest count. Previously the only way to find out
+  was to go and look, on a bar that did not have room to say.
+- **A badge above the ship data** names who is sitting there and how many apps have
+  something waiting — `Lt Marek (2)` — on every console, without opening anything.
+- **Messages.** The crew can text each other, because it is a bridge simulator full of
+  people sitting at separate screens who cannot see one another, and passing a note is
+  half of what they would do if they could. The same inbox carries mail from the story —
+  a letter from your sister, a note from the admiral — and a letter can **ask a
+  question**, with up to four things you can say back. Replies land in the thread, so it
+  reads as a conversation rather than a form you filled in.
+- **A mission's mail is a document a writer can be handed.** One heading per letter, a
+  `From:`, a `To:` naming a console, and `After:` for how far into the mission it
+  arrives. No code.
+- **The away team carries it down.** A landing party's own apps travel with the party,
+  and the scene they are playing is mirrored into the inbox, so the surface crew read
+  their story where they read everything else. It replaces the old separate away
+  console.
+- **It fits the screen it is on.** Thirty apps at 1024x768 is a scrolling list; the same
+  thirty at 1920x1080 is a grid. Nothing is ever cut off the bottom.
+
+For authors, an app is one route and one line of registration — `//gui/app/cargo` plus
+`gui_app_register("cargo", title="Cargo", consoles="engineering", status=hold_count)` —
+and the route keeps its own `if`, which is still what decides whether the app is offered
+at all.
+
+Docs: [The ePADD](build/epadd.md).
+
+---
+
+#### 🖥️ "On screen" — science can finally answer the captain { #on-screen }
+
+The captain says *"on screen"* and, until now, nobody could make it happen. A drop-down
+beside the science console's **Follow** checkbox hands the ship's main screen a shot of
+whatever science has selected.
+
+```
+[x] Follow   [ On Screen - Orbit   v ]
+                Off
+                On Screen - Dolly
+                On Screen - Orbit
+                Tactical 2D
+```
+
+**Dolly** pushes slowly in and out, **Orbit** turns around the contact, and **Tactical
+2D** puts the radar on it. Change the selection and the shot follows; destroy the
+contact and the viewer stands down.
+
+Beside the picture is a **data column** carrying what science actually knows: vitals
+(range, bearing, shields, hull), **every scanned tab together** — Scan, Status, Intel,
+Materials, Bio — recent comms with that contact, and any quest bound to it. It pages
+itself when there is more than one screenful, and skips pages that have nothing to say.
+A mission adds its own page with `viewscreen_page_register`.
+
+Nothing has to be co-ordinated with helm: the viewer writes the same main-screen state
+helm's own control does, so **last writer wins** — helm reaching for the control simply
+takes the screen back, and the drop-down falls back to *Off*. It is scoped per ship, so
+science on one bridge cannot change what another's crew is looking at.
+
+!!! warning "Writing your own main-screen console?"
+    While a shot runs, the console is **assigned to the subject** — the engine only
+    honors a camera change when the console and the lens ride the same object. So
+    `sbs.get_ship_of_client()` on a main screen answers with *the contact being filmed*.
+    Use `viewscreen_home_ship(client_id)` for "this console's own ship".
+
+See [On screen](cosmos/viewscreen.md).
+
+---
+
+#### 📞 Incoming hails — the mission calls *you* { #incoming-hails }
+
+Comms has always been something the crew starts: pick a contact, a menu opens. An
+**incoming hail** is the other direction. It arrives in an **Incoming Hails** list on the
+comms console, newest first, and waits until somebody answers it.
+
+Answering opens a short conversation with up to four things the crew can say back. `Back`
+steps out without answering, so comms can read a hail through and present it later, when
+the captain is ready. Answered conversations stay in the info panel and can be **replayed**
+— a replay can never change what was chosen.
+
+Beside the list is a dial that decides where the conversation is drawn — *Off*, *This
+Console*, *Main Screen*, or *Both* — and an **Audio** checkbox. Each console carries its
+own dial, so putting a hail on the main screen is a decision one officer makes, not
+something the mission forces on the bridge.
+
+While a hail is placed on a comms console, that console's **2D radar follows whoever is
+calling**, the way science points it at a scan target. It obeys the crew's existing Follow
+checkbox, and it hands the radar back afterwards.
+
+*Here There Be Monsters* is written this way end to end: twenty scenes in one document,
+each named by one line of the story.
+
+[Incoming hails](build/incoming-hails.md){ .md-button }
+
+---
+
+#### 🛸 The old missions fly again { #old-missions }
+
+Every mission your crew ever flew in **Artemis 2.8** can come back into service. Hand
+one over and it returns as a Cosmos mission you can host tonight: the same fleets
+waiting in the same corners of the map, the same enemies with the same tempers, the
+same voice cutting in over comms.
+
+**All 27 missions in our archive made the crossing** — and not just far enough to
+load. They play: hostiles pick fights, stations answer hails, the timers still run
+out on you, and each mission still ends the way it always did.
+
+- **The briefing is no longer a memory test.** The mission's goals arrive as real
+  Cosmos [quests](build/quests.md), ticking over in the crew's quest log as you go —
+  or, if you'd rather have the original exactly as it was written, you can have that
+  instead.
+- **Enemies remember they're enemies.** Old missions never spelled out who hated
+  whom; that gets worked out and declared, so hostiles open fire, Science sorts
+  friend from foe, and contacts show in the right colors.
+- **The Game Master keeps the con.** Menus stay nested the way they were laid out,
+  shortcut actions survive, and a spawn lands **where the GM is pointing** rather
+  than in the corner of the map.
+- **The details survive.** Elite Skaraan tricks, captains with a temper, fighters
+  and shuttles in the hangar, science scans, hail text — the flavor comes with the
+  fleet, not just the ships.
+
+Anything the old script left genuinely ambiguous is written down for whoever finishes
+the port, rather than quietly guessed at.
+→ [Porting from Artemis 2.x](mast/porting-2x.md)
+
+---
+
+
+#### 🐙 A Living Bestiary { #a-living-bestiary }
+
+Space monsters are no longer just one hostile Typhon. The **Monsters** map option
+now seeds a **weighted mix of species** — some deadly, some harmless, some that
+actually *help* you — and a Game Master can drop any of them from the spawn menu.
+**Scan** an unknown creature and its science readout tells you what it is before you
+decide to shoot.
+
+- **Seven new species over one behavior:**
+  **Reaver** (fast hunter that *enrages* — faster and redder with every wound),
+  **Ravener** (an apex predator that **feeds on weapon fire** — beams and torpedoes
+  only heal it; the one thing it can't eat is a black hole),
+  **Grazer** (a placid drifter that's **tame unless provoked**, then turns on you),
+  **Bulwark** (colossal, inert living reef — harmless unless you ram it),
+  **Sparkfeeder** (a docile creature that **recharges your ship's energy**),
+  **Siphon Leech** (its parasitic twin — **drains** energy, non-lethal), and the
+  **Warden** (a friendly guardian that hunts *raiders*, never you).
+- **Every monster has an age.** Individuals spawn **Young**, **Mature** or **Ancient** —
+  older ones are tougher and larger (age never changes the damage they deal), and an
+  aged Ancient eventually seeks out a **black hole** to die.
+- **Black holes bite again.** Player ships *and* fighters that drift into a black
+  hole's pull are now reliably destroyed — no more bobbing at the edge or warping
+  free (fixes the long-standing "black holes don't kill" bug).
+
+Authors add a species by dropping in a prefab file over `behav_typhon`; the roster
+and mix live in one weight table.
+
+---
+
+#### 🪝 Grav-tether { #grav-tether }
+
+A tractor beam for Weapons and fighters — one system, scaled by hull.
+
+- **Weapons hold-click** any contact for a context menu: **Reel** cargo in (it's
+  collected on contact), **Tow** a ship or derelict at distance, **Lock** for a rigid
+  grab, or **Release**. The mode is chosen by what you grabbed. You do **not** have to
+  target it first - the menu acts on whatever you held the button on, so you can hook a
+  derelict while staying locked on the raider shooting at you.
+- **Weapons shows what you have hold of.** The called-shot square doubles as the tether
+  readout: the load's own silhouette, the mode (**TOW** / **REEL** / **LOCK**), its name
+  and its range. When the called-shot panel is busy with a target, the tow is named
+  along the bottom strip instead - it is never left unsaid. And it says so when the beam
+  is on **you**: a hostile tether reads **TOWED**, a fighter on a rock reads **SWING**.
+- **Fighters** get a cockpit button with **nose-aim** targeting (it grabs what you're
+  pointing at): reel salvage, or **swing** around an asteroid on a tether that holds
+  your radius while you orbit. The button glows cyan while tethered.
+- **Impulse only** (the canonical rule): a tether can't hold at warp — it caps you
+  back to impulse, or optionally snaps and drops the load.
+
+##### The beam now feels the weight
+
+- **Tow a starbase.** It is slow, it drinks your reserves, and one ship will not get it
+  far — but it moves. A crate still comes in like a crate; a freighter is a real load
+  you feel on the helm; a station is a job.
+- **Call for help, and mean it.** Every ship on the same beam pulls harder *and* takes a
+  share of the power bill, so four hulls haul a station further than one ever will — not
+  four times harder, but four times longer before anyone runs dry. Weapons counts the
+  crew on the readout: **TOW ×4**.
+- **The beam tells you it is struggling.** A haul reports **light**, **heavy** or
+  **overloaded**, and an overloaded one says outright that it wants another ship on it.
+  No more wondering why the helm feels like treacle.
+- **Grav Lock on something enormous pulls *you* over.** Lock a station and the station
+  wins — it reels you in and holds you there, which is a fast way to park. It now winches
+  you across instead of snapping you over in one frame.
+
+##### 🔧 Tug rigs
+
+Two ways to make a ship better at hauling, and they stack.
+
+- **Heavy Tug Rig** — the ship hauls as if it were four. Permanent once fitted, and
+  **bought at a station market**, not found floating in space.
+- **Tug Rig Mk I** — an early-pattern rig you **find** out in the world. Two and a half
+  ships' worth of pull, and it burns itself out after ten minutes. Good for one delivery.
+
+Fit both and they add up. Neither changes what your ship weighs, so a rig will not make
+you harder to grab or make your own wreck worth more.
+
+##### Fixed along the way
+
+- **Reeling a cargo pod no longer brakes your ship.** A canister used to weigh as much as
+  a corvette, which cost you a third of your throttle and turn for picking up a crate.
+- **A fighter can reel a pickup again.** For the same reason, a fighter's reel used to run
+  backwards and drag the *fighter* onto the canister.
+- **Turret crates tow properly.** The crate is built to be towed into position, and it was
+  heavy enough that a light cruiser's beam flipped and dragged the cruiser to the crate.
+
+Built on the engine's native tractor.
+
+---
+
+#### 🛰️ Sensor Beacons & the Fabricator { #beacons }
+
+Engineering has a new job. A **Fabricate** tab turns materials into gear over a **build
+timer**, and its headline product is **Beacons** — a **fabricate-only** ordnance the
+crew builds, hands to the tube, fires, and later flies over to **recover**.
+
+- **A two-console loop, on purpose.** Beacons don't come pre-loaded — a ship spawns with
+  **zero rounds**. Weapons *tells* Engineering what to build, Engineering **fabricates**
+  it (spending inputs over a timer) and **delivers** it to the tube, and only then can
+  Weapons fire it. The coordination *is* the gameplay.
+- **Bio Beacons herd the [bestiary](#a-living-bestiary).** Program one to **attract** or
+  **repel** a chosen space monster, fire it, and it broadcasts across the sector —
+  baiting a Reaver into a minefield or shooing a Grazer off your six.
+- **Sensor Beacons — the old Probe, brought forward.** The passive sensor-relay
+  **Sensor Beacon** folds in Artemis 2.8's **Probe** concept. Ported 2.8 missions that
+  stocked Probes come across as Sensor Beacons the crew can build and deploy.
+- **Recover and reprogram.** Fly over a deployed beacon to add the round back and keep
+  its program; **Science** can scan any beacon to read what it's broadcasting.
+- **Recipes are data.** Every beacon (and any other craftable) is an **AMD recipe** —
+  inputs, build time, and program — so a mission adds its own without touching the addon.
+
+Authors: [Fabrication & Beacons addon](legendarymissions/addons/fabrication.md) ·
+Porting Probes: [Porting from Artemis 2.x](mast/porting-2x.md).
+
+---
+
+#### 🎰 The Casino is open { #casino }
+
+Dock in the hangar bay and step into the **Casino** — a self-contained hangout
+that adds a **Casino** tab to the bay (leave it out and nothing changes). It runs
+on an Arvonian **bit-card deck**, dealt in some games by **the Understander**,
+their revered master computer.
+
+- **Play with chips.** Start with a stack; the **cage** lets you **Buy** more or
+  **Cash Out** — buying dips into the crew's shared credits so you can always get
+  back in, and a hot session earns **comp** chips.
+- **Eight games**, from a ten-second flutter to a full poker duel: **Parity**
+  (quick XOR bet), **Blackjack**, **Nibble**, **Gates** (bit-card baccarat),
+  **Choga**, **Video Poker**, and the new **KoraTa — Ghost-Writing**, a five-round
+  head-to-head where you play cards as **values** to build your run or as
+  **opcodes** to corrupt your rival's (3-bit and 4-bit tables).
+- **The bar.** Toast the room, buy a regular a drink, and **ask for a rumor** —
+  act on it to see if it pans out. Reliable patrons earn your trust; enough trust
+  opens the **grey market**.
+- **Pilot market.** Spend your winnings on **real ship upgrades and gear** —
+  chips first, then side credits.
+
+Play guide: [How to play the Casino](legendarymissions/playing/casino.md) ·
+Authors: [The Casino addon](legendarymissions/addons/casino.md).
+
+---
+
+#### 🛩️ Hangar
+
+- **Sortie board.** Fighter and shuttle pilots pick their own missions from a board.
+- **Loadouts as upgrades.** Craft loadouts are now deltas over the ship hull —
+  shields and ammo applied through the item/upgrade system — with an image-based
+  cockpit overlay.
+- **Rearming takes time.** A craft's refit now runs longer the more torpedoes it
+  has to reload — every empty tube adds time (tunable per dock), so a bomber that
+  spent its payload turns around slower than one that never fired. Fit the new
+  **Torpedo Autoloader** upgrade to cut that per-torpedo cost.
+
+See the [LegendaryMissions addon reference](legendarymissions/addons/index.md).
+
+---
+
+#### 🕵️ Peacetime Remastered — a mission written in AMD
+
+**Peacetime Remastered** is a border-patrol shift that doubles as a worked example of
+authoring a whole mission as **data**. Almost everything the crew sees — the story, the
+job board, the cast, the clues, even the chatter — is declared in one `.amd` fact-sheet;
+MAST holds only the *logic* that reacts to it.
+
+| What the crew sees | Authored as |
+|---|---|
+| The **Ambassador Florbin kidnapping** | a **quest tree** — take the case, identify the kidnapper, subdue, recover |
+| The **cast** (a deck chief, the Admiral, the Ambassador…) | **lifeforms** — hosted contacts appear as comms **badges** you hail |
+| The **40 allergy clues** | generic **AMD records** — each heading is a container the ambassador could hide in, its body the clue |
+| The Ambassador's **passenger complaints** | a **chatter line-pool** — one picked at random |
+| Briefings, cargo manifests, interview reports | **prose templates** filled in at send time |
+| **Object scans** (cargo ships, anomalies) | dialogue-native scans (`Scan of:` / `Tab:` / `%` variants) |
+| The **job board** — gunnery, rocks, poacher, mercy, customs, survey | **quests** with goals, rewards, and fail triggers |
+
+**The job board is a pick-up-work board.** Every job starts **idle** — shown as
+*Available* — and the crew **Accepts** the ones they want from the Quest Log. Accepting is
+when a job's clock starts *and* when its targets spawn, so a timed rescue gives you the
+full window (the Mayday arrives, then the shuttle) and nothing clutters space for work
+nobody took. Weapons stays busy in peacetime: qualify on drones, break hazard rocks, and
+**disable — don't destroy** a poacher.
+
+**The mystery is different every time, and always solvable.** One kidnapper, the
+Ambassador hidden in exactly one cargo hold, and a clue trail laced with decoys — dealt
+fresh each game, and never dealt into a dead end.
+
+Authoring reference: [Quests](build/quests.md) · [Sides, lifeforms & faces](build/sides-lifeforms.md).
+
+---
+
+#### 🤝 Peacetime, with more than one ship
+
+Bring a second ship to a peacetime patrol and a single **Quest Mode** (set on the map
+panel) decides whether you cooperate or compete for the same board of jobs:
+
+- **Co-op** — nothing is claimed. Deliver a barge and *every* ship holding that job is
+  paid, and the multi-step arcs run for the whole crew together.
+- **Protected** *(default)* — the moment you work a target it's **locked to you**. A rival's
+  grav-tether is refused (*"claimed by another ship"*) and only you are paid. Friendly by
+  default, nobody can spoil your job.
+- **Claim-jump** — claims are **stealable**: the [grav-tether](api/procedural/grav_tether.md)
+  becomes the competitive tool, letting you tow a rival's salvage out from under them.
+  Payment follows whoever delivers, and each ship banks its **own** earnings for a
+  top-earner readout.
+
+Who owns a job, who gets paid, and who gets credit for a kill are firm rules rather than
+best effort — they hold however many ships are flying.
+
+Player guide: [Multiplayer jobs](legendarymissions/playing/multiplayer-quests.md).
+
+---
+
+#### 🛡️ The Siege Map, Refined
+
+- **Pick your battlefield size** with a new **Map Size** option.
+- **Consistent, repeatable maps** from phased, keyed seeding (no more surprise
+  spawns inside an asteroid).
+- **Share the exact setup** with per-map **seed options** and a **shareable game
+  code**.
+- **Optional bonus objectives** for skilled crews.
+- **Survive Clock option.** Choose what the time limit *means*: **Win** = outlast the
+  clock to hold the line, or **Loss** = break the siege before time runs out or you
+  lose. One dropdown flips a defensive hold into a race against the clock.
+
+##### 💀 Bosses
+
+The Siege can now escalate into a **boss** that warps in when the raiders thin out —
+picked from a new **Boss** dropdown:
+
+- **Warlord** — a named enemy flagship and honor-guard reinforcements.
+- **Continuous** — endless waves until the clock nears its end, then the attackers
+  break off in retreat for a hard-won defender victory.
+- **Ragnarok** — the renegade "42 Fleet" led by a Terran juggernaut. Beat it outright,
+  or have your comms officer **hail XORN** and turn one of its captains to your side.
+- **Infestation** — a **BioMech** swarm that drifts neutral and feeds on asteroids
+  until you provoke it, then wakes as a collective, **evolves through four stages**,
+  and **breeds** — with the sentient Stage 4 hailable to calm or enrage. BioMechs are a
+  reusable [addon](legendarymissions/addons/biomech.md) you can drop into any mission.
+
+Bosses are **data-driven and folder-scanned** — each is a small file in `maps/bosses/`,
+so authoring a new one is just dropping in a file.
+
+Playing & hosting: [LegendaryMissions](legendarymissions/index.md) ·
+Authors: [Writing a Siege boss](legendarymissions/script/bosses.md).
+
+---
+
+#### 🗣️ Characters who ask, and leave if nobody comes
+
+A quest could always count down. It just did it **in silence** — you learned the
+ambassador had given up when the fare quietly vanished from the board.
+
+An **urge** is what an actor keeps asking for: a condition, a cadence, and a pool of
+authored lines. Anyone can hold one — a passenger, a station, a whole side.
+
+- **The stakes stay in the quest.** An urge declares no consequence of its own; it is the
+  voice of a quest that is already counting down. One clock, one place to tune, and
+  deleting the urge costs the drama but not the mechanics.
+- **The countdown IS the drama curve.** Write `%` while there is time, `%%` as it runs
+  short, `%%%` at the end, and `Escalates: with deadline` reads the quest's own clock.
+  The number of markers is the curve; `Fails when:` is the tempo. Nothing has to agree
+  with anything else.
+- **They know when to shut up.** A per-actor floor stops one character monologuing, and a
+  global floor stops five of them piping up the moment a jump makes them all eligible —
+  shared with mission dispatch, so nobody talks over the Admiral. Only something urgent
+  (`Weight: 90`) jumps that queue.
+- **A station can hold a quest now**, which is what lets a resupply run have a deadline
+  and a cost that lands on the world instead of on whoever happened to fly past.
+- **Standing is a consequence.** `Reward:` and `Penalty:` take
+  `earns <faction> <pole> <n>`, so finishing a job — or abandoning one — can move how a
+  faction feels about you, not just what it charges.
+
+In Open Universe, **Doctor Voss** now waits on the docking ring at her pickup, asks more
+insistently as her window closes, and takes a berth on someone else's freighter if nobody
+comes. In Legendary Missions, **Ambassador Florbin's** famous passenger requests are the
+same character, rewritten as five lines of data instead of a hand-written loop.
+
+
+---
+
+#### 🤖 Attract Mode — the ship flies itself
+
+Flip on **Auto Play** (`AUTO_PLAY: enable: true`) and every bridge runs itself — a
+great **lobby / attract screen** or hands-free demo. The autoplayer doesn't just
+wander and shoot; it plays like a coordinated crew:
+
+- **Stand-off alpha strike.** Against an enemy at range it holds at **5000u**, opens
+  with an **EMP** to strip shields, then a **single Nuke**, waits for the blast to
+  clear, and only then closes to **mop up with beams and homing torps** — so it never
+  catches itself in its own explosion.
+- **Fires only what it has.** It reads real magazine counts and launches only loaded
+  types — no more phantom Homing torpedoes once the tubes run dry — and it **won't
+  friendly-fire**: area torps are held whenever an ally sits in the blast, and
+  **wrecks get beams only**, never torpedoes. A **PShock** finishes a target whose
+  shields are down.
+- **Talks like a crew.** It hails enemies to **taunt** them with the *right* line — the
+  one an **intel scan** reveals — **demands their surrender** once shields drop, and at
+  the start of a match asks friendly **stations to build Nukes** to keep itself armed.
+- **Plays engineer.** It **overpowers drive and weapons** for a faster, harder-hitting
+  ship and **balances the heat with coolant**, easing off when energy runs low.
+- **Survives sensibly.** It **flees lethal terrain** — steering clear of a **black hole's**
+  pull well before it's caught in the well — **docks to repair** when hurt, and if its
+  **maneuvering is shot out** it **holds station** to keep fighting instead of burning off
+  into deep space.
+- **Goes home when the tank runs low.** A ship short on energy now flies to a friendly
+  station, docks, and comes back out fully fueled with its shields up. It used to stop
+  where it stood and wait for the auxiliary power unit to bring it back up — which the
+  APU never does past a trickle charge, so a lobby left running long enough filled up
+  with ships parked in deep space doing nothing.
+
+Turn it on — and tune its **stand-off range** and **engineering overpower** — in
+[LegendaryMissions](legendarymissions/index.md) settings.
+
+---
+
+#### ⚡ Everything with a brain now thinks twice as often
+
+Monsters, fleets, turrets, station defenders — anything driven by a **brain** — re-decide
+what to do on a fixed heartbeat. That heartbeat was supposed to be three seconds. It was
+really **six**, everywhere, for as long as the system has existed.
+
+Nothing looked broken, which is why it lasted: a creature that reconsiders every six
+seconds is not obviously wrong, it just commits to whatever it last chose for twice as
+long as intended. You saw it as enemies that kept chasing a target after you slipped
+away, or a hunter that took a beat too long to notice you.
+
+Brains, [objectives](mast/objectives.md) and urges now run at the period they
+declare. In practice things react about **twice as fast** to a situation changing —
+without any of them being made more aggressive.
+
+!!! note "It showed up as a ship that would not warp"
+    The tell came from the [attract-mode](#attract-mode-the-ship-flies-itself) pilot.
+    Rewritten as a brain, it almost never used its warp drive, while the older version
+    warped constantly with the same rules. It was not choosing differently: it was only
+    re-checking its speed every fifteen seconds, so by the time it looked, it had already
+    arrived. Chasing that one down is what surfaced the timing bug behind all of it.
+
+---
+
+#### 🎬 The Director — stream your game like a broadcast { #director }
 
 Cosmos looks best from outside the ship, and a stream of it is only as good as the shot
 it is on. The **[Director](cosmos/director.md)** is a console for cutting that stream
@@ -70,476 +577,14 @@ Docs: [The Director](cosmos/director.md).
 
 ---
 
-## 🏛️ Fly *inside* a relic
-
-A structure your ship goes **into** — a hollow ruin, a canyon, a docking throat.
-
-The obvious way to build one is to make the walls out of solid objects, and it does not
-work. The engine has exactly one collision primitive: a **keep-out sphere**. A hollow
-shell is the opposite of a sphere, so approximating one takes hundreds of them, and the
-boundary still never lines up with the art — you clip through corners, or stop dead in
-what looks like open space.
-
-So a relic describes the **space** instead of the walls — chambers, passages, rooms with
-real corners, and the pillar in the middle of the hall carved out of them.
-
-- **Getting caught is graded.** Scrape the wall and it hurts but you fly on; push past it
-  and you are held — and the hold is a real tractor, so you feel it take you rather than
-  being snapped back.
-- **The atmosphere does the speed limiting.** A relic full of nebula caps your warp by
-  itself. There is nothing for helm to fight.
-- **The walls are scenery.** Delete every prop and the boundary behaves exactly the same;
-  the props are there to make an invisible edge legible.
-- **A mission author writes the layout down**, so the same ruin can be dropped in twice.
-
-Docs: [Relic interiors](build/relics.md).
-
----
-
-## 🖥️ "On screen" — science can finally answer the captain
-
-The captain says *"on screen"* and, until now, nobody could make it happen. A drop-down
-beside the science console's **Follow** checkbox hands the ship's main screen a shot of
-whatever science has selected.
-
-```
-[x] Follow   [ On Screen - Orbit   v ]
-                Off
-                On Screen - Dolly
-                On Screen - Orbit
-                Tactical 2D
-```
-
-**Dolly** pushes slowly in and out, **Orbit** turns around the contact, and **Tactical
-2D** puts the radar on it. Change the selection and the shot follows; destroy the
-contact and the viewer stands down.
-
-Beside the picture is a **data column** carrying what science actually knows: vitals
-(range, bearing, shields, hull), **every scanned tab together** — Scan, Status, Intel,
-Materials, Bio — recent comms with that contact, and any quest bound to it. It pages
-itself when there is more than one screenful, and skips pages that have nothing to say.
-A mission adds its own page with `viewscreen_page_register`.
-
-Nothing has to be co-ordinated with helm: the viewer writes the same main-screen state
-helm's own control does, so **last writer wins** — helm reaching for the control simply
-takes the screen back, and the drop-down falls back to *Off*. It is scoped per ship, so
-science on one bridge cannot change what another's crew is looking at.
-
-!!! warning "Writing your own main-screen console?"
-    While a shot runs, the console is **assigned to the subject** — the engine only
-    honors a camera change when the console and the lens ride the same object. So
-    `sbs.get_ship_of_client()` on a main screen answers with *the contact being filmed*.
-    Use `viewscreen_home_ship(client_id)` for "this console's own ship".
-
-See [On screen](cosmos/viewscreen.md).
-
----
-
-## 🎰 The Casino is open
-
-Dock in the hangar bay and step into the **Casino** — a self-contained hangout
-that adds a **Casino** tab to the bay (leave it out and nothing changes). It runs
-on an Arvonian **bit-card deck**, dealt in some games by **the Understander**,
-their revered master computer.
-
-- **Play with chips.** Start with a stack; the **cage** lets you **Buy** more or
-  **Cash Out** — buying dips into the crew's shared credits so you can always get
-  back in, and a hot session earns **comp** chips.
-- **Eight games**, from a ten-second flutter to a full poker duel: **Parity**
-  (quick XOR bet), **Blackjack**, **Nibble**, **Gates** (bit-card baccarat),
-  **Choga**, **Video Poker**, and the new **KoraTa — Ghost-Writing**, a five-round
-  head-to-head where you play cards as **values** to build your run or as
-  **opcodes** to corrupt your rival's (3-bit and 4-bit tables).
-- **The bar.** Toast the room, buy a regular a drink, and **ask for a rumor** —
-  act on it to see if it pans out. Reliable patrons earn your trust; enough trust
-  opens the **grey market**.
-- **Pilot market.** Spend your winnings on **real ship upgrades and gear** —
-  chips first, then side credits.
-
-Play guide: [How to play the Casino](legendarymissions/playing/casino.md) ·
-Authors: [The Casino addon](legendarymissions/addons/casino.md).
-
----
-
-## 🪝 Grav-tether
-
-A tractor beam for Weapons and fighters — one system, scaled by hull.
-
-- **Weapons hold-click** any contact for a context menu: **Reel** cargo in (it's
-  collected on contact), **Tow** a ship or derelict at distance, **Lock** for a rigid
-  grab, or **Release**. The mode is chosen by what you grabbed. You do **not** have to
-  target it first - the menu acts on whatever you held the button on, so you can hook a
-  derelict while staying locked on the raider shooting at you.
-- **Weapons shows what you have hold of.** The called-shot square doubles as the tether
-  readout: the load's own silhouette, the mode (**TOW** / **REEL** / **LOCK**), its name
-  and its range. When the called-shot panel is busy with a target, the tow is named
-  along the bottom strip instead - it is never left unsaid. And it says so when the beam
-  is on **you**: a hostile tether reads **TOWED**, a fighter on a rock reads **SWING**.
-- **Fighters** get a cockpit button with **nose-aim** targeting (it grabs what you're
-  pointing at): reel salvage, or **swing** around an asteroid on a tether that holds
-  your radius while you orbit. The button glows cyan while tethered.
-- **Impulse only** (the canonical rule): a tether can't hold at warp — it caps you
-  back to impulse, or optionally snaps and drops the load.
-
-### The beam now feels the weight
-
-- **Tow a starbase.** It is slow, it drinks your reserves, and one ship will not get it
-  far — but it moves. A crate still comes in like a crate; a freighter is a real load
-  you feel on the helm; a station is a job.
-- **Call for help, and mean it.** Every ship on the same beam pulls harder *and* takes a
-  share of the power bill, so four hulls haul a station further than one ever will — not
-  four times harder, but four times longer before anyone runs dry. Weapons counts the
-  crew on the readout: **TOW ×4**.
-- **The beam tells you it is struggling.** A haul reports **light**, **heavy** or
-  **overloaded**, and an overloaded one says outright that it wants another ship on it.
-  No more wondering why the helm feels like treacle.
-- **Grav Lock on something enormous pulls *you* over.** Lock a station and the station
-  wins — it reels you in and holds you there, which is a fast way to park. It now winches
-  you across instead of snapping you over in one frame.
-
-### 🔧 Tug rigs
-
-Two ways to make a ship better at hauling, and they stack.
-
-- **Heavy Tug Rig** — the ship hauls as if it were four. Permanent once fitted, and
-  **bought at a station market**, not found floating in space.
-- **Tug Rig Mk I** — an early-pattern rig you **find** out in the world. Two and a half
-  ships' worth of pull, and it burns itself out after ten minutes. Good for one delivery.
-
-Fit both and they add up. Neither changes what your ship weighs, so a rig will not make
-you harder to grab or make your own wreck worth more.
-
-### Fixed along the way
-
-- **Reeling a cargo pod no longer brakes your ship.** A canister used to weigh as much as
-  a corvette, which cost you a third of your throttle and turn for picking up a crate.
-- **A fighter can reel a pickup again.** For the same reason, a fighter's reel used to run
-  backwards and drag the *fighter* onto the canister.
-- **Turret crates tow properly.** The crate is built to be towed into position, and it was
-  heavy enough that a light cruiser's beam flipped and dragged the cruiser to the crate.
-
-Built on the engine's native tractor.
-
----
-
-## 🤖 Attract Mode — the ship flies itself
-
-Flip on **Auto Play** (`AUTO_PLAY: enable: true`) and every bridge runs itself — a
-great **lobby / attract screen** or hands-free demo. The autoplayer doesn't just
-wander and shoot; it plays like a coordinated crew:
-
-- **Stand-off alpha strike.** Against an enemy at range it holds at **5000u**, opens
-  with an **EMP** to strip shields, then a **single Nuke**, waits for the blast to
-  clear, and only then closes to **mop up with beams and homing torps** — so it never
-  catches itself in its own explosion.
-- **Fires only what it has.** It reads real magazine counts and launches only loaded
-  types — no more phantom Homing torpedoes once the tubes run dry — and it **won't
-  friendly-fire**: area torps are held whenever an ally sits in the blast, and
-  **wrecks get beams only**, never torpedoes. A **PShock** finishes a target whose
-  shields are down.
-- **Talks like a crew.** It hails enemies to **taunt** them with the *right* line — the
-  one an **intel scan** reveals — **demands their surrender** once shields drop, and at
-  the start of a match asks friendly **stations to build Nukes** to keep itself armed.
-- **Plays engineer.** It **overpowers drive and weapons** for a faster, harder-hitting
-  ship and **balances the heat with coolant**, easing off when energy runs low.
-- **Survives sensibly.** It **flees lethal terrain** — steering clear of a **black hole's**
-  pull well before it's caught in the well — **docks to repair** when hurt, and if its
-  **maneuvering is shot out** it **holds station** to keep fighting instead of burning off
-  into deep space.
-- **Goes home when the tank runs low.** A ship short on energy now flies to a friendly
-  station, docks, and comes back out fully fueled with its shields up. It used to stop
-  where it stood and wait for the auxiliary power unit to bring it back up — which the
-  APU never does past a trickle charge, so a lobby left running long enough filled up
-  with ships parked in deep space doing nothing.
-
-Turn it on — and tune its **stand-off range** and **engineering overpower** — in
-[LegendaryMissions](legendarymissions/index.md) settings.
-
----
-
-## ⚡ Everything with a brain now thinks twice as often
-
-Monsters, fleets, turrets, station defenders — anything driven by a **brain** — re-decide
-what to do on a fixed heartbeat. That heartbeat was supposed to be three seconds. It was
-really **six**, everywhere, for as long as the system has existed.
-
-Nothing looked broken, which is why it lasted: a creature that reconsiders every six
-seconds is not obviously wrong, it just commits to whatever it last chose for twice as
-long as intended. You saw it as enemies that kept chasing a target after you slipped
-away, or a hunter that took a beat too long to notice you.
-
-Brains, [objectives](mast/objectives.md) and urges now run at the period they
-declare. In practice things react about **twice as fast** to a situation changing —
-without any of them being made more aggressive.
-
-!!! note "It showed up as a ship that would not warp"
-    The tell came from the [attract-mode](#attract-mode-the-ship-flies-itself) pilot.
-    Rewritten as a brain, it almost never used its warp drive, while the older version
-    warped constantly with the same rules. It was not choosing differently: it was only
-    re-checking its speed every fifteen seconds, so by the time it looked, it had already
-    arrived. Chasing that one down is what surfaced the timing bug behind all of it.
-
----
-
-## 🐙 A Living Bestiary
-
-Space monsters are no longer just one hostile Typhon. The **Monsters** map option
-now seeds a **weighted mix of species** — some deadly, some harmless, some that
-actually *help* you — and a Game Master can drop any of them from the spawn menu.
-**Scan** an unknown creature and its science readout tells you what it is before you
-decide to shoot.
-
-- **Seven new species over one behavior:**
-  **Reaver** (fast hunter that *enrages* — faster and redder with every wound),
-  **Ravener** (an apex predator that **feeds on weapon fire** — beams and torpedoes
-  only heal it; the one thing it can't eat is a black hole),
-  **Grazer** (a placid drifter that's **tame unless provoked**, then turns on you),
-  **Bulwark** (colossal, inert living reef — harmless unless you ram it),
-  **Sparkfeeder** (a docile creature that **recharges your ship's energy**),
-  **Siphon Leech** (its parasitic twin — **drains** energy, non-lethal), and the
-  **Warden** (a friendly guardian that hunts *raiders*, never you).
-- **Every monster has an age.** Individuals spawn **Young**, **Mature** or **Ancient** —
-  older ones are tougher and larger (age never changes the damage they deal), and an
-  aged Ancient eventually seeks out a **black hole** to die.
-- **Black holes bite again.** Player ships *and* fighters that drift into a black
-  hole's pull are now reliably destroyed — no more bobbing at the edge or warping
-  free (fixes the long-standing "black holes don't kill" bug).
-
-Authors add a species by dropping in a prefab file over `behav_typhon`; the roster
-and mix live in one weight table.
-
----
-
-## 🛰️ Sensor Beacons & the Fabricator
-
-Engineering has a new job. A **Fabricate** tab turns materials into gear over a **build
-timer**, and its headline product is **Beacons** — a **fabricate-only** ordnance the
-crew builds, hands to the tube, fires, and later flies over to **recover**.
-
-- **A two-console loop, on purpose.** Beacons don't come pre-loaded — a ship spawns with
-  **zero rounds**. Weapons *tells* Engineering what to build, Engineering **fabricates**
-  it (spending inputs over a timer) and **delivers** it to the tube, and only then can
-  Weapons fire it. The coordination *is* the gameplay.
-- **Bio Beacons herd the [bestiary](#a-living-bestiary).** Program one to **attract** or
-  **repel** a chosen space monster, fire it, and it broadcasts across the sector —
-  baiting a Reaver into a minefield or shooing a Grazer off your six.
-- **Sensor Beacons — the old Probe, brought forward.** The passive sensor-relay
-  **Sensor Beacon** folds in Artemis 2.8's **Probe** concept. Ported 2.8 missions that
-  stocked Probes come across as Sensor Beacons the crew can build and deploy.
-- **Recover and reprogram.** Fly over a deployed beacon to add the round back and keep
-  its program; **Science** can scan any beacon to read what it's broadcasting.
-- **Recipes are data.** Every beacon (and any other craftable) is an **AMD recipe** —
-  inputs, build time, and program — so a mission adds its own without touching the addon.
-
-Authors: [Fabrication & Beacons addon](legendarymissions/addons/fabrication.md) ·
-Porting Probes: [Porting from Artemis 2.x](mast/porting-2x.md).
-
----
-
-## 🗣️ Characters who ask, and leave if nobody comes
-
-A quest could always count down. It just did it **in silence** — you learned the
-ambassador had given up when the fare quietly vanished from the board.
-
-An **urge** is what an actor keeps asking for: a condition, a cadence, and a pool of
-authored lines. Anyone can hold one — a passenger, a station, a whole side.
-
-- **The stakes stay in the quest.** An urge declares no consequence of its own; it is the
-  voice of a quest that is already counting down. One clock, one place to tune, and
-  deleting the urge costs the drama but not the mechanics.
-- **The countdown IS the drama curve.** Write `%` while there is time, `%%` as it runs
-  short, `%%%` at the end, and `Escalates: with deadline` reads the quest's own clock.
-  The number of markers is the curve; `Fails when:` is the tempo. Nothing has to agree
-  with anything else.
-- **They know when to shut up.** A per-actor floor stops one character monologuing, and a
-  global floor stops five of them piping up the moment a jump makes them all eligible —
-  shared with mission dispatch, so nobody talks over the Admiral. Only something urgent
-  (`Weight: 90`) jumps that queue.
-- **A station can hold a quest now**, which is what lets a resupply run have a deadline
-  and a cost that lands on the world instead of on whoever happened to fly past.
-- **Standing is a consequence.** `Reward:` and `Penalty:` take
-  `earns <faction> <pole> <n>`, so finishing a job — or abandoning one — can move how a
-  faction feels about you, not just what it charges.
-
-In Open Universe, **Doctor Voss** now waits on the docking ring at her pickup, asks more
-insistently as her window closes, and takes a berth on someone else's freighter if nobody
-comes. In Legendary Missions, **Ambassador Florbin's** famous passenger requests are the
-same character, rewritten as five lines of data instead of a hand-written loop.
-
-
----
-
-## 📞 Incoming hails — the mission calls *you*
-
-Comms has always been something the crew starts: pick a contact, a menu opens. An
-**incoming hail** is the other direction. It arrives in an **Incoming Hails** list on the
-comms console, newest first, and waits until somebody answers it.
-
-Answering opens a short conversation with up to four things the crew can say back. `Back`
-steps out without answering, so comms can read a hail through and present it later, when
-the captain is ready. Answered conversations stay in the info panel and can be **replayed**
-— a replay can never change what was chosen.
-
-Beside the list is a dial that decides where the conversation is drawn — *Off*, *This
-Console*, *Main Screen*, or *Both* — and an **Audio** checkbox. Each console carries its
-own dial, so putting a hail on the main screen is a decision one officer makes, not
-something the mission forces on the bridge.
-
-While a hail is placed on a comms console, that console's **2D radar follows whoever is
-calling**, the way science points it at a scan target. It obeys the crew's existing Follow
-checkbox, and it hands the radar back afterwards.
-
-*Here There Be Monsters* is written this way end to end: twenty scenes in one document,
-each named by one line of the story.
-
-[Incoming hails](build/incoming-hails.md){ .md-button }
-
----
-
-## 🕵️ Peacetime Remastered — a mission written in AMD
-
-**Peacetime Remastered** is a border-patrol shift that doubles as a worked example of
-authoring a whole mission as **data**. Almost everything the crew sees — the story, the
-job board, the cast, the clues, even the chatter — is declared in one `.amd` fact-sheet;
-MAST holds only the *logic* that reacts to it.
-
-| What the crew sees | Authored as |
-|---|---|
-| The **Ambassador Florbin kidnapping** | a **quest tree** — take the case, identify the kidnapper, subdue, recover |
-| The **cast** (a deck chief, the Admiral, the Ambassador…) | **lifeforms** — hosted contacts appear as comms **badges** you hail |
-| The **40 allergy clues** | generic **AMD records** — each heading is a container the ambassador could hide in, its body the clue |
-| The Ambassador's **passenger complaints** | a **chatter line-pool** — one picked at random |
-| Briefings, cargo manifests, interview reports | **prose templates** filled in at send time |
-| **Object scans** (cargo ships, anomalies) | dialogue-native scans (`Scan of:` / `Tab:` / `%` variants) |
-| The **job board** — gunnery, rocks, poacher, mercy, customs, survey | **quests** with goals, rewards, and fail triggers |
-
-**The job board is a pick-up-work board.** Every job starts **idle** — shown as
-*Available* — and the crew **Accepts** the ones they want from the Quest Log. Accepting is
-when a job's clock starts *and* when its targets spawn, so a timed rescue gives you the
-full window (the Mayday arrives, then the shuttle) and nothing clutters space for work
-nobody took. Weapons stays busy in peacetime: qualify on drones, break hazard rocks, and
-**disable — don't destroy** a poacher.
-
-**The mystery is different every time, and always solvable.** One kidnapper, the
-Ambassador hidden in exactly one cargo hold, and a clue trail laced with decoys — dealt
-fresh each game, and never dealt into a dead end.
-
-Authoring reference: [Quests](build/quests.md) · [Sides, lifeforms & faces](build/sides-lifeforms.md).
-
----
-
-## 🤝 Peacetime, with more than one ship
-
-Bring a second ship to a peacetime patrol and a single **Quest Mode** (set on the map
-panel) decides whether you cooperate or compete for the same board of jobs:
-
-- **Co-op** — nothing is claimed. Deliver a barge and *every* ship holding that job is
-  paid, and the multi-step arcs run for the whole crew together.
-- **Protected** *(default)* — the moment you work a target it's **locked to you**. A rival's
-  grav-tether is refused (*"claimed by another ship"*) and only you are paid. Friendly by
-  default, nobody can spoil your job.
-- **Claim-jump** — claims are **stealable**: the [grav-tether](api/procedural/grav_tether.md)
-  becomes the competitive tool, letting you tow a rival's salvage out from under them.
-  Payment follows whoever delivers, and each ship banks its **own** earnings for a
-  top-earner readout.
-
-Who owns a job, who gets paid, and who gets credit for a kill are firm rules rather than
-best effort — they hold however many ships are flying.
-
-Player guide: [Multiplayer jobs](legendarymissions/playing/multiplayer-quests.md).
-
----
-
-## 🛡️ The Siege Map, Refined
-
-- **Pick your battlefield size** with a new **Map Size** option.
-- **Consistent, repeatable maps** from phased, keyed seeding (no more surprise
-  spawns inside an asteroid).
-- **Share the exact setup** with per-map **seed options** and a **shareable game
-  code**.
-- **Optional bonus objectives** for skilled crews.
-- **Survive Clock option.** Choose what the time limit *means*: **Win** = outlast the
-  clock to hold the line, or **Loss** = break the siege before time runs out or you
-  lose. One dropdown flips a defensive hold into a race against the clock.
-
-### 💀 Bosses
-
-The Siege can now escalate into a **boss** that warps in when the raiders thin out —
-picked from a new **Boss** dropdown:
-
-- **Warlord** — a named enemy flagship and honor-guard reinforcements.
-- **Continuous** — endless waves until the clock nears its end, then the attackers
-  break off in retreat for a hard-won defender victory.
-- **Ragnarok** — the renegade "42 Fleet" led by a Terran juggernaut. Beat it outright,
-  or have your comms officer **hail XORN** and turn one of its captains to your side.
-- **Infestation** — a **BioMech** swarm that drifts neutral and feeds on asteroids
-  until you provoke it, then wakes as a collective, **evolves through four stages**,
-  and **breeds** — with the sentient Stage 4 hailable to calm or enrage. BioMechs are a
-  reusable [addon](legendarymissions/addons/biomech.md) you can drop into any mission.
-
-Bosses are **data-driven and folder-scanned** — each is a small file in `maps/bosses/`,
-so authoring a new one is just dropping in a file.
-
-Playing & hosting: [LegendaryMissions](legendarymissions/index.md) ·
-Authors: [Writing a Siege boss](legendarymissions/script/bosses.md).
-
----
-
-## 🛩️ Hangar
-
-- **Sortie board.** Fighter and shuttle pilots pick their own missions from a board.
-- **Loadouts as upgrades.** Craft loadouts are now deltas over the ship hull —
-  shields and ammo applied through the item/upgrade system — with an image-based
-  cockpit overlay.
-- **Rearming takes time.** A craft's refit now runs longer the more torpedoes it
-  has to reload — every empty tube adds time (tunable per dock), so a bomber that
-  spent its payload turns around slower than one that never fired. Fit the new
-  **Torpedo Autoloader** upgrade to cut that per-torpedo cost.
-
-See the [LegendaryMissions addon reference](legendarymissions/addons/index.md).
-
----
-
-## 🛸 The old missions fly again
-
-Every mission your crew ever flew in **Artemis 2.8** can come back into service. Hand
-one over and it returns as a Cosmos mission you can host tonight: the same fleets
-waiting in the same corners of the map, the same enemies with the same tempers, the
-same voice cutting in over comms.
-
-**All 27 missions in our archive made the crossing** — and not just far enough to
-load. They play: hostiles pick fights, stations answer hails, the timers still run
-out on you, and each mission still ends the way it always did.
-
-- **The briefing is no longer a memory test.** The mission's goals arrive as real
-  Cosmos [quests](build/quests.md), ticking over in the crew's quest log as you go —
-  or, if you'd rather have the original exactly as it was written, you can have that
-  instead.
-- **Enemies remember they're enemies.** Old missions never spelled out who hated
-  whom; that gets worked out and declared, so hostiles open fire, Science sorts
-  friend from foe, and contacts show in the right colors.
-- **The Game Master keeps the con.** Menus stay nested the way they were laid out,
-  shortcut actions survive, and a spawn lands **where the GM is pointing** rather
-  than in the corner of the map.
-- **The details survive.** Elite Skaraan tricks, captains with a temper, fighters
-  and shuttles in the hangar, science scans, hail text — the flavour comes with the
-  fleet, not just the ships.
-
-Anything the old script left genuinely ambiguous is written down for whoever finishes
-the port, rather than quietly guessed at.
-→ [Porting from Artemis 2.x](mast/porting-2x.md)
-
----
-
-
-# The things you already do, done better
+### The things you already do, done better
 
 Everything in this part is something you already had, met again. A few change what
 your game looks like whether you ask for them or not.
 
 ---
 
-## 🪪 The console picker says who you are about to be
+#### 🪪 The console picker says who you are about to be { #console-picker }
 
 The first screen of every session used to offer an empty **Crew person Name** box and
 an **Edit Face** button. Almost nobody filled the box in — and a name was only worked
@@ -592,7 +637,7 @@ Docs: [Crew rosters](build/crew.md).
 
 ---
 
-## 🔧 Engineering has something to do between the hits
+#### 🔧 Engineering has something to do between the hits { #engineering }
 
 Damage control was binary: a room was broken or it was fine, and the only thing that
 ever changed it was taking a hit. Systems now have **condition** as well as damage —
@@ -666,7 +711,7 @@ Docs: [Work orders and maintenance](api/procedural/work_orders.md), [Damage](bui
 
 ---
 
-## 📻 The text waterfall grew up into the ship's log
+#### 📻 The text waterfall grew up into the ship's log
 
 **Every console gets this, with nothing to opt into.** The waterfall did one job — show
 the last few lines — and did it with its hands tied: the engine never wrote to it, script
@@ -683,7 +728,7 @@ Newest is **first** in both, so the latest line never moves.
 You write to it exactly as before — `comms_broadcast(...)` — with two new optional
 arguments: `category` picks the tab (everything still shows in **Log**, so a filter can
 never hide a message), and `severity` (`tip` / `warning` / `danger`) renders the line as a
-coloured callout.
+colored callout.
 
 **The corner toast folds into the same log.** `overlay_toast()` and the `toast <text>`
 quest directive still work and still compile — they write a log line instead of drawing a
@@ -706,7 +751,7 @@ Docs: [Messages & the ship's log](build/messages.md), [Overlays](cosmos/overlays
 
 ---
 
-## 💾 Your setup survives a restart
+#### 💾 Your setup survives a restart
 
 Restarting the mission put every option back to `settings.yaml` — player ships,
 difficulty, terrain, the lot. After an early death, or with one setting to change,
@@ -735,7 +780,7 @@ still change one and the change sticks.
 
 ---
 
-## 📜 The Quest Log says something new
+#### 📜 The Quest Log says something new
 
 Every row used to be the same square, over a caption repeating the state the square's
 color already showed. Now the **shape is what the thing is** — job, objective, beat, arc
@@ -752,7 +797,7 @@ log without touching a line of it.
 
 ---
 
-## 🧭 Quests & Stories
+#### 🧭 Quests & Stories
 
 - **A signal-driven quest engine** with kill / collect / scan / dock / reach /
   arrive triggers and real rewards — all **authored in simple AMD files**.
@@ -773,7 +818,7 @@ Docs: [Quests](build/quests.md).
 
 ---
 
-## 💱 Items & Upgrades
+#### 💱 Items & Upgrades
 
 **One pickup can be worth several units.** `item_spawn(key, x, y, z, qty=24)` stamps a
 quantity on the pickup and collecting it credits the lot. A job wanting 24 salvage used
@@ -788,7 +833,7 @@ Docs: [Items & Upgrades](build/items-upgrades.md).
 
 ---
 
-## 🏆 Game Results & Scorekeeping
+#### 🏆 Game Results & Scorekeeping
 
 The end-of-game screen is now a **tabbed results board** with real scorekeeping —
 built for bragging rights, and for running a scored event.
@@ -818,7 +863,7 @@ Details: [LegendaryMissions &rsaquo; Game features](legendarymissions/playing/fe
 
 ---
 
-## 🤝 Friend or Foe — decided by Diplomacy, not by labels
+#### 🤝 Friend or Foe — decided by Diplomacy, not by labels
 
 A deep pass reworked how the game answers one deceptively simple question: *"is this
 ship a friend or an enemy?"* It used to be answered by **hardcoded role labels** —
@@ -854,7 +899,7 @@ Docs: [Sides & Diplomacy](api/procedural/sides.md).
 
 ---
 
-## 🚢 Fleets, written down at last
+#### 🚢 Fleets, written down at last
 
 Fleet ladders became per-race data in v1.4.0, but how you actually *spawn* one was folklore.
 Now documented: **[Fleets & raiding](build/fleets.md)** — `prefab_fleet_raider`, what a
@@ -868,7 +913,7 @@ forms nobody guessed:
 
 ---
 
-## 🏷️ Icons have names now
+#### 🏷️ Icons have names now
 
 `gui_icon("icon_index:111;")` asked you to remember that 111 is a wanted poster. Every
 one of the built-in sheet's **176 glyphs now has a name**, and there is one call that
@@ -927,7 +972,7 @@ The whole named set, with pictures: **[Icons by name](cosmos/gui_icons.md)**.
 
 ---
 
-## 🗂️ Console tabs stop drawing over each other
+#### 🗂️ Console tabs stop drawing over each other
 
 The tab strip divided a fixed width evenly, so more tabs only ever meant narrower tabs —
 and the engine does not clip text, it draws it anyway, over the neighbour. Every tab was
@@ -941,7 +986,7 @@ See [The console tab strip](build/players-consoles.md#the-console-tab-strip).
 
 ---
 
-## ⚡ Smoother with big fleets
+#### ⚡ Smoother with big fleets
 
 Large battles used to **stutter on a beat**. Every few seconds the game processed
 **every NPC brain in a single frame** — then, on another beat, **every mission
@@ -976,7 +1021,7 @@ last ship goes. A mission that deliberately holds an empty fleet keeps it.
 
 ---
 
-## 🎬 Quality-of-Life & Presentation
+#### 🎬 Quality-of-Life & Presentation
 
 - **Shareable game codes** and per-map seed options so crews can replay the exact
   same setup.
@@ -991,7 +1036,7 @@ Details: [LegendaryMissions &rsaquo; Game features](legendarymissions/playing/fe
 
 ---
 
-## 🗂️ One profile for every mission
+#### 🗂️ One profile for every mission
 
 A [profile](tooling/profiles.md) — one named file that decides how a mission runs
 — had to live inside the mission it configured. Two missions wanting the same
@@ -1024,14 +1069,14 @@ something else entirely. They stop applying on a switch, and say so.
 ---
 
 
-# Writing a mission
+### Writing a mission
 
 For anyone building one. The short version: far more of a mission is now something you
 **write down** rather than something you program.
 
 ---
 
-## ✍️ AMD — write the mission, don't program it
+#### ✍️ AMD — write the mission, don't program it { #amd }
 
 **AMD** is the new way to author content: a mission's jobs, characters, places and
 story beats are written as plain **fact sheets**, in the words you would use describing
@@ -1079,7 +1124,7 @@ See [The AMD file format](build/amd-format.md).
 
 ---
 
-## 🎞️ AMD prose reads like a screenplay
+#### 🎞️ AMD prose reads like a screenplay
 
 The fact sheets were only half the file. The other half is the **prose**, and it learned
 six marks — borrowed from Fountain, the screenplay format, and Obsidian, where linked
@@ -1128,7 +1173,7 @@ See [Writing the body](build/amd-format.md#writing-the-body).
 
 ---
 
-## 💀 `Drops:` — what a kill leaves behind
+#### 💀 `Drops:` — what a kill leaves behind
 
 Loot is authored now, keyed by **role**, because what a ship drops follows from what it
 *is*:
@@ -1150,7 +1195,7 @@ See [What a kill leaves behind](build/items-upgrades.md#what-a-kill-leaves-behin
 
 ---
 
-## 📍 Markers — naming a place
+#### 📍 Markers — naming a place
 
 "Clear the asteroids in the shipping lane" needed the crew to know which asteroids, and
 prose written at authoring time could only name coordinates that go stale. So put the
@@ -1161,7 +1206,7 @@ See [Naming a place](build/world-building.md#naming-a-place).
 
 ---
 
-## ⏳ A deadline you can hear coming
+#### ⏳ A deadline you can hear coming
 
 A job with a `Fails when:` clock **calls in as it runs down**, on comms, rather than
 counting itself out silently on a tab nobody is looking at. Marks are absolute — 5:00, 2:00, 1:00,
@@ -1184,7 +1229,7 @@ See [Deadline reminders](build/quests.md#deadline-reminders).
 
 ---
 
-## 📞 A beat that opens with a call
+#### 📞 A beat that opens with a call
 
 The reason hails matter for authors: somebody calling is a natural way to hand out work,
 and taking the job is what you say back. Both halves are AMD.
@@ -1237,7 +1282,7 @@ quietly does nothing.
 
 ---
 
-## 🎭 Overlays — cards, HUDs & cutscenes on top of the view
+#### 🎭 Overlays — cards, HUDs & cutscenes on top of the view
 
 A whole new **[overlay system](cosmos/overlays.md)** for drawing on top of a console's
 page **and** its live 3D view — chapter cards, notifications, a modal choice, a live
@@ -1269,7 +1314,7 @@ HUD — that update **without repainting the page underneath**.
 
 ---
 
-## 📋 Richer GUI — tables, and text that does more
+#### 📋 Richer GUI — tables, and text that does more
 
 - **[`gui_table`](cosmos/gui_table.md).** Describe a table as **rows + column
   specs** and get back a real, selectable, scrollable list box with the columns
@@ -1370,7 +1415,7 @@ HUD — that update **without repainting the page underneath**.
 
 ---
 
-## ⏰ Timers can tell you when they are done
+#### ⏰ Timers can tell you when they are done
 
 A timer was always something you had to **ask about**. You set one, then wrote a loop that
 woke up to check it, or an `await delay_sim` in a task that existed for no other reason
@@ -1413,7 +1458,7 @@ See [Timers and counters](api/procedural/timers.md#signals-instead-of-polling).
 
 ---
 
-## 🗂️ Art that lives once
+#### 🗂️ Art that lives once
 
 Shared art used to be copied into every mission that used it — LegendaryMissions' 27 MB
 of backdrops and card decks became **314 MB across twelve missions**, and a re-release
@@ -1438,7 +1483,7 @@ download, so a fetch no longer drags along 27 MB nothing reads.
 
 ---
 
-## 🌐 Web pages, written in MAST
+#### 🌐 Web pages, written in MAST
 
 - Author browser pages with `//web/<path>` routes using the same `gui_*` layout you
   already know, and open them in a browser while a mission runs — **live** pages
@@ -1453,7 +1498,7 @@ Docs: [Web pages](build/web-pages.md) · [Serving web pages](tooling/web-proxy.m
 
 ---
 
-## 🧪 Mods — ships, races and art from an add-on *(experimental)*
+#### 🧪 Mods — ships, races and art from an add-on *(experimental)*
 
 An add-on can now add **ships the game does not have** — with their stats, interiors, fleet
 ladder and race — **without editing a single file in your Cosmos install**.
@@ -1491,7 +1536,7 @@ publishing on GitHub or as a plain zip: **[Making a mod](build/making-a-mod.md)*
 
 ---
 
-## ⚠️ The `races` add-on — add it to your `story.json`
+#### ⚠️ The `races` add-on — add it to your `story.json`
 
 **This one needs action.** Ship interiors and fleet compositions used to be built into the
 game; in v1.4.0 they ship as **per-race add-ons**, and a mission has to ask for them.
@@ -1523,7 +1568,7 @@ See [The races add-on](build/race-addons.md).
 
 ---
 
-## 🎛️ The Control Gallery — every widget, running, with its source
+#### 🎛️ The Control Gallery — every widget, running, with its source
 
 Stop guessing what a widget looks like. The **[Control Gallery](cosmos/control-gallery.md)**
 is a mission you start: **54 entries in six categories**, each one live on screen with
@@ -1559,13 +1604,13 @@ Repo: [artemis-sbs/control_gallery](https://github.com/artemis-sbs/control_galle
 ---
 
 
-# The tools around it
+### The tools around it
 
 Launching, editing, testing — the things you use around the game rather than in it.
 
 ---
 
-## 🚀 Launch it without clicking — `sbs run` and command-line arguments
+#### 🚀 Launch it without clicking — `sbs run` and command-line arguments
 
 Cosmos can now be started with arguments, and **a mission can read them**. A shortcut, a
 batch file or a CI job can bring up a full bridge on a particular map with particular
@@ -1613,7 +1658,7 @@ Anything that matches nothing says so, rather than quietly doing nothing.
 
 ---
 
-## 🚀 Start a mission in one command
+#### 🚀 Start a mission in one command
 
 Writing your first mission used to begin with "download this repository, rename the
 folder, edit these four files, then work out which libraries you need." Now:
@@ -1647,9 +1692,9 @@ straight from it, so new ones show up without updating the tool.
 
 ---
 
-## 🧰 The AMD editor knows the format
+#### 🧰 The AMD editor knows the format
 
-The VS Code extension reads AMD as a format rather than as coloured text:
+The VS Code extension reads AMD as a format rather than as colored text:
 
 - **"This is a" picker** — a record's word is visible and settable, grouped Story / Work
   / Content, and it tells you what choosing it means (*"scope: shared, show: when done"*).
@@ -1664,7 +1709,7 @@ The VS Code extension reads AMD as a format rather than as coloured text:
 
 ---
 
-## 🎨 Design a screen without writing the code — the GUI Editor
+#### 🎨 Design a screen without writing the code — the GUI Editor
 
 Lay out a console screen **visually** and it writes the MAST for you. Drag sections,
 rows, buttons, lists and tables from a **palette**, size a section by dragging its corner,
@@ -1681,7 +1726,7 @@ Docs: [The GUI Editor](tooling/gui-editor.md).
 
 ---
 
-## 🐞 Debug your mission — pause it and look inside
+#### 🐞 Debug your mission — pause it and look inside
 
 Ever chased a bug by sprinkling `print` lines and replaying? Now you can **pause your
 mission while it plays and look inside it** — right in VS Code. Put a **pause point** on
@@ -1708,7 +1753,7 @@ Docs: [Debugging your mission](tooling/mast-debugger.md).
 
 ---
 
-## 📄 Read your mission on paper — `sbs docs`
+#### 📄 Read your mission on paper — `sbs docs`
 
 Your `.amd` files hold the quests, the dialogue, the cast, the lore. Until now the only
 thing that could read them was the game, so reviewing a script meant opening a code
@@ -1735,7 +1780,7 @@ mission](tooling/amd-docs.md).
 
 ---
 
-## 🩺 `sbs doctor` — check your setup
+#### 🩺 `sbs doctor` — check your setup
 
 Reports what is installed, what a mission expects, and what is missing — with the
 command that fixes each one. It checks your *setup*, never your writing; for that there
@@ -1754,7 +1799,7 @@ not a fault, and one combined number would make a healthy machine look broken.
 
 ---
 
-## 🎨 `sbs art` — the art the game builds for itself
+#### 🎨 `sbs art` — the art the game builds for itself
 
 Some of a ship's art is not drawn by an artist. The engine builds it the first time it
 shows that hull — a `.paxmesh` and the flat `1024`/`256` sprites — and saves it beside
@@ -1789,7 +1834,7 @@ looked at. `sbs doctor` runs the same check as part of its report. See
 
 ---
 
-## 🚢 Add-on ships: a file that exists, not a file that gets written
+#### 🚢 Add-on ships: a file that exists, not a file that gets written
 
 An add-on that adds hulls used to hand the library its ship data and let the library
 **generate** `extraShipData.json` in your mission folder just before the sim was
@@ -1816,14 +1861,14 @@ mod](build/making-a-mod.md).
 ---
 
 
-# Under the hood
+### Under the hood
 
 Library and API changes. Nothing here needs your attention unless a mission of yours
 misbehaves in a way one of them explains.
 
 ---
 
-## 🛠️ For Mission Makers & Tinkerers
+#### 🛠️ For Mission Makers & Tinkerers
 
 !!! warning "For testing only — not an engine replacement"
     The mock GUI and headless runner exist to **test and debug missions outside
@@ -1986,7 +2031,7 @@ misbehaves in a way one of them explains.
 
 ---
 
-## 🧵 A handler no longer depends on which task built the widget
+#### 🧵 A handler no longer depends on which task built the widget
 
 `on gui_message`, `on change` and `on_press=` all belonged to the task that
 **built the widget**. That is invisible while the builder is the console's own
@@ -2020,7 +2065,7 @@ runs each form, how long it lives, how it should end, and when you still need
 
 ---
 
-## 🔘 A button's handler no longer dies with the task that built it
+#### 🔘 A button's handler no longer dies with the task that built it
 
 A widget's handler belongs to the task that *built* the widget: `on gui_message(w):`
 compiles to an inline block inside that task's label, and `on_press=<label>` is a jump
@@ -2046,7 +2091,7 @@ and is still the safest choice for a handler built somewhere awkward.
 
 ---
 
-## 💥 A broken expression stops, instead of quietly becoming `None`
+#### 💥 A broken expression stops, instead of quietly becoming `None`
 
 `None` is a perfectly good MAST value — `default ship_art = None` is ordinary — so
 when an expression *blew up*, the runtime had no way to say so. It logged the error
@@ -2098,7 +2143,7 @@ exactly as it did; a mission with one now tells you which one.
 
 ---
 
-## ⚠️ List boxes: `row-height` is the row's height
+#### ⚠️ List boxes: `row-height` is the row's height
 
 **This one may move your layouts.** On a list box, `row-height` used to be the gap *added
 after* each item — the height came from whatever the item template opened. It now means
@@ -2124,7 +2169,7 @@ and took its hit area with it.
 
 ---
 
-## 🗺️ `@map` works without LegendaryMissions — a map picker in the library
+#### 🗺️ `@map` works without LegendaryMissions — a map picker in the library
 
 `@map` is how a mission offers several entry points, and until now it **only worked if
 you loaded LegendaryMissions**. Both halves lived there: LM's server console drew the
