@@ -1894,8 +1894,11 @@ function cmdCommsFace(msg) {
 // LEFT: a list of conversations grouped by sender (face + name + latest-message preview),
 // most-recent first. RIGHT: the selected conversation's thread (bubbles), newest at bottom.
 // Click a sender on the left to read its thread. Positioned by the widget layout rect.
+// Threads are keyed by the message's `contact` (the engine's contactID), NOT by the title: a
+// lifeform and its host ship share a name often enough that grouping by title merged
+// two crew aboard one hull into one conversation.
 let _commsWfEl = null, _commsWfRect = null, _commsWfListEl = null, _commsWfThreadEl = null;
-const _commsWfConvos = new Map();   // sender name -> {face, name, msgs:[{title,body,tc,bc}], seq}
+const _commsWfConvos = new Map();   // key -> {face, name, msgs:[{title,body,tc,bc,sent}], seq}
 let _commsWfSel = null, _commsWfSeq = 0;
 function _ensureCommsWfEl() {
   if (_commsWfEl) return _commsWfEl;
@@ -1919,7 +1922,7 @@ function _renderCommsWfList() {
   host.textContent = '';
   const convos = Array.from(_commsWfConvos.values()).sort((a, b) => b.seq - a.seq);
   for (const c of convos) {
-    const sel = c.name === _commsWfSel;
+    const sel = c.key === _commsWfSel;
     const row = document.createElement('div');
     row.style.cssText = 'display:flex;gap:5px;align-items:center;padding:5px 6px;cursor:pointer;' +
       'border-bottom:1px solid #1a2632;' + (sel ? 'background:#1d2b3a;' : '');
@@ -1937,7 +1940,7 @@ function _renderCommsWfList() {
     pv.style.cssText = 'color:#9ab;font-size:11px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;';
     txt.appendChild(nm); txt.appendChild(pv);
     row.appendChild(txt);
-    row.addEventListener('click', () => { _commsWfSel = c.name; _renderCommsWf(); });
+    row.addEventListener('click', () => { _commsWfSel = c.key; _renderCommsWf(); });
     host.appendChild(row);
   }
 }
@@ -1948,8 +1951,12 @@ function _renderCommsWfThread() {
   if (!c) return;
   for (const m of c.msgs) {
     const bubble = document.createElement('div');
-    bubble.style.cssText = 'background:#16202c;border:1px solid #2c3c4c;border-radius:9px;' +
-      'padding:4px 9px;margin:4px 0;max-width:90%;';
+    // Direction comes from the tag set now that the title no longer carries arrows:
+    // what this ship SENT sits right, what it received sits left.
+    bubble.style.cssText = 'background:' + (m.sent ? '#1b2c3d' : '#16202c') + ';' +
+      'border:1px solid #2c3c4c;border-radius:9px;' +
+      'padding:4px 9px;margin:4px 0;max-width:90%;width:fit-content;' +
+      (m.sent ? 'margin-left:auto;' : '');
     if (m.title) {
       const t = document.createElement('div'); t.textContent = m.title;
       t.style.cssText = 'font-weight:600;margin-bottom:1px;color:' + (m.tc || '#8cf');
@@ -1980,12 +1987,18 @@ function cmdCommsWf(msg) {
   } else if (msg.op === 'msg') {
     _ensureCommsWfEl();
     const name = (msg.title || '').trim() || 'Comms';
-    let c = _commsWfConvos.get(name);
-    if (!c) { c = { face: '', name, msgs: [], seq: 0 }; _commsWfConvos.set(name, c); }
+    const key = (msg.contact || '').trim() || name;
+    const tags = (msg.tags || '').split(/[\s,]+/);
+    let c = _commsWfConvos.get(key);
+    if (!c) { c = { key, face: '', name, msgs: [], seq: 0 }; _commsWfConvos.set(key, c); }
     if ((msg.face || '').trim()) c.face = msg.face.trim();
-    c.msgs.push({ title: msg.title || '', body: msg.body || '', tc: msg.title_color, bc: msg.body_color });
+    // The row is named for the CONTACT, so take the name off an incoming line - an
+    // outgoing one is titled for whoever we are talking to, which is the same contact.
+    if (name !== 'Comms') c.name = name;
+    c.msgs.push({ title: msg.title || '', body: msg.body || '', tc: msg.title_color,
+                  bc: msg.body_color, sent: tags.indexOf('send') >= 0 });
     c.seq = ++_commsWfSeq;
-    if (_commsWfSel === null) _commsWfSel = name;   // open the first conversation
+    if (_commsWfSel === null) _commsWfSel = key;   // open the first conversation
   }
   _renderCommsWf();
 }

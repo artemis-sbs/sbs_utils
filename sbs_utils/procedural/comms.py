@@ -164,6 +164,25 @@ def _comms_get_colors(to_obj, from_obj, is_receive, title_color, color):
     return title_color, color
 
 
+def _comms_contact_name(obj, is_life_form):
+    """The label for a contact.
+
+    A lifeform goes by its plain name: `comms_id` decorates a space object with its
+    side ("Lt Rios (TSN)"), which reads wrong for a person.
+    """
+    if obj is None:
+        return ""
+    if is_life_form:
+        if hasattr(obj, "name"):
+            return obj.name
+        return obj.INV.name
+    if hasattr(obj, "comms_id"):
+        return obj.comms_id
+    # `INV.get("comms_id", from_name_now = ...)` once passed the DEFAULT as a keyword
+    # named after a local, so this raised TypeError on every object with no comms_id.
+    return obj.INV.get("comms_id", obj.INV.name)
+
+
 def comms_message(msg, from_ids_or_obj, to_ids_or_obj, title=None, face=None, color=None, title_color=None, is_receive=True, from_name=None) -> None:
     """Send a comms message with explicit sender and receiver control.
 
@@ -184,17 +203,25 @@ def comms_message(msg, from_ids_or_obj, to_ids_or_obj, title=None, face=None, co
         color (str, optional): Body text color. Defaults to ``"#fff"``.
         title_color (str, optional): Title text color. Defaults to the
             sender's side color.
-        is_receive (bool, optional): ``True`` = message is received (``< <``
-            prefix); ``False`` = message is sent (``> >`` prefix). Defaults
-            to ``True``.
+        is_receive (bool, optional): ``True`` = the player ship RECEIVED this
+            (tagged ``recv``); ``False`` = the player ship TRANSMITTED it
+            (tagged ``send``). Defaults to ``True``.
         from_name (str, optional): Override the display name of the sender.
             Defaults to None (uses the sender object's ``comms_id``).
 
     Note:
         When BOTH ends are player ships a transmit reaches both bridges: the
-        sender gets the ``> >`` copy and the receiving crew gets the matching
-        ``< <`` copy, each named for the other ship. Send it once - a second
+        sender gets the outgoing copy and the receiving crew gets the matching
+        incoming one, each named for the other ship. Send it once - a second
         call with the ids swapped now duplicates it.
+
+    Note:
+        The console threads messages by CONTACT - the other party in the
+        conversation. For a lifeform that is the LIFEFORM's id, not its host
+        ship's, so two crew aboard one hull are two conversations rather than
+        one, and a lifeform hailing another lifeform arrives on the far bridge
+        named for the person who sent it. The title names the same contact the
+        thread is filed under, in both directions.
 
     Example:
         comms_message("Incoming!", ENEMY_ID, SHIP_ID, title="Commander")
@@ -235,20 +262,30 @@ def comms_message(msg, from_ids_or_obj, to_ids_or_obj, title=None, face=None, co
             from ..faces import get_face
             life = False
 
+            # The ORIGINALS, before the lifeform branches below swap in host ships. The
+            # two-player recursion at the end of the loop needs them: re-entering with
+            # the hosts is how a lifeform-to-lifeform message reached the other bridge
+            # as plain ship-to-ship, stripped of both people.
+            orig_from, orig_to = from_obj, to_obj
 
+            # Per-PAIR working copies. Name, portrait and colors used to be written back
+            # to the enclosing parameters, so with more than one sender or target the
+            # first pair's values stuck to every later one - the same leak `arg_title`
+            # above already had.
+            from_name_now = from_name
+            face_now = face
 
             # Make sure life forms have an object
-            title_color, color = _comms_get_colors(to_obj, from_obj, is_receive, title_color, color)
+            title_color_now, color_now = _comms_get_colors(to_obj, from_obj, is_receive, title_color, color)
             life_form_from_host_id = None
             life_form_from_id = None
             if isinstance(from_obj, GridObject) or from_obj.has_role("lifeform"):
                 life_form_from_id = from_obj.id
-                if from_name is None:
-                    if hasattr(from_obj, "name"):
-                        from_name = from_obj.name
-                    else:
-                        from_name = from_obj.INV.name
-                    face = get_face(from_obj.id)
+                # The portrait belongs to whoever SPOKE, so a lifeform on the from side
+                # owns it. The NAME is not taken here any more - it follows the contact,
+                # worked out below once we know which end the reading bridge is on.
+                if face_now is None:
+                    face_now = get_face(from_obj.id)
                 life_form_from_host_id = from_obj.get_inventory_value("host", 0)
                 if life_form_from_host_id==0:
                     from_obj = to_obj
@@ -276,37 +313,14 @@ def comms_message(msg, from_ids_or_obj, to_ids_or_obj, title=None, face=None, co
                 print("COMMS Message set to ID 0")
                 continue
 
-            from_name_now = from_name
-            if from_name is None:
-                # `INV.get("comms_id", from_name_now = ...)` passed the DEFAULT as a
-                # keyword named after the local, so this branch raised TypeError on
-                # every object that carries no comms_id attribute.
-                if is_receive:
-                    if hasattr(from_obj, "comms_id"):
-                        from_name_now = from_obj.comms_id
-                    else:
-                        from_name_now = from_obj.INV.get("comms_id", from_obj.INV.name)
-                else:
-                    if hasattr(to_obj, "comms_id"):
-                        from_name_now = to_obj.comms_id
-                    else:
-                        from_name_now = to_obj.INV.get("comms_id", to_obj.INV.name)
-                    
-
-            if arg_title is None:
-                pair_title = from_name_now # +" > "+to_obj.comms_id
-            else:
-                pair_title = from_name_now +": "+ arg_title
-
-            raw_title = pair_title
-            if is_receive:
-                title = "< < " + pair_title
-            else:
-                title = "> > " + pair_title
+            # Direction is a TAG now, not text. The title used to be prefixed with
+            # "< < " or "> > " here; the console decorates it from the tag set instead,
+            # so the title stays the plain contact name.
+            tagset = "recv" if is_receive else "send"
 
 
-            if face is None:
-                face = faces.get_face(from_obj.get_id())
+            if face_now is None:
+                face_now = faces.get_face(from_obj.get_id())
             
             if life:
                 if from_obj is None:
@@ -330,24 +344,65 @@ def comms_message(msg, from_ids_or_obj, to_ids_or_obj, title=None, face=None, co
             to_is_player = has_role(to_obj.id, "__PLAYER__")
             both_players = from_is_player and to_is_player and from_obj.id != to_obj.id
 
+            # Which SIDE is on screen, kept as a flag rather than read back off the
+            # objects: internal comms and a host-less lifeform both leave `from_obj`
+            # and `to_obj` as the same object, and `display_obj is to_obj` cannot tell
+            # those apart.
             if both_players:
-                display_obj = to_obj if is_receive else from_obj
+                display_is_to = is_receive
             elif from_is_player:
-                display_obj = from_obj
+                display_is_to = False
             else:
-                display_obj = to_obj
-            other_obj = from_obj if display_obj is to_obj else to_obj
+                display_is_to = True
+
+            display_obj = to_obj if display_is_to else from_obj
+            other_obj = from_obj if display_is_to else to_obj
+
+            # The CONTACT: the other party in this conversation, and the entity the
+            # console files the thread under. A lifeform is not a space object the
+            # console can address, so both ids above are its HOST ship - key on those
+            # and every crew member aboard collapses into one thread with the hull.
+            #
+            # Normally the contact is the far side from the bridge reading this. When
+            # both ends resolve to the SAME ship - a crew member talking to their own
+            # bridge - "far side" means nothing, and the other party is the lifeform on
+            # the near side.
+            far_life_form_id = life_form_from_id if display_is_to else life_form_to_id
+            near_life_form_id = life_form_to_id if display_is_to else life_form_from_id
+            if far_life_form_id is not None:
+                contact_id = far_life_form_id
+            elif other_obj.id == display_obj.id and near_life_form_id is not None:
+                contact_id = near_life_form_id
+            else:
+                contact_id = other_obj.id
+            contact_is_life_form = contact_id in (life_form_from_id, life_form_to_id)
+
+            # The label names the CONTACT, so the title and the id the thread is filed
+            # under agree. For a ship that is no change - a receive was already titled
+            # for the sender and a transmit for the recipient, which are exactly those
+            # two ends. For a lifeform it is now the person in both directions, where a
+            # transmit used to be titled for OUR OWN officer while keying on theirs.
+            if from_name_now is None:
+                from_name_now = _comms_contact_name(to_object(contact_id), contact_is_life_form)
+
+            if arg_title is None:
+                raw_title = from_name_now
+            else:
+                raw_title = from_name_now + ": " + arg_title
 
             from_id = display_obj.id
             to_id = other_obj.id
             FrameContext.context.sbs.send_comms_message_to_player_ship(
+                contact_id,
                 display_obj.id,
                 other_obj.id,
-                face,
-                title,
-                title_color,
+                face_now,
+                raw_title,
+                title_color_now,
                 msg,
-                color)
+                color_now,
+                tagset
+                )
 
             other_id = to_id
             if life_form_to_id is not None:
@@ -362,33 +417,41 @@ def comms_message(msg, from_ids_or_obj, to_ids_or_obj, title=None, face=None, co
                     other_id = 0
 
             record = {
-                "player_id": from_id, 
+                "player_id": from_id,
                 "other_id": other_id,
+                # What the console threads this message under - the lifeform when there
+                # is one, otherwise the same ship as `other_id`. Kept beside `other_id`
+                # rather than replacing it: consumers of the `comms_message` signal
+                # already read that one.
+                "contact_id": contact_id,
                 "life_form_from_id": life_form_from_id,
                 "life_form_to_id": life_form_to_id,
                 "life_form_from_host_id": life_form_from_host_id,
                 "life_form_to_host_id": life_form_to_host_id,
                 "receive": is_receive,
                 "from_name": from_name_now, 
-                "face": face,
+                "face": face_now,
                 "title": raw_title,
-                "title_color": title_color,
+                "title_color": title_color_now,
                 "message": msg,
-                "message_color": color,
+                "message_color": color_now,
                 "time": FrameContext.context.sim.time_tick_counter
             }
             comms_history_add(from_id, other_id, record)
             signal_emit("comms_message", {"COMMS_MESSAGE": MastDataObject(record)})
 
             # Ship to ship between two CREWS: one transmit has to reach both bridges.
-            # The sender's "> >" copy went out above; the receiving crew needs the
-            # matching "< <", named for whoever actually sent it. Pinning the pair in a
+            # The sender's outgoing copy went out above; the receiving crew needs the
+            # matching incoming one, named for whoever sent it. Pinning the pair in a
             # fresh override neutralizes any outer one, so the recursion cannot swap
             # the ends back around.
             if both_players and not is_receive:
-                with CommsOverride(origin_id=to_obj.id, selected_id=from_obj.id):
-                    comms_message(msg, from_obj, to_obj, arg_title, None,
-                                  color, title_color, True, None)
+                # The ORIGINALS, not `from_obj`/`to_obj` - those are host ships by now,
+                # and re-entering with them is what left the receiving crew reading
+                # "Artemis hailed you" when it was Lt Rios calling Admiral Harkin.
+                with CommsOverride(origin_id=orig_to.id, selected_id=orig_from.id):
+                    comms_message(msg, orig_from, orig_to, arg_title, None,
+                                  color_now, title_color_now, True, None)
             
             
 

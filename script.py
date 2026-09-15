@@ -394,7 +394,7 @@ class Mission:
                 face = faces.random_terran_fluid()
                 race = "Terran Fluid"
         
-        sbs.send_comms_message_to_player_ship( 0, player_id, "green", face,  "Face Test", f"{race} {face}", "face")
+        sbs.send_comms_message_to_player_ship( player_id, 0, player_id, "green", face,  "Face Test", f"{race} {face}", "face", "recv")
         t.race += 1
         if t.race >= 9:
             t.race = 0
@@ -519,7 +519,7 @@ class Spacedock(SpaceObject, MSpawnActive, MCommunications):
 
         self.comms_selected(player_id, e)
         #sbs.send_comms_selection_info(player_id, self.face_desc, "green", self.comms_id)
-        sbs.send_comms_message_to_player_ship(player_id, self.id, "green", self.face_desc,  "Face Gen", self.face_desc, "face")
+        sbs.send_comms_message_to_player_ship(self.id, player_id, self.id, "green", self.face_desc,  "Face Gen", self.face_desc, "face", "recv")
 
 
 # Present the main GUI

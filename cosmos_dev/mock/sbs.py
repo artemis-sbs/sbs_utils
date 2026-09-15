@@ -1313,8 +1313,17 @@ def _require_space_object(objID, fn_name):
         raise ValueError(f"invalid space object while calling {fn_name}")
 
 
-def send_comms_message_to_player_ship(playerID: int, otherID: int, faceDesc: str, titleText: str, titleColor: str, bodyText: str, bodyColor: str) -> None:
-    """sends a complex message to the comms console of a certain ship."""
+def send_comms_message_to_player_ship(contactID: int, playerID: int, otherID: int, faceDesc: str, titleText: str, titleColor: str, bodyText: str, bodyColor: str, tagset: str) -> None:
+    """sends a complex message to the comms console of a certain ship.
+
+    contactID is the ENTITY at the other end of the conversation - a lifeform's
+    own id, where otherID can only be the host ship it is aboard. That is what
+    lets two crew on one hull be two threads rather than one, in BOTH directions:
+    a transmit to Harkin carries Harkin, not us. playerID is the ship whose
+    console holds the messages; otherID is the other party as a space object.
+    tagset carries the direction: "send" if the player ship transmitted it,
+    "recv" if it received it.
+    """
     _require_space_object(playerID, "SendCommsMessageToPlayerShip")
 
 def send_comms_selection_info(arg0: int, arg1: str, arg2: str, arg3: str) -> None:
