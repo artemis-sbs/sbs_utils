@@ -6086,6 +6086,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#cosmos_dev.mock.sbs.reposition_space_object" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;reposition_space_object
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#cosmos_dev.mock.sbs.request_client_string" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -14939,6 +14950,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#cosmos_dev.mock.sbs.reposition_space_object" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;reposition_space_object
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#cosmos_dev.mock.sbs.request_client_string" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -20293,6 +20315,29 @@ into _pending_physics_events (queue.Queue) for the mission runner to drain.</p>
 <div class="doc doc-object doc-function">
 
 
+<h2 id="cosmos_dev.mock.sbs.reposition_space_object" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">reposition_space_object</span><span class="p">(</span><span class="n">spaceObject</span><span class="p">,</span> <span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">z</span><span class="p">)</span></code>
+
+</h2>
+
+
+    <div class="doc doc-contents ">
+
+        <p>immediately changes the position of a spaceobject.</p>
+<p>The engine exposes this on the MODULE as well as on <code>simulation</code>, and the library
+calls the module one - so the mock has to answer there too. Missing it here made
+every spawn raise AttributeError in <code>spawn_common</code>, which is the whole headless
+surface: unit tests, --test runs, soaks and the mockgui.</p>
+<p>Delegates rather than duplicating the write, so the two can never disagree.</p>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
 <h2 id="cosmos_dev.mock.sbs.request_client_string" class="doc doc-heading">
             <code class="highlight language-python"><span class="n">request_client_string</span><span class="p">(</span><span class="n">clientComputerID</span><span class="p">,</span> <span class="n">string_key</span><span class="p">)</span></code>
 
@@ -20461,7 +20506,7 @@ results loop, mission select).</p>
 
 
 <h2 id="cosmos_dev.mock.sbs.send_comms_message_to_player_ship" class="doc doc-heading">
-            <code class="highlight language-python"><span class="n">send_comms_message_to_player_ship</span><span class="p">(</span><span class="n">playerID</span><span class="p">,</span> <span class="n">otherID</span><span class="p">,</span> <span class="n">faceDesc</span><span class="p">,</span> <span class="n">titleText</span><span class="p">,</span> <span class="n">titleColor</span><span class="p">,</span> <span class="n">bodyText</span><span class="p">,</span> <span class="n">bodyColor</span><span class="p">)</span></code>
+            <code class="highlight language-python"><span class="n">send_comms_message_to_player_ship</span><span class="p">(</span><span class="n">contactID</span><span class="p">,</span> <span class="n">playerID</span><span class="p">,</span> <span class="n">otherID</span><span class="p">,</span> <span class="n">faceDesc</span><span class="p">,</span> <span class="n">titleText</span><span class="p">,</span> <span class="n">titleColor</span><span class="p">,</span> <span class="n">bodyText</span><span class="p">,</span> <span class="n">bodyColor</span><span class="p">,</span> <span class="n">tagset</span><span class="p">)</span></code>
 
 </h2>
 
@@ -20469,6 +20514,13 @@ results loop, mission select).</p>
     <div class="doc doc-contents ">
 
         <p>sends a complex message to the comms console of a certain ship.</p>
+<p>contactID is the ENTITY at the other end of the conversation - a lifeform's
+own id, where otherID can only be the host ship it is aboard. That is what
+lets two crew on one hull be two threads rather than one, in BOTH directions:
+a transmit to Harkin carries Harkin, not us. playerID is the ship whose
+console holds the messages; otherID is the other party as a space object.
+tagset carries the direction: "send" if the player ship transmitted it,
+"recv" if it received it.</p>
 
 
     </div>

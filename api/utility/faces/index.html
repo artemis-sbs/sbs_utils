@@ -3970,6 +3970,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#sbs_utils.faces.face_gender_index" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;face_gender_index
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#sbs_utils.faces.face_mod_reset" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -10147,6 +10158,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#sbs_utils.faces.face_gender_index" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;face_gender_index
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#sbs_utils.faces.face_mod_reset" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -10854,6 +10876,27 @@ face_id 0 (the slot their builders expect). Returns '' for an unknown race.</p>
 <div class="doc doc-object doc-function">
 
 
+<h2 id="sbs_utils.faces.face_gender_index" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">face_gender_index</span><span class="p">(</span><span class="n">gender</span><span class="p">)</span></code>
+
+</h2>
+
+
+    <div class="doc doc-contents ">
+
+        <p>A gender word as the terran builder's face index, or None for "any".</p>
+<p>0 male, 1 female, 2 fluid - the numbering :func:<code>terran</code> documents. Unknown words
+answer None rather than guessing, so a mod's own vocabulary degrades to a random face
+instead of to the wrong one.</p>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
 <h2 id="sbs_utils.faces.face_mod_reset" class="doc doc-heading">
             <code class="highlight language-python"><span class="n">face_mod_reset</span><span class="p">()</span></code>
 
@@ -11503,7 +11546,7 @@ Args:
 
 
 <h2 id="sbs_utils.faces.random_face" class="doc doc-heading">
-            <code class="highlight language-python"><span class="n">random_face</span><span class="p">(</span><span class="n">race</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">role</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span></code>
+            <code class="highlight language-python"><span class="n">random_face</span><span class="p">(</span><span class="n">race</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">role</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">gender</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">civilian</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span></code>
 
 </h2>
 
@@ -11554,6 +11597,43 @@ That is what the TODO which used to sit here was asking for.</p>
               <div class="doc-md-description">
                 <p>optional role filter for registered races ("command", "ops"...).
         Ignored by the six stock races, which have no role concept.</p>
+              </div>
+            </td>
+            <td>
+                  <code>None</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>gender</code>
+            </td>
+            <td>
+                  <code><span title="str">str</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>"male", "female", "fluid" - so a face can be asked to AGREE with
+        a name. Only terran has a gender axis; the other stock races ignore
+        it, as do mod races, whose faces are whole drawn portraits.</p>
+              </div>
+            </td>
+            <td>
+                  <code>None</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>civilian</code>
+            </td>
+            <td>
+                  <code><span title="bool">bool</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>True forces no uniform, False forces one, None (the default)
+        leaves it to chance - which is one civilian in five. A crew member
+        wants False: a bridge officer out of uniform is not a variation, it
+        is a stranger on the bridge. Terran only, for the same reason.</p>
               </div>
             </td>
             <td>

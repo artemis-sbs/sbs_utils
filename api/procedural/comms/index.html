@@ -11308,9 +11308,9 @@ sender's side color.</p>
             </td>
             <td>
               <div class="doc-md-description">
-                <p><code>True</code> = message is received (<code>&lt; &lt;</code>
-prefix); <code>False</code> = message is sent (<code>&gt; &gt;</code> prefix). Defaults
-to <code>True</code>.</p>
+                <p><code>True</code> = the player ship RECEIVED this
+(tagged <code>recv</code>); <code>False</code> = the player ship TRANSMITTED it
+(tagged <code>send</code>). Defaults to <code>True</code>.</p>
               </div>
             </td>
             <td>
@@ -11341,9 +11341,19 @@ Defaults to None (uses the sender object's <code>comms_id</code>).</p>
 <details class="note" open>
   <summary>Note</summary>
   <p>When BOTH ends are player ships a transmit reaches both bridges: the
-sender gets the <code>&gt; &gt;</code> copy and the receiving crew gets the matching
-<code>&lt; &lt;</code> copy, each named for the other ship. Send it once - a second
+sender gets the outgoing copy and the receiving crew gets the matching
+incoming one, each named for the other ship. Send it once - a second
 call with the ids swapped now duplicates it.</p>
+</details>
+
+<details class="note" open>
+  <summary>Note</summary>
+  <p>The console threads messages by CONTACT - the other party in the
+conversation. For a lifeform that is the LIFEFORM's id, not its host
+ship's, so two crew aboard one hull are two conversations rather than
+one, and a lifeform hailing another lifeform arrives on the far bridge
+named for the person who sent it. The title names the same contact the
+thread is filed under, in both directions.</p>
 </details>
 
 <details class="example" open>

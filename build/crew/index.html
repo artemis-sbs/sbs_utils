@@ -1960,6 +1960,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#a-ship-has-a-crew-not-a-client" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        A ship has a crew, not a client
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#automatic-names" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1967,6 +1978,23 @@
       
     </span>
   </a>
+  
+    <nav class="md-nav" aria-label="Automatic names">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#the-face-agrees-with-the-name-and-wears-a-uniform" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The face agrees with the name, and wears a uniform
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
   
 </li>
       
@@ -1989,6 +2017,23 @@
       
     </span>
   </a>
+  
+    <nav class="md-nav" aria-label="What reads it">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#in-a-cockpit-a-callsign" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        In a cockpit, a callsign
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
   
 </li>
       
@@ -9779,6 +9824,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#a-ship-has-a-crew-not-a-client" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        A ship has a crew, not a client
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#automatic-names" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -9786,6 +9842,23 @@
       
     </span>
   </a>
+  
+    <nav class="md-nav" aria-label="Automatic names">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#the-face-agrees-with-the-name-and-wears-a-uniform" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The face agrees with the name, and wears a uniform
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
   
 </li>
       
@@ -9808,6 +9881,23 @@
       
     </span>
   </a>
+  
+    <nav class="md-nav" aria-label="What reads it">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#in-a-cockpit-a-callsign" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        In a cockpit, a callsign
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
   
 </li>
       
@@ -10010,7 +10100,9 @@ mastlib is a zip. Read your own file out of your own add-on instead:</p>
 unless you turn it off.</p>
 <ol>
 <li><strong>The player.</strong> What they typed at the picker, the face they built, or the person
-   they picked out of a group. Nothing outranks somebody's own answer about themselves.</li>
+   they picked out of a group. Nothing outranks somebody's own answer about themselves &mdash;
+   but <strong>per field</strong>: what they did not answer is still answered by the step below, so naming
+   yourself keeps the face the ship gave you and building a face keeps your name.</li>
 <li><strong>The ship.</strong> A roster declaring <code>Ship: Enterprise</code>, or <code>crew_bind_ship()</code>. This is
    how one game runs several crews at once &mdash; the Enterprise flies with one, the
    Defiant with another.</li>
@@ -10023,6 +10115,19 @@ unless you turn it off.</p>
 </ol>
 <p>Two people never get the same person: a seat is taken when somebody sits in it and freed
 when they leave, so a bridge with two science stations gets two different officers.</p>
+<h2 id="a-ship-has-a-crew-not-a-client">A ship has a crew, not a client</h2>
+<p>Both steps that name somebody for you &mdash; a <code>By: console</code> cast and the automatic names
+below &mdash; answer per <strong>(ship, station)</strong>. Helm on the Artemis is the same person every
+time anything asks: before a single console has connected, while a player is only looking at
+it on the picker, and after whoever was sitting there has gone.</p>
+<p>That is what lets the picker show you who you are about to be, and what lets a Director
+bridge wall name a station nobody is at:</p>
+<div class="highlight"><pre><span></span><code><span class="n">crew_seat_name</span><span class="p">(</span><span class="n">ship</span><span class="p">,</span> <span class="s2">&quot;helm&quot;</span><span class="p">)</span>        <span class="c1"># the ship&#39;s helmsman, with or without a human in the chair</span>
+</code></pre></div>
+<p>It also means moving from helm to weapons <strong>renames</strong> an automatically named player &mdash;
+you stopped being the helmsman and became the weapons officer, which is what a cast has
+always done. A player who typed their own name is the strongest step above and is never
+renamed.</p>
 <h2 id="automatic-names">Automatic names</h2>
 <p>A console nobody named gets one regardless, and a <strong>different one from every other console
 in the run</strong>. Uniqueness is what makes a Director bridge wall readable &mdash; every panel is
@@ -10038,23 +10143,50 @@ all. A base game or a total conversion replaces them by registering its own, whi
 consulted first:</p>
 <div class="highlight"><pre><span></span><code><span class="n">crew_register_names</span><span class="p">(</span><span class="s2">&quot;helm&quot;</span><span class="p">,</span> <span class="p">[</span><span class="s2">&quot;Ensign Vega&quot;</span><span class="p">,</span> <span class="s2">&quot;Lt. Sorm&quot;</span><span class="p">])</span>       <span class="c1"># any console</span>
 <span class="n">crew_register_names</span><span class="p">(</span><span class="s2">&quot;helm&quot;</span><span class="p">,</span> <span class="p">[</span><span class="s2">&quot;K&#39;tal&quot;</span><span class="p">],</span> <span class="n">race</span><span class="o">=</span><span class="s2">&quot;klingon&quot;</span><span class="p">)</span>         <span class="c1"># or per race</span>
+<span class="n">crew_register_names</span><span class="p">(</span><span class="s2">&quot;helm&quot;</span><span class="p">,</span> <span class="p">[</span><span class="s2">&quot;Ensign Vega&quot;</span><span class="p">],</span> <span class="n">gender</span><span class="o">=</span><span class="s2">&quot;female&quot;</span><span class="p">)</span>  <span class="c1"># and which face it wears</span>
 </code></pre></div>
+<h3 id="the-face-agrees-with-the-name-and-wears-a-uniform">The face agrees with the name, and wears a uniform</h3>
+<p>A face is <strong>rolled</strong> for anyone who has none of their own, and a terran face has a gender
+axis &mdash; so the roll has to be told which one, or half of <em>Freya Laurent</em>'s consoles show
+a man. The stock pool is gendered; <code>crew_name_gender()</code> answers for any name it knows, whole
+or given-name-only, and a roster says it outright:</p>
+<div class="highlight"><pre><span></span><code>### [Tomas Vale](tv)
+---
+Console: helm
+Gender: female        # male, female, fluid - which face to roll
+---
+</code></pre></div>
+<p>The face also always <strong>wears a uniform</strong>. Left to chance one face in five comes back
+civilian, which on a bridge is not a variation on a crew member &mdash; it is a stranger at
+the helm. Same reason the identity editor keeps the uniform on: the slider stays, so <em>which</em>
+uniform is still the player's, but the checkbox that removed it is gone.</p>
+<p>Neither applies to a mod race: its faces are whole drawn portraits with no parts to steer.</p>
 <p>A group roster (<code>By: person</code>) never hands out <strong>its</strong> people automatically &mdash; a seat
 nobody claimed gets an automatic name instead. Giving Doug's face to whoever opened helm
 first is exactly what a group roster exists to avoid.</p>
 <p>Names are released by the mission reset, so "unique per run" is precisely that.</p>
 <h2 id="at-the-console-picker">At the console picker</h2>
-<p>When a roster staffs the ship, the picker grows a <strong>crew dropdown</strong> and a portrait
-beside the name box. The dropdown is an <em>override</em> &mdash; a cast already assigns itself,
-so reaching for the list is reaching past the automatic answer.</p>
-<p><strong>Edit Face</strong> opens the <a href="../../cosmos/gui/">avatar editor</a> and brings you back. It appears
-only when the <code>avatar_editor</code> add-on is loaded, and it builds the six stock races; a
-mod's faces are whole drawn portraits with nothing to slide, so those are picked from a
-gallery instead.</p>
-<p>Turn the whole affordance off and the picker is the plain name box it always was:</p>
+<p>The picker shows <strong>who this console is about to be</strong> &mdash; the face and the name, on one
+line, following whichever station is highlighted in the list. Highlight engineering on a
+Galaxy-class and it says Geordi. Nothing is written while you look: the seat's name is
+worked out once and kept, so what the line shows is what the console gets.</p>
+<p><strong>Edit</strong> beside it opens the identity page, which owns the whole person:</p>
+<ul>
+<li>their <strong>name</strong>, typed;</li>
+<li>their <strong>face</strong>, through the <a href="../../cosmos/gui/">avatar editor</a> &mdash; present only when the
+  <code>avatar_editor</code> add-on is loaded. It builds the six stock races; a mod's faces are whole
+  drawn portraits with nothing to slide, so those are picked from a gallery instead;</li>
+<li><strong>who they are instead</strong>, out of a roster that staffs this ship. An <em>override</em> &mdash; a
+  cast already assigns itself, so reaching for the list is reaching past the automatic
+  answer;</li>
+<li><strong>Use Default</strong>, which drops all of it and hands the seat back to the ship.</li>
+</ul>
+<p>Turn editing off and the line becomes a readout: the cast still crews the console, it simply
+cannot be argued with.</p>
 <div class="highlight"><pre><span></span><code><span class="nt">CREW_EDIT</span><span class="p">:</span>
-<span class="w">    </span><span class="nt">enable</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
-<span class="w">    </span><span class="nt">allow_face</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
+<span class="w">    </span><span class="nt">enable</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span><span class="w">            </span><span class="c1"># false: the identity line is a readout, with no Edit button</span>
+<span class="w">    </span><span class="nt">allow_name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span><span class="w">        </span><span class="c1"># the name field inside the Edit page</span>
+<span class="w">    </span><span class="nt">allow_face</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span><span class="w">        </span><span class="c1"># the avatar editor button inside it</span>
 <span class="w">    </span><span class="nt">allow_portrait</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">false</span>
 </code></pre></div>
 <h2 id="what-reads-it">What reads it</h2>
@@ -10067,6 +10199,14 @@ so everything that already read it keeps working with no change:</p>
 </ul>
 <p>The face, portrait, rank, roster and <em>why this name was chosen</em> arrive as <code>CREW_FACE</code>,
 <code>CREW_PORTRAIT</code>, <code>CREW_RANK</code>, <code>CREW_ROSTER</code> and <code>CREW_SOURCE</code> alongside it.</p>
+<h3 id="in-a-cockpit-a-callsign">In a cockpit, a callsign</h3>
+<p>The always-on identity badge shows the crew name on a bridge console and the pilot's
+<strong>callsign</strong> on a flight one (<code>cockpit</code>, <code>hangar</code>) &mdash; there the callsign is what the rest
+of the flight calls you, and it is already what every readout the hangar draws uses. It
+replaces the name rather than joining it, because the badge shares a narrow strip with the
+count of what is waiting. Dock, go back to a bridge station, and you are a crew member again.</p>
+<p>The hangar owns the value; <code>crew_callsign(client_id)</code> is the library's one named place to
+read it.</p>
 <h2 id="see-also">See also</h2>
 <ul>
 <li><a href="../sides-lifeforms/">Sides, lifeforms &amp; faces</a> &mdash; face strings, and the NPCs a

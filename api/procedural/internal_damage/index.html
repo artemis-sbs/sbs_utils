@@ -12605,7 +12605,7 @@ not been switched to yet.</p>
         <p>Set a node's wear, reconciling everything that follows from it.</p>
 <p>The ONLY writer. It clamps, stores, adds or removes <code>__worn__</code>, repaints
 through grid_node_apply_color, and recomputes the ship's coefficients - but only
-when the ROLE actually flipped, so wear moving within a band costs one dict write
+when the TIER actually changed, so wear moving within a band costs one dict write
 and nothing else.</p>
 <p>Only a SYSTEM node carries wear at all (see <code>grid_node_is_system</code>); on anything
 else this is a no-op that answers with the nominal reading. Gating the one writer

@@ -4653,10 +4653,10 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#energy-has-a-floor-and-that-is-the-useful-part" class="md-nav__link">
+  <a href="#energy-waiting-gets-you-to-200-docking-gets-you-home" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Energy has a floor, and that is the useful part
+        Energy: waiting gets you to 200, docking gets you home
       
     </span>
   </a>
@@ -4690,6 +4690,17 @@
     <span class="md-ellipsis">
       
         <code class="doc-symbol doc-symbol-toc doc-symbol-module"></code>&nbsp;helm
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#sbs_utils.procedural.helm.helm_apu_ceiling" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;helm_apu_ceiling
       
     </span>
   </a>
@@ -9877,10 +9888,10 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#energy-has-a-floor-and-that-is-the-useful-part" class="md-nav__link">
+  <a href="#energy-waiting-gets-you-to-200-docking-gets-you-home" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Energy has a floor, and that is the useful part
+        Energy: waiting gets you to 200, docking gets you home
       
     </span>
   </a>
@@ -9914,6 +9925,17 @@
     <span class="md-ellipsis">
       
         <code class="doc-symbol doc-symbol-toc doc-symbol-module"></code>&nbsp;helm
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#sbs_utils.procedural.helm.helm_apu_ceiling" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;helm_apu_ceiling
       
     </span>
   </a>
@@ -10208,36 +10230,67 @@ that are easy to get subtly wrong:</p>
   it believes it has left.</li>
 </ul>
 </div>
-<h2 id="energy-has-a-floor-and-that-is-the-useful-part">Energy has a floor, and that is the useful part</h2>
-<p>The tank drains <strong>only while the throttle is up</strong> —
-<code>min(thr,1) * ship_energy_cost + max(0, thr-1) * warp_energy_cost</code>, warp weighted about
-double — and the auxiliary power unit trickles it back <strong>unconditionally</strong> whenever energy
-is below <code>ship_apu_ceiling</code>. Docking refills it fast on top of that.</p>
-<blockquote>
-<p><strong>There is no unrecoverable energy state. A ship that strands is a ship that never stopped
-burning.</strong></p>
-</blockquote>
-<p>That is why <code>helm_throttle</code> consults a reserve before allowing warp, and why
-<code>helm_energy_reserve</code> exists at all. Three rules follow, and together they make stranding
-impossible rather than unlikely:</p>
-<ol>
-<li><strong>Never enter warp without the reserve to reach help.</strong> Warp is the only thing that
-   outruns the APU.</li>
-<li><strong>Below the reserve, drop to impulse or stop.</strong> The APU then refills with certainty.</li>
-<li><strong>Dock when a station is in reach</strong>, because it is faster than waiting.</li>
-</ol>
-<p><code>helm_energy_reserve(ship, target)</code> asks the question a flat threshold cannot: <em>can I afford
-to get there and still have something left?</em> "Dock below 300 energy" says nothing about
-whether the station is 2,000 units away or 40,000.</p>
-<p>This is what let LegendaryMissions' autoplay delete its energy <strong>refill cheat</strong> rather than
-keep hiding real energy bugs behind it. A cheat put there so an unattended run would not
-stall also guarantees the run can never find an energy bug.</p>
-<div class="admonition tip">
-<p class="admonition-title">Prove it, because a plain run does not</p>
-<p>Neither the old nor the new autoplayer dropped below ~730 energy in 300 sim-seconds on
-siege — the cheat never fired, so the run proved nothing either way. Draining the tank
-to 20 (below the old threshold) and watching it climb back to 596 unaided is the test
-that means something.</p>
+<h2 id="energy-waiting-gets-you-to-200-docking-gets-you-home">Energy: waiting gets you to 200, docking gets you home</h2>
+<p>The engine's energy numbers are in <code>data/preferences.json</code>:</p>
+<table>
+<thead>
+<tr>
+<th>key</th>
+<th>value</th>
+<th>meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>player-fuel-use-coeff</code></td>
+<td>0.12</td>
+<td>drain, times the ship's speed</td>
+</tr>
+<tr>
+<td><code>player-base-energy-use-coeff</code></td>
+<td>0.007</td>
+<td>drain, times the power on every engineering slider — a stopped ship still draws</td>
+</tr>
+<tr>
+<td><code>player-shields-raised-energy-coeff</code></td>
+<td>2.0</td>
+<td>drain multiplier while shields are up</td>
+</tr>
+<tr>
+<td><code>energyCostOfOneBeamShot</code></td>
+<td>1.0</td>
+<td>per beam shot</td>
+</tr>
+<tr>
+<td><code>ship_apu_assistance_per_tick</code></td>
+<td>0.1</td>
+<td>APU refill, 3/s at 30 ticks</td>
+</tr>
+<tr>
+<td><code>ship_apu_assistance_ceiling</code></td>
+<td>200</td>
+<td><strong>the APU stops here</strong></td>
+</tr>
+<tr>
+<td><code>player-no_energy-speed-coeff</code></td>
+<td>0.1</td>
+<td>an empty ship still flies, at 10%</td>
+</tr>
+</tbody>
+</table>
+<p><code>helm_apu_ceiling(ship)</code> returns that ceiling (the ship's <code>ship_apu_ceiling</code> when it carries
+one). <strong>Anything that parks a ship "until energy recovers" must aim below it</strong>, or it waits
+forever. Only docking refills the tank.</p>
+<p><code>helm_throttle</code> still refuses warp below <code>DEFAULT_ENERGY_RESERVE</code> (400), so a ship keeps
+enough in hand to reach a station. That is a spending gate, not a recovery target.
+<code>helm_energy_reserve(ship, target)</code> estimates whether a trip is affordable at a given
+throttle. Because an empty ship still moves, "unaffordable" means "slow", not "impossible".</p>
+<div class="admonition danger">
+<p class="admonition-title">This page used to say energy has a floor</p>
+<p>It claimed a stopped ship always recovers, because the mock's APU refilled to 1000. LM's
+brain autoplayer believed it: it parked ships below 400 to wait for 400, and in the
+engine every ship that ran low away from a station sat still for the rest of the run.
+The mock now uses the engine's ceiling and rate.</p>
 </div>
 <h2 id="the-engineering-table-is-many-to-one">The engineering table is many-to-one</h2>
 <p><code>helm_eng_controls</code> walks <code>eng_control_label</code> once. That walk was previously written out by
@@ -10310,19 +10363,25 @@ subtly wrong:</p>
   <code>dock_state = unknown</code> - and the engine holds the dock with a <em>tractor</em>, so a cancel that
   does not delete it leaves the ship attached.</li>
 </ul>
-<p>ENERGY IS THE INTERESTING PART. The tank drains only while the throttle is up -
-<code>min(thr,1) * ship_energy_cost + max(0, thr-1) * warp_energy_cost</code>, warp weighted about
-double - and the auxiliary power unit trickles it back <strong>unconditionally</strong> whenever energy
-is below <code>ship_apu_ceiling</code>. Docking refills fast on top of that.</p>
+<p>ENERGY IS THE INTERESTING PART, and the engine's numbers live in <code>data/preferences.json</code>:</p>
+<ul>
+<li>the tank drains with SPEED (<code>player-fuel-use-coeff</code>), with the power on every engineering
+  slider (<code>player-base-energy-use-coeff</code>) - so a stopped ship still draws - doubled while
+  shields are raised (<code>player-shields-raised-energy-coeff</code>), and per beam shot;</li>
+<li>the auxiliary power unit adds 0.1 a tick (3/s) but <strong>only up to 200</strong>
+  (<code>ship_apu_assistance_ceiling</code>). It is a get-home trickle, not a recharge;</li>
+<li>an empty tank does not stop the ship - it flies at 10% (<code>player-no_energy-speed-coeff</code>);</li>
+<li>docking refills the tank to full.</li>
+</ul>
 <blockquote>
-<p><strong>There is no unrecoverable energy state. A ship that strands is a ship that never
-stopped burning.</strong></p>
+<p><strong>Waiting never gets a ship past ~200 energy. Only docking does.</strong></p>
 </blockquote>
-<p>That is why <code>helm_throttle</code> consults a reserve before allowing warp, and why
-<code>helm_energy_reserve</code> exists at all. A bot that respects them cannot strand itself, which
-means the "refill the tank so the test doesn't stall" cheat can be deleted rather than
-hidden. Everything here is a real control write, so the same calls serve an attract bot and
-a conformance run; what differs is the policy above them, not the actuation.</p>
+<p>This module used to say the opposite - "a stopped ship always recovers" - because that was
+true of the MOCK, whose APU refilled to 1000. LM's brain autoplayer believed it, parked
+ships below a 400 reserve to wait for the APU, and they sat there for the rest of the run.
+A threshold that waiting is meant to clear must sit under <code>helm_apu_ceiling</code>.</p>
+<p>Everything here is a real control write, so the same calls serve an attract bot and a
+conformance run; what differs is the policy above them, not the actuation.</p>
 
 
 
@@ -10343,6 +10402,27 @@ a conformance run; what differs is the policy above them, not the actuation.</p>
 
 
 
+
+<div class="doc doc-object doc-function">
+
+
+<h2 id="sbs_utils.procedural.helm.helm_apu_ceiling" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">helm_apu_ceiling</span><span class="p">(</span><span class="n">ship</span><span class="p">)</span></code>
+
+</h2>
+
+
+    <div class="doc doc-contents ">
+
+        <p>The energy the auxiliary power unit refills to - and so the most waiting can reach.</p>
+<p>Reads <code>ship_apu_ceiling</code> when the ship carries a positive one, otherwise the engine's
+global <code>ship_apu_assistance_ceiling</code> (200). Anything that parks a ship "until energy
+recovers" has to aim below this, or it waits forever.</p>
+
+
+    </div>
+
+</div>
 
 <div class="doc doc-object doc-function">
 
@@ -10437,8 +10517,8 @@ friendly station is in reach.</p>
         <p>Energy this ship would spend holding <code>throttle</code> for <code>seconds</code>.</p>
 <p>Mirrors the engine's drain: impulse is charged on the part of the throttle up to 1.0
 and warp on the excess, at the hull's own <code>ship_energy_cost</code> / <code>warp_energy_cost</code>.
-Warp costs roughly double per unit, which is why sustained warp is the only thing that
-outruns the auxiliary power unit.</p>
+Warp costs roughly double per unit. An ESTIMATE for trip planning: the engine really
+charges by speed and slider power (see the module docstring), not these fields.</p>
 
 
     </div>
@@ -10650,8 +10730,8 @@ for the energy estimate, so approximate is enough.</p>
     <div class="doc doc-contents ">
 
         <p>Cut the throttle and drop direction steering.</p>
-<p>Also the recovery move: with the throttle at zero nothing drains the tank, so the
-auxiliary power unit refills it. Stopping is always a way out.</p>
+<p>Stopping cuts the speed drain, but the sliders and shields still draw, and the auxiliary
+power unit only refills to <code>helm_apu_ceiling</code> (~200). It buys a trickle, not a full tank.</p>
 
 
     </div>
@@ -10712,8 +10792,8 @@ display text ("Maneuver", "Impulse Drive") rather than keys.</p>
 clamps, and both are silent failures otherwise:</p>
 <ul>
 <li>the hull has no warp drive (<code>warp != 1.0</code>), so the engine ignores the warp band;</li>
-<li>the tank is below the reserve, and warp is the one thing that drains faster than
-  the auxiliary power unit refills. Clamping to impulse lets the APU win.</li>
+<li>the tank is below the reserve, and warp burns it fastest. Clamping to impulse keeps
+  enough in hand to reach a station.</li>
 </ul>
 <p>Pass <code>allow_warp=False</code> to hold impulse regardless - a caller that has decided to
 conserve does not need to restate why.</p>
