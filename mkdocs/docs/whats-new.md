@@ -246,6 +246,11 @@ wander and shoot; it plays like a coordinated crew:
   pull well before it's caught in the well — **docks to repair** when hurt, and if its
   **maneuvering is shot out** it **holds station** to keep fighting instead of burning off
   into deep space.
+- **Goes home when the tank runs low.** A ship short on energy now flies to a friendly
+  station, docks, and comes back out fully fueled with its shields up. It used to stop
+  where it stood and wait for the auxiliary power unit to bring it back up — which the
+  APU never does past a trickle charge, so a lobby left running long enough filled up
+  with ships parked in deep space doing nothing.
 
 Turn it on — and tune its **stand-off range** and **engineering overpower** — in
 [LegendaryMissions](legendarymissions/index.md) settings.
@@ -534,6 +539,59 @@ your game looks like whether you ask for them or not.
 
 ---
 
+## 🪪 The console picker says who you are about to be
+
+The first screen of every session used to offer an empty **Crew person Name** box and
+an **Edit Face** button. Almost nobody filled the box in — and a name was only worked
+out *after* the console was chosen, so the one screen where you decide what to be was
+the one screen that could not tell you.
+
+It shows you instead. The face and the name sit on one line and follow whichever
+station is highlighted in the list: run down helm, science, engineering and the line
+changes with you. Highlight engineering on a hull whose mod brought its own cast and it
+names that ship's engineer. Nothing is written while you look.
+
+**A name belongs to the seat, not to whoever sat down.** Helm on the Artemis is the
+same officer every time anything asks — before anybody connects, while you are only
+looking at it, and after whoever was there gets up. So what the picker shows you is
+what the console will actually get, and a station nobody is at still has somebody's
+name on it. One consequence worth knowing: moving from helm to weapons **renames** an
+automatically named player — you stopped being the helmsman and became the weapons
+officer, which is what a cast list has always done. A name you typed yourself is
+yours, and is never overwritten.
+
+**"Edit Face" becomes "Edit"**, because the page behind it owns the whole person now —
+your name, your avatar, and the option to *be* somebody out of the ship's roster (the
+crew dropdown moved off the picker and lives here). A button naming one field reads as
+though that is the only field there is.
+
+**Editing one thing no longer blanks the others.** Building a face for an
+automatically named officer used to hand back a face and nobody, and the console read
+as unmanned. Now what you choose is laid over the identity the ship had for you, one
+field at a time: naming yourself keeps the face the ship gave you, building a face
+keeps your name, and renaming a cast member keeps their rank and their station — the
+same officer under another name, not a stranger who took the chair. A face and a
+photograph still displace each other; they are two answers to the same question.
+
+**Faces agree with their names, and wear a uniform.** A face is rolled for anybody who
+has none of their own, and an ungendered name pool put a man's face over "Freya
+Laurent" one console in two. One roll in five also came back in civilian clothes,
+which on a bridge is not a variation on a crew member — it is a stranger at the helm.
+
+**The TSN Watch grows from 8 people to 40.** Seven name a station and the rest float,
+so a ship with a dozen consoles open, a second science station and a hangar full of
+pilots stays inside the cast instead of falling through to automatic names half way
+down the ship. Everybody in it declares a gender, so the rolled faces stop
+contradicting the names above them.
+
+The ship list on that screen also offers only the ships that will **actually fly** —
+picking a hull that was about to be parked out from under your console is no longer
+possible.
+
+Docs: [Crew rosters](build/crew.md).
+
+---
+
 ## 🔧 Engineering has something to do between the hits
 
 Damage control was binary: a room was broken or it was fine, and the only thing that
@@ -592,6 +650,18 @@ undamaged rather than replacing it, an all-worn ship still cannot explode. Every
 threshold and rate is a dial: `grid_set_wear_tuning(tuned_bonus=0.0)` gives you
 maintenance with no over-unity, `upkeep_rate=0` turns off time-based wear entirely.
 
+**Four things that were quietly not working, now do.** A repaired gym, cargo bay,
+hatch or airlock **stops being red** — a room that is not a system never wears and
+never needs tuning, but it does get hit, and it used to keep the damage color forever
+with no button offered to do anything about it. That is most of a shipped interior. A
+**tune that has worn off stops being paid for**, instead of leaving the beams at 110
+percent long after the tune was gone. A damage-control team in the **sick bay now
+heals all the way** — a team that had taken a single hit used to heal nothing at all,
+and Engineering said "visit sickbay" forever — and an uninjured team is left alone
+rather than parked there. And a team that is given a job **walks to it**: they could
+get stuck holding an order they never moved toward, which nobody else could take
+either.
+
 Docs: [Work orders and maintenance](api/procedural/work_orders.md), [Damage](build/damage.md).
 
 ---
@@ -624,6 +694,13 @@ that connected a second later never saw it.
 **Nothing seizes the console.** An urgent line does not switch the info panel to the log
 tab — the strip already shows it, in its severity colour, everywhere. A mission that wants
 the interrupt sets `RAISE_ON = ("danger",)`.
+
+**A message names the person who spoke, not the ship they are standing on.** When one
+of your officers hails another bridge, it arrives from that officer — by name, with
+their face — rather than from the hull they happen to be aboard. The log files each
+exchange under the person at the other end, so two crew members on the same ship are
+two conversations instead of one pile filed under the ship, and the direction of each
+line is drawn for you instead of being spelled out in the title.
 
 Docs: [Messages & the ship's log](build/messages.md), [Overlays](cosmos/overlays.md).
 
@@ -891,12 +968,24 @@ automatically.
     **per-phase breakdown** (`dispatch_tick` / `gui_present` / `gc` / …) so you
     can see exactly which subsystem caused a given spike.
 
+**A fleet whose last ship is gone stops being a fleet.** Every wave, every fleet a
+gamemaster puts together and every fleet-of-one a spawned raider builds used to leave
+an empty one behind when its ships died — for the rest of the run, each still thinking
+away with nothing left to command. They are cleared up now, a few seconds after the
+last ship goes. A mission that deliberately holds an empty fleet keeps it.
+
 ---
 
 ## 🎬 Quality-of-Life & Presentation
 
 - **Shareable game codes** and per-map seed options so crews can replay the exact
   same setup.
+- **A nebula is the color it is named.** Three of the seven stock colors were not:
+  `yellow` came out chartreuse and read as a second green, and `red` and `orange` were
+  a single indistinguishable dot wherever a map carried both. The clouds themselves
+  were retuned rather than just their radar icons — the icon is drawn from the cloud,
+  and the two are not allowed to disagree — so nebulae genuinely look different now in
+  any mission using the stock colors.
 
 Details: [LegendaryMissions &rsaquo; Game features](legendarymissions/playing/features.md).
 
