@@ -242,7 +242,147 @@ def boarding_click(client_id, parent_id, x, y):
     host = boarding_my_host(client_id)
     if not host or to_id(parent_id) != to_id(host):
         return False
+    # ARMED, THE CLICK IS A SHOT. This is the whole of the weapon's aiming: the device
+    # changes what the map click MEANS, so the shot needs no input path of its own and
+    # inherits the per-client design the walk already has. See `boarding_fire`.
+    if boarding_armed(client_id):
+        return boarding_fire(client_id, int(x), int(y))
     return boarding_walk(client_id, int(x), int(y))
+
+
+# --- the weapon -------------------------------------------------------------------
+#
+# The device owns AIMING, RANGE and the SHOT. What a shot MEANS is the mission's, through
+# `xess_fired` and the `.amd`'s own outcomes - so nothing here invents hit points for
+# boarders, a stun duration, or an enemy that shoots back. None of those exist in the game
+# and building them before a mission asks is how a library grows a combat system nobody
+# uses.
+
+KEY_ARMED = "BOARDING_ARMED"       # on the CLIENT, like everything else here
+KEY_SETTING = "BOARDING_SETTING"   # which verb the next shot is
+
+#: How far a shot carries, in grid cells. Short on purpose: the interesting decision is
+#: where you are STANDING, and a weapon that reaches the whole deck removes it.
+FIRE_RANGE = 6
+
+SETTING_STUN = "stun"
+SETTING_CUT = "cut"
+
+
+def boarding_arm(client_id, setting=SETTING_STUN):
+    """Arm this console. The NEXT map click is a shot instead of a walk.
+
+    The setting is chosen BEFORE the target and never inferred from what is hit: a
+    cutting beam on a person and a stun on a bulkhead are both things somebody might
+    mean, so both have to be sayable.
+    """
+    set_inventory_value(client_id, KEY_ARMED, True)
+    set_inventory_value(client_id, KEY_SETTING, setting or SETTING_STUN)
+    return True
+
+
+def boarding_disarm(client_id):
+    """Back to walking."""
+    set_inventory_value(client_id, KEY_ARMED, False)
+
+
+def boarding_armed(client_id):
+    """Whether the next click is a shot. The device must show this LOUDLY - nobody should
+    discover they were armed by hitting a colleague."""
+    return bool(get_inventory_value(client_id, KEY_ARMED, False))
+
+
+def boarding_setting(client_id):
+    """The verb the next shot carries."""
+    return get_inventory_value(client_id, KEY_SETTING, SETTING_STUN)
+
+
+def boarding_fire(client_id, x, y):
+    """Shoot the cell this console just clicked.
+
+    **A shot disarms**, whatever the outcome - including a refusal. One click, one shot,
+    back to walking. Holding a weapon armed across a room is how an accident happens, and
+    re-arming is one tap.
+
+    Returns:
+        bool: True if something was hit. A refusal (out of range, no body, nothing there)
+        is False and says why through `xess_fired`, rather than being a silent no-op that
+        reads as a broken button.
+    """
+    from .grid import grid_objects_at, grid_pos_data
+    from .signal import signal_emit
+    host = boarding_my_host(client_id)
+    setting = boarding_setting(client_id)
+    fig = boarding_my_figure(client_id)
+    boarding_disarm(client_id)
+
+    def _report(hit, what, reason=None):
+        signal_emit("xess_fired", {
+            "XESS_CLIENT": client_id, "XESS_SITE": host, "XESS_SETTING": setting,
+            "XESS_X": int(x), "XESS_Y": int(y), "XESS_HIT": what,
+            "XESS_REASON": reason,
+        })
+        return hit
+
+    if not fig:
+        return _report(False, None, "no body")
+    at = grid_pos_data(fig)
+    if at is None or at[0] is None:
+        return _report(False, None, "no body")
+    # A GRID distance, the way the figures walk - four-connected, so this is the number
+    # of steps rather than a straight line through a bulkhead.
+    reach = abs(int(at[0]) - int(x)) + abs(int(at[1]) - int(y))
+    if reach > FIRE_RANGE:
+        return _report(False, None, "out of range")
+
+    here = grid_objects_at(host, int(x), int(y)) - {to_id(fig)}
+    target = next(iter(here & role(FIGURE_ROLE)), None)
+    if target is None:
+        target = next(iter(here & role("lifeform")), None)
+    if target is not None:
+        _hurt(host, target, setting)
+        return _report(True, to_id(target), None)
+
+    node = next(iter(here), None)
+    if node is not None:
+        _break(host, node, setting)
+        return _report(True, to_id(node), None)
+
+    return _report(False, None, "nothing there")
+
+
+def _hurt(host, target, setting):
+    """One hit point off somebody, and gone at zero.
+
+    Mirrors what internal damage already does to a damcon, rather than inventing a second
+    death path: the engine's own route drops HP, emits `life_form_died` and deletes the
+    object, and anything watching for a death is watching for that signal.
+    """
+    from .internal_damage import grid_set_hp, grid_get_max_hp
+    from .grid import grid_delete_object
+    from .signal import signal_emit
+    hp = get_inventory_value(target, "HP", grid_get_max_hp())
+    hp = int(hp) - 1
+    grid_set_hp(to_id(host), to_id(target), max(0, hp))
+    if hp <= 0:
+        signal_emit("life_form_died", {"SHIP_ID": to_id(host),
+                                       "LIFE_FORM_ID": to_id(target)})
+        grid_delete_object(to_id(host), to_id(target))
+
+
+def _break(host, node, setting):
+    """Damage a node. STUN does not - a stun setting on a bulkhead should say nothing
+    happened rather than quietly cutting through it."""
+    if setting != SETTING_CUT:
+        return
+    from .internal_damage import grid_damage_grid_object
+    grid_damage_grid_object(to_id(host), to_id(node), "yellow")
+
+
+def boarding_fire_count():
+    """Reset-ledger probe: consoles left holding a live weapon."""
+    seen = Agent.SHARED.get_inventory_value(_DRIVERS_KEY, set()) or set()
+    return len([c for c in seen if boarding_armed(c)])
 
 
 def boarding_where(client_id):

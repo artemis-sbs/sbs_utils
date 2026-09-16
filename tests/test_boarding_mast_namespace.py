@@ -53,6 +53,9 @@ CALLED_FROM_MAST = [
     "boarding_my_figure", "boarding_my_host", "boarding_walk", "boarding_click",
     "boarding_where", "boarding_room_at", "boarding_figures",
     "boarding_entry_cell", "boarding_invite_site",
+    # the weapon
+    "boarding_arm", "boarding_disarm", "boarding_armed", "boarding_setting",
+    "boarding_fire",
     # rooms that notice you
     "boarding_rooms_watch", "boarding_rooms_unwatch", "boarding_rooms_occupied",
     "boarding_room_of", "boarding_room_name_of", "boarding_room_name",
