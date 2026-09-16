@@ -162,6 +162,12 @@ def reset_mission_state():
     # would call back into the previous mission's.
     from .procedural.boarding import boarding_clear
     boarding_clear()
+    # The party's BODIES, separately: boarding_clear() owns the cast, this owns the grid
+    # objects standing on an interior and the per-console record of who is driving them.
+    # Grid objects outlive a mission otherwise, and a console would come back still
+    # believing it has somebody.
+    from .procedural.boarding_site import boarding_site_clear
+    boarding_site_clear()
     # The ship's log (Log Panel). Per-mission by definition - last mission's traffic
     # in this one's log would be nonsense - and registered below so a forgotten clear
     # is reported by name rather than found three runs later.
@@ -444,6 +450,10 @@ register_reset_state("boarding party", _boarding_team_count)
 register_reset_state("boarding scene", _boarding_scene_count)
 from .procedural.boarding import boarding_invite_count as _boarding_invite_count
 register_reset_state("boarding invitation", _boarding_invite_count)
+from .procedural.boarding_site import boarding_site_count as _boarding_site_count
+from .procedural.boarding_site import boarding_figure_count as _boarding_figure_count
+register_reset_state("boarding sites", _boarding_site_count)
+register_reset_state("boarding figures", _boarding_figure_count)
 from .procedural.volume import volume_count as _volume_count
 from .procedural.volume import volume_watch_count as _volume_watch_count
 register_reset_state("volumes", _volume_count)

@@ -94,6 +94,26 @@ def gui_console(console, is_jump=False):
         case "engineering":
             console =  "normal_engi"
             widgets = "ship_internal_view^eng_presets^grid_object_list^grid_face^grid_control^eng_heat_controls^eng_power_controls^ship_data"
+        case "crew":
+            # THE CREW CONSOLE - a boarding party walking somebody else's interior.
+            #
+            # Engineering's set minus THREE widgets, and the omission is the design rather
+            # than a trim. `grid_object_list`, `grid_face` and `grid_control` all follow
+            # the engine's grid SELECTION, and that is one value per SHIP
+            # (`consoledispatcher.do_select` writes `grid_selected_UID` on the ship's
+            # blob). Several consoles on one interior would be last-writer-wins, globally:
+            # each person's portrait and verb list would follow whoever clicked most
+            # recently. Drawing none of them is what lets six people board at once.
+            #
+            # A boarding console reads its own state from `boarding_site.py` (the figure
+            # is kept per CLIENT) and paints it in MAST beside the map, so nothing here
+            # has to be arbitrated.
+            #
+            # `ship_data` stays: it is the SITE's, and a party wants to know what it has
+            # walked into. The heat and power controls do not - they belong to a ship being
+            # flown, not a station being walked.
+            console =  "normal_engi"
+            widgets = "ship_internal_view^ship_data"
         case "comms":
             console =  "normal_comm"
             widgets = "comms_2d_view^radar_zoom_ctrl^comms_waterfall^comms_control^comms_face^comms_sorted_list^ship_data^red_alert"

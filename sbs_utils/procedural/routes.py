@@ -830,6 +830,47 @@ def follow_route_select_science(origin_id, selected_id):
     extra_tag = "__init__"
     _follow_route_console(origin_id, selected_id, console, widget,extra_tag)
 
+def follow_route_point_grid(client_id, parent_id, x, y, origin_id=0):
+    """Programmatically fire `//point/grid` as if a console clicked a cell of an interior.
+
+    **The mock never emits `grid_point_selection` at all**, so without this there is no
+    way to reach a `//point/grid` route off a real bridge: no unit test, no `--exercise`
+    coverage, and no headless proof for the one interaction a boarding party is built on.
+    That is why the grid board could only ever be validated by hand.
+
+    The two things a caller must get right are the two the engine decides, so they are
+    arguments rather than guesses:
+
+    * **`client_id` is the console that clicked**, and it is the ONLY way to know. The
+      route body runs on `FrameContext.server_task` (see `HandleConsoleSelect.selected`),
+      so the MAST global `client_id` inside a `//point/grid` route is the SERVER - 0.
+      A route that wants the clicker must read `EVENT.client_id`.
+    * **`parent_id` is the ship whose interior was clicked**, which reaches the route as
+      `GRID_PARENT_ID`. It is not the clicker's own ship: a console boarding an NPC is
+      looking at that NPC's interior.
+
+    Args:
+        client_id (Agent | int): the console that clicked.
+        parent_id (Agent | int): the space object whose interior it is.
+        x (int): the grid x cell clicked.
+        y (int): the grid y cell clicked.
+        origin_id (Agent | int, optional): the dispatcher's per-object key. Left 0, which
+            is what routes the event to the catch-all any-point handlers - the path a
+            `//point/grid` route registers on.
+
+    Example:
+        follow_route_point_grid(cid, site.id, 4, 18)
+    """
+    event = FakeEvent(client_id=to_id(client_id), tag="grid_point_selection",
+                      origin_id=to_id(origin_id), parent_id=to_id(parent_id))
+    event.source_point.x = x
+    event.source_point.y = y
+    # Frozen like the real thing: the engine's event is a Pybind11 object whose attributes
+    # cannot be assigned, so a route that works by re-stamping the event must fail here
+    # too, not only on a live bridge.
+    GridDispatcher.dispatch_grid_event(event.freeze())
+
+
 def follow_route_select_grid(origin_id, selected_id):
     """Programmatically fire the grid selection route as if the player made a selection.
 

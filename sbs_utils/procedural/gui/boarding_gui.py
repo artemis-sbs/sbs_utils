@@ -233,25 +233,86 @@ def _who_is_down():
 RETURN_KEY = "BOARDING_RETURN"
 
 
-def boarding_go_down(client_id):
-    """Morph this console into the character it just took.
+HOME_KEY = "BOARDING_HOME_SHIP"
+
+
+def boarding_home_ship(client_id):
+    """The ship this console BELONGS to, even while it is looking at a boarded interior.
+
+    `viewscreen_home_ship` cannot answer once a console is boarded: it falls back to
+    `sbs.get_ship_of_client`, and boarding has just pointed that at the site. So the real
+    answer is captured on the way down and kept here.
+    """
+    from ..inventory import get_inventory_value
+    from .viewscreen import viewscreen_home_ship
+    return get_inventory_value(client_id, HOME_KEY, None) or viewscreen_home_ship(client_id)
+
+
+def boarding_go_down(client_id, host=None):
+    """Morph this console into the character it just took, and show it where it is.
 
     The PADD stays open across it - the crew pressed a button on a screen and that
     screen is still there, now saying who they are. That is the whole reason identity
     lives in the bar rather than in an app.
+
+    **`gui_console_enter` is given the console's OWN ship, never the host**, and the
+    assignment to the host is a separate line afterwards. That split is not tidiness; it
+    is the difference between a player keeping their name and losing it. The door
+    re-asserts the crew seat with `crew_assign(client_id, home, console_type)`, and
+    `own_pick` is None for anybody auto-named - so handing it the host resolves the seat
+    against the HOST's roster and hull and, failing both, autonames from
+    `_complement_key(host, slot)`. `crew_resolve`'s own docstring says it outright:
+    moving seats RENAMES an auto-named player. The crew would beam across and arrive as
+    strangers.
+
+    So the seat and the camera stay home; only the interior view follows the host.
+
+    Args:
+        client_id: the console going down.
+        host (optional): the ship or station whose interior it will walk. Without one
+            this is the old dialogue-only morph, which is still a valid way to play.
+
+    Returns:
+        bool: False when this console is not holding anybody.
     """
     from ..inventory import get_inventory_value, set_inventory_value
     from .console import gui_console_enter
+    from ..crew import crew_assign
+    from ..query import to_id
     from ..signal import signal_emit
+    from .viewscreen import viewscreen_home_ship
     if not boarding_held(client_id):
         return False
+    # Captured BEFORE anything moves, because the move is what makes it unanswerable.
+    home = viewscreen_home_ship(client_id)
+    set_inventory_value(client_id, HOME_KEY, home)
+    # Who they are, read before the morph rewrites it.
+    post_name = get_inventory_value(client_id, "CREW_NAME", None)
+    post_face = get_inventory_value(client_id, "CREW_FACE", None)
+    post_portrait = get_inventory_value(client_id, "CREW_PORTRAIT", None)
     if not get_inventory_value(client_id, RETURN_KEY, None):
         # Remembered BEFORE the morph, because the morph is what overwrites it.
         set_inventory_value(client_id, RETURN_KEY,
                             get_inventory_value(client_id, "CONSOLE_TYPE", "helm"))
-    gui_console_enter(client_id, "crew")
+    gui_console_enter(client_id, "crew", ship=home)
+    # KEEP THEIR NAME ACROSS THE MORPH, and this is a second, separate rename from the
+    # host one. `gui_console_enter` re-asserts the seat as `crew_assign(cid, home,
+    # "crew")`, and `crew_resolve` autonames per (ship, CONSOLE) seat - so science and
+    # crew are different seats and an auto-named player is renamed by the morph alone,
+    # even with the right ship. That is correct for a bridge crew changing station
+    # (`crew_resolve` documents it) and wrong here: a boarding party is the SAME people,
+    # now standing on a deck. Re-assert what they were called, which wins as tier `own`.
+    if post_name:
+        crew_assign(client_id, home, "crew", own_name=post_name, own_face=post_face,
+                    own_portrait=post_portrait)
+    if host is not None:
+        # AFTER the door, and unconditionally. `gui_console_enter` returns False and does
+        # nothing at all when the type is unchanged, so a console moving from one site to
+        # another would never be re-assigned if this were left to it.
+        FrameContext.context.sbs.assign_client_to_ship(client_id, to_id(host))
     signal_emit("boarding_went_down", {"BOARDING_CLIENT": client_id,
-                                   "BOARDING_WHO": boarding_me(client_id)})
+                                       "BOARDING_WHO": boarding_me(client_id),
+                                       "BOARDING_HOST": to_id(host) if host else 0})
     return True
 
 
@@ -266,12 +327,22 @@ def boarding_go_up(client_id):
     from ..inventory import get_inventory_value, set_inventory_value
     from .console import gui_console_enter
     from ..signal import signal_emit
+    from ..boarding_site import boarding_release
     if not boarding_beam_up(client_id):
         return False
+    # Read the home ship BEFORE the keys are dropped, and pass it explicitly. Left to
+    # resolve itself the door would ask `sbs.get_ship_of_client`, which still answers with
+    # the site - so the console would be "returned" onto the ship it just left, keeping
+    # the interior view and taking its crew seat there.
+    home = boarding_home_ship(client_id)
     back = get_inventory_value(client_id, RETURN_KEY, None) or "helm"
     set_inventory_value(client_id, RETURN_KEY, None)
-    gui_console_enter(client_id, back)
-    signal_emit("boarding_came_back", {"BOARDING_CLIENT": client_id, "BOARDING_CONSOLE": back})
+    set_inventory_value(client_id, HOME_KEY, None)
+    boarding_release(client_id)
+    gui_console_enter(client_id, back, ship=home)
+    signal_emit("boarding_came_back", {"BOARDING_CLIENT": client_id,
+                                       "BOARDING_CONSOLE": back,
+                                       "BOARDING_HOME": home})
     return True
 
 
