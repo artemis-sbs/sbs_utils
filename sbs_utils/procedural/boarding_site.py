@@ -520,3 +520,44 @@ def boarding_rooms_occupied():
 def boarding_room_count():
     """Reset-ledger probe: rooms the party is believed to be standing in."""
     return len(_occupied())
+
+
+# --- the constants above, as functions, because MAST cannot see a constant ------------
+#
+# `MastGlobals.import_python_module` registers FUNCTIONS only: a module-level string or
+# list is never a MAST global. So every one of the names above is invisible from a .mast
+# file, and a mission writing `any_role(ROOM_ROLES)` gets `NameError: name 'ROOM_ROLES'
+# is not defined` - at RUNTIME, on the line that uses it, which is how this was found.
+#
+# Worse, headless cannot see it: the probe's room code only runs once a console has
+# boarded, and `--test` has no consoles, so it reported PASS. A mission-facing constant
+# needs an accessor or it does not exist.
+
+def boarding_room_roles():
+    """What counts as a room, for `any_role(...)`. See :data:`ROOM_ROLES`."""
+    return (Agent.SHARED.get_inventory_value("__BOARDING_ROOM_ROLES__", None)
+            or ROOM_ROLES)
+
+
+def boarding_console_type():
+    """The CONSOLE_TYPE a boarded console wears - `"boarding_crew"`.
+
+    Deliberately not `"crew"`: that already means a damcon team, because
+    LegendaryMissions spawns them `grid_spawn(..., "crew,damcons,lifeform")`.
+    """
+    from .boarding import BOARDING_CONSOLE
+    return BOARDING_CONSOLE
+
+
+def boarding_figure_role():
+    """The role a boarding figure wears - `"boarding_figure"`."""
+    return FIGURE_ROLE
+
+
+def boarding_site_role():
+    """The role an interior being boarded wears - `"boarding_site"`.
+
+    LegendaryMissions' Engineering grid routes gate themselves OFF this, so it is shared
+    across repos and must not be changed on one side alone.
+    """
+    return SITE_ROLE
