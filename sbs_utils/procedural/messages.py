@@ -200,7 +200,7 @@ def _audience(to):
     return out
 
 
-def _is_away(console, client_id=None):
+def _is_boarding(console, client_id=None):
     """Whether this reader is on the boarding party.
 
     Asked of the CLIENT, because that is what away.py tracks - a console name cannot
@@ -225,9 +225,9 @@ def _audience_matches(want, console, client_id=None):
         return True
     if console and console in want:
         return True
-    if "boarding" in want and _is_away(console, client_id):
+    if "boarding" in want and _is_boarding(console, client_id):
         return True
-    if "ship" in want and not _is_away(console, client_id):
+    if "ship" in want and not _is_boarding(console, client_id):
         return True
     return _forwarded_here(want, console, client_id)
 

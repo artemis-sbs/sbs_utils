@@ -162,7 +162,7 @@ class TestTheLiveAudiencesAreNeverForwarded(ForwardBase):
         self.sit(SCI, "boarding")
         A._TEAM[SCI] = [501]
 
-    def test_an_away_broadcast_arrives_once(self):
+    def test_a_boarding_broadcast_arrives_once(self):
         M.message_send("Report.", to="boarding", sender="The Bridge")
         self.at(SCI, "boarding")
         self.assertEqual(len(M.message_inbox("boarding")), 1)

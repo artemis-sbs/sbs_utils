@@ -438,12 +438,12 @@ register_reset_state("crew seats", _crew_seat_count)
 # A THIRD, for the same reason: an automatic name allocated to a ship's helm is per-mission
 # state, and a complement carried into run 2 names its bridge after run 1's.
 register_reset_state("crew complement", _crew_complement_count)
-from .procedural.boarding import boarding_team_count as _away_team_count
-from .procedural.boarding import boarding_scene_count as _away_scene_count
-register_reset_state("boarding party", _away_team_count)
-register_reset_state("boarding scene", _away_scene_count)
-from .procedural.boarding import boarding_invite_count as _away_invite_count
-register_reset_state("boarding invitation", _away_invite_count)
+from .procedural.boarding import boarding_team_count as _boarding_team_count
+from .procedural.boarding import boarding_scene_count as _boarding_scene_count
+register_reset_state("boarding party", _boarding_team_count)
+register_reset_state("boarding scene", _boarding_scene_count)
+from .procedural.boarding import boarding_invite_count as _boarding_invite_count
+register_reset_state("boarding invitation", _boarding_invite_count)
 from .procedural.volume import volume_count as _volume_count
 from .procedural.volume import volume_watch_count as _volume_watch_count
 register_reset_state("volumes", _volume_count)

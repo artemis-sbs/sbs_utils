@@ -5,7 +5,7 @@ hand a DIFFERENT set of choices to each character. Everything else here guards a
 that could quietly stop being true - the random line diverging per console, an answer racing
 another answer, or the guard resolver clobbering whoever installed one first.
 
-Run: python -m unittest tests.test_away
+Run: python -m unittest tests.test_boarding
 """
 import unittest
 from sbs_utils.fs import test_set_exe_dir
@@ -313,7 +313,7 @@ class AwayResetTests(_AwayBase):
 
 
 class AwayMastRegistrationTests(unittest.TestCase):
-    def test_away_is_callable_from_mast(self):
+    def test_boarding_is_callable_from_mast(self):
         # A procedural module is invisible to MAST until it is listed in
         # mast_sbs_procedural.py. Unit tests and headless both pass without it; the
         # engine dies with NameError. Same guard as test_fleet_tables.
@@ -436,11 +436,11 @@ class AwayLearnTests(_AwayBase):
 
     def test_learn_with_no_token_records_nothing(self):
         # An authoring slip (`; learn`) must not bank an empty fact that still counts.
-        A._away_learn_outcome(None, None, ())
+        A._boarding_learn_outcome(None, None, ())
         self.assertEqual(A.boarding_learned(), 0)
 
     def test_a_multi_word_fact_is_one_fact(self):
-        A._away_learn_outcome(None, None, ("the", "power", "spur"))
+        A._boarding_learn_outcome(None, None, ("the", "power", "spur"))
         self.assertEqual(A.boarding_facts(), ["the power spur"])
 
 

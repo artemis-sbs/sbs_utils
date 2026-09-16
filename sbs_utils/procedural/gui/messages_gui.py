@@ -183,7 +183,7 @@ def _reply_strip(msg):
         return
 
     if msg.get("scene"):
-        _away_reply_strip(msg)
+        _boarding_reply_strip(msg)
         return
 
     offered = message_choices(msg.get("id"))
@@ -209,7 +209,7 @@ def _reply_strip(msg):
         gui_button(choice["label"], on_press=press)
 
 
-def _away_reply_strip(msg):
+def _boarding_reply_strip(msg):
     """The replies an away BEAT offers this console.
 
     Asked of away.py rather than carried on the message: the options differ per

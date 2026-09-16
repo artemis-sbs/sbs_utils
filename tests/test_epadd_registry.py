@@ -289,7 +289,7 @@ class TestTheAwayConsoleOptsIn(EpaddBase):
     def test_and_still_shows_on_the_ship(self):
         self.assertIn("Messages", self.titles("helm"))
 
-    def test_an_away_only_app_stays_off_the_bridge(self):
+    def test_a_boarding_only_app_stays_off_the_bridge(self):
         self.assertIn("Surveying", self.titles("boarding"))
         self.assertNotIn("Surveying", self.titles("helm"))
         self.assertNotIn("Surveying", self.titles("engineering"))

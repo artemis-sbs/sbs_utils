@@ -242,7 +242,7 @@ class TestLiveAudiences(ChoiceBase):
             boarding_mod._TEAM[cid] = [1000 + cid]
         self.addCleanup(boarding_mod._TEAM.clear)
 
-    def test_a_note_to_the_away_team_reaches_a_console_that_is_down_there(self):
+    def test_a_note_to_the_boarding_party_reaches_a_console_that_is_down_there(self):
         self.away(7)
         message_send("Watch your footing.", to="boarding", sender="The Captain")
         FrameContext.page = _Page("helm", client_id=7)
@@ -271,7 +271,7 @@ class TestLiveAudiences(ChoiceBase):
         self.away(7)
         self.assertEqual(len(message_inbox()), 1)
 
-    def test_the_away_console_name_alone_is_enough(self):
+    def test_the_crew_console_name_alone_is_enough(self):
         """gui_console_enter sets the console to "boarding" when it morphs one."""
         message_send("Watch your footing.", to="boarding", sender="The Captain")
         self.assertEqual(len(message_inbox("boarding")), 1)
@@ -336,7 +336,7 @@ class TestAwayBeatsReachTheInbox(ChoiceBase):
         self.assertEqual(got[0]["from"], "The Keeper")
         self.assertTrue(got[0]["text"].startswith("The door is shut"))
 
-    def test_it_is_addressed_to_the_away_team_only(self):
+    def test_it_is_addressed_to_the_boarding_party_only(self):
         """A bridge console is not on the surface and should not read its transcript."""
         self.open()
         self.assertEqual(message_inbox("helm"), [])
@@ -362,7 +362,7 @@ class TestAwayBeatsReachTheInbox(ChoiceBase):
         self.open()
         self.assertEqual(message_inbox("boarding"), [])
 
-    def test_the_away_console_still_gets_its_own_choices(self):
+    def test_the_crew_console_still_gets_its_own_choices(self):
         """The regression that matters: mirroring is additive, and boarding play is
         unchanged for a mission that never opens the PADD."""
         self.boarding_mod._TEAM[7] = [1]

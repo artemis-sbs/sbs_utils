@@ -217,7 +217,7 @@ def boarding_learned(fact=None):
     return 1 if str(fact).strip() in _FACTS else 0
 
 
-def _away_learn_outcome(agent_id, speaker, tokens):
+def _boarding_learn_outcome(agent_id, speaker, tokens):
     """The `learn` outcome verb: `- [Read the panel](panel) if engineering >= 1 ; learn cold`
 
     DECLARED IN THE FILE, counted here. The alternative a mission reaches for first is a
@@ -237,9 +237,9 @@ def _away_learn_outcome(agent_id, speaker, tokens):
 # not run a mission - so a verb registered at install time is one the linter reports as
 # unknown on a file that works perfectly. Registering is also harmless on its own: the
 # verb only records, and it is `boarding_metric_install` that makes `learned` answerable.
-dialogue_register_outcome("learn", _away_learn_outcome)
+dialogue_register_outcome("learn", _boarding_learn_outcome)
 
-def _away_metric(name, agent_id, speaker):
+def _boarding_metric(name, agent_id, speaker):
     """A guard's left side, for an away scene.
 
     This owns exactly one idea: **does the acting character have this role?** ``medical``,
@@ -272,8 +272,8 @@ def boarding_metric_install():
         return False
     from . import amd_dialogue
     incumbent = amd_dialogue._METRIC_RESOLVER
-    _PREV_METRIC = None if incumbent is _away_metric else incumbent
-    dialogue_set_metric_resolver(_away_metric)
+    _PREV_METRIC = None if incumbent is _boarding_metric else incumbent
+    dialogue_set_metric_resolver(_boarding_metric)
     _INSTALLED = True
     return True
 
@@ -576,7 +576,7 @@ def boarding_clear():
 # characters; with an invitation, whoever wants to go takes somebody, and anyone left
 # at their post simply stays there.
 
-INVITE_KEY = "__AWAY_INVITE__"
+INVITE_KEY = "__BOARDING_INVITE__"
 
 
 def boarding_invite(ship, roster, title=None):
@@ -848,7 +848,7 @@ FORWARDING = False
 #: Anything else is the story's own lock and is never forwarded: `learned >= 3` is not
 #: "we are short a medic", it is "you have not worked it out yet", and handing that over
 #: because nobody qualifies would give away the answer. `learned` is named in
-#: `_away_metric` as the one guard word that is not about who is asking; the shape test
+#: `_boarding_metric` as the one guard word that is not about who is asking; the shape test
 #: catches the rest without needing a list.
 _JOB_GUARD = re.compile(r"^(?P<word>[\w ]+?)\s*>=\s*1$")
 _NOT_A_JOB_GUARD = ("learned",)

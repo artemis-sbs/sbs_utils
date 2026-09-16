@@ -99,7 +99,7 @@ class TestWhileOnTheSurface(AwayBase):
         self.send_down()
         self.assertFalse(not boarding_who(CID), "a back tab would be offered")
 
-    def test_a_console_that_is_NOT_away_still_gets_one(self):
+    def test_a_console_that_is_NOT_boarded_still_gets_one(self):
         """The common case - somebody reading the roster from the bridge."""
         self.assertTrue(not boarding_who(CID), "no back tab for a bridge console")
 

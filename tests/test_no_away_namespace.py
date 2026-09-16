@@ -36,7 +36,19 @@ REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 # patterns need an underscore, so the one string every player actually READ - the
 # default party title - sailed straight through a clean run of this very test. A
 # guard that only looks like a guard is worse than no guard.
-GHOST = re.compile(r"\b(away_[a-zA-Z0-9]|AWAY_[A-Z0-9]|AWAY TEAM)")
+# NOT `\baway_`, which is what the first widening used and which has a hole big enough
+# to ship through: `_` is a word character, so `\b` never matches inside
+# `gui_away_screen` or `epadd_away_screen`. LegendaryMissions was still CALLING
+# `gui_away_screen()` - a runtime NameError on the first console to open the app -
+# while this test reported OK. A lookbehind for a LETTER catches the embedded forms
+# and still ignores `runaway_`.
+
+GHOST = re.compile(r"(?<![A-Za-z])(away_[a-zA-Z0-9]|AWAY_[A-Z0-9]|AWAY TEAM)")
+
+# `away_` sequences that are ordinary English inside a long test-method name, in files
+# that have nothing to do with boarding. Kept deliberately short: every entry is a hole in
+# the guard, so a new one is a decision, not a convenience.
+ENGLISH = ("away_from", "away_a_", "away_with")
 
 SKIP_DIRS = {".git", "__pycache__", ".pytest_cache", "node_modules", "site", "__lib__"}
 SKIP_FILES = {
@@ -60,11 +72,13 @@ class NoAwayNamespaceTests(unittest.TestCase):
         found = []
         for path in _walk():
             try:
-                text = io.open(path, encoding="utf-8", errors="ignore").read()
+                with io.open(path, encoding="utf-8", errors="ignore") as fh:
+                    text = fh.read()
             except OSError:
                 continue
             for n, line in enumerate(text.splitlines(), 1):
-                if GHOST.search(line):
+                hit = GHOST.search(line)
+                if hit and not any(e in line for e in ENGLISH):
                     found.append("%s:%d: %s" % (os.path.relpath(path, REPO), n, line.strip()))
         self.assertEqual(
             [], found,
@@ -81,6 +95,14 @@ class NoAwayNamespaceTests(unittest.TestCase):
         self.assertTrue(GHOST.search('    "title": title or "AWAY TEAM",'))
         self.assertIsNone(GHOST.search("a hunter that took a beat too long, 40km away."))
         self.assertIsNone(GHOST.search("    # scrolled away from the bottom"))
+        # The hole the first widening left: `` cannot see inside an identifier.
+        self.assertTrue(GHOST.search("    gui_away_screen()"))
+        self.assertTrue(GHOST.search("    def _away_metric(name, agent_id, speaker):"))
+        # NOT covered, and deliberately: a TRAILING `_away` (`lm_epadd_away`) cannot be
+        # told apart from an English one (`ap_away`, a vector pointing away) without
+        # knowing the domain. That form has to be found by reading. It was: LM's
+        # `lm_epadd_away` was caught by eye, not by this.
+        self.assertIsNone(GHOST.search("    ap_away = BRAIN_AGENT.pos - hole.pos"))
 
 
 if __name__ == "__main__":

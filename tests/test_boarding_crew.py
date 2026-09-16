@@ -95,7 +95,7 @@ class TestTheBodyIsTheCrewMember(CrewPartyBase):
         self.crew(SCI, "science", "Sorel")
         self.assertTrue(has_role(self.bodies([SCI])[0], "science"))
 
-    def test_every_body_is_on_the_away_team(self):
+    def test_every_body_is_on_the_boarding_party(self):
         self.crew(HELM, "helm", "Marek")
         self.assertTrue(has_role(self.bodies([HELM])[0], A.CREW_ROLE))
 
