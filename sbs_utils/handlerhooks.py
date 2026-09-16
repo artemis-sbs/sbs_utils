@@ -454,6 +454,8 @@ from .procedural.boarding_site import boarding_site_count as _boarding_site_coun
 from .procedural.boarding_site import boarding_figure_count as _boarding_figure_count
 register_reset_state("boarding sites", _boarding_site_count)
 register_reset_state("boarding figures", _boarding_figure_count)
+from .procedural.boarding_site import boarding_room_count as _boarding_room_count
+register_reset_state("boarding rooms", _boarding_room_count)
 from .procedural.volume import volume_count as _volume_count
 from .procedural.volume import volume_watch_count as _volume_watch_count
 register_reset_state("volumes", _volume_count)

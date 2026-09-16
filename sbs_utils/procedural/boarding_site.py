@@ -278,6 +278,15 @@ def boarding_site_clear(target=None):
         for cid in list(Agent.SHARED.get_inventory_value(_DRIVERS_KEY, set()) or set()):
             boarding_release(cid)
         Agent.SHARED.set_inventory_value(_DRIVERS_KEY, set())
+        # The room watcher too. A tick task that outlives its mission is how a soak
+        # reports brains still ticking on run 2, and a stale occupancy table would make
+        # the next mission's first room silently refuse to fire.
+        boarding_rooms_unwatch()
+    else:
+        # One site cleared, the rest still live: forget only ITS rooms, or they stay
+        # "occupied" forever and can never wake again.
+        gone = "%s:" % to_id(target)
+        _set_occupied({k: c for k, c in _occupied().items() if not k.startswith(gone)})
 
 
 def boarding_site_count():
@@ -288,3 +297,226 @@ def boarding_site_count():
 def boarding_figure_count():
     """Reset-ledger probe: bodies still standing on one."""
     return len(role(FIGURE_ROLE))
+
+
+# --- rooms that notice you --------------------------------------------------------------
+#
+# Walking is not a game until arriving somewhere MEANS something. This is the join between
+# the two halves: `boarding_site.py` knows where everybody is standing, `boarding.py` knows
+# what a scene is, and until now nothing connected them - a party could walk into the lab
+# and the lab did not notice.
+#
+# THE ROOM WAKES, NOT THE PERSON. A room fires once when the party first enters it and does
+# not fire again until the last of them has left. That rule is not a preference; the probe
+# paid for it. Three characters walked into one airlock, a per-PERSON trigger fired three
+# times, and the scene restarted twice - re-rolling its random line in front of everybody.
+# Regrouping is a normal thing for a party to do, and it must be silent.
+#
+# The mission decides what entering MEANS. The library emits and says nothing about scenes,
+# because "arriving starts the conversation" is one mission's answer and "arriving offers
+# it" is another's.
+
+# {"<site id>:<room name>": the client whose figure woke it}
+#
+# KEYED BY NAME, NOT BY GRID OBJECT, and this matters more than it looks. A floor plan
+# draws a room as one grid node PER CELL - a 3x3 lab is nine objects all called
+# "site-lab" - so keying on the node would fire nine arrivals for one room and then
+# nine departures as somebody crossed it. The authored NAME is what a mission means by
+# "the lab", so that is the identity. The site is in the key because two stations can
+# both have a "cargo bay".
+_OCCUPIED_KEY = "__BOARDING_OCCUPIED__"
+
+# Which grid-object roles count as somewhere you can BE. A floor plan's rooms carry these
+# (see grid_rooms.py); corridors, markers and the EPad do not, so walking a hallway is
+# travel rather than a dozen arrivals.
+ROOM_ROLES = "room, access, science, engine, cabin, computer, bay, cargo, medical"
+
+_WATCH_KEY = "__BOARDING_ROOM_WATCH__"
+
+
+def _occupied():
+    return Agent.SHARED.get_inventory_value(_OCCUPIED_KEY, {}) or {}
+
+
+def _set_occupied(table):
+    Agent.SHARED.set_inventory_value(_OCCUPIED_KEY, table)
+
+
+def boarding_rooms_watch(seconds=0.4, roles=None):
+    """Start noticing when the party enters and leaves rooms.
+
+    Emits two signals, both ONCE PER ROOM:
+
+    ``boarding_entered``
+        the first figure to arrive in an empty room. Carries ``BOARDING_ROOM``,
+        ``BOARDING_ROOM_NAME``, ``BOARDING_SITE``, and the ``BOARDING_CLIENT`` /
+        ``BOARDING_WHO`` of whoever got there first.
+    ``boarding_left``
+        the last figure out. Carries ``BOARDING_ROOM``, ``BOARDING_ROOM_NAME`` and
+        ``BOARDING_SITE``.
+
+    **Route these with ``//shared/signal``, not ``//signal``.** Entering a room is one
+    event in the world, not one per console: a five-console party on a ``//signal`` route
+    would start the scene five times, which is the same bug the once-per-room rule exists
+    to prevent, one level up.
+
+    Args:
+        seconds (float, optional): how often to look. The default is well under the time
+            a figure takes to cross one cell, so no room is ever stepped through unseen,
+            and the check is a handful of dict lookups per figure.
+        roles (str, optional): what counts as a room. Defaults to :data:`ROOM_ROLES`.
+
+    Returns:
+        The tick task, so a mission can hold it. Idempotent - asking twice watches once.
+    """
+    from ..tickdispatcher import TickDispatcher
+    if Agent.SHARED.get_inventory_value(_WATCH_KEY, None):
+        return Agent.SHARED.get_inventory_value(_WATCH_KEY, None)
+    if roles:
+        Agent.SHARED.set_inventory_value("__BOARDING_ROOM_ROLES__", roles)
+    task = TickDispatcher.do_interval(boarding_rooms_tick, seconds)
+    Agent.SHARED.set_inventory_value(_WATCH_KEY, task)
+    return task
+
+
+def boarding_rooms_unwatch():
+    """Stop noticing. Rooms are forgotten, so a later watch starts from a clean sheet."""
+    task = Agent.SHARED.get_inventory_value(_WATCH_KEY, None)
+    if task is not None:
+        try:
+            task.stop()
+        except Exception:
+            # A task the dispatcher has already dropped is not an error - the mission
+            # ended, or a reset took it. There is nothing to stop and nothing to say.
+            pass
+    Agent.SHARED.set_inventory_value(_WATCH_KEY, None)
+    _set_occupied({})
+
+
+def boarding_room_of(figure):
+    """The room node this body is standing on, or None if it is in a corridor.
+
+    One NODE. A room is drawn per cell, so this is whichever cell of the lab they are on
+    - use :func:`boarding_room_name_of` for the room a mission means.
+    """
+    from .grid import grid_pos_data
+    from .roles import any_role
+    from .grid import grid_objects_at
+    fig_id = to_id(figure)
+    at = grid_pos_data(fig_id)
+    if at is None or at[0] is None:
+        return None
+    for site in set(role(SITE_ROLE)):
+        here = grid_objects_at(site, int(at[0]), int(at[1]))
+        if not here or fig_id not in here:
+            continue
+        roles = (Agent.SHARED.get_inventory_value("__BOARDING_ROOM_ROLES__", None)
+                 or ROOM_ROLES)
+        rooms = here & any_role(roles)
+        return next(iter(rooms), None)
+    return None
+
+
+def boarding_room_name_of(figure):
+    """``(site id, room name, node id)`` for where this body is, or None in a corridor.
+
+    The NAME is the identity a mission cares about: a lab is one room however many cells
+    it is drawn across.
+    """
+    node = boarding_room_of(figure)
+    if node is None:
+        return None
+    so = to_object(node)
+    if so is None:
+        return None
+    return _site_of_room(node), boarding_room_name(so.name), to_id(node)
+
+
+def boarding_room_name(node_name):
+    """The authored room name from a grid node's name.
+
+    The interior builder names every node ``"<room>:<x>,<y>"``
+    (``internal_damage.py:208``), so a lab three cells across is three objects called
+    ``site-lab:3,2``, ``site-lab:4,2``, ``site-lab:5,2``. The part before the colon is
+    what the floor plan's legend called it, and that is the room a mission means - so it
+    is the identity the entry trigger keys on. Without this, walking across one lab
+    reports arriving in three different rooms.
+    """
+    name = str(node_name or "")
+    return name.split(":", 1)[0]
+
+
+def boarding_rooms_tick(t=None):
+    """One look at where everybody is. Registered by :func:`boarding_rooms_watch`."""
+    from .signal import signal_emit
+    from .grid import grid_object_valid
+    occupied = dict(_occupied())
+    # Who is in which room THIS instant, first arrival winning it.
+    now = {}
+    for fig in list(role(FIGURE_ROLE)):
+        if not grid_object_valid(fig):
+            continue
+        where = boarding_room_name_of(fig)
+        if where is None:
+            continue                      # a corridor is travel, not arrival
+        site, name, node = where
+        now.setdefault("%s:%s" % (site, name), (fig, site, name, node))
+
+    for key, (fig, site, name, node) in now.items():
+        if key in occupied:
+            continue                      # somebody was already here - stay quiet
+        cid = boarding_client_of_figure(fig)
+        occupied[key] = cid
+        signal_emit("boarding_entered", {
+            "BOARDING_ROOM_NAME": name,
+            "BOARDING_ROOM": node,
+            "BOARDING_SITE": site,
+            "BOARDING_CLIENT": cid,
+            "BOARDING_WHO": boarding_lifeform_of(fig),
+            "BOARDING_FIGURE": to_id(fig),
+        })
+
+    for key in list(occupied):
+        if key in now:
+            continue                      # still somebody in it
+        del occupied[key]
+        site, _, name = key.partition(":")
+        signal_emit("boarding_left", {
+            "BOARDING_ROOM_NAME": name,
+            "BOARDING_SITE": int(site) if site.isdigit() else None,
+        })
+
+    _set_occupied(occupied)
+
+
+def _site_of_room(room_id):
+    """Which interior a room belongs to. Rooms are per-site, so this is a lookup."""
+    from .grid import grid_objects
+    for site in set(role(SITE_ROLE)):
+        if to_id(room_id) in grid_objects(site):
+            return site
+    return None
+
+
+def boarding_client_of_figure(figure):
+    """The console driving this body, or None.
+
+    The reverse of :func:`boarding_my_figure`, and it has to walk the drivers rather than
+    read a link: the figure belongs to the SITE and the driving belongs to the CLIENT, and
+    keeping the second fact off the figure is the entire point of the design.
+    """
+    fig_id = to_id(figure)
+    for cid in set(Agent.SHARED.get_inventory_value(_DRIVERS_KEY, set()) or set()):
+        if get_inventory_value(cid, KEY_FIGURE, None) == fig_id:
+            return cid
+    return None
+
+
+def boarding_rooms_occupied():
+    """Which rooms the party is currently standing in: ``{room id: client id}``."""
+    return dict(_occupied())
+
+
+def boarding_room_count():
+    """Reset-ledger probe: rooms the party is believed to be standing in."""
+    return len(_occupied())
