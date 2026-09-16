@@ -145,6 +145,123 @@ class TheMapIsNeverInARowWithControls(unittest.TestCase):
                              "over it" % drawn)
 
 
+class TheFlowAndTheActionsNeverShareAPixel(unittest.TestCase):
+    """The bug Doug reported as "text overlaps", pinned as geometry.
+
+    The first version ran the flow section to y=97 with the prose row declared `1fr` - so
+    it expanded to the bottom - and then pinned the choices region at y=60..97 ON TOP of
+    it. A region is positioned on an ABSOLUTE screen area, the engine does not clip, and a
+    TextArea clears only its own sub-region, so prose and buttons were painted into the
+    same pixels.
+
+    The fix is the idiom `messages_gui` already proves: the flow's last row RESERVES the
+    band and the region is pinned to the SAME band, both stated once as one constant.
+    These tests assert they agree by construction rather than by coincidence.
+    """
+
+    def test_the_reserved_row_and_the_region_are_the_same_band(self):
+        self.assertIn("%dpx" % C.ACTIONS_BAND_PX, C.boarding_actions_reserve())
+        self.assertIn("100-%dpx" % C.ACTIONS_BAND_PX, C.boarding_actions_area(66))
+
+    def test_the_region_is_pinned_to_the_BOTTOM_not_a_guessed_percent(self):
+        """A percentage would only line up with the flow at one screen height."""
+        area = C.boarding_actions_area(66)
+        self.assertIn("100;", area, "the band must end at the bottom of the screen")
+        self.assertNotIn(",60,", area.replace(" ", ""))
+
+    def test_the_region_starts_where_the_map_ends(self):
+        for width in (50, 66, 80):
+            self.assertIn("area: %d," % (width + 1), C.boarding_actions_area(width))
+
+    def test_the_builder_reserves_the_band_BEFORE_opening_the_region(self):
+        """Order matters: the row has to be in the flow, and the flow is done once the
+        region is opened."""
+        import inspect
+        src = inspect.getsource(C.gui_boarding_console)
+        reserve = src.index("boarding_actions_reserve()")
+        region = src.index("boarding_actions_area(")
+        self.assertLess(reserve, region)
+
+    def test_the_flow_section_runs_to_the_bottom(self):
+        """It must NOT stop short at a percentage - the reserved row is what keeps the
+        prose out, and a section that stops early just leaves a gap the region covers."""
+        import inspect
+        src = inspect.getsource(C.gui_boarding_console)
+        self.assertIn("PANEL_TOP, PANEL_RIGHT", src)
+        self.assertNotIn("99,97", src.replace(" ", ""))
+
+
+class TheFaceRowIsNotFlex(unittest.TestCase):
+    """`gui_face` builds a SQUARE with no `measure()`, and `_measure_row_height` excludes
+    squares by construction - "a row of nothing but squares therefore has no natural
+    height at all and returns None, falling back to flex". So `row-height: content` on the
+    face was a SECOND flex row competing with the prose row for the same space, which is
+    invisible until something else is also flexing."""
+
+    def test_it_declares_a_fixed_height(self):
+        import inspect
+        src = inspect.getsource(C.gui_boarding_console)
+        face_at = src.index("gui_face(face)")
+        row = src.rindex("gui_row(", 0, face_at)
+        decl = src[row:face_at]
+        self.assertNotIn("content", decl,
+                         "a square cannot be measured, so `content` here means flex")
+        self.assertIn("em", decl)
+
+
+class TheChoicesAreAList(unittest.TestCase):
+    """A stack of fixed rows in a fixed-height region spills: fixed rows are never scaled
+    down, so past what fits the buttons draw over the map. A listbox scrolls, and it is
+    the house pattern for anything repeating."""
+
+    def test_the_choices_go_through_a_listbox(self):
+        import inspect
+        src = inspect.getsource(C._draw_actions)
+        self.assertIn("gui_list_box(", src)
+
+    def test_no_button_is_built_in_a_loop(self):
+        """The for-loop handler trap: a handler registered in a loop captures the loop
+        variable at its LAST value, so every button would answer with the last choice."""
+        import inspect
+        src = inspect.getsource(C._draw_actions)
+        self.assertNotIn("for ", src.split("gui_list_box(")[0].split("choices = []")[-1])
+
+    def test_the_item_template_returns_None(self):
+        """The listbox only calls `resize_to_content()` when a template returns None; a
+        returned size leaves the item section degenerate, which kills selection.
+
+        Parsed rather than grepped - the first version of this test matched the word
+        "returns" in the function's own docstring and failed on prose.
+        """
+        import ast
+        import inspect
+        import textwrap
+        tree = ast.parse(textwrap.dedent(inspect.getsource(C._choice_row)))
+        returns = [n for n in ast.walk(tree)
+                   if isinstance(n, ast.Return) and n.value is not None]
+        self.assertEqual([], returns, "an item template must return None")
+
+    def test_a_covering_choice_says_so(self):
+        class _Ch:
+            label = "Read the panel"
+            covering = "Dr Sorel"
+        self.assertIn("covering for Dr Sorel", C._choice_text(_Ch()))
+
+    def test_an_ordinary_choice_is_just_its_label(self):
+        class _Ch:
+            label = "Read the panel"
+            covering = None
+        self.assertEqual("Read the panel", C._choice_text(_Ch()))
+
+    def test_the_way_home_is_always_drawn(self):
+        """Even with no scene open and no choices - otherwise there is no way off the
+        ship, and a region that draws nothing keeps its previous content on screen."""
+        import inspect
+        src = inspect.getsource(C._draw_actions)
+        beam = src.index('gui_button("Beam up"')
+        self.assertNotIn("if choices", src[src.index("gui_row(\"row-height: %dpx"):beam])
+
+
 class TheSelectionFollowingWidgetsAreNotDrawn(unittest.TestCase):
     """`grid_object_list`, `grid_face` and `grid_control` all follow the engine's grid
     SELECTION, which is one value per SHIP. Drawing any of them would make each person's

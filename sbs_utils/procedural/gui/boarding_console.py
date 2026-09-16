@@ -34,6 +34,37 @@ VIEW = "__boarding_console_view__"
 ACCENT = "#8cf"
 DIM = "#789"
 
+#: The device column's left edge, in screen percent. The map takes everything left of it.
+PANEL_RIGHT = 99
+
+#: The top of the device column.
+PANEL_TOP = 3
+
+#: What the choices take off the BOTTOM, in px. The flow reserves exactly this band with
+#: its last row and the region is pinned to exactly this band, so the two agree at any
+#: screen height - which is the whole point of stating it once as a number.
+#:
+#: THIS CONSTANT IS THE BUG FIX. The first version ran the flow section to y=97 with the
+#: prose row declared `1fr` (so it expanded to the bottom) and then pinned the region at
+#: y=60..97 on top of it. A region is positioned on an ABSOLUTE screen area
+#: (`section.py:223`), the engine does not clip, and a TextArea clears only its own
+#: sub-region - so the prose and the buttons were painted into the same pixels. The
+#: idiom that works is `messages_gui`'s: the flow's last row RESERVES the band, and
+#: nothing is left to agree by coincidence.
+ACTIONS_BAND_PX = 230
+
+
+def boarding_actions_area(map_width):
+    """The absolute area the choices region occupies. Paired with
+    :func:`boarding_actions_reserve` - they describe the same band by construction."""
+    return ("area: %d, 100-%dpx, %d, 100;"
+            % (map_width + 1, ACTIONS_BAND_PX, PANEL_RIGHT))
+
+
+def boarding_actions_reserve():
+    """The row style that keeps the flow OUT of the band the region covers."""
+    return "row-height: %dpx;" % ACTIONS_BAND_PX
+
 
 def _client(client_id=None):
     if client_id is not None:
@@ -96,6 +127,7 @@ def gui_boarding_console(client_id=None, map_width=66, on_leave=None):
     from .text import gui_text, gui_text_area
     from .face import gui_face
     from .button import gui_button
+    from .blank import gui_blank
     from .widgets import gui_layout_widget
     from ...faces import get_face
     from ..boarding import boarding_line
@@ -108,12 +140,20 @@ def gui_boarding_console(client_id=None, map_width=66, on_leave=None):
     gui_section("area:0,0,%d,100;" % map_width)
     gui_layout_widget("ship_internal_view")
 
-    gui_section("area:%d,3,99,97;" % (map_width + 1))
+    # THE DEVICE COLUMN, run to the BOTTOM. It reserves the choices' band with its last
+    # row rather than stopping short of it at a guessed percentage - see ACTIONS_BAND_PX.
+    gui_section("area:%d,%d,%d,100;" % (map_width + 1, PANEL_TOP, PANEL_RIGHT))
 
     who, name, job = _who(cid)
     face = get_face(who.id) if who is not None else None
     if face:
-        gui_row("row-height: content; padding: 8px, 6px, 8px, 2px;")
+        # A FIXED HEIGHT, not `content`. `gui_face` builds a SQUARE with no `measure()`,
+        # and `_measure_row_height` excludes squares by construction (layout.py:860-874):
+        # "a row of nothing but squares therefore has no natural height at all and returns
+        # None, falling back to flex". So `row-height: content` here was a second FLEX row
+        # quietly competing with the prose row below for the same space. LM's MAST twin of
+        # this screen states the height outright for the same reason.
+        gui_row("row-height: 6em; padding: 8px, 6px, 8px, 2px;")
         gui_face(face)
 
     gui_row("row-height: 2.6em; font:gui-4;")
@@ -131,10 +171,17 @@ def gui_boarding_console(client_id=None, map_width=66, on_leave=None):
     gui_row("row-height: 1fr;")
     w_line = gui_text_area(boarding_line() or " ")
 
+    # RESERVE THE BAND. This row is the only thing keeping the prose above out of the
+    # region below: the engine does not clip, so without it a long line runs under the
+    # choices. `messages_gui` does exactly this and says why - "the body must not flow
+    # into it".
+    gui_row(boarding_actions_reserve())
+    gui_blank()
+
     # THE ONLY PART THAT CHANGES SHAPE. A different scene offers a different NUMBER of
     # choices, so this is a region - a sub-section would leave every previous set of
     # buttons painted underneath the new one, because nothing clears a plain layout.
-    actions = gui_region("area:%d,60,99,97;" % (map_width + 1))
+    actions = gui_region(boarding_actions_area(map_width))
     with actions:
         _draw_actions(cid, on_leave)
 
@@ -146,39 +193,101 @@ def gui_boarding_console(client_id=None, map_width=66, on_leave=None):
     return view
 
 
-def _draw_actions(client_id, on_leave=None):
-    """The buttons for where this character is standing, and the way home.
+#: The way-home row, in px, taken off the bottom of the actions band. The list gets the
+#: rest, so adding a choice lengthens the LIST rather than pushing Beam up off the screen.
+LEAVE_ROW_PX = 46
 
-    `on_press=` with `data=`, never an inline handler in the loop: a block registered in
-    a `for` captures the loop variable at its LAST value, so every button would answer
-    with the last choice.
+
+def _choice_row(item, **kwargs):
+    """One choice as a list row. Returns None, so the listbox sizes the item itself.
+
+    NEVER return a size from an item template: the listbox only calls
+    `resize_to_content()` when the template returns None, and an item section starts at
+    zero height - returning one leaves it degenerate, which kills selection and the
+    click region.
+    """
+    from .row import gui_row
+    from .text import gui_text
+    gui_row("row-height: 1.6em; font:gui-2;")
+    # `overflow:shrink`, because a label that wraps makes this row a different height
+    # from every other one and the engine does not clip - the second line draws over
+    # whatever is under it.
+    gui_text("$text:`%s`;font:gui-2;overflow:shrink;" % _choice_text(item))
+
+
+def _choice_text(item):
+    """A choice's label, with who it is for when that is not obvious.
+
+    `boarding_choices` tags each choice with the body that may take it, and the duty
+    console additionally receives choices nobody present is qualified for - marked here
+    the way the inbox marks them, so a crew member can see they are covering."""
+    label = getattr(item, "label", None) or str(item)
+    covering = getattr(item, "covering", None)
+    if covering:
+        return "%s  (covering for %s)" % (label, covering)
+    return label
+
+
+def _draw_actions(client_id, on_leave=None):
+    """The choices for where this character is standing, and the way home.
+
+    A LIST, not a stack of buttons. Every choice used to get a fixed `2.4em` row inside a
+    fixed-height region, and fixed rows are never scaled down - so past what fitted, the
+    buttons spilled out over the map. A `gui_list_box` scrolls, which is also the house
+    pattern for anything repeating (the quest log, the hangar board, Messages, Status).
+
+    The pick and the commitment stay separate, as they are on the roster screen: choosing
+    a row does nothing until ACT is pressed, so nobody answers a scene by brushing a list.
     """
     from .row import gui_row
     from .text import gui_text
     from .button import gui_button
-    from ..boarding import boarding_choices, boarding_answer, boarding_seq
+    from .listbox import gui_list_box
+    from ..boarding import boarding_choices, boarding_seq
 
     choices = []
     try:
         choices = boarding_choices(client_id) or []
     except Exception:
         # A console with no character, or no scene open. Ordinary, not an error - the
-        # button below still has to be drawn or there is no way off the ship.
+        # way home below still has to be drawn or there is no way off the ship.
         choices = []
 
     seq = boarding_seq()
-    for i, ch in enumerate(choices):
+    if choices:
+        gui_row("row-height: 1fr;")
+        lb = gui_list_box(list(choices), "item-gap: 0.2em;", item_template=_choice_row,
+                          select=True, reveal=True)
         gui_row("row-height: 2.4em; font:gui-2;")
-        # The label PLAINLY. Wrapped in a `$text:`...`;` style string the engine draws
-        # the backticks - they are a style-value quote, not markup it strips.
-        gui_button(getattr(ch, "label", str(ch)),
-                   on_press=_answer, data={"index": i, "seq": seq, "cid": client_id})
+        # `gui_message_callback`, not `on_press=` with an index: the index would be
+        # captured at build time and a re-entered list would answer the wrong one. The
+        # callback reads the SELECTION at the moment it is pressed.
+        act = gui_button("Act")
+        _bind_act(act, lb, client_id, seq)
+    else:
+        gui_row("row-height: 1fr;")
+        gui_text("$text:` `;")
 
-    gui_row("row-height: 1em;")
-    gui_text("$text:` `;")
-
-    gui_row("row-height: 2.4em; font:gui-2;")
+    gui_row("row-height: %dpx; font:gui-2;" % LEAVE_ROW_PX)
     gui_button("Beam up", on_press=(on_leave or _leave), data={"cid": client_id})
+
+
+def _bind_act(button, listbox, client_id, seq):
+    """Answer with whatever is selected WHEN PRESSED."""
+    from .message import gui_message_callback
+
+    def _go(event=None, sender=None, **kwargs):
+        from ..boarding import boarding_answer
+        picked = listbox.get_value()
+        if picked is None:
+            return
+        try:
+            index = list(listbox.items).index(picked)
+        except ValueError:
+            return
+        boarding_answer(client_id, index, seq=seq)
+
+    gui_message_callback(button, _go)
 
 
 def _answer(event=None, sender=None, **kwargs):
