@@ -59,6 +59,8 @@ CALLED_FROM_MAST = [
     # the console
     "boarding_go_down", "boarding_go_up", "boarding_home_ship", "boarding_relevant",
     "boarding_who", "boarding_set_who", "boarding_label", "gui_boarding_screen",
+    "gui_boarding_console", "gui_boarding_console_tick",
+    "boarding_console_revision",
     # THE ACCESSORS. These exist only because MAST cannot see a constant.
     "boarding_room_roles", "boarding_console_type", "boarding_figure_role",
     "boarding_site_role",

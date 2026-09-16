@@ -5,6 +5,8 @@ from .status_gui import gui_status_screen, status_rows
 from .boarding_gui import (gui_boarding_screen, boarding_who, boarding_set_who, boarding_label,
                        boarding_go_down, boarding_go_up, boarding_relevant,
                        boarding_home_ship)
+from .boarding_console import (gui_boarding_console, gui_boarding_console_tick,
+                               boarding_console_revision)
 from .epadd import (gui_app_subnav,
                     gui_app_register, gui_app_unregister, gui_app_is_registered,
                     gui_app_get_registered, gui_app_list, gui_app_groups,
