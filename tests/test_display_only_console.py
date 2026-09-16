@@ -9,7 +9,7 @@ stops selecting as well. And when it does fire it still WRITES - ``target = 0`` 
 CLEARS the shared selection rather than leaving it alone.
 
 That makes "show the same interior on the main screen, read-only" unexpressible, which
-is exactly what an away-mission board needs: the captain drives the grid, the main
+is exactly what an boarding-mission board needs: the captain drives the grid, the main
 screen shows the room the same picture. It bites stock play too - two engineers on one
 ship already fight over the grid selection.
 

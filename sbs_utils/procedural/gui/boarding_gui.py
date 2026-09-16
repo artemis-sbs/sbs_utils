@@ -1,23 +1,23 @@
-"""The Away Team app: join a landing party, and leave it.
+"""The Boarding Party app: join a landing party, and leave it.
 
 A party is OFFERED rather than dealt (see `procedural/away.py`), so this is where a
 console says yes. Before that it shows who is available; afterwards, who is down there
 and the way back.
 
 It is an app rather than a console because that is what makes ePADD able to replace the
-away screen: the crew carry the same PADD down with them, and whatever job apps a
+crew console: the crew carry the same PADD down with them, and whatever job apps a
 mission adds sit beside this one.
 """
 from ...helpers import FrameContext
-from ..away import (away_invitation, away_invite_title, away_open_roster,
-                    away_beam_down, away_beam_up, away_held, away_me, away_team,
-                    away_clients, away_job_text, away_is_open, away_client_of,
-                    away_reserved)
+from ..boarding import (boarding_invitation, boarding_invite_title, boarding_open_roster,
+                    boarding_beam_down, boarding_beam_up, boarding_held, boarding_me, boarding_team,
+                    boarding_clients, boarding_job_text, boarding_is_open, boarding_client_of,
+                    boarding_reserved)
 from ..query import to_object
 from .epadd import ACCENT, DIM, PANEL, PANEL_HEAD, _esc, gui_app_chrome
 
 
-def away_who(client_id=None):
+def boarding_who(client_id=None):
     """The character this console is playing, or None.
 
     A console holding several has an ACTIVE one - the roster picker sets it - because
@@ -30,21 +30,21 @@ def away_who(client_id=None):
         client_id = getattr(page, "client_id", None) if page is not None else None
     if client_id is None:
         return None
-    held = away_held(client_id)
+    held = boarding_held(client_id)
     if not held:
         return None
-    active = get_inventory_value(client_id, "AWAY_ACTIVE", None)
-    return active if active in held else away_me(client_id)
+    active = get_inventory_value(client_id, "BOARDING_ACTIVE", None)
+    return active if active in held else boarding_me(client_id)
 
 
-def away_set_who(client_id, lifeform):
+def boarding_set_who(client_id, lifeform):
     """Which of this console's characters is acting."""
     from ..inventory import set_inventory_value
-    if lifeform in away_held(client_id):
-        set_inventory_value(client_id, "AWAY_ACTIVE", lifeform)
+    if lifeform in boarding_held(client_id):
+        set_inventory_value(client_id, "BOARDING_ACTIVE", lifeform)
 
 
-def away_label(lifeform):
+def boarding_label(lifeform):
     """A character as a person: their name and what they are for.
 
     The job words are not decoration - the scene guards read exactly these - so a crew
@@ -53,7 +53,7 @@ def away_label(lifeform):
     who = to_object(lifeform)
     if who is None:
         return "somebody", ""
-    return who.name, away_job_text(who, default="watching")
+    return who.name, boarding_job_text(who, default="watching")
 
 
 def _roster_template(item):
@@ -62,7 +62,7 @@ def _roster_template(item):
     from .text import gui_text
     from .face import gui_face
     from ...faces import get_face
-    name, job = away_label(item)
+    name, job = boarding_label(item)
     gui_row("row-height: 2.2em;")
     face = get_face(item)
     if face:
@@ -71,7 +71,7 @@ def _roster_template(item):
     gui_text(f"$text:{_esc(job)};font:gui-1;color:{DIM};overflow:ellipsis;")
 
 
-def gui_away_screen(title="Away Team"):
+def gui_boarding_screen(title="Boarding Party"):
     """Draw the join/leave screen for this console."""
     from .section import gui_section
     from .row import gui_row
@@ -82,16 +82,16 @@ def gui_away_screen(title="Away Team"):
 
     page = FrameContext.page
     client_id = getattr(page, "client_id", None) if page is not None else None
-    held = away_held(client_id) if client_id is not None else []
+    held = boarding_held(client_id) if client_id is not None else []
 
-    gui_app_chrome(title, subtitle=away_invite_title() if away_invitation() else None)
+    gui_app_chrome(title, subtitle=boarding_invite_title() if boarding_invitation() else None)
     gui_section(style="area: 0, 80px, 100, 100;")
 
     if held:
         _down_here(client_id, held)
         return
 
-    if away_invitation() is None:
+    if boarding_invitation() is None:
         gui_row("row-height: content; padding: 24px, 16px, 24px, 0;")
         gui_text(f"$text:No landing party.;font:gui-3;color:{DIM};")
         gui_row("row-height: content; padding: 24px, 4px, 24px, 0;")
@@ -99,12 +99,12 @@ def gui_away_screen(title="Away Team"):
                  f"font:gui-1;color:{DIM};")
         return
 
-    mine = away_reserved(client_id)
+    mine = boarding_reserved(client_id)
     if mine is not None:
         _going_as(client_id, mine)
         return
 
-    free = away_open_roster(client_id)
+    free = boarding_open_roster(client_id)
     if not free:
         gui_row("row-height: content; padding: 24px, 16px, 24px, 0;")
         gui_text(f"$text:The party is full.;font:gui-3;color:{DIM};")
@@ -112,7 +112,7 @@ def gui_away_screen(title="Away Team"):
         return
 
     gui_row("row-height: content; padding: 24px, 14px, 24px, 6px;")
-    gui_text(f"$text:{_esc('Going down to ' + away_invite_title())};"
+    gui_text(f"$text:{_esc('Going down to ' + boarding_invite_title())};"
              f"font:gui-1;color:{ACCENT};")
 
     gui_row("padding: 24px, 0, 24px, 8px;")
@@ -123,9 +123,9 @@ def gui_away_screen(title="Away Team"):
     # pressing are separate so nobody lands on the surface by brushing a list.
     def _go(_cid=client_id):
         chosen = lb.get_value()
-        got = away_beam_down(_cid, chosen) if chosen is not None else away_beam_down(_cid)
+        got = boarding_beam_down(_cid, chosen) if chosen is not None else boarding_beam_down(_cid)
         if got is not None:
-            away_go_down(_cid)
+            boarding_go_down(_cid)
 
     gui_row("row-height: 2.6em; padding: 24px, 8px, 24px, 8px;")
     gui_button("BEAM DOWN", on_press=_go)
@@ -145,9 +145,9 @@ def _going_as(client_id, lifeform):
     from .face import gui_face
     from ...faces import get_face
 
-    name, job = away_label(lifeform)
+    name, job = boarding_label(lifeform)
     gui_row("row-height: content; padding: 24px, 14px, 24px, 6px;")
-    gui_text(f"$text:{_esc('Going down to ' + away_invite_title())};"
+    gui_text(f"$text:{_esc('Going down to ' + boarding_invite_title())};"
              f"font:gui-1;color:{ACCENT};")
 
     gui_row("row-height: content; padding: 24px, 10px, 24px, 4px;")
@@ -160,8 +160,8 @@ def _going_as(client_id, lifeform):
     _who_is_down()
 
     def _go(_cid=client_id):
-        if away_beam_down(_cid) is not None:
-            away_go_down(_cid)
+        if boarding_beam_down(_cid) is not None:
+            boarding_go_down(_cid)
 
     gui_row("row-height: 2.6em; padding: 24px, 14px, 24px, 8px;")
     gui_button("BEAM DOWN", on_press=_go)
@@ -175,8 +175,8 @@ def _down_here(client_id, held):
     from .face import gui_face
     from ...faces import get_face
 
-    active = away_who(client_id)
-    name, job = away_label(active)
+    active = boarding_who(client_id)
+    name, job = boarding_label(active)
 
     gui_row("row-height: content; padding: 24px, 14px, 24px, 4px;")
     face = get_face(active)
@@ -194,31 +194,31 @@ def _down_here(client_id, held):
         for other in held:
             if other == active:
                 continue
-            other_name, _ = away_label(other)
+            other_name, _ = boarding_label(other)
             gui_row("row-height: 2.2em; padding: 24px, 2px, 24px, 0;")
 
             def _switch(_cid=client_id, _who=other):
-                away_set_who(_cid, _who)
+                boarding_set_who(_cid, _who)
 
             gui_button(other_name, on_press=_switch)
 
     _who_is_down()
 
     gui_row("row-height: 2.6em; padding: 24px, 14px, 24px, 8px;")
-    gui_button("BEAM UP", on_press=lambda _cid=client_id: away_go_up(_cid))
+    gui_button("BEAM UP", on_press=lambda _cid=client_id: boarding_go_up(_cid))
 
 
 def _who_is_down():
     """The rest of the party, so nobody is alone down there by accident."""
     from .row import gui_row
     from .text import gui_text
-    team = sorted(away_team())
+    team = sorted(boarding_team())
     if not team:
         return
     gui_row("row-height: content; padding: 24px, 12px, 24px, 2px;")
     gui_text(f"$text:On the surface;font:gui-1;color:{DIM};")
     for member in team:
-        name, job = away_label(member)
+        name, job = boarding_label(member)
         gui_row("row-height: content; padding: 24px, 2px, 24px, 0;")
         gui_text(f"$text:{_esc(name)};font:gui-2;", style="col-width: 34;")
         gui_text(f"$text:{_esc(job)};font:gui-1;color:{DIM};overflow:ellipsis;")
@@ -226,14 +226,14 @@ def _who_is_down():
 
 # --- the console half of going, which the model deliberately does not do ------------
 #
-# `away_beam_down` takes a character. THIS turns the console into somebody: the morph,
+# `boarding_beam_down` takes a character. THIS turns the console into somebody: the morph,
 # and remembering the post to come back to. They are separate because a headless test,
 # a mission script and a soak all want to move the team without a console in the way.
 
-RETURN_KEY = "AWAY_RETURN"
+RETURN_KEY = "BOARDING_RETURN"
 
 
-def away_go_down(client_id):
+def boarding_go_down(client_id):
     """Morph this console into the character it just took.
 
     The PADD stays open across it - the crew pressed a button on a screen and that
@@ -243,53 +243,53 @@ def away_go_down(client_id):
     from ..inventory import get_inventory_value, set_inventory_value
     from .console import gui_console_enter
     from ..signal import signal_emit
-    if not away_held(client_id):
+    if not boarding_held(client_id):
         return False
     if not get_inventory_value(client_id, RETURN_KEY, None):
         # Remembered BEFORE the morph, because the morph is what overwrites it.
         set_inventory_value(client_id, RETURN_KEY,
                             get_inventory_value(client_id, "CONSOLE_TYPE", "helm"))
-    gui_console_enter(client_id, "away")
-    signal_emit("away_went_down", {"AWAY_CLIENT": client_id,
-                                   "AWAY_WHO": away_me(client_id)})
+    gui_console_enter(client_id, "crew")
+    signal_emit("boarding_went_down", {"BOARDING_CLIENT": client_id,
+                                   "BOARDING_WHO": boarding_me(client_id)})
     return True
 
 
-def away_go_up(client_id):
+def boarding_go_up(client_id):
     """Put this console back at the post it left.
 
     The character is released first, so somebody still down there could take them.
-    Where the console goes next is the mission's business - `away_came_back` is how it
+    Where the console goes next is the mission's business - `boarding_came_back` is how it
     is told - but the console TYPE is restored here, because leaving a crew member
     wearing `away` is what the role-strip bug was.
     """
     from ..inventory import get_inventory_value, set_inventory_value
     from .console import gui_console_enter
     from ..signal import signal_emit
-    if not away_beam_up(client_id):
+    if not boarding_beam_up(client_id):
         return False
     back = get_inventory_value(client_id, RETURN_KEY, None) or "helm"
     set_inventory_value(client_id, RETURN_KEY, None)
     gui_console_enter(client_id, back)
-    signal_emit("away_came_back", {"AWAY_CLIENT": client_id, "AWAY_CONSOLE": back})
+    signal_emit("boarding_came_back", {"BOARDING_CLIENT": client_id, "BOARDING_CONSOLE": back})
     return True
 
 
-def away_relevant(client_id=None):
-    """Whether the Away Team app has anything to offer this console.
+def boarding_relevant(client_id=None):
+    """Whether the Boarding Party app has anything to offer this console.
 
     True when a party is forming, or when this console is already down there. A
     mission with no landing parties in it has neither, and the tile is then pure
     noise on every console - which is what a playtest reported: six screens each
     carrying a button that says "No landing party".
 
-    Put this on the ROUTE (`//gui/tab/away_team if away_relevant()`) rather than
+    Put this on the ROUTE (`//gui/tab/boarding_team if boarding_relevant()`) rather than
     inventing a visibility flag: a route's own condition is already what ePADD tests
     when it builds the app list, and it is how `casino` and `brain` gate themselves.
     """
-    if away_invitation() is not None:
+    if boarding_invitation() is not None:
         return True
     if client_id is None:
         page = FrameContext.page
         client_id = getattr(page, "client_id", None) if page is not None else None
-    return bool(client_id is not None and away_held(client_id))
+    return bool(client_id is not None and boarding_held(client_id))

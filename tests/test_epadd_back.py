@@ -150,12 +150,12 @@ class TestOneTab(BackBase):
             self.assertEqual(self.labels(), ["engineering"], screen)
 
     def test_a_condition_on_the_route_is_not_asked(self):
-        """The away console. Its tab route is deliberately gated off, and the back tab
+        """The crew console. Its tab route is deliberately gated off, and the back tab
         answers "where did you come from", not "may this be picked from here"."""
-        self.tab("away", condition_false=True)
+        self.tab("boarding", condition_false=True)
         gui_app_activate("cargo")
-        gui_tab_back("away")
-        self.assertEqual(self.labels(), ["away"])
+        gui_tab_back("boarding")
+        self.assertEqual(self.labels(), ["boarding"])
 
 
 class TestTheClickTagDoesNotMoveBetweenBuilds(BackBase):

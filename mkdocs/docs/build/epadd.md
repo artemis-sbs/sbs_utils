@@ -15,7 +15,7 @@ them.
 [ ePADD ][ back ]                                    Artemis        T+00:14:22
 
   Ship
-   [ Away Team ]   [ Status  2 ]   [ Messages  3 ]   [ Cargo ]
+   [ Boarding Party ]   [ Status  2 ]   [ Messages  3 ]   [ Cargo ]
    [ Fabricate 1 ] [ Upgrades ]
 
   Mission
@@ -46,8 +46,8 @@ gui_app_register("cargo", title="Cargo", icon="epadd.cargo",
 The two answer different questions, which is why they are separate:
 
 - The **route's own `if`** says whether the app is *available* &mdash; it is still the
-  authority, exactly as a tab's condition always was. `//gui/app/away_team if
-  away_relevant()` keeps the tile off a mission with no landing parties.
+  authority, exactly as a tab's condition always was. `//gui/app/boarding_team if
+  boarding_relevant()` keeps the tile off a mission with no landing parties.
 - The **registration** says how it is *presented*, which the route grammar has no room
   for (`[\w]+` and an optional `if` is the whole of it).
 
@@ -72,9 +72,9 @@ gui_app_register("airwing", title="Airwing", icon="epadd.airwing",
                  description="Craft, pilots, sortie board")
 ```
 
-`"*"` deliberately does **not** include the away console. An away team is not everywhere
+`"*"` deliberately does **not** include the crew console. A boarding party is not everywhere
 on the ship, it is somewhere else entirely, and a landing party has no use for the cargo
-hold. An app opts in with `away=True`, or names `consoles="away"` to go there and
+hold. An app opts in with `boarding=True`, or names `consoles="boarding"` to go there and
 nowhere else.
 
 ### Groups and order
@@ -94,7 +94,7 @@ lore, help), **Systems** is tooling.
 ```
 gui_app_register("messages", title="Messages", icon="epadd.messages",
                  group="Ship", sort=3, description="From the crew, and from home",
-                 status=lm_epadd_unread, away=True)
+                 status=lm_epadd_unread, boarding=True)
 ```
 
 Anything the callable raises is swallowed and costs only its own badge &mdash; a badge
@@ -282,18 +282,18 @@ quotes, no em-dashes and no emoji, and a `^` is a line break to it.
 
 ---
 
-## The away team
+## The boarding party
 
-The PADD is the away team's console. `away=True` on a registration means the landing
-party carries that app down with them, and the away scene mirrors each beat into the
+The PADD is the boarding party's console. `boarding=True` on a registration means the landing
+party carries that app down with them, and the boarding scene mirrors each beat into the
 inbox, so a party reads its story in the same place it reads its mail.
 
-That is also what retired the separate away console for PADD missions: the crew carry
+That is also what retired the separate crew console for PADD missions: the crew carry
 the screen with them, and whatever job apps a mission adds sit beside it. See
-[Away missions](away-missions.md).
+[Boarding parties](boarding-parties.md).
 
-!!! note "A PADD mission's main screen shows nothing about the away mission"
-    The shared view is driven by the older `away_begin` path, which PADD missions do not
+!!! note "A PADD mission's main screen shows nothing about the boarding mission"
+    The shared view is driven by the older `boarding_begin` path, which PADD missions do not
     emit. The PADD model has no answer for a *shared* surface &mdash; the same fact as
     "no badge on the main screen".
 

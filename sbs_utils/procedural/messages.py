@@ -31,8 +31,8 @@ from .inventory import get_inventory_value as _client_value
 
 
 # A counter the inbox screen watches. A signal does NOT wake `await gui()`, so a live
-# panel has to poll something that changes - the same shape as `away_seq()`, which the
-# away console has used for exactly this since it was written. Bumped by anything the
+# panel has to poll something that changes - the same shape as `boarding_seq()`, which the
+# crew console has used for exactly this since it was written. Bumped by anything the
 # screen would want to redraw for: new mail, an answer, a read mark, a new selection.
 REVISION_KEY = "__MESSAGES_REV__"
 MESSAGES_KEY = "__MESSAGES__"
@@ -114,9 +114,9 @@ def _here():
     """The console reading right now.
 
     `page.console` is set by `gui_console()` at swap time and is NOT what a morphed
-    console answers: `gui_console_enter` - the one door, and how the away console is
+    console answers: `gui_console_enter` - the one door, and how the crew console is
     entered - writes CONSOLE_TYPE into the client's inventory and never touches
-    `page.console`. So an away console reported no console at all, `message_select`
+    `page.console`. So an crew console reported no console at all, `message_select`
     returned early, and nothing a crew member picked was ever remembered.
 
     CONSOLE_TYPE is the authoritative answer; the page is the fallback for a console
@@ -175,9 +175,9 @@ def _last_console(client_id):
 
 # Audiences that are a QUESTION, not a name. Who is away changes during a mission, so
 # these are resolved when the inbox is read rather than when the message is sent - a
-# note addressed to the away team must reach whoever is down there when they read it,
+# note addressed to the boarding party must reach whoever is down there when they read it,
 # not whoever was down there when it was written.
-LIVE_AUDIENCES = ("away", "ship")
+LIVE_AUDIENCES = ("boarding", "ship")
 
 
 def _audience(to):
@@ -201,22 +201,22 @@ def _audience(to):
 
 
 def _is_away(console, client_id=None):
-    """Whether this reader is on the away team.
+    """Whether this reader is on the boarding party.
 
     Asked of the CLIENT, because that is what away.py tracks - a console name cannot
-    answer it. Falls back to the console name, which `gui_console_enter` sets to
-    "away" when it morphs a console into a character.
+    answer it. Falls back to the console name, which `gui_console_enter` sets to the crew-console type
+    "boarding" when it morphs a console into a character.
     """
-    if console == "away":
-        return True
     try:
-        from .away import away_clients
+        from .boarding import boarding_clients, BOARDING_CONSOLE
     except Exception:
         return False
+    if console == BOARDING_CONSOLE:
+        return True
     if client_id is None:
         page = FrameContext.page
         client_id = getattr(page, "client_id", None) if page is not None else None
-    return client_id is not None and client_id in away_clients()
+    return client_id is not None and client_id in boarding_clients()
 
 
 def _audience_matches(want, console, client_id=None):
@@ -225,7 +225,7 @@ def _audience_matches(want, console, client_id=None):
         return True
     if console and console in want:
         return True
-    if "away" in want and _is_away(console, client_id):
+    if "boarding" in want and _is_away(console, client_id):
         return True
     if "ship" in want and not _is_away(console, client_id):
         return True
@@ -277,20 +277,22 @@ def _staffed():
 def _cover_console():
     """Who catches mail for an empty post.
 
-    The away team's duty console when anybody is down - the same console `away.py`
+    The boarding party's duty console when anybody is down - the same console `away.py`
     hands a forwarded job to, deliberately, so one person is covering rather than two
     halves of the job landing in different places. Nobody away means nobody is
     missing, and nothing is forwarded.
     """
     try:
-        from .away import away_duty_client
+        from .boarding import boarding_duty_client
     except Exception:
         return None, None
-    cid = away_duty_client()
+    cid = boarding_duty_client()
     if cid is None:
         return None, None
     from .inventory import get_inventory_value
-    return cid, _console_name(get_inventory_value(cid, "CONSOLE_TYPE", "away") or "away")
+    from .boarding import BOARDING_CONSOLE
+    return cid, _console_name(get_inventory_value(cid, "CONSOLE_TYPE", BOARDING_CONSOLE)
+                              or BOARDING_CONSOLE)
 
 
 def _forwarded_here(want, console, client_id=None):
@@ -717,18 +719,18 @@ def _reply_to(msg):
 
 
 def message_answer_scene(scene_key, label, by=None, others=None):
-    """Record what an away beat was answered with.
+    """Record what an boarding beat was answered with.
 
     The beat's replies live in away.py, not on the message, so the message cannot
     know on its own that it has been settled - and an answered beat that still showed
     live buttons, or showed nothing at all, is the transcript losing the half that
-    matters. Called by `away_answer` once a pick has actually been applied.
+    matters. Called by `boarding_answer` once a pick has actually been applied.
     """
     msgs = _all()
     msg = next((m for m in reversed(msgs) if m.get("scene") == scene_key), None)
     if msg is None or msg.get("answered") is not None:
         return None
-    msg["answered"] = {"label": label, "by": by or "the away team", "at": _stamp(),
+    msg["answered"] = {"label": label, "by": by or "the boarding party", "at": _stamp(),
                        "others": list(others or [])}
     _save(msgs)
     message_bump()

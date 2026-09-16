@@ -15,7 +15,7 @@ tools, and finally the library changes. Links go to the relevant docs.
 
 | | What it is |
 |---|---|
-| **[The ePADD](#epadd)** | One button on every console opens a screen of apps — mail, quests, cargo, the away team — each with a live badge you can read without opening it. |
+| **[The ePADD](#epadd)** | One button on every console opens a screen of apps — mail, quests, cargo, the boarding party — each with a live badge you can read without opening it. |
 | **["On screen"](#on-screen)** | The captain says it and science can finally do it: hand the main screen a shot of whatever science has selected. |
 | **[Incoming hails](#incoming-hails)** | Comms stops being something only the crew start. The mission calls you, and waits until somebody answers. |
 | **[The old missions fly again](#old-missions)** | All 27 Artemis 2.8 missions in our archive crossed over, and they play — same fleets, same tempers, same voice over comms. |
@@ -50,7 +50,7 @@ described and grouped, with only the ones this station should see:
 [ ePADD ][ back ]                                    Artemis        T+00:14:22
 
   Ship
-   [ Away Team ]   [ Status  2 ]   [ Messages  3 ]   [ Cargo ]
+   [ Boarding Party ]   [ Status  2 ]   [ Messages  3 ]   [ Cargo ]
    [ Fabricate 1 ] [ Upgrades ]
 
   Mission
@@ -71,9 +71,9 @@ described and grouped, with only the ones this station should see:
 - **A mission's mail is a document a writer can be handed.** One heading per letter, a
   `From:`, a `To:` naming a console, and `After:` for how far into the mission it
   arrives. No code.
-- **The away team carries it down.** A landing party's own apps travel with the party,
+- **The boarding party carries it down.** A landing party's own apps travel with the party,
   and the scene they are playing is mirrored into the inbox, so the surface crew read
-  their story where they read everything else. It replaces the old separate away
+  their story where they read everything else. It replaces the old separate crew
   console.
 - **It fits the screen it is on.** Thirty apps at 1024x768 is a scrolling list; the same
   thirty at 1920x1080 is a grid. Nothing is ever cut off the bottom.

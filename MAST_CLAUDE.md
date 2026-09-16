@@ -1103,7 +1103,7 @@ prefab_spawn("prefab_fleet_raider", {
     "fleet_difficulty": 4,
 })
 
-signal_emit("away_begin", {"AWAY_SHIP": ship, "AWAY_ROSTER": roster})
+signal_emit("boarding_begin", {"BOARDING_SHIP": ship, "BOARDING_ROSTER": roster})
 ```
 
 > **This section used to say the opposite** - that a bare multi-line dict was a silent,

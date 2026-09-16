@@ -4,7 +4,7 @@ Apps used to BE tabs, and one route kind doing two jobs is what produced every s
 reported from the Gamma with a Q playtest:
 
 * Back inherited a tab's `if`. `//gui/tab/away if not gui_app_mode_is_on()` correctly
-  hid away as a tab while ePADD owned it, and deleted the way back to the away console.
+  hid away as a tab while ePADD owned it, and deleted the way back to the crew console.
 * Back vanished when a console had no `//gui/tab/<name>` route at all.
 * The PADD competed for slots on the bar, because it was a tab among tabs.
 

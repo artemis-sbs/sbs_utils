@@ -27,8 +27,8 @@ contract changes: the page still consumes `console_tabs` and `__back_tab__` ever
 AN APP IS ITS OWN ROUTE KIND. A screen on the PADD is `//gui/app/<name>`, not
 `//gui/tab/<name>`, because the two answer different questions: a tab's `if` says
 whether it may be OFFERED ON THE BAR, an app's says whether the app is AVAILABLE. One
-route kind doing both is what let `//gui/tab/away if not gui_app_mode_is_on()` hide the
-away tab correctly and delete the way back to the away console with it.
+route kind doing both is what let `//gui/tab/boarding_party if not gui_app_mode_is_on()` hide the
+boarding tab correctly and delete the way back to the crew console with it.
 
 There used to be an ADOPTION bridge here: a tab nobody registered showed up under
 "Other" so an addon that had never heard of ePADD kept working. It was removed when
@@ -129,11 +129,13 @@ def _save(apps):
 
 # --- registration -----------------------------------------------------------------
 
-AWAY_CONSOLE = "away"
+# The console type a boarded console wears. Sourced from the boarding module rather
+# than restated, so the two can never drift apart.
+from ..boarding import BOARDING_CONSOLE
 
 
 def gui_app_register(tab, title=None, icon=None, consoles="*", group=None, sort=100,
-                     description=None, status=None, away=False):
+                     description=None, status=None, boarding=False):
     """Present an existing `//gui/tab/<tab>` route as an ePADD app.
 
     The route is not touched and keeps its own `if` condition, which is still what
@@ -154,10 +156,10 @@ def gui_app_register(tab, title=None, icon=None, consoles="*", group=None, sort=
         consoles (str, optional): comma list of console names, or "*" for every SHIP
             console. Matched after `epadd_console_name`, so "engineering" matches the
             engine's `normal_engi`. Defaults to "*".
-        away (bool, optional): also offer this app to the away console. `"*"` does NOT
-            include it: an away team is not everywhere on the ship, it is somewhere
+        boarding (bool, optional): also offer this app to the crew console. `"*"` does NOT
+            include it: a boarding party is not everywhere on the ship, it is somewhere
             else entirely, and a landing party has no use for the cargo hold. An app
-            opts in, or names `consoles="away"` to go there and nowhere else.
+            opts in, or names `consoles="crew"` to go there and nowhere else.
         group (str, optional): heading to file the tile under. Defaults to "Mission".
         sort (int, optional): order within the group, low first. Ties break on title.
         description (str, optional): the tile's second line.
@@ -171,7 +173,7 @@ def gui_app_register(tab, title=None, icon=None, consoles="*", group=None, sort=
         "title": title if title else tab.replace("_", " ").title(),
         "icon": icon,
         "consoles": _console_set(consoles),
-        "away": bool(away),
+        "boarding": bool(boarding),
         "group": group if group else "Mission",
         "sort": sort,
         "description": description,
@@ -273,13 +275,13 @@ def gui_app_list(console=None, client_id=None):
 def _scoped_here(app, console):
     """Whether this app belongs on this console.
 
-    `"*"` means every SHIP console. The away console has to be named or opted into,
+    `"*"` means every SHIP console. The crew console has to be named or opted into,
     because a landing party carrying the fabricator is not a scoping bug anybody would
     notice until it was on screen.
     """
     wanted = app.get("consoles")
-    if console == AWAY_CONSOLE:
-        return bool(app.get("away")) or (wanted is not None and AWAY_CONSOLE in wanted)
+    if console == BOARDING_CONSOLE:
+        return bool(app.get("boarding")) or (wanted is not None and BOARDING_CONSOLE in wanted)
     if wanted is None:
         return True
     return console is None or console in wanted
@@ -297,7 +299,7 @@ def gui_app_revision(console=None, client_id=None):
     """What the HOME screen watches to know it must repaint.
 
     A signal does not wake `await gui()`, so the home screen polls - the same shape
-    the inbox and the away console use. Two things change under it: a badge (mail
+    the inbox and the crew console use. Two things change under it: a badge (mail
     arrives, a build finishes) and the app LIST itself, because a route condition can
     turn an app on or off while the PADD is open. Without this the home screen was
     frozen at whatever it said when it was opened.
@@ -989,9 +991,9 @@ def gui_app_identity_text(client_id=None, console=None):
 
 
 def _identity_name(client_id, console=None):
-    """The person at this console: away character, then callsign in a cockpit, then crew post.
+    """The person at this console: boarding character, then callsign in a cockpit, then crew post.
 
-    The away character wins because it is who they are RIGHT NOW - a crew member on the
+    The boarding character wins because it is who they are RIGHT NOW - a crew member on the
     surface is playing that body, and the badge saying their bridge name there would be
     the stranger problem all over again.
 
@@ -1002,10 +1004,10 @@ def _identity_name(client_id, console=None):
     name plus a callsign plus a count does not fit any of them.
     """
     try:
-        from .away_gui import away_who, away_label
-        active = away_who(client_id)
+        from .boarding_gui import boarding_who, boarding_label
+        active = boarding_who(client_id)
         if active is not None:
-            return away_label(active)[0]
+            return boarding_label(active)[0]
     except Exception:
         pass
     try:

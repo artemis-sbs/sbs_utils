@@ -1,6 +1,6 @@
-"""Away missions - a scene played by several consoles at once, one character each.
+"""Boarding parties - a scene played by several consoles at once, one character each.
 
-An away mission is a shared conversation with a divided audience. Every console is looking
+An boarding mission is a shared conversation with a divided audience. Every console is looking
 at the SAME beat of the SAME scene, but each console is a different member of the team, and
 the scene offers each of them a different set of things to do::
 
@@ -58,12 +58,12 @@ from .signal import signal_emit
 _TEAM = {}
 
 
-def away_assign(client_id, lifeform):
+def boarding_assign(client_id, lifeform):
     """Put this client in control of this character. Returns the character's id.
 
     REPLACES whatever the console was holding, so this is still "you are Sorel". Passing
     ``None`` releases the console entirely, which is what beaming one person back up is.
-    Use :func:`away_assign_also` to add a second character to the same console.
+    Use :func:`boarding_assign_also` to add a second character to the same console.
     """
     cid = to_id(client_id)
     lf_id = to_id(lifeform)
@@ -74,11 +74,11 @@ def away_assign(client_id, lifeform):
     return lf_id
 
 
-def away_assign_also(client_id, lifeform):
+def boarding_assign_also(client_id, lifeform):
     """Give this console ANOTHER character to speak for. Returns the character's id.
 
     A landing party smaller than its cast would otherwise leave characters standing on the
-    surface that nobody controls - in nobody's :func:`away_team`, with the readings only
+    surface that nobody controls - in nobody's :func:`boarding_team`, with the readings only
     they can take unreachable. Doubling up keeps every reading in play AND keeps it
     attached to a named person, which is the difference between a party game and one menu.
 
@@ -89,28 +89,28 @@ def away_assign_also(client_id, lifeform):
     lf_id = to_id(lifeform)
     if lf_id is None:
         return None
-    if lf_id in away_team():
+    if lf_id in boarding_team():
         return None
     _TEAM.setdefault(cid, []).append(lf_id)
     return lf_id
 
 
-def away_me(client_id):
+def boarding_me(client_id):
     """The character this client is playing - the PRIMARY, when it holds several.
 
     Stays the answer to "whose face and name is on this screen", which is what every
-    caller wants it for. :func:`away_held` is the whole list.
+    caller wants it for. :func:`boarding_held` is the whole list.
     """
     held = _TEAM.get(to_id(client_id))
     return held[0] if held else None
 
 
-def away_held(client_id):
+def boarding_held(client_id):
     """Every character this console speaks for, primary first."""
     return list(_TEAM.get(to_id(client_id)) or ())
 
 
-def away_team():
+def boarding_team():
     """Every character currently under a console's control, as a set of ids.
 
     A set rather than a list: callers intersect it with role queries, and the same character
@@ -122,7 +122,7 @@ def away_team():
     return out
 
 
-def away_clients():
+def boarding_clients():
     """Every client currently controlling a character."""
     return set(_TEAM)
 
@@ -131,10 +131,10 @@ def away_clients():
 # with no space-object host - i.e. to every away-team member, the moment they beam down -
 # and `amd_lifeform:<key>` is bookkeeping the AMD loader stamps on. Neither describes the
 # character; both look exactly like a job when a screen prints the role list raw.
-_NOT_A_JOB = ("away", "lifeform", "ultra_beam", "__player__", "__npc__")
+_NOT_A_JOB = ("boarding", "lifeform", "ultra_beam", "__player__", "__npc__")
 
 
-def away_jobs(lifeform):
+def boarding_jobs(lifeform):
     """What this character is FOR, as a sorted list of role words.
 
     The guards in a scene read exactly these words, so a screen showing them is not
@@ -157,14 +157,14 @@ def away_jobs(lifeform):
     return sorted(set(out))
 
 
-def away_job_text(lifeform, default=""):
-    """:func:`away_jobs` as one line, ready for a widget. ``default`` when there is none."""
-    jobs = away_jobs(lifeform)
+def boarding_job_text(lifeform, default=""):
+    """:func:`boarding_jobs` as one line, ready for a widget. ``default`` when there is none."""
+    jobs = boarding_jobs(lifeform)
     return ", ".join(jobs) if jobs else default
 
 
-def away_client_of(lifeform):
-    """Which client is playing this character, or None. The reverse of :func:`away_me`."""
+def boarding_client_of(lifeform):
+    """Which client is playing this character, or None. The reverse of :func:`boarding_me`."""
     lf_id = to_id(lifeform)
     for cid, held in _TEAM.items():
         if lf_id in held:
@@ -172,12 +172,12 @@ def away_client_of(lifeform):
     return None
 
 
-def away_team_clear():
+def boarding_team_clear():
     """Drop the whole team - beam-up, or the per-mission reset."""
     _TEAM.clear()
 
 
-def away_team_count():
+def boarding_team_count():
     """Reset-ledger probe: how many clients are bound to a character."""
     return len(_TEAM)
 
@@ -205,12 +205,12 @@ _INSTALLED = False
 _FACTS = set()
 
 
-def away_facts():
+def boarding_facts():
     """Everything the party has worked out so far, as a sorted list."""
     return sorted(_FACTS)
 
 
-def away_learned(fact=None):
+def boarding_learned(fact=None):
     """How many distinct things the party knows - or whether it knows a given one."""
     if fact is None:
         return len(_FACTS)
@@ -232,11 +232,11 @@ def _away_learn_outcome(agent_id, speaker, tokens):
     return None
 
 
-# Registered AT IMPORT, not inside `away_metric_install`. `dialogue_outcome_verbs()` is
+# Registered AT IMPORT, not inside `boarding_metric_install`. `dialogue_outcome_verbs()` is
 # what `sbs lint` reads to decide whether an authored verb exists, and the linter does
 # not run a mission - so a verb registered at install time is one the linter reports as
 # unknown on a file that works perfectly. Registering is also harmless on its own: the
-# verb only records, and it is `away_metric_install` that makes `learned` answerable.
+# verb only records, and it is `boarding_metric_install` that makes `learned` answerable.
 dialogue_register_outcome("learn", _away_learn_outcome)
 
 def _away_metric(name, agent_id, speaker):
@@ -261,7 +261,7 @@ def _away_metric(name, agent_id, speaker):
     return 0
 
 
-def away_metric_install():
+def boarding_metric_install():
     """Install the away guard resolver in front of whatever is already there.
 
     Idempotent: calling it twice does not chain the resolver to itself, which would recurse
@@ -278,11 +278,11 @@ def away_metric_install():
     return True
 
 
-def away_metric_uninstall():
+def boarding_metric_uninstall():
     """Put the previous resolver back.
 
     For tests, and for a mission that tears an away layer down; the per-mission reset calls
-    it through :func:`away_clear`.
+    it through :func:`boarding_clear`.
     """
     global _PREV_METRIC, _INSTALLED
     if not _INSTALLED:
@@ -295,13 +295,13 @@ def away_metric_uninstall():
 
 # --- The scene loop ---------------------------------------------------------
 #
-# One away mission is live at a time, so this is a single record rather than a table keyed by
-# site: two simultaneous away teams would need two arbitration tokens, and nothing asks for
+# One boarding mission is live at a time, so this is a single record rather than a table keyed by
+# site: two simultaneous boarding partys would need two arbitration tokens, and nothing asks for
 # that yet. It is a dict so a probe can see it and the reset can empty it.
 _SCENE = {}
 
 
-def away_scene_begin(scenes, key, speaker=None):
+def boarding_scene_begin(scenes, key, speaker=None):
     """Open a beat: parse the scene, pick ONE line for everybody, bump the token.
 
     Returns the scene key actually opened, or None when the key names no scene - which is how
@@ -309,7 +309,7 @@ def away_scene_begin(scenes, key, speaker=None):
     """
     node = dialogue_get(scenes, key) if key else None
     if node is None:
-        away_scene_end()
+        boarding_scene_end()
         return None
     parsed = dialogue_parse(node)
     _SCENE.update({
@@ -325,25 +325,25 @@ def away_scene_begin(scenes, key, speaker=None):
     return key
 
 
-# The away team's only channel to the ship has always been the shared main screen,
+# The boarding party's only channel to the ship has always been the shared main screen,
 # read-only. Mirroring each beat into the inbox gives them a transcript they can scroll
 # and, through the reply strip, a place to answer from - without touching the away
 # console, which keeps rendering the scene exactly as it did.
 MIRROR_TO_INBOX = True
 
 
-def away_mirror_to_inbox(on=True):
+def boarding_mirror_to_inbox(on=True):
     """Whether each beat also arrives as a message. On by default; a mission whose
-    away play is entirely on the away console can turn it off."""
+    boarding play is entirely on the crew console can turn it off."""
     global MIRROR_TO_INBOX
     MIRROR_TO_INBOX = bool(on)
 
 
 def _mirror_to_inbox():
-    """Post the current beat to the away team's inbox.
+    """Post the current beat to the boarding party's inbox.
 
-    The message carries the LINE only. Its replies are asked of `away_choices` when
-    the inbox draws them, because they differ per character and `away_answer` already
+    The message carries the LINE only. Its replies are asked of `boarding_choices` when
+    the inbox draws them, because they differ per character and `boarding_answer` already
     arbitrates them - a copy on the message would be a second, competing path over
     one scene.
     """
@@ -354,47 +354,47 @@ def _mirror_to_inbox():
         return
     try:
         from .messages import message_send
-        message_send(str(line), to="away", kind="scene",
+        message_send(str(line), to="boarding", kind="scene",
                      sender=_SCENE.get("speaker") or "Away",
                      subject=_SCENE.get("key"), scene=_SCENE.get("key"))
     except Exception:
         from .execution import log
-        log("could not mirror an away beat to the inbox", "away", "warning")
+        log("could not mirror an boarding beat to the inbox", "boarding", "warning")
 
 
-def away_scene_end():
+def boarding_scene_end():
     """Close the conversation, leaving the token moved on so a late press still refuses."""
     seq = _SCENE.get("seq", 0) + 1
     _SCENE.clear()
     _SCENE["seq"] = seq
 
 
-def away_scene():
+def boarding_scene():
     """The current scene key, or None when nothing is open."""
     return _SCENE.get("key")
 
 
-def away_is_open():
+def boarding_is_open():
     """True while a beat is open and answerable."""
     return _SCENE.get("parsed") is not None
 
 
-def away_seq():
+def boarding_seq():
     """The arbitration token. A console stamps this onto every button it renders."""
     return _SCENE.get("seq", 0)
 
 
-def away_line():
+def boarding_line():
     """The spoken line for this beat - the same one for every console."""
     return _SCENE.get("line", "")
 
 
-def away_speaker():
+def boarding_speaker():
     """The opaque speaker record this beat is spoken by."""
     return _SCENE.get("speaker")
 
 
-def away_choices(client_id):
+def boarding_choices(client_id):
     """The choices THIS client's character may take, in authored order.
 
     The whole feature is here: the same parsed scene, evaluated against a different agent,
@@ -405,7 +405,7 @@ def away_choices(client_id):
     if parsed is None:
         return []
     speaker = _SCENE.get("speaker")
-    held = away_held(client_id)
+    held = boarding_held(client_id)
     if not held:
         # No character: the unguarded choices only, which is the right answer for an
         # observer rather than an error.
@@ -425,26 +425,26 @@ def away_choices(client_id):
                 continue
             seen.add(mark)
             # WHO IS ACTING, carried on the choice. Guards and outcomes are per character,
-            # so `away_answer` cannot ask the console - the console has several. A
+            # so `boarding_answer` cannot ask the console - the console has several. A
             # MastDataObject stores values as ATTRIBUTES, so `ch["agent"] = ...` raises.
             setattr(ch, "agent", lf_id)
             out.append(ch)
-    # FORWARDED WORK, on one console only. See `away_orphan_choices`: a party short of
+    # FORWARDED WORK, on one console only. See `boarding_orphan_choices`: a party short of
     # a medic still has to be able to treat her, and the duty console is the stable
     # answer to "who catches it" that every console computes identically.
-    if client_id == away_duty_client():
+    if client_id == boarding_duty_client():
         seen_labels = {(c.get("label"), c.get("target")) for c in out}
-        for ch in away_orphan_choices():
+        for ch in boarding_orphan_choices():
             if (ch.get("label"), ch.get("target")) not in seen_labels:
                 out.append(ch)
     return out
 
 
-def away_choices_for(client_id, lifeform):
+def boarding_choices_for(client_id, lifeform):
     """Just THIS character's choices, tagged, for a console holding several.
 
     A doubled-up console shows one character at a time - a roster listbox picks who, and
-    this is the detail panel's half of that. Not a filter over :func:`away_choices`: the
+    this is the detail panel's half of that. Not a filter over :func:`boarding_choices`: the
     shared, ungated choices are deduped onto the PRIMARY there, so filtering by tag would
     hide "Beam back up" from everybody except the first character. Asked directly, every
     character offers the open choices as well as its own.
@@ -456,25 +456,25 @@ def away_choices_for(client_id, lifeform):
     if parsed is None:
         return []
     lf_id = to_id(lifeform)
-    if lf_id is None or lf_id not in away_held(client_id):
-        return away_choices(client_id)
+    if lf_id is None or lf_id not in boarding_held(client_id):
+        return boarding_choices(client_id)
     out = dialogue_choices(parsed, lf_id, _SCENE.get("speaker"))
     for ch in out:
         setattr(ch, "agent", lf_id)
-    # The SAME forwarded tail `away_choices` appends, and for the same console. It has
+    # The SAME forwarded tail `boarding_choices` appends, and for the same console. It has
     # to be here too, not only there: the inbox reply strip asks this function whenever
-    # a character is active, which is the away team's main surface - so forwarding that
-    # lived only in `away_choices` would be invisible exactly where it is needed. Both
-    # lists must also agree, because `away_answer` re-derives one of them to read the
+    # a character is active, which is the boarding party's main surface - so forwarding that
+    # lived only in `boarding_choices` would be invisible exactly where it is needed. Both
+    # lists must also agree, because `boarding_answer` re-derives one of them to read the
     # index back.
-    if client_id == away_duty_client():
+    if client_id == boarding_duty_client():
         seen = {(c.get("label"), c.get("target")) for c in out}
-        for ch in away_orphan_choices():
+        for ch in boarding_orphan_choices():
             if (ch.get("label"), ch.get("target")) not in seen:
                 out.append(ch)
     return out
 
-def away_answer(client_id, index, seq=None, agent=None):
+def boarding_answer(client_id, index, seq=None, agent=None):
     """Take one console's pick. True when it was accepted and the scene moved.
 
     ``agent`` names the character whose list the console RENDERED, for a doubled-up
@@ -496,7 +496,7 @@ def away_answer(client_id, index, seq=None, agent=None):
     if seq is not None and seq != _SCENE.get("seq", 0):
         return False
     cid = to_id(client_id)
-    choices = away_choices_for(cid, agent) if agent is not None else away_choices(cid)
+    choices = boarding_choices_for(cid, agent) if agent is not None else boarding_choices(cid)
     if not isinstance(index, int) or index < 0 or index >= len(choices):
         return False
     choice = choices[index]
@@ -508,7 +508,7 @@ def away_answer(client_id, index, seq=None, agent=None):
     # The character that OWNS the choice, not the console's primary. With a doubled-up
     # console those differ, and applying as the primary would credit the wrong body -
     # and evaluate a cost or a refusal against someone who was not acting.
-    actor = choice.get("agent") or away_me(cid)
+    actor = choice.get("agent") or boarding_me(cid)
     if dialogue_apply(actor, speaker, choice.outcomes) is False:
         # A handler refused (a cost that cannot be paid). The token has ALREADY moved, so
         # every console is holding a stale one and the beat is briefly unanswerable - which
@@ -532,10 +532,10 @@ def away_answer(client_id, index, seq=None, agent=None):
 
     scenes = _SCENE.get("scenes")
     if not choice.target:
-        away_scene_end()
-        signal_emit("away_scene_ended", {"AWAY_FROM": from_key})
+        boarding_scene_end()
+        signal_emit("boarding_scene_ended", {"BOARDING_FROM": from_key})
         return True
-    away_scene_begin(scenes, choice.target, speaker)
+    boarding_scene_begin(scenes, choice.target, speaker)
     return True
 
 
@@ -545,23 +545,23 @@ def _name_of(lifeform_id):
     try:
         from .query import to_object
         who = to_object(lifeform_id)
-        return who.name if who is not None else "the away team"
+        return who.name if who is not None else "the boarding party"
     except Exception:
-        return "the away team"
+        return "the boarding party"
 
 
-def away_scene_count():
+def boarding_scene_count():
     """Reset-ledger probe: whether a beat is being held."""
     return 1 if _SCENE.get("parsed") is not None else 0
 
 
-def away_clear():
+def boarding_clear():
     """The per-mission reset: no team, no beat, resolver handed back."""
-    away_team_clear()
+    boarding_team_clear()
     _SCENE.clear()
     _FACTS.clear()
-    away_invite_clear()
-    away_metric_uninstall()
+    boarding_invite_clear()
+    boarding_metric_uninstall()
 
 
 # --- the invitation: a party you JOIN, rather than one you are dealt ----------------
@@ -579,7 +579,7 @@ def away_clear():
 INVITE_KEY = "__AWAY_INVITE__"
 
 
-def away_invite(ship, roster, title=None):
+def boarding_invite(ship, roster, title=None):
     """Open a landing party. Nobody moves until a console beams down.
 
     Args:
@@ -593,20 +593,20 @@ def away_invite(ship, roster, title=None):
     invite = {
         "ship": to_id(ship),
         "roster": [to_id(m) for m in (roster or []) if to_id(m)],
-        "title": title or "AWAY TEAM",
+        "title": title or "BOARDING PARTY",
         "open": True,
     }
     Agent.SHARED.set_inventory_value(INVITE_KEY, invite)
     return invite
 
 
-def away_invitation():
+def boarding_invitation():
     """The open invitation, or None."""
     invite = Agent.SHARED.get_inventory_value(INVITE_KEY, None)
     return invite if isinstance(invite, dict) and invite.get("open") else None
 
 
-def away_invite_close():
+def boarding_invite_close():
     """Stop offering places. Anyone already down stays down."""
     invite = Agent.SHARED.get_inventory_value(INVITE_KEY, None)
     if isinstance(invite, dict):
@@ -614,17 +614,17 @@ def away_invite_close():
         Agent.SHARED.set_inventory_value(INVITE_KEY, invite)
 
 
-def away_invite_title():
+def boarding_invite_title():
     invite = Agent.SHARED.get_inventory_value(INVITE_KEY, None)
-    return (invite or {}).get("title") or "AWAY TEAM"
+    return (invite or {}).get("title") or "BOARDING PARTY"
 
 
-def away_invite_ship():
+def boarding_invite_ship():
     invite = Agent.SHARED.get_inventory_value(INVITE_KEY, None)
     return (invite or {}).get("ship")
 
 
-def away_open_roster(client_id=None):
+def boarding_open_roster(client_id=None):
     """The characters this console may still take, in the order they were offered.
 
     A body RESERVED for another console is not on offer - a crew-derived party knows
@@ -632,17 +632,17 @@ def away_open_roster(client_id=None):
     two consoles end up fighting over one body. Asked without a console, this is the
     unreserved remainder, which is what "who is still free" means to a script.
     """
-    invite = away_invitation()
+    invite = boarding_invitation()
     if invite is None:
         return []
-    taken = away_team()
+    taken = boarding_team()
     held_for_others = {lf for cid, lf in (invite.get("reserved") or {}).items()
                        if cid != client_id}
     return [m for m in invite.get("roster") or []
             if m not in taken and m not in held_for_others]
 
 
-def away_beam_down(client_id, lifeform=None):
+def boarding_beam_down(client_id, lifeform=None):
     """Take a place in the landing party.
 
     Args:
@@ -654,13 +654,13 @@ def away_beam_down(client_id, lifeform=None):
         The lifeform taken, or None when the invitation is closed or nobody is left -
         which a caller shows as "the party is full" rather than treating as an error.
     """
-    if away_invitation() is None:
+    if boarding_invitation() is None:
         return None
-    free = away_open_roster(client_id)
+    free = boarding_open_roster(client_id)
     if lifeform is None:
         # THEIR OWN CHARACTER FIRST. A crew-derived party has one held for this
         # console, so "yes" means "go as myself" rather than "go as whoever is next".
-        reserved = away_reserved(client_id)
+        reserved = boarding_reserved(client_id)
         lifeform = reserved if reserved in free else (free[0] if free else None)
     else:
         lifeform = to_id(lifeform)
@@ -668,24 +668,24 @@ def away_beam_down(client_id, lifeform=None):
             return None                  # somebody else took them first
     if lifeform is None:
         return None
-    away_assign(client_id, lifeform)
+    boarding_assign(client_id, lifeform)
     return lifeform
 
 
-def away_beam_up(client_id):
+def boarding_beam_up(client_id):
     """Leave the surface. The console's own screen is the caller's business - this
     releases the character so somebody else could take them."""
-    if not away_held(client_id):
+    if not boarding_held(client_id):
         return False
-    away_assign(client_id, None)
+    boarding_assign(client_id, None)
     return True
 
 
-def away_invite_clear():
+def boarding_invite_clear():
     Agent.SHARED.set_inventory_value(INVITE_KEY, None)
 
 
-def away_invite_count():
+def boarding_invite_count():
     """Reset-ledger probe."""
     return 1 if Agent.SHARED.get_inventory_value(INVITE_KEY, None) else 0
 
@@ -699,7 +699,14 @@ def away_invite_count():
 # Deriving the party from the crew makes you play YOURSELF, and it removes the step
 # where a mission has to keep two rosters in step with each other.
 
-CREW_ROLE = "away"
+CREW_ROLE = "boarding"
+
+# The CONSOLE TYPE a boarded console wears, which is deliberately NOT the same word as
+# CREW_ROLE above. CREW_ROLE is worn by the boarder's LIFEFORM BODY; this is worn by the
+# CLIENT. Give them the same word and `has_role(x, "boarding")` stops meaning one thing -
+# a body and a console would answer the same question. "crew" is free: nothing in any
+# repo uses it as a role.
+BOARDING_CONSOLE = "crew"
 
 
 def _crew_bodies(ship_id, consoles=None, assign_missing=True):
@@ -726,13 +733,13 @@ def _crew_bodies(ship_id, consoles=None, assign_missing=True):
     return out
 
 
-def away_crew_roster(ship, consoles=None, assign_missing=True):
+def boarding_crew_roster(ship, consoles=None, assign_missing=True):
     """A landing party built from the people already at the consoles.
 
     One character per console, spawned from that console's crew post - their name,
     their face, their roles. A console that never picked somebody is ASSIGNED the next
     free member of the ship's roster, the way the picker would have, so skipping the
-    crew screen does not lock a player out of the away mission.
+    crew screen does not lock a player out of the boarding mission.
 
     WHAT A SCENE GUARD READS. `Roles:` on the crew record when it has one; otherwise
     the CONSOLE they came from, added as a role here so `if science` gates a scan
@@ -778,30 +785,30 @@ def _body_for(post, client_id):
     return lifeform_spawn(full, face, ", ".join([w for w in words if w]))
 
 
-def away_invite_crew(ship, title=None, consoles=None, assign_missing=True):
+def boarding_invite_crew(ship, title=None, consoles=None, assign_missing=True):
     """Open a landing party made of the crew, each body RESERVED to its own console.
 
-    The difference from :func:`away_invite` is the reservation. A crew-derived party
+    The difference from :func:`boarding_invite` is the reservation. A crew-derived party
     already knows who everybody is - the person has been Lt Marek all evening - so
-    beaming down is a confirmation, not a casting call, and the away screen shows the
+    beaming down is a confirmation, not a casting call, and the crew console shows the
     character instead of a roster.
     """
     pairs = _crew_bodies(to_id(ship), consoles, assign_missing)
-    invite = away_invite(ship, [body for _cid, body in pairs], title)
+    invite = boarding_invite(ship, [body for _cid, body in pairs], title)
     for client_id, body in pairs:
-        away_reserve(client_id, body)
+        boarding_reserve(client_id, body)
     # A crew party is whoever was on the bridge, so a missing job is an accident of
-    # seating rather than the mission saying something. See `away_forwarding`. Only
+    # seating rather than the mission saying something. See `boarding_forwarding`. Only
     # when there IS one: a ship with no crew assigned at all falls back to whatever
     # cast the mission authored, and that cast is deliberate.
     if pairs:
-        away_forwarding(True)
+        boarding_forwarding(True)
     return invite
 
 
 # --- a place held for one console ----------------------------------------------------
 
-def away_reserve(client_id, lifeform):
+def boarding_reserve(client_id, lifeform):
     """Hold one character for one console. Nobody else is offered them."""
     invite = Agent.SHARED.get_inventory_value(INVITE_KEY, None)
     if not isinstance(invite, dict):
@@ -814,9 +821,9 @@ def away_reserve(client_id, lifeform):
     return True
 
 
-def away_reserved(client_id):
+def boarding_reserved(client_id):
     """The character held for this console, or None."""
-    invite = away_invitation()
+    invite = boarding_invitation()
     if invite is None:
         return None
     lf_id = (invite.get("reserved") or {}).get(client_id)
@@ -847,10 +854,10 @@ _JOB_GUARD = re.compile(r"^(?P<word>[\w ]+?)\s*>=\s*1$")
 _NOT_A_JOB_GUARD = ("learned",)
 
 
-def away_forwarding(on=True):
+def boarding_forwarding(on=True):
     """Whether orphaned job choices are offered to somebody who is not qualified.
 
-    OFF by default, and `away_invite_crew` turns it ON. That split is the whole
+    OFF by default, and `boarding_invite_crew` turns it ON. That split is the whole
     judgement: a hand-authored roster is CAST, so a party with no medic is the mission
     saying something, and quietly handing the medic's line to a pilot would undo it. A
     crew-derived party is just whoever was on the bridge when it happened, so the same
@@ -867,24 +874,24 @@ def _is_job_guard(guard):
     return bool(m) and m.group("word").strip().lower() not in _NOT_A_JOB_GUARD
 
 
-def away_duty_client():
+def boarding_duty_client():
     """The console that catches what nobody else can take.
 
     The lowest client id on the surface - an arbitrary rule, but a STABLE one, which
     is the property that matters: every console computes the same answer, so a
     forwarded choice appears once rather than on whichever screen repainted last.
     """
-    down = sorted(c for c in away_clients() if away_held(c))
+    down = sorted(c for c in boarding_clients() if boarding_held(c))
     return down[0] if down else None
 
 
-def away_orphan_choices():
+def boarding_orphan_choices():
     """Choices in the open beat that no character on the surface can take."""
     parsed = _SCENE.get("parsed")
     if parsed is None or not FORWARDING:
         return []
     speaker = _SCENE.get("speaker")
-    team = away_team()
+    team = boarding_team()
     if not team:
         return []
     out = []

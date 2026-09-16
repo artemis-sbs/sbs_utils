@@ -1,6 +1,6 @@
-# Away missions
+# Boarding parties
 
-An away mission is a scene several consoles play at once, **one character each**. Everybody
+A boarding mission is a scene several consoles play at once, **one character each**. Everybody
 is looking at the same beat, but the scene offers each of them a different set of things to
 do — the doctor can read a body, the engineer can read the reactor, and neither can do the
 other's job.
@@ -21,25 +21,25 @@ Speaker: outpost
 ```
 
 The guards read the **acting character's roles**. Give one console Dr Sorel
-(`Roles: away, medical`) and another Chief Ruiz (`Roles: away, engineering`) and the same
+(`Roles: boarding, medical`) and another Chief Ruiz (`Roles: boarding, engineering`) and the same
 scene draws two different menus. Every character also sees `Move further in`, because it is
 ungated — which is what keeps a menu from ever being empty.
 
 !!! tip "Why this works with no new grammar"
     `dialogue_choices(scene, agent_id, speaker)` has always evaluated guards against
     whatever agent it is handed. The shipped comms driver passes the player **ship**, so
-    everyone sees one menu. `away.py` passes the **character**.
+    everyone sees one menu. `boarding.py` passes the **character**.
 
 ## The pieces
 
 | You need | Use |
 |---|---|
-| The bodies on the ground | an `## Away Team` section of [lifeforms](sides-lifeforms.md), spawned with `lifeforms_spawn(section)` |
-| Who is playing whom | `away_assign(client_id, lifeform)` |
-| Guards that ask about the character | `away_metric_install()` once, at map start |
-| The current beat | `away_scene_begin(scenes, key, speaker=…)` |
-| What THIS console may do | `away_choices(client_id)` |
-| Taking an answer | `away_answer(client_id, index, seq)` |
+| The bodies on the ground | an `## Boarding Party` section of [lifeforms](sides-lifeforms.md), spawned with `lifeforms_spawn(section)` |
+| Who is playing whom | `boarding_assign(client_id, lifeform)` |
+| Guards that ask about the character | `boarding_metric_install()` once, at map start |
+| The current beat | `boarding_scene_begin(scenes, key, speaker=…)` |
+| What THIS console may do | `boarding_choices(client_id)` |
+| Taking an answer | `boarding_answer(client_id, index, seq)` |
 
 A character is a **lifeform** — a body in the world. Who the *player* is remains a
 [crew post](crew.md), a label on a seat. The two are linked, not merged.
@@ -47,25 +47,25 @@ A character is a **lifeform** — a body in the world. Who the *player* is remai
 ## Writing the screen
 
 ```
-=== away_screen
-    jump away_beam_up if not away_is_open()
+=== boarding_screen
+    jump boarding_beam_up if not boarding_is_open()
 
-    away_said = away_line()
-    gui_text_area("{away_said}")
+    boarding_said = boarding_line()
+    gui_text_area("{boarding_said}")
 
-    away_seq_now = away_seq()
-    for away_i, away_ch in enumerate(away_choices(client_id)):
+    boarding_seq_now = boarding_seq()
+    for boarding_i, boarding_ch in enumerate(boarding_choices(client_id)):
         gui_row("row-height: 2.4em;")
-        away_label = away_ch.label
-        gui_button("$text:`{away_label}`;", data={"pick_index": away_i, "pick_seq": away_seq_now}, on_press=away_pick)
+        boarding_label = boarding_ch.label
+        gui_button("$text:`{boarding_label}`;", data={"pick_index": boarding_i, "pick_seq": boarding_seq_now}, on_press=boarding_pick)
 
-    on change away_seq():
-        jump away_screen
+    on change boarding_seq():
+        jump boarding_screen
 
     await gui()
 
-=== away_pick
-    away_answer(client_id, pick_index, pick_seq)
+=== boarding_pick
+    boarding_answer(client_id, pick_index, pick_seq)
     ->END
 ```
 
@@ -74,7 +74,7 @@ Three things in there are load-bearing:
 - **`on_press=` + `data=`, never an inline `on gui_message` block.** The choices are drawn
   in a `for` loop, and a handler block registered in a loop captures the loop variable at
   its last value.
-- **`on change away_seq()` is how the other consoles follow along.** A signal does *not*
+- **`on change boarding_seq()` is how the other consoles follow along.** A signal does *not*
   wake a task sitting in `await gui()`; a polled revision counter cannot miss the
   transition. Get this wrong and everyone else's screen goes stale until something else
   happens to rebuild it.
@@ -82,7 +82,7 @@ Three things in there are load-bearing:
 
 ## Two consoles pressing at once
 
-`away_answer` refuses a press whose token has moved on. The token bumps on every beat and
+`boarding_answer` refuses a press whose token has moved on. The token bumps on every beat and
 every answer, **before** the outcome runs, so a second press arriving in the same frame is
 already stale by the time it is looked at. Two officers can press different choices in the
 same frame and exactly one lands, with no lock.
@@ -96,7 +96,7 @@ same frame and exactly one lands, with no lock.
 
 `dialogue_pick_line` picks a **random** eligible variant. Called once per console it tells
 each of them a different story, which reads as a fault in the writing rather than in the
-code. `away_scene_begin` picks the line once and `away_line()` gives every console the same
+code. `boarding_scene_begin` picks the line once and `boarding_line()` gives every console the same
 one.
 
 ## Ending a scene
@@ -108,21 +108,21 @@ A choice with an **empty target** ends the conversation:
 ```
 
 Without one, a scene with no choices is a dead end — the screen draws its line and no
-buttons, and nothing ever closes. `away_is_open()` then goes False, and the repaint above
+buttons, and nothing ever closes. `boarding_is_open()` then goes False, and the repaint above
 carries each console into its beam-up label.
 
 ## Showing who a character is
 
-`away_job_text(lifeform)` is what a screen should print, not the raw role list:
+`boarding_job_text(lifeform)` is what a screen should print, not the raw role list:
 
 ```
-    gui_text("$text:`{away_name}`;justify:center;font:gui-4")
-    away_job = away_job_text(away_who, default="watching")
-    gui_text("$text:`{away_job}`;justify:center;font:gui-2")
+    gui_text("$text:`{boarding_name}`;justify:center;font:gui-4")
+    boarding_job = boarding_job_text(boarding_who, default="watching")
+    gui_text("$text:`{boarding_job}`;justify:center;font:gui-2")
 ```
 
 A lifeform carries machinery beside its job. `ultra_beam` is added automatically to anyone
-with no space-object host — that is *every* away-team member the moment they beam down — and
+with no space-object host — that is *every* boarding-party member the moment they beam down — and
 the AMD loader stamps `amd_lifeform:<key>`. Printed raw, a medic reads
 `medical, ultra_beam, amd_lifeform:sorel`. Roles are also a **set**, so an unsorted list
 reads differently on each repaint, which looks like a bug in the mission.
@@ -141,8 +141,8 @@ The order matters, and is the same recipe the Control Gallery's viewer uses:
     gui_widget_list_clear()                       # a console leaves an engine widget list behind
     for t in gui_get_console_types():
         remove_role(client_id, t)                 # roles OUTLIVE the page that added them
-    add_role(client_id, f"console, away")
-    set_inventory_value(client_id, "CONSOLE_TYPE", "away")
+    add_role(client_id, f"console, crew")
+    set_inventory_value(client_id, "CONSOLE_TYPE", "boarding")
 ```
 
 Record where the console came from on the way down (`CONSOLE_TYPE`) and restore both the
@@ -175,7 +175,7 @@ Headless `--test` never opens a console page, so it proves the story compiles an
 fire — and nothing about the screen. Two things that do:
 
 - **A panel harness** drives the real screen in-process: push two client pages, reroute each
-  into the away label, and read the buttons each one emitted. Assert the two lists
+  into the crew-console label, and read the buttons each one emitted. Assert the two lists
   *differ* — if guard evaluation ever stops seeing the character, both are still lists,
   just the same one.
 - **The engine**, with a server-side driver that answers for a console every few seconds, so

@@ -234,7 +234,7 @@ if __name__ == "__main__":
 
 class TestTheHomeScreenKnowsToRepaint(StatusBase):
     """A signal does not wake `await gui()`, so the home screen polls - the same shape
-    the inbox and the away console use. Without it the home was frozen at whatever it
+    the inbox and the crew console use. Without it the home was frozen at whatever it
     said when it was opened: mail arriving never moved the Messages badge, and an app
     whose route condition turned on never appeared."""
 
@@ -247,7 +247,7 @@ class TestTheHomeScreenKnowsToRepaint(StatusBase):
 
     def test_an_app_appearing_moves_it(self):
         """A route condition can turn an app on while the PADD is open - which is how
-        the Away Team app shows up when a party forms."""
+        the Boarding Party app shows up when a party forms."""
         self.app("cargo", title="Cargo")
         before = gui_app_revision("engineering")
         self.app("quest", title="Quests")

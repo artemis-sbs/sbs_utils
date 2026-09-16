@@ -1,4 +1,4 @@
-"""Away missions (sbs_utils.procedural.away) - one shared scene, one character per console.
+"""Boarding parties (sbs_utils.procedural.boarding) - one shared scene, one character per console.
 
 The headline behavior, and the reason the module exists at all: the SAME authored scene must
 hand a DIFFERENT set of choices to each character. Everything else here guards a specific way
@@ -17,7 +17,7 @@ from sbs_utils.helpers import FrameContext, Context, FakeEvent
 from sbs_utils.spaceobject import SpaceObject
 from sbs_utils.procedural.lifeform import lifeform_spawn
 from sbs_utils.procedural import amd_dialogue as D
-from sbs_utils.procedural import away as A
+from sbs_utils.procedural import boarding as A
 
 
 # One scene, four choices: three role-gated, one open to anybody.
@@ -54,43 +54,43 @@ class _AwayBase(unittest.TestCase):
         # registers its own resolver, and wiping it leaves later tests running without one -
         # which passes alone and fails under discover.
         self._prev_metric = D._METRIC_RESOLVER
-        A.away_clear()
-        A.away_metric_install()
+        A.boarding_clear()
+        A.boarding_metric_install()
         self.scenes = _scenes()
-        self.doc = lifeform_spawn("Dr Sorel", "terran_female", "away,medical")
-        self.eng = lifeform_spawn("Chief Ruiz", "terran_male", "away,engineering")
-        self.sec = lifeform_spawn("Ensign Vale", "terran_male", "away,security")
+        self.doc = lifeform_spawn("Dr Sorel", "terran_female", "boarding,medical")
+        self.eng = lifeform_spawn("Chief Ruiz", "terran_male", "boarding,engineering")
+        self.sec = lifeform_spawn("Ensign Vale", "terran_male", "boarding,security")
 
     def tearDown(self):
-        A.away_clear()
+        A.boarding_clear()
         D.dialogue_set_metric_resolver(self._prev_metric)
 
     def _labels(self, client_id):
-        return [c.label for c in A.away_choices(client_id)]
+        return [c.label for c in A.boarding_choices(client_id)]
 
 
 class AwayTeamTests(_AwayBase):
     def test_assign_and_lookup(self):
-        A.away_assign(101, self.doc)
-        A.away_assign(102, self.eng)
-        self.assertEqual(A.away_me(101), self.doc.id)
-        self.assertEqual(A.away_me(102), self.eng.id)
-        self.assertIsNone(A.away_me(999))
-        self.assertEqual(A.away_team(), {self.doc.id, self.eng.id})
-        self.assertEqual(A.away_client_of(self.eng), 102)
+        A.boarding_assign(101, self.doc)
+        A.boarding_assign(102, self.eng)
+        self.assertEqual(A.boarding_me(101), self.doc.id)
+        self.assertEqual(A.boarding_me(102), self.eng.id)
+        self.assertIsNone(A.boarding_me(999))
+        self.assertEqual(A.boarding_team(), {self.doc.id, self.eng.id})
+        self.assertEqual(A.boarding_client_of(self.eng), 102)
 
     def test_assign_none_releases(self):
-        A.away_assign(101, self.doc)
-        self.assertIsNone(A.away_assign(101, None))
-        self.assertIsNone(A.away_me(101))
-        self.assertEqual(A.away_team(), set())
+        A.boarding_assign(101, self.doc)
+        self.assertIsNone(A.boarding_assign(101, None))
+        self.assertIsNone(A.boarding_me(101))
+        self.assertEqual(A.boarding_team(), set())
 
     def test_team_is_a_set_not_a_list(self):
         # Two clients watching one character must not make that character appear twice.
-        A.away_assign(101, self.doc)
-        A.away_assign(102, self.doc)
-        self.assertEqual(A.away_team(), {self.doc.id})
-        self.assertEqual(A.away_team_count(), 2)        # two CLIENTS, one character
+        A.boarding_assign(101, self.doc)
+        A.boarding_assign(102, self.doc)
+        self.assertEqual(A.boarding_team(), {self.doc.id})
+        self.assertEqual(A.boarding_team_count(), 2)        # two CLIENTS, one character
 
 
 class AwayJobTests(_AwayBase):
@@ -99,11 +99,11 @@ class AwayJobTests(_AwayBase):
     def test_machinery_is_not_a_job(self):
         # `ultra_beam` is added the moment a lifeform has no host - i.e. to every away-team
         # member - and the AMD loader stamps `amd_lifeform:<key>`. Neither describes anyone.
-        A.away_assign(101, self.doc)
-        jobs = A.away_jobs(self.doc)
+        A.boarding_assign(101, self.doc)
+        jobs = A.boarding_jobs(self.doc)
         self.assertIn("medical", jobs)
         self.assertNotIn("ultra_beam", jobs)
-        self.assertNotIn("away", jobs)
+        self.assertNotIn("boarding", jobs)
         self.assertNotIn("lifeform", jobs)
         for j in jobs:
             self.assertNotIn(":", j, f"{j!r} is namespaced bookkeeping, not a job")
@@ -113,20 +113,20 @@ class AwayJobTests(_AwayBase):
         # above passes while measuring nothing.
         from sbs_utils.procedural.roles import get_role_list
         raw = get_role_list(self.doc.id)
-        self.assertGreater(len(raw), len(A.away_jobs(self.doc)),
+        self.assertGreater(len(raw), len(A.boarding_jobs(self.doc)),
                            "nothing was filtered - the fixture no longer carries machinery")
 
     def test_order_is_stable(self):
         # Roles are a SET, so unsorted the same character reads differently per repaint.
-        both = lifeform_spawn("Dr Kell", "terran_fluid", "away,surgery,xenobiology")
-        self.assertEqual(A.away_jobs(both), ["surgery", "xenobiology"])
-        self.assertEqual(A.away_jobs(both), A.away_jobs(both))
+        both = lifeform_spawn("Dr Kell", "terran_fluid", "boarding,surgery,xenobiology")
+        self.assertEqual(A.boarding_jobs(both), ["surgery", "xenobiology"])
+        self.assertEqual(A.boarding_jobs(both), A.boarding_jobs(both))
 
     def test_job_text_is_one_line(self):
-        self.assertEqual(A.away_job_text(self.eng), "engineering")
-        blank = lifeform_spawn("Nobody", "terran", "away")
-        self.assertEqual(A.away_job_text(blank), "")
-        self.assertEqual(A.away_job_text(blank, default="watching"), "watching")
+        self.assertEqual(A.boarding_job_text(self.eng), "engineering")
+        blank = lifeform_spawn("Nobody", "terran", "boarding")
+        self.assertEqual(A.boarding_job_text(blank), "")
+        self.assertEqual(A.boarding_job_text(blank, default="watching"), "watching")
 
 
 class AwayChoiceFilteringTests(_AwayBase):
@@ -134,10 +134,10 @@ class AwayChoiceFilteringTests(_AwayBase):
 
     def setUp(self):
         super().setUp()
-        A.away_assign(101, self.doc)
-        A.away_assign(102, self.eng)
-        A.away_assign(103, self.sec)
-        A.away_scene_begin(self.scenes, "lab", speaker="outpost")
+        A.boarding_assign(101, self.doc)
+        A.boarding_assign(102, self.eng)
+        A.boarding_assign(103, self.sec)
+        A.boarding_scene_begin(self.scenes, "lab", speaker="outpost")
 
     def test_each_character_gets_a_different_menu(self):
         self.assertEqual(self._labels(101), ["Examine the body", "Back out"])
@@ -161,13 +161,13 @@ class AwayChoiceFilteringTests(_AwayBase):
         scenes = {"lab": {"key": "lab", "display_text": "lab", "description": body,
                           "data": {"speaker": "outpost"}},
                   "corridor": self.scenes["corridor"]}
-        A.away_scene_begin(scenes, "lab", speaker="outpost")
+        A.boarding_scene_begin(scenes, "lab", speaker="outpost")
         self.assertEqual(self._labels(101), ["Look"])
         self.assertEqual(self._labels(102), [])
 
     def test_a_character_with_two_roles_gets_both(self):
-        medic_eng = lifeform_spawn("Dr Kell", "terran_fluid", "away,medical,engineering")
-        A.away_assign(104, medic_eng)
+        medic_eng = lifeform_spawn("Dr Kell", "terran_fluid", "boarding,medical,engineering")
+        A.boarding_assign(104, medic_eng)
         self.assertEqual(self._labels(104),
                          ["Examine the body", "Force the panel", "Back out"])
 
@@ -177,13 +177,13 @@ class AwaySharedLineTests(_AwayBase):
         # dialogue_pick_line is RANDOM. Picked per console it would tell each of them a
         # different story; picked once at the beat it cannot.
         scenes = dict(self._many_line_scene())
-        A.away_assign(101, self.doc)
-        A.away_assign(102, self.eng)
+        A.boarding_assign(101, self.doc)
+        A.boarding_assign(102, self.eng)
         seen = set()
         for _ in range(25):
-            A.away_scene_begin(scenes, "noisy", speaker="outpost")
-            line = A.away_line()
-            self.assertEqual(line, A.away_line())     # same answer twice, same beat
+            A.boarding_scene_begin(scenes, "noisy", speaker="outpost")
+            line = A.boarding_line()
+            self.assertEqual(line, A.boarding_line())     # same answer twice, same beat
             seen.add(line)
         self.assertGreater(len(seen), 1, "fixture should have several variants")
 
@@ -197,119 +197,119 @@ class AwaySharedLineTests(_AwayBase):
 class AwayArbitrationTests(_AwayBase):
     def setUp(self):
         super().setUp()
-        A.away_assign(101, self.doc)
-        A.away_assign(102, self.eng)
-        A.away_scene_begin(self.scenes, "lab", speaker="outpost")
+        A.boarding_assign(101, self.doc)
+        A.boarding_assign(102, self.eng)
+        A.boarding_scene_begin(self.scenes, "lab", speaker="outpost")
 
     def test_first_answer_wins_and_second_is_refused(self):
-        seq = A.away_seq()
-        self.assertTrue(A.away_answer(101, 0, seq))            # doctor examines the body
-        self.assertEqual(A.away_scene(), "autopsy")
+        seq = A.boarding_seq()
+        self.assertTrue(A.boarding_answer(101, 0, seq))            # doctor examines the body
+        self.assertEqual(A.boarding_scene(), "autopsy")
         # The engineer pressed in the same frame, carrying the seq they rendered with.
-        self.assertFalse(A.away_answer(102, 0, seq))
-        self.assertEqual(A.away_scene(), "autopsy")            # unmoved
+        self.assertFalse(A.boarding_answer(102, 0, seq))
+        self.assertEqual(A.boarding_scene(), "autopsy")            # unmoved
 
     def test_seq_moves_on_every_beat(self):
-        first = A.away_seq()
-        A.away_answer(101, 0, first)
-        self.assertNotEqual(A.away_seq(), first)
+        first = A.boarding_seq()
+        A.boarding_answer(101, 0, first)
+        self.assertNotEqual(A.boarding_seq(), first)
 
     def test_an_index_valid_for_someone_else_is_refused(self):
         # Index 0 is "Force the panel" for the engineer and "Examine the body" for the
         # doctor; the point is that each list is indexed against its OWN character.
-        seq = A.away_seq()
-        self.assertTrue(A.away_answer(102, 0, seq))
-        self.assertEqual(A.away_scene(), "panel_open")
+        seq = A.boarding_seq()
+        self.assertTrue(A.boarding_answer(102, 0, seq))
+        self.assertEqual(A.boarding_scene(), "panel_open")
 
     def test_out_of_range_is_refused(self):
-        seq = A.away_seq()
-        self.assertFalse(A.away_answer(101, 5, seq))
-        self.assertFalse(A.away_answer(101, -1, seq))
-        self.assertEqual(A.away_scene(), "lab")
+        seq = A.boarding_seq()
+        self.assertFalse(A.boarding_answer(101, 5, seq))
+        self.assertFalse(A.boarding_answer(101, -1, seq))
+        self.assertEqual(A.boarding_scene(), "lab")
 
     def test_answering_without_a_seq_still_works(self):
         # A caller that does not render buttons (a test, a script) may omit the token.
-        self.assertTrue(A.away_answer(101, 0))
-        self.assertEqual(A.away_scene(), "autopsy")
+        self.assertTrue(A.boarding_answer(101, 0))
+        self.assertEqual(A.boarding_scene(), "autopsy")
 
     def test_a_choice_with_no_target_ends_the_scene(self):
-        A.away_answer(101, 0)                                  # -> autopsy
-        self.assertTrue(A.away_answer(101, 0))                 # -> corridor (no choices)
-        self.assertEqual(A.away_scene(), "corridor")
-        self.assertTrue(A.away_is_open())
-        self.assertEqual(A.away_choices(101), [])
+        A.boarding_answer(101, 0)                                  # -> autopsy
+        self.assertTrue(A.boarding_answer(101, 0))                 # -> corridor (no choices)
+        self.assertEqual(A.boarding_scene(), "corridor")
+        self.assertTrue(A.boarding_is_open())
+        self.assertEqual(A.boarding_choices(101), [])
 
     def test_a_missing_target_closes_rather_than_hangs(self):
         scenes = {"start": {"key": "start", "display_text": "s",
                             "description": "% Hi.\n- [Onward](nowhere)\n",
                             "data": {"speaker": "outpost"}}}
-        A.away_scene_begin(scenes, "start", speaker="outpost")
-        self.assertTrue(A.away_answer(101, 0))
-        self.assertIsNone(A.away_scene())
-        self.assertFalse(A.away_is_open())
+        A.boarding_scene_begin(scenes, "start", speaker="outpost")
+        self.assertTrue(A.boarding_answer(101, 0))
+        self.assertIsNone(A.boarding_scene())
+        self.assertFalse(A.boarding_is_open())
 
     def test_answering_a_closed_scene_is_refused(self):
-        A.away_scene_end()
-        self.assertFalse(A.away_answer(101, 0))
+        A.boarding_scene_end()
+        self.assertFalse(A.boarding_answer(101, 0))
 
 
 class AwayMetricCompositionTests(_AwayBase):
     """The resolver is ONE global and Open Universe already claims it at import time."""
 
     def test_unknown_names_fall_through_to_the_incumbent(self):
-        A.away_metric_uninstall()
+        A.boarding_metric_uninstall()
         D.dialogue_set_metric_resolver(lambda name, agent, spk: 42 if name == "credits" else 0)
-        A.away_metric_install()
+        A.boarding_metric_install()
         # ours
         self.assertTrue(D.dialogue_guard_ok("medical >= 1", self.doc.id, None))
         # theirs, still reachable
         self.assertTrue(D.dialogue_guard_ok("credits >= 40", self.doc.id, None))
 
     def test_a_role_the_character_lacks_still_falls_through(self):
-        A.away_metric_uninstall()
+        A.boarding_metric_uninstall()
         D.dialogue_set_metric_resolver(lambda name, agent, spk: 7)
-        A.away_metric_install()
+        A.boarding_metric_install()
         # "medical" is a role the ENGINEER lacks, so it must reach the incumbent rather
         # than short-circuit to 0 - a mission may mean something else by that word.
         self.assertEqual(D._METRIC_RESOLVER("medical", self.eng.id, None), 7)
 
     def test_install_is_idempotent_and_does_not_recurse(self):
-        self.assertFalse(A.away_metric_install())      # already installed by setUp
+        self.assertFalse(A.boarding_metric_install())      # already installed by setUp
         # If a second install had chained the resolver to itself, an unowned name would
         # recurse forever rather than answer.
         self.assertEqual(D._METRIC_RESOLVER("nothing_owns_this", self.doc.id, None), 0)
 
     def test_uninstall_restores_the_previous_resolver(self):
-        A.away_metric_uninstall()
+        A.boarding_metric_uninstall()
         sentinel = lambda name, agent, spk: 5
         D.dialogue_set_metric_resolver(sentinel)
-        A.away_metric_install()
+        A.boarding_metric_install()
         self.assertIsNot(D._METRIC_RESOLVER, sentinel)
-        A.away_metric_uninstall()
+        A.boarding_metric_uninstall()
         self.assertIs(D._METRIC_RESOLVER, sentinel)
 
 
 class AwayResetTests(_AwayBase):
     def test_clear_empties_the_ledger_probes(self):
-        A.away_assign(101, self.doc)
-        A.away_scene_begin(self.scenes, "lab", speaker="outpost")
-        self.assertEqual(A.away_team_count(), 1)
-        self.assertEqual(A.away_scene_count(), 1)
-        A.away_clear()
-        self.assertEqual(A.away_team_count(), 0)
-        self.assertEqual(A.away_scene_count(), 0)
+        A.boarding_assign(101, self.doc)
+        A.boarding_scene_begin(self.scenes, "lab", speaker="outpost")
+        self.assertEqual(A.boarding_team_count(), 1)
+        self.assertEqual(A.boarding_scene_count(), 1)
+        A.boarding_clear()
+        self.assertEqual(A.boarding_team_count(), 0)
+        self.assertEqual(A.boarding_scene_count(), 0)
 
     def test_clear_hands_the_resolver_back(self):
         sentinel = self._prev_metric
-        A.away_clear()
+        A.boarding_clear()
         self.assertIs(D._METRIC_RESOLVER, sentinel)
 
     def test_probes_are_registered_on_the_reset_ledger(self):
         # An unregistered container is invisible to the restart soak, which is how
         # "works on run 1, broken on run 2" gets shipped.
         from sbs_utils.handlerhooks import _RESET_PROBES
-        self.assertIn("away team", _RESET_PROBES)
-        self.assertIn("away scene", _RESET_PROBES)
+        self.assertIn("boarding party", _RESET_PROBES)
+        self.assertIn("boarding scene", _RESET_PROBES)
 
 
 class AwayMastRegistrationTests(unittest.TestCase):
@@ -319,8 +319,8 @@ class AwayMastRegistrationTests(unittest.TestCase):
         # engine dies with NameError. Same guard as test_fleet_tables.
         import sbs_utils.mast_sbs.mast_sbs_procedural  # noqa: F401
         from sbs_utils.mast.mast_globals import MastGlobals
-        for name in ("away_assign", "away_me", "away_choices", "away_answer",
-                     "away_scene_begin", "away_seq", "away_line"):
+        for name in ("boarding_assign", "boarding_me", "boarding_choices", "boarding_answer",
+                     "boarding_scene_begin", "boarding_seq", "boarding_line"):
             self.assertIn(name, MastGlobals.globals, f"{name} is not reachable from MAST")
 
 
@@ -367,45 +367,45 @@ class AwayLearnTests(_AwayBase):
         self.scenes = _learn_scenes()
 
     def _answer(self, who, label):
-        A.away_assign(LEARN_CID, who)
+        A.boarding_assign(LEARN_CID, who)
         labels = self._labels(LEARN_CID)
         self.assertIn(label, labels, f"{label} not offered: {labels}")
-        return A.away_answer(LEARN_CID, labels.index(label), A.away_seq())
+        return A.boarding_answer(LEARN_CID, labels.index(label), A.boarding_seq())
 
     def test_nothing_is_known_at_the_start(self):
-        A.away_scene_begin(self.scenes, "field")
-        self.assertEqual(A.away_learned(), 0)
-        self.assertEqual(A.away_facts(), [])
+        A.boarding_scene_begin(self.scenes, "field")
+        self.assertEqual(A.boarding_learned(), 0)
+        self.assertEqual(A.boarding_facts(), [])
 
     def test_a_reading_is_recorded_by_name(self):
-        A.away_scene_begin(self.scenes, "field")
+        A.boarding_scene_begin(self.scenes, "field")
         self._answer(self.eng, "Read the power spur")
-        self.assertEqual(A.away_facts(), ["cold"])
-        self.assertEqual(A.away_learned("cold"), 1)
-        self.assertEqual(A.away_learned("thin"), 0)
+        self.assertEqual(A.boarding_facts(), ["cold"])
+        self.assertEqual(A.boarding_learned("cold"), 1)
+        self.assertEqual(A.boarding_learned("thin"), 0)
 
     def test_the_same_reading_twice_counts_once(self):
         # THE REASON THIS IS NOT A SIGNAL. Every reading returns the party to the room it
         # came from, so walking back into one is the normal way to play, not an abuse.
         for _ in range(3):
-            A.away_scene_begin(self.scenes, "field")
+            A.boarding_scene_begin(self.scenes, "field")
             self._answer(self.eng, "Read the power spur")
-        self.assertEqual(A.away_learned(), 1)
+        self.assertEqual(A.boarding_learned(), 1)
 
     def test_the_gate_is_shut_until_enough_is_known(self):
-        A.away_scene_begin(self.scenes, "field")
-        A.away_assign(LEARN_CID, self.eng)
+        A.boarding_scene_begin(self.scenes, "field")
+        A.boarding_assign(LEARN_CID, self.eng)
         self.assertNotIn("Open the shed", self._labels(LEARN_CID))
 
     def test_three_readings_open_it(self):
         for who, label in ((self.doc, "Read the people"),
                            (self.eng, "Read the power spur"),
                            (self.sec, "Count the doors")):
-            A.away_scene_begin(self.scenes, "field")
+            A.boarding_scene_begin(self.scenes, "field")
             self._answer(who, label)
-        A.away_scene_begin(self.scenes, "field")
-        A.away_assign(LEARN_CID, self.eng)
-        self.assertEqual(A.away_learned(), 3)
+        A.boarding_scene_begin(self.scenes, "field")
+        A.boarding_assign(LEARN_CID, self.eng)
+        self.assertEqual(A.boarding_learned(), 3)
         self.assertIn("Open the shed", self._labels(LEARN_CID))
 
     def test_the_gate_belongs_to_the_PARTY_not_the_character(self):
@@ -414,34 +414,34 @@ class AwayLearnTests(_AwayBase):
         for who, label in ((self.doc, "Read the people"),
                            (self.eng, "Read the power spur"),
                            (self.sec, "Count the doors")):
-            A.away_scene_begin(self.scenes, "field")
+            A.boarding_scene_begin(self.scenes, "field")
             self._answer(who, label)
         # Asked as the MEDIC, who personally read exactly one thing.
-        A.away_scene_begin(self.scenes, "field")
-        A.away_assign(LEARN_CID, self.doc)
+        A.boarding_scene_begin(self.scenes, "field")
+        A.boarding_assign(LEARN_CID, self.doc)
         self.assertIn("Open the shed", self._labels(LEARN_CID))
 
     def test_a_role_guard_still_works_beside_it(self):
-        A.away_scene_begin(self.scenes, "field")
-        A.away_assign(LEARN_CID, self.doc)
+        A.boarding_scene_begin(self.scenes, "field")
+        A.boarding_assign(LEARN_CID, self.doc)
         labels = self._labels(LEARN_CID)
         self.assertIn("Read the people", labels)
         self.assertNotIn("Read the power spur", labels)
 
     def test_a_reset_forgets_what_the_party_knew(self):
-        A.away_scene_begin(self.scenes, "field")
+        A.boarding_scene_begin(self.scenes, "field")
         self._answer(self.eng, "Read the power spur")
-        A.away_clear()
-        self.assertEqual(A.away_learned(), 0)
+        A.boarding_clear()
+        self.assertEqual(A.boarding_learned(), 0)
 
     def test_learn_with_no_token_records_nothing(self):
         # An authoring slip (`; learn`) must not bank an empty fact that still counts.
         A._away_learn_outcome(None, None, ())
-        self.assertEqual(A.away_learned(), 0)
+        self.assertEqual(A.boarding_learned(), 0)
 
     def test_a_multi_word_fact_is_one_fact(self):
         A._away_learn_outcome(None, None, ("the", "power", "spur"))
-        self.assertEqual(A.away_facts(), ["the power spur"])
+        self.assertEqual(A.boarding_facts(), ["the power spur"])
 
 
 DOUBLE_CID = 301
@@ -451,9 +451,9 @@ DOUBLE_OTHER = 302
 class AwayDoublingUpTests(_AwayBase):
     """One console speaking for several characters, when the party is short.
 
-    `universe_site_spawn_cast` spawns the whole `## Away Team`, but a bridge with two
+    `universe_site_spawn_cast` spawns the whole `## Boarding Party`, but a bridge with two
     consoles and a cast of four used to leave two characters standing on the surface that
-    NOBODY controlled - in nobody's `away_team()`, with the readings only they could take
+    NOBODY controlled - in nobody's `boarding_team()`, with the readings only they could take
     unreachable. The story was quietly smaller and there were idle bodies in it.
 
     Doubling up keeps every reading in play AND keeps it attached to a named person,
@@ -461,59 +461,59 @@ class AwayDoublingUpTests(_AwayBase):
     """
 
     def test_a_console_starts_with_one_character(self):
-        A.away_assign(DOUBLE_CID, self.doc)
-        self.assertEqual(A.away_held(DOUBLE_CID), [self.doc.id])
-        self.assertEqual(A.away_me(DOUBLE_CID), self.doc.id)
+        A.boarding_assign(DOUBLE_CID, self.doc)
+        self.assertEqual(A.boarding_held(DOUBLE_CID), [self.doc.id])
+        self.assertEqual(A.boarding_me(DOUBLE_CID), self.doc.id)
 
     def test_also_adds_a_second_without_losing_the_first(self):
-        A.away_assign(DOUBLE_CID, self.doc)
-        A.away_assign_also(DOUBLE_CID, self.eng)
-        self.assertEqual(A.away_held(DOUBLE_CID), [self.doc.id, self.eng.id])
+        A.boarding_assign(DOUBLE_CID, self.doc)
+        A.boarding_assign_also(DOUBLE_CID, self.eng)
+        self.assertEqual(A.boarding_held(DOUBLE_CID), [self.doc.id, self.eng.id])
         # The PRIMARY is still whose face and name the screen shows.
-        self.assertEqual(A.away_me(DOUBLE_CID), self.doc.id)
+        self.assertEqual(A.boarding_me(DOUBLE_CID), self.doc.id)
 
     def test_assign_replaces_rather_than_appends(self):
-        # `away_assign` still means "you are Sorel", or beaming one person up would need
+        # `boarding_assign` still means "you are Sorel", or beaming one person up would need
         # to know how many bodies a console had accumulated.
-        A.away_assign(DOUBLE_CID, self.doc)
-        A.away_assign_also(DOUBLE_CID, self.eng)
-        A.away_assign(DOUBLE_CID, self.sec)
-        self.assertEqual(A.away_held(DOUBLE_CID), [self.sec.id])
+        A.boarding_assign(DOUBLE_CID, self.doc)
+        A.boarding_assign_also(DOUBLE_CID, self.eng)
+        A.boarding_assign(DOUBLE_CID, self.sec)
+        self.assertEqual(A.boarding_held(DOUBLE_CID), [self.sec.id])
 
     def test_releasing_drops_every_character_it_held(self):
-        A.away_assign(DOUBLE_CID, self.doc)
-        A.away_assign_also(DOUBLE_CID, self.eng)
-        A.away_assign(DOUBLE_CID, None)
-        self.assertEqual(A.away_held(DOUBLE_CID), [])
-        self.assertEqual(A.away_team(), set())
+        A.boarding_assign(DOUBLE_CID, self.doc)
+        A.boarding_assign_also(DOUBLE_CID, self.eng)
+        A.boarding_assign(DOUBLE_CID, None)
+        self.assertEqual(A.boarding_held(DOUBLE_CID), [])
+        self.assertEqual(A.boarding_team(), set())
 
     def test_the_team_is_the_union(self):
-        A.away_assign(DOUBLE_CID, self.doc)
-        A.away_assign_also(DOUBLE_CID, self.eng)
-        A.away_assign(DOUBLE_OTHER, self.sec)
-        self.assertEqual(A.away_team(), {self.doc.id, self.eng.id, self.sec.id})
+        A.boarding_assign(DOUBLE_CID, self.doc)
+        A.boarding_assign_also(DOUBLE_CID, self.eng)
+        A.boarding_assign(DOUBLE_OTHER, self.sec)
+        self.assertEqual(A.boarding_team(), {self.doc.id, self.eng.id, self.sec.id})
 
     def test_client_of_finds_either_character(self):
-        A.away_assign(DOUBLE_CID, self.doc)
-        A.away_assign_also(DOUBLE_CID, self.eng)
-        self.assertEqual(A.away_client_of(self.doc), DOUBLE_CID)
-        self.assertEqual(A.away_client_of(self.eng), DOUBLE_CID)
+        A.boarding_assign(DOUBLE_CID, self.doc)
+        A.boarding_assign_also(DOUBLE_CID, self.eng)
+        self.assertEqual(A.boarding_client_of(self.doc), DOUBLE_CID)
+        self.assertEqual(A.boarding_client_of(self.eng), DOUBLE_CID)
 
     def test_a_character_another_console_holds_is_refused(self):
         # "Two consoles answering as one person is worse than a console with nothing to
         # answer" - the rule the late-join watcher already stated. Now it is enforced in
         # the one place that can enforce it.
-        A.away_assign(DOUBLE_OTHER, self.eng)
-        A.away_assign(DOUBLE_CID, self.doc)
-        self.assertIsNone(A.away_assign_also(DOUBLE_CID, self.eng))
-        self.assertEqual(A.away_held(DOUBLE_CID), [self.doc.id])
+        A.boarding_assign(DOUBLE_OTHER, self.eng)
+        A.boarding_assign(DOUBLE_CID, self.doc)
+        self.assertIsNone(A.boarding_assign_also(DOUBLE_CID, self.eng))
+        self.assertEqual(A.boarding_held(DOUBLE_CID), [self.doc.id])
 
     # --- the choices, which are the point -----------------------------------
 
     def test_one_console_gets_both_characters_readings(self):
-        A.away_scene_begin(self.scenes, "lab")
-        A.away_assign(DOUBLE_CID, self.doc)
-        A.away_assign_also(DOUBLE_CID, self.eng)
+        A.boarding_scene_begin(self.scenes, "lab")
+        A.boarding_assign(DOUBLE_CID, self.doc)
+        A.boarding_assign_also(DOUBLE_CID, self.eng)
         labels = self._labels(DOUBLE_CID)
         self.assertIn("Examine the body", labels)      # medical
         self.assertIn("Force the panel", labels)       # engineering
@@ -522,33 +522,33 @@ class AwayDoublingUpTests(_AwayBase):
     def test_a_shared_choice_appears_once(self):
         # THE DEDUPE. An ungated choice is offered to every character, so a plain union
         # shows it once per body held.
-        A.away_scene_begin(self.scenes, "lab")
-        A.away_assign(DOUBLE_CID, self.doc)
-        A.away_assign_also(DOUBLE_CID, self.eng)
-        A.away_assign_also(DOUBLE_CID, self.sec)
+        A.boarding_scene_begin(self.scenes, "lab")
+        A.boarding_assign(DOUBLE_CID, self.doc)
+        A.boarding_assign_also(DOUBLE_CID, self.eng)
+        A.boarding_assign_also(DOUBLE_CID, self.sec)
         labels = self._labels(DOUBLE_CID)
         self.assertEqual(labels.count("Back out"), 1)
 
     def test_the_primary_is_listed_first(self):
         # Ordering is not cosmetic: it is what lets a screen group the list by character.
-        A.away_scene_begin(self.scenes, "lab")
-        A.away_assign(DOUBLE_CID, self.eng)
-        A.away_assign_also(DOUBLE_CID, self.doc)
+        A.boarding_scene_begin(self.scenes, "lab")
+        A.boarding_assign(DOUBLE_CID, self.eng)
+        A.boarding_assign_also(DOUBLE_CID, self.doc)
         labels = self._labels(DOUBLE_CID)
         self.assertLess(labels.index("Force the panel"), labels.index("Examine the body"))
 
     def test_every_choice_says_who_is_acting(self):
-        A.away_scene_begin(self.scenes, "lab")
-        A.away_assign(DOUBLE_CID, self.doc)
-        A.away_assign_also(DOUBLE_CID, self.eng)
-        by_label = {c.label: c.get("agent") for c in A.away_choices(DOUBLE_CID)}
+        A.boarding_scene_begin(self.scenes, "lab")
+        A.boarding_assign(DOUBLE_CID, self.doc)
+        A.boarding_assign_also(DOUBLE_CID, self.eng)
+        by_label = {c.label: c.get("agent") for c in A.boarding_choices(DOUBLE_CID)}
         self.assertEqual(by_label["Examine the body"], self.doc.id)
         self.assertEqual(by_label["Force the panel"], self.eng.id)
         # A shared choice belongs to the primary, because the primary was iterated first.
         self.assertEqual(by_label["Back out"], self.doc.id)
 
     def test_an_answer_is_applied_as_the_acting_character(self):
-        # The reason the tag has to survive onto the choice: `away_answer` cannot ask the
+        # The reason the tag has to survive onto the choice: `boarding_answer` cannot ask the
         # console whose body acted, because the console has several.
         seen = []
         D.dialogue_register_outcome("whodunit", lambda agent, speaker, tokens: seen.append(agent))
@@ -557,22 +557,22 @@ class AwayDoublingUpTests(_AwayBase):
             "% The body is cold.\n"
             "- [Examine the body](corridor) if medical >= 1 ; whodunit x\n"
             "- [Force the panel](corridor) if engineering >= 1 ; whodunit x\n")
-        A.away_scene_begin(scenes, "lab")
-        A.away_assign(DOUBLE_CID, self.doc)
-        A.away_assign_also(DOUBLE_CID, self.eng)
+        A.boarding_scene_begin(scenes, "lab")
+        A.boarding_assign(DOUBLE_CID, self.doc)
+        A.boarding_assign_also(DOUBLE_CID, self.eng)
         labels = self._labels(DOUBLE_CID)
-        A.away_answer(DOUBLE_CID, labels.index("Force the panel"), A.away_seq())
+        A.boarding_answer(DOUBLE_CID, labels.index("Force the panel"), A.boarding_seq())
         self.assertEqual(seen, [self.eng.id],
                          "the outcome was credited to the console's primary, not the actor")
 
     def test_a_console_with_no_character_still_gets_the_open_choices(self):
-        A.away_scene_begin(self.scenes, "lab")
+        A.boarding_scene_begin(self.scenes, "lab")
         labels = self._labels(DOUBLE_OTHER)
         self.assertEqual(labels, ["Back out"])
 
 
 class AwayOneCharacterAtATimeTests(_AwayBase):
-    """`away_choices_for` - the detail half of a roster listbox.
+    """`boarding_choices_for` - the detail half of a roster listbox.
 
     A doubled-up console showing every character's readings at once is a dozen buttons.
     The settled pattern is a listbox plus a detail panel acting on the selection, so the
@@ -581,46 +581,46 @@ class AwayOneCharacterAtATimeTests(_AwayBase):
 
     def setUp(self):
         super().setUp()
-        A.away_assign(DOUBLE_CID, self.doc)
-        A.away_assign_also(DOUBLE_CID, self.eng)
-        A.away_scene_begin(self.scenes, "lab")
+        A.boarding_assign(DOUBLE_CID, self.doc)
+        A.boarding_assign_also(DOUBLE_CID, self.eng)
+        A.boarding_scene_begin(self.scenes, "lab")
 
     def test_it_offers_that_character_and_not_the_other(self):
-        labels = [c.label for c in A.away_choices_for(DOUBLE_CID, self.eng)]
+        labels = [c.label for c in A.boarding_choices_for(DOUBLE_CID, self.eng)]
         self.assertIn("Force the panel", labels)
         self.assertNotIn("Examine the body", labels)
 
     def test_the_open_choices_belong_to_EVERY_character(self):
-        # NOT a filter over away_choices. There the shared choices are deduped onto the
+        # NOT a filter over boarding_choices. There the shared choices are deduped onto the
         # primary, so filtering by tag would hide "Back out" from everyone else - the
         # second character on a console would have no way to leave.
         for who in (self.doc, self.eng):
-            labels = [c.label for c in A.away_choices_for(DOUBLE_CID, who)]
+            labels = [c.label for c in A.boarding_choices_for(DOUBLE_CID, who)]
             self.assertIn("Back out", labels, f"{who.name} cannot take the open choice")
 
     def test_every_choice_still_says_who_is_acting(self):
-        for ch in A.away_choices_for(DOUBLE_CID, self.eng):
+        for ch in A.boarding_choices_for(DOUBLE_CID, self.eng):
             self.assertEqual(ch.get("agent"), self.eng.id)
 
     def test_a_character_this_console_does_not_hold_falls_back(self):
         # A stale selection - somebody else took that body over between repaints.
-        labels = [c.label for c in A.away_choices_for(DOUBLE_CID, self.sec)]
-        self.assertEqual(labels, [c.label for c in A.away_choices(DOUBLE_CID)])
+        labels = [c.label for c in A.boarding_choices_for(DOUBLE_CID, self.sec)]
+        self.assertEqual(labels, [c.label for c in A.boarding_choices(DOUBLE_CID)])
 
     def test_an_answer_indexes_the_list_the_console_rendered(self):
         # THE REASON `agent` is a parameter. The per-character list and the console's
         # full list are different lengths and in a different order, so an index read
         # against the wrong one presses the wrong thing.
-        shown = A.away_choices_for(DOUBLE_CID, self.eng)
+        shown = A.boarding_choices_for(DOUBLE_CID, self.eng)
         i = [c.label for c in shown].index("Force the panel")
-        self.assertTrue(A.away_answer(DOUBLE_CID, i, A.away_seq(), agent=self.eng.id))
-        self.assertEqual(A.away_scene(), "panel_open")
+        self.assertTrue(A.boarding_answer(DOUBLE_CID, i, A.boarding_seq(), agent=self.eng.id))
+        self.assertEqual(A.boarding_scene(), "panel_open")
 
     def test_without_the_agent_the_same_index_presses_something_else(self):
         # Proves the parameter is load-bearing rather than decorative.
-        shown = A.away_choices_for(DOUBLE_CID, self.eng)
+        shown = A.boarding_choices_for(DOUBLE_CID, self.eng)
         i = [c.label for c in shown].index("Force the panel")
-        full = [c.label for c in A.away_choices(DOUBLE_CID)]
+        full = [c.label for c in A.boarding_choices(DOUBLE_CID)]
         self.assertNotEqual(full[i], "Force the panel")
 
 

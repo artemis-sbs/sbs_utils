@@ -15,7 +15,7 @@ class GuiAppDecoratorLabel(DecoratorLabel):
 
     One route kind doing both is what made the PADD's Back inherit a tab's condition -
     `//gui/tab/away if not gui_app_mode_is_on()` correctly hid away as a tab and deleted
-    the way back to the away console with it.
+    the way back to the crew console with it.
 
     THE ACTIVATION KEY IS THE OTHER HALF. This injects `gui_app_activate`, which writes
     `__active_app__` and never touches `__active_tab__` - so the tab a player was on when

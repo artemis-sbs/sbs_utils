@@ -19,7 +19,7 @@ from sbs_utils.helpers import Context, FakeEvent, FrameContext
 from sbs_utils.agent import clear_shared
 from sbs_utils.gui import GuiClient
 from sbs_utils.spaceobject import SpaceObject
-from sbs_utils.procedural import away as A
+from sbs_utils.procedural import boarding as A
 from sbs_utils.procedural import messages as M
 from sbs_utils.procedural.inventory import set_inventory_value
 from sbs_utils.procedural.roles import add_role
@@ -45,10 +45,10 @@ class ForwardBase(unittest.TestCase):
         clear_shared()
         FrameContext.context = Context(sbs.sim, sbs, FakeEvent(0, "test"))
         FrameContext.page = None
-        A.away_clear()
+        A.boarding_clear()
         A._TEAM.clear()
         M.message_forwarding(True)
-        self.addCleanup(A.away_clear)
+        self.addCleanup(A.boarding_clear)
         self.addCleanup(A._TEAM.clear)
         self.addCleanup(M.message_forwarding, True)
 
@@ -80,7 +80,7 @@ class TestNobodyIsAtThatPost(ForwardBase):
         super().setUp()
         self.sit(HELM, "helm")
         self.sit(ENG, "engineering")
-        self.sit(SCI, "away")
+        self.sit(SCI, "boarding")
         A._TEAM[SCI] = [501]
         self.send_to_science()
 
@@ -90,13 +90,13 @@ class TestNobodyIsAtThatPost(ForwardBase):
         reached = M.message_inbox("helm")
         self.at(ENG, "engineering")
         reached += M.message_inbox("engineering")
-        self.at(SCI, "away")
-        reached += M.message_inbox("away")
+        self.at(SCI, "boarding")
+        reached += M.message_inbox("boarding")
         self.assertTrue(reached)
 
     def test_it_reaches_the_console_that_is_covering(self):
-        self.at(SCI, "away")
-        self.assertEqual(len(M.message_inbox("away")), 1)
+        self.at(SCI, "boarding")
+        self.assertEqual(len(M.message_inbox("boarding")), 1)
 
     def test_AND_ONLY_THAT_ONE(self):
         """Forwarded to everybody, a private letter becomes an announcement."""
@@ -104,14 +104,14 @@ class TestNobodyIsAtThatPost(ForwardBase):
         self.assertEqual(M.message_inbox("helm"), [])
 
     def test_the_reader_can_be_told_it_was_not_for_them(self):
-        self.at(SCI, "away")
-        msg = M.message_inbox("away")[0]
-        self.assertEqual(M.message_forwarded_from(msg, "away", SCI), "science")
+        self.at(SCI, "boarding")
+        msg = M.message_inbox("boarding")[0]
+        self.assertEqual(M.message_forwarded_from(msg, "boarding", SCI), "science")
 
     def test_turning_forwarding_off_leaves_it_undelivered(self):
         M.message_forwarding(False)
-        self.at(SCI, "away")
-        self.assertEqual(M.message_inbox("away"), [])
+        self.at(SCI, "boarding")
+        self.assertEqual(M.message_inbox("boarding"), [])
 
 
 class TestSomebodyIsAtThatPost(ForwardBase):
@@ -121,7 +121,7 @@ class TestSomebodyIsAtThatPost(ForwardBase):
         super().setUp()
         self.sit(HELM, "helm")
         self.sit(SCI, "science")
-        self.sit(ENG, "away")
+        self.sit(ENG, "boarding")
         A._TEAM[ENG] = [501]
         self.send_to_science()
 
@@ -130,8 +130,8 @@ class TestSomebodyIsAtThatPost(ForwardBase):
         self.assertEqual(len(M.message_inbox("science")), 1)
 
     def test_and_is_not_also_forwarded(self):
-        self.at(ENG, "away")
-        self.assertEqual(M.message_inbox("away"), [])
+        self.at(ENG, "boarding")
+        self.assertEqual(M.message_inbox("boarding"), [])
 
     def test_a_reader_it_was_addressed_to_is_not_told_it_was_forwarded(self):
         self.at(SCI, "science")
@@ -159,25 +159,25 @@ class TestTheLiveAudiencesAreNeverForwarded(ForwardBase):
     def setUp(self):
         super().setUp()
         self.sit(HELM, "helm")
-        self.sit(SCI, "away")
+        self.sit(SCI, "boarding")
         A._TEAM[SCI] = [501]
 
     def test_an_away_broadcast_arrives_once(self):
-        M.message_send("Report.", to="away", sender="The Bridge")
-        self.at(SCI, "away")
-        self.assertEqual(len(M.message_inbox("away")), 1)
+        M.message_send("Report.", to="boarding", sender="The Bridge")
+        self.at(SCI, "boarding")
+        self.assertEqual(len(M.message_inbox("boarding")), 1)
 
     def test_a_ship_message_does_not_follow_them_down(self):
         M.message_send("Bridge only.", to="ship", sender="The Captain")
-        self.at(SCI, "away")
-        self.assertEqual(M.message_inbox("away"), [])
+        self.at(SCI, "boarding")
+        self.assertEqual(M.message_inbox("boarding"), [])
 
     def test_an_announcement_still_reaches_everyone(self):
         M.message_send("All hands.", sender="The Captain")
         self.at(HELM, "helm")
         self.assertEqual(len(M.message_inbox("helm")), 1)
-        self.at(SCI, "away")
-        self.assertEqual(len(M.message_inbox("away")), 1)
+        self.at(SCI, "boarding")
+        self.assertEqual(len(M.message_inbox("boarding")), 1)
 
 
 if __name__ == "__main__":

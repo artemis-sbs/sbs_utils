@@ -23,7 +23,7 @@ from sbs_utils.helpers import Context, FakeEvent, FrameContext
 from sbs_utils.agent import clear_shared
 from sbs_utils.gui import GuiClient
 from sbs_utils.spaceobject import SpaceObject
-from sbs_utils.procedural import away as A
+from sbs_utils.procedural import boarding as A
 from sbs_utils.procedural.inventory import set_inventory_value
 from sbs_utils.procedural.roles import add_role, has_role
 from sbs_utils.procedural.query import to_object
@@ -41,12 +41,12 @@ class CrewPartyBase(unittest.TestCase):
         SpaceObject.clear()
         clear_shared()
         FrameContext.context = Context(sbs.sim, sbs, FakeEvent(0, "test"))
-        A.away_clear()
+        A.boarding_clear()
         A._TEAM.clear()
-        A.away_forwarding(False)
-        self.addCleanup(A.away_clear)
+        A.boarding_forwarding(False)
+        self.addCleanup(A.boarding_clear)
         self.addCleanup(A._TEAM.clear)
-        self.addCleanup(A.away_forwarding, False)
+        self.addCleanup(A.boarding_forwarding, False)
         self.ship = 1
 
     def tearDown(self):
@@ -62,7 +62,7 @@ class CrewPartyBase(unittest.TestCase):
         set_inventory_value(client_id, "CREW_ROLES", roles or "")
 
     def bodies(self, consoles):
-        return A.away_crew_roster(self.ship, consoles=consoles, assign_missing=False)
+        return A.boarding_crew_roster(self.ship, consoles=consoles, assign_missing=False)
 
 
 class TestTheBodyIsTheCrewMember(CrewPartyBase):
@@ -117,23 +117,23 @@ class TestAPlaceHeldForYou(CrewPartyBase):
         super().setUp()
         self.crew(HELM, "helm", "Marek")
         self.crew(SCI, "science", "Sorel", roles="medical")
-        A.away_invite_crew(self.ship, title="The Outpost", consoles=[HELM, SCI])
+        A.boarding_invite_crew(self.ship, title="The Outpost", consoles=[HELM, SCI])
 
     def test_each_console_has_its_own_character(self):
-        self.assertIsNotNone(A.away_reserved(HELM))
-        self.assertNotEqual(A.away_reserved(HELM), A.away_reserved(SCI))
+        self.assertIsNotNone(A.boarding_reserved(HELM))
+        self.assertNotEqual(A.boarding_reserved(HELM), A.boarding_reserved(SCI))
 
     def test_saying_yes_takes_your_own_character_not_the_next_one(self):
         """Without this a console beams down as whoever happens to be first in the
         roster - which is exactly the stranger problem, reintroduced."""
-        mine = A.away_reserved(SCI)
-        self.assertEqual(A.away_beam_down(SCI), mine)
+        mine = A.boarding_reserved(SCI)
+        self.assertEqual(A.boarding_beam_down(SCI), mine)
 
     def test_a_reserved_body_is_not_offered_to_anybody_else(self):
-        self.assertNotIn(A.away_reserved(SCI), A.away_open_roster(HELM))
+        self.assertNotIn(A.boarding_reserved(SCI), A.boarding_open_roster(HELM))
 
     def test_but_it_is_offered_to_its_own_console(self):
-        self.assertIn(A.away_reserved(SCI), A.away_open_roster(SCI))
+        self.assertIn(A.boarding_reserved(SCI), A.boarding_open_roster(SCI))
 
     def test_EVEN_WHEN_SOMEBODY_ELSE_IS_FIRST_ON_THE_LIST(self):
         """A mission may add an unreserved specialist to a crew party. Excluding
@@ -141,15 +141,15 @@ class TestAPlaceHeldForYou(CrewPartyBase):
         still starts with somebody who is not you, and saying yes would take them.
         """
         from sbs_utils.procedural.lifeform import lifeform_spawn
-        invite = A.away_invitation()
+        invite = A.boarding_invitation()
         extra = lifeform_spawn("Specialist Ito", "", "away, geology")
         invite["roster"] = [extra.id] + list(invite["roster"])
-        mine = A.away_reserved(SCI)
-        self.assertEqual(A.away_open_roster(SCI)[0], extra.id)
-        self.assertEqual(A.away_beam_down(SCI), mine)
+        mine = A.boarding_reserved(SCI)
+        self.assertEqual(A.boarding_open_roster(SCI)[0], extra.id)
+        self.assertEqual(A.boarding_beam_down(SCI), mine)
 
     def test_the_reservation_is_the_crew_member(self):
-        self.assertEqual(to_object(A.away_reserved(SCI)).name, "Sorel")
+        self.assertEqual(to_object(A.boarding_reserved(SCI)).name, "Sorel")
 
     def test_forwarding_is_turned_on_for_a_crew_party(self):
         """A hand-cast roster missing a medic MEANS something; a crew party missing
@@ -178,61 +178,61 @@ class TestAPartyShortOfPeople(CrewPartyBase):
 
     def setUp(self):
         super().setUp()
-        A.away_metric_install()
-        self.addCleanup(A.away_metric_uninstall)
+        A.boarding_metric_install()
+        self.addCleanup(A.boarding_metric_uninstall)
         self.crew(HELM, "helm", "Marek")
         self.crew(ENG, "engineering", "Kade")
-        A.away_invite_crew(self.ship, title="The Outpost", consoles=[HELM, ENG])
+        A.boarding_invite_crew(self.ship, title="The Outpost", consoles=[HELM, ENG])
         for cid in (HELM, ENG):
-            A.away_beam_down(cid)
-        A.away_scene_begin(SCENE, "outpost", speaker="outpost")
+            A.boarding_beam_down(cid)
+        A.boarding_scene_begin(SCENE, "outpost", speaker="outpost")
 
     def labels(self, client_id):
-        return [c.label for c in A.away_choices(client_id)]
+        return [c.label for c in A.boarding_choices(client_id)]
 
     def test_nobody_is_qualified_in_the_first_place(self):
         """The fixture has to be short-handed or nothing below is testing anything."""
-        self.assertTrue(A.away_orphan_choices())
+        self.assertTrue(A.boarding_orphan_choices())
 
     def test_the_orphaned_job_is_offered_to_the_duty_console(self):
-        self.assertIn("Treat her", self.labels(A.away_duty_client()))
+        self.assertIn("Treat her", self.labels(A.boarding_duty_client()))
 
     def test_AND_TO_NOBODY_ELSE(self):
         """Two consoles offered the same orphaned job is a race nobody knew about."""
-        other = ENG if A.away_duty_client() == HELM else HELM
+        other = ENG if A.boarding_duty_client() == HELM else HELM
         self.assertNotIn("Treat her", self.labels(other))
 
     def test_the_duty_console_is_stable_across_repaints(self):
-        self.assertEqual(A.away_duty_client(), A.away_duty_client())
+        self.assertEqual(A.boarding_duty_client(), A.boarding_duty_client())
 
     def test_A_STORY_LOCK_IS_NEVER_FORWARDED(self):
         """`learned >= 3` is not "we are short a medic", it is "you have not worked
         it out yet" - forwarding it would hand over the answer."""
-        self.assertNotIn("Open the shed", self.labels(A.away_duty_client()))
+        self.assertNotIn("Open the shed", self.labels(A.boarding_duty_client()))
 
     def test_an_open_choice_is_not_duplicated(self):
-        self.assertEqual(self.labels(A.away_duty_client()).count("Force it"), 1)
+        self.assertEqual(self.labels(A.boarding_duty_client()).count("Force it"), 1)
 
     def test_a_forwarded_choice_says_what_it_was_for(self):
         """So the screen can say who is being covered for rather than silently
         handing somebody a job."""
-        ch = next(c for c in A.away_orphan_choices() if c.label == "Treat her")
+        ch = next(c for c in A.boarding_orphan_choices() if c.label == "Treat her")
         self.assertIn("medical", ch.get("forwarded"))
 
     def test_it_can_actually_be_taken(self):
-        cid = A.away_duty_client()
+        cid = A.boarding_duty_client()
         index = self.labels(cid).index("Treat her")
-        self.assertTrue(A.away_answer(cid, index, seq=A.away_seq()))
+        self.assertTrue(A.boarding_answer(cid, index, seq=A.boarding_seq()))
 
     def test_forwarding_off_hides_it_again(self):
-        A.away_forwarding(False)
-        self.assertNotIn("Treat her", self.labels(A.away_duty_client()))
+        A.boarding_forwarding(False)
+        self.assertNotIn("Treat her", self.labels(A.boarding_duty_client()))
 
     def test_a_qualified_party_forwards_nothing(self):
         self.crew(SCI, "science", "Sorel", roles="medical")
-        body = A.away_crew_roster(self.ship, consoles=[SCI], assign_missing=False)[0]
-        A.away_assign(SCI, body)
-        self.assertEqual(A.away_orphan_choices(), [])
+        body = A.boarding_crew_roster(self.ship, consoles=[SCI], assign_missing=False)[0]
+        A.boarding_assign(SCI, body)
+        self.assertEqual(A.boarding_orphan_choices(), [])
 
 
 if __name__ == "__main__":

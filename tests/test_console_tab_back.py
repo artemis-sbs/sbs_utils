@@ -8,13 +8,13 @@ route's own `if` to it - and a tab's condition answers "may this be picked from 
 which is a different question from "where did you come from". You demonstrably came from
 there.
 
-The shipped case is the away console. Its route reads
+The shipped case is the crew console. Its route reads
 
     //gui/tab/away if not gui_app_mode_is_on()
 
 which correctly hides away as a TAB while ePADD is on, because away is an app there - and
 also deleted the way back to it. So Back worked from the six standard consoles, whose
-routes carry no condition, and silently did not exist from the away console. Hence
+routes carry no condition, and silently did not exist from the crew console. Hence
 "inconsistent".
 
 The second half is a mission bug rather than a library one, but it used to be equally
@@ -118,19 +118,19 @@ class TestTheBackTabIgnoresItsRouteCondition(BackTabBase):
         self.assertIn("engineering", self.build_with_back("engineering"))
 
     def test_A_FALSE_CONDITION_NO_LONGER_DELETES_THE_WAY_BACK(self):
-        """The away console, and the whole report. Its route is condition-gated off in
+        """The crew console, and the whole report. Its route is condition-gated off in
         ePADD mode - correctly, as a TAB - and that used to strand the console."""
-        self.route("away", condition_false=True)
-        self.assertIn("away", self.build_with_back("away"))
+        self.route("boarding", condition_false=True)
+        self.assertIn("boarding", self.build_with_back("boarding"))
 
     def test_but_a_false_condition_still_hides_it_as_an_ordinary_tab(self):
         """The condition is not being ignored in general - only for the tab you came
         from. Away must still not be OFFERED while ePADD owns it."""
         self.route("engineering")
-        self.route("away", condition_false=True)
-        shown = self.build_with_back("engineering", extra=("away",))
+        self.route("boarding", condition_false=True)
+        shown = self.build_with_back("engineering", extra=("boarding",))
         self.assertIn("engineering", shown)
-        self.assertNotIn("away", shown)
+        self.assertNotIn("boarding", shown)
 
 
 class TestARoutelessBackTabSaysSo(BackTabBase):

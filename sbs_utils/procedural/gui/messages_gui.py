@@ -53,7 +53,7 @@ TO_VAR = "epadd_message_to"
 # log_panel_gui here.
 #
 # The replies are the one part that changes SHAPE - none, three buttons, an answered line,
-# an away beat - so they get a `gui_region`, which brackets its own drawing region and
+# an boarding beat - so they get a `gui_region`, which brackets its own drawing region and
 # clears it in `Layout.region_begin`. A region is the other thing in this codebase that
 # can take its own content away.
 
@@ -128,9 +128,9 @@ def _follow_once(live):
 
 
 def _live_beat(inbox):
-    """The message carrying the away beat that is open right now, if any."""
-    from ..away import away_scene
-    key = away_scene()
+    """The message carrying the boarding beat that is open right now, if any."""
+    from ..boarding import boarding_scene
+    key = boarding_scene()
     if not key:
         return None
     return next((m for m in inbox if m.get("scene") == key), None)
@@ -139,8 +139,8 @@ def _live_beat(inbox):
 def _is_stale_beat(msg):
     """A beat whose scene has moved on. Still readable as a transcript line; just no
     longer the thing being asked."""
-    from ..away import away_scene
-    return bool(msg.get("scene")) and msg.get("scene") != away_scene()
+    from ..boarding import boarding_scene
+    return bool(msg.get("scene")) and msg.get("scene") != boarding_scene()
 
 
 def _answered_strip(answered):
@@ -213,7 +213,7 @@ def _away_reply_strip(msg):
     """The replies an away BEAT offers this console.
 
     Asked of away.py rather than carried on the message: the options differ per
-    character (`away_choices` is per client and guard-filtered), and `away_answer` is
+    character (`boarding_choices` is per client and guard-filtered), and `boarding_answer` is
     already seq-arbitrated. Copying them onto the message would give one scene two
     competing arbitration paths.
 
@@ -223,30 +223,30 @@ def _away_reply_strip(msg):
     from .row import gui_row
     from .text import gui_text
     from .button import gui_button
-    from ..away import away_scene, away_choices, away_choices_for, away_answer, away_seq
-    from .away_gui import away_who
+    from ..boarding import boarding_scene, boarding_choices, boarding_choices_for, boarding_answer, boarding_seq
+    from .boarding_gui import boarding_who
 
     page = FrameContext.page
     client_id = getattr(page, "client_id", None) if page is not None else None
-    if client_id is None or msg.get("scene") != away_scene():
+    if client_id is None or msg.get("scene") != boarding_scene():
         return
-    # `away_choices_for` for the ACTIVE character, not the deduped `away_choices`.
+    # `boarding_choices_for` for the ACTIVE character, not the deduped `boarding_choices`.
     # The deduped list collapses a shared choice - "Beam back up", "Walk in with her" -
     # onto the primary, so a console speaking for two bodies had no way to take one as
-    # the second character. The roster picker in the Away Team app chooses who acts.
-    active = away_who(client_id)
-    offered = (away_choices_for(client_id, active) if active is not None
-               else away_choices(client_id))
+    # the second character. The roster picker in the Boarding Party app chooses who acts.
+    active = boarding_who(client_id)
+    offered = (boarding_choices_for(client_id, active) if active is not None
+               else boarding_choices(client_id))
     if not offered:
         return
 
-    seq = away_seq()
+    seq = boarding_seq()
     for index, choice in enumerate(offered):
         gui_row("row-height: 2.4em; padding: 0, 6px, 0, 0;")
 
         def press(_cid=client_id, _i=index, _seq=seq,
                   _agent=getattr(choice, "agent", None)):
-            away_answer(_cid, _i, seq=_seq, agent=_agent)
+            boarding_answer(_cid, _i, seq=_seq, agent=_agent)
 
         gui_button(_choice_label(choice), on_press=press)
 
@@ -255,7 +255,7 @@ def _choice_label(choice):
     """A choice as a button label, saying so when it is somebody else's job.
 
     A party short of a medic is still offered the medic's line (see
-    `away.away_orphan_choices`), and handing it over unmarked would read as though
+    `away.boarding_orphan_choices`), and handing it over unmarked would read as though
     the character were qualified. Saying who is being covered for is the difference
     between a bug and a decision.
     """
@@ -426,7 +426,7 @@ def gui_messages_tick():
 
     # The replies DO change shape, so they are rebuilt - inside their own region, which
     # sends `send_gui_clear` for itself before redrawing. Unconditional rather than
-    # gated on a signature: the strip reads the away beat and the answered state as
+    # gated on a signature: the strip reads the boarding beat and the answered state as
     # well as the message, and a band that is right about the message and wrong about
     # the beat is the half-stale pane this whole design exists to avoid. It costs one
     # region redraw per revision change, not per frame.

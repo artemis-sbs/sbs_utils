@@ -4,7 +4,7 @@ This file exists because the bug it pins was reported from the engine THREE time
 survived two fixes that were reasoned about rather than driven. Both earlier attempts
 were sound in themselves and neither touched the actual cause.
 
-The cause: `gui_console_enter` - the one door, and how the away console is entered -
+The cause: `gui_console_enter` - the one door, and how the crew console is entered -
 writes CONSOLE_TYPE into the client's inventory and NEVER sets `page.console`, which is
 only assigned at swap time from `gui_console()`. A morphed console therefore reported
 no console at all, so `message_select` returned early and nothing a crew member picked
@@ -76,7 +76,7 @@ class _Sim:
 class ScreenBase(unittest.TestCase):
     #: What `gui_console_enter` writes. A MORPHED console (the away one) reports an
     #: empty `page.console`, which is exactly the condition that broke this.
-    console_type = "away"
+    console_type = "boarding"
     page_console = ""
 
     def setUp(self):
@@ -134,8 +134,8 @@ class ScreenBase(unittest.TestCase):
 class TestSelectingAMessage(ScreenBase):
     def setUp(self):
         super().setUp()
-        message_send("first", to="away", sender="A")
-        message_send("second", to="away", sender="B")
+        message_send("first", to="boarding", sender="A")
+        message_send("second", to="boarding", sender="B")
         self.inbox = message_inbox()
         self.newest, self.oldest = self.inbox[0], self.inbox[1]
 
@@ -208,12 +208,12 @@ class TestAFrameThatCannotSeeTheConsole(ScreenBase):
     with a moving revision repaints for no reason.
     """
 
-    console_type = "away"
+    console_type = "boarding"
 
     def setUp(self):
         super().setUp()
-        message_send("one", to="away", sender="A")
-        message_send("two", to="away", sender="B")
+        message_send("one", to="boarding", sender="A")
+        message_send("two", to="boarding", sender="B")
         self.build()
         self.inbox = len(message_inbox())
         self.revision = message_revision()
@@ -259,12 +259,12 @@ class TestItUpdatesInsteadOfRebuilding(ScreenBase):
     that can be refilled alone. Neither needs the page.
     """
 
-    console_type = "away"
+    console_type = "boarding"
 
     def setUp(self):
         super().setUp()
-        message_send("one", to="away", sender="A", subject="First")
-        message_send("two", to="away", sender="B", subject="Second")
+        message_send("one", to="boarding", sender="A", subject="First")
+        message_send("two", to="boarding", sender="B", subject="Second")
         self.build()
         self.view = getattr(self.page, messages_gui.VIEW_ATTR)
         self.layouts = len(self.page.pending_layouts)
@@ -286,7 +286,7 @@ class TestItUpdatesInsteadOfRebuilding(ScreenBase):
         return " ".join(out)
 
     def test_NEW_MAIL_TOUCHES_THE_LIST_AND_NOTHING_ELSE(self):
-        message_send("three", to="away", sender="C", subject="Third")
+        message_send("three", to="boarding", sender="C", subject="Third")
         self.assertTrue(messages_gui.gui_messages_tick())
         self.assertEqual(len(self.view["lb"].items), 3)
         self.assertEqual(len(self.page.pending_layouts), self.layouts,
@@ -338,7 +338,7 @@ class TestItUpdatesInsteadOfRebuilding(ScreenBase):
         come and go without a rebuild to bring the line into being."""
         sub = self.view["subtitle"]
         self.assertIsNotNone(sub)
-        message_send("four", to="away", sender="D", subject="Fourth")
+        message_send("four", to="boarding", sender="D", subject="Fourth")
         messages_gui.gui_messages_tick()
         self.assertIn("unread", sub.message or "")
 
@@ -381,9 +381,9 @@ class TestTheReadingPaneIsUpdatedNotRebuilt(ScreenBase):
 
     def setUp(self):
         super().setUp()
-        message_send("Body one, the good pan.", to="away", sender="Devi",
+        message_send("Body one, the good pan.", to="boarding", sender="Devi",
                      subject="Did you take the good pan")
-        message_send("Body two, entirely different.", to="away", sender="Zed",
+        message_send("Body two, entirely different.", to="boarding", sender="Zed",
                      subject="Second")
         self.inbox = message_inbox()
         self.build()
@@ -462,7 +462,7 @@ class TestTheReadingPaneIsUpdatedNotRebuilt(ScreenBase):
         pressed, wired to a message that is no longer on screen. The region's clear is
         what takes it away - so this pins that the clear is sent, for the region's own
         tag, when the replies are redrawn."""
-        asked = message_send("Do we hold?", to="away", sender="The Captain",
+        asked = message_send("Do we hold?", to="boarding", sender="The Captain",
                              choices=["Hold", "Fall back"])
         self.select(asked)
         replies = self.view["replies"]

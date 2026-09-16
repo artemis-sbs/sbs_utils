@@ -156,12 +156,12 @@ def reset_mission_state():
     from .procedural.crew import crew_clear, crew_names_clear
     crew_clear()
     crew_names_clear()
-    # The away mission: its team, its open beat, and the guard resolver it installed.
+    # The boarding mission: its team, its open beat, and the guard resolver it installed.
     # The RESOLVER is the one that must not survive - it holds a reference to whatever
     # was installed before it, so a second mission installing on top of a stale chain
     # would call back into the previous mission's.
-    from .procedural.away import away_clear
-    away_clear()
+    from .procedural.boarding import boarding_clear
+    boarding_clear()
     # The ship's log (Log Panel). Per-mission by definition - last mission's traffic
     # in this one's log would be nonsense - and registered below so a forgotten clear
     # is reported by name rather than found three runs later.
@@ -438,12 +438,12 @@ register_reset_state("crew seats", _crew_seat_count)
 # A THIRD, for the same reason: an automatic name allocated to a ship's helm is per-mission
 # state, and a complement carried into run 2 names its bridge after run 1's.
 register_reset_state("crew complement", _crew_complement_count)
-from .procedural.away import away_team_count as _away_team_count
-from .procedural.away import away_scene_count as _away_scene_count
-register_reset_state("away team", _away_team_count)
-register_reset_state("away scene", _away_scene_count)
-from .procedural.away import away_invite_count as _away_invite_count
-register_reset_state("away invitation", _away_invite_count)
+from .procedural.boarding import boarding_team_count as _away_team_count
+from .procedural.boarding import boarding_scene_count as _away_scene_count
+register_reset_state("boarding party", _away_team_count)
+register_reset_state("boarding scene", _away_scene_count)
+from .procedural.boarding import boarding_invite_count as _away_invite_count
+register_reset_state("boarding invitation", _away_invite_count)
 from .procedural.volume import volume_count as _volume_count
 from .procedural.volume import volume_watch_count as _volume_watch_count
 register_reset_state("volumes", _volume_count)

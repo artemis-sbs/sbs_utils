@@ -229,7 +229,7 @@ class TestTheScreenKnowsToRepaint(MessagesBase):
 
     Both are the same cause - the screen is built once and sits in `await gui()`, and
     A SIGNAL DOES NOT WAKE THAT. A live panel has to poll something that changes,
-    which is why the away console watches `away_seq()`. This is the inbox's counter.
+    which is why the crew console watches `boarding_seq()`. This is the inbox's counter.
     """
 
     def test_new_mail_moves_it(self):

@@ -209,8 +209,8 @@ def gui_console_enter(client_id, console_type, ship=None):
 
     # Every console role this client might be wearing. The REGISTERED types are not
     # enough on their own: a console entered by a name that never registered as a type
-    # leaves its role behind for good, and roles accumulate. The away console is
-    # exactly that - `gui_console_enter(cid, "away")` with no `@console/away` label
+    # leaves its role behind for good, and roles accumulate. The crew console is
+    # exactly that - `gui_console_enter(cid, "crew")` with no `@console/crew` label
     # anywhere - so a crew member who beamed up was still wearing `away`.
     was = get_inventory_value(client_id, "CONSOLE_TYPE", None)
     for name in gui_get_console_types():

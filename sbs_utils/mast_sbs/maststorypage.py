@@ -45,8 +45,8 @@ def _console_identity(client_id, page_console):
     The fallback is the point, though. `gui_console_enter` - the one door - writes
     CONSOLE_TYPE and never touches `page.console`, so a console entered through it and
     nothing else reports `page.console == ""` for the rest of its life. The away screen
-    is the shipped example (`gui_console_enter(cid, "away")`, no `@console/away`
-    label), and reading the page alone answered "" for it - which left the away console
+    is the shipped example (`gui_console_enter(cid, "crew")`, no `@console/crew`
+    label), and reading the page alone answered "" for it - which left the crew console
     scoped as if it were no console at all. The same mis-read cost three rounds on the
     messages app (2026-09-01), where it made `message_select` drop every pick in
     silence.
@@ -1371,7 +1371,7 @@ class StoryPage(Page):
             return
         # SCOPED TO THIS PAGE. The ticker walks every app and calls every status
         # provider, and a provider resolves its console AMBIENTLY - `lm_epadd_reporting`
-        # reaches `gui_app_list(None)`, `away_who()` reads `FrameContext.page.client_id`.
+        # reaches `gui_app_list(None)`, `boarding_who()` reads `FrameContext.page.client_id`.
         # `present` runs before `story_tick_tasks` sets the page, so without this the
         # badge is computed against whatever page happens to be current: wrong words on
         # a multi-console bridge, and a `gui_app_revision` that MOVES when nothing has

@@ -268,7 +268,7 @@ if __name__ == "__main__":
 
 
 class TestTheAwayConsoleOptsIn(EpaddBase):
-    """`"*"` is every SHIP console. An away team is not everywhere on the ship, it is
+    """`"*"` is every SHIP console. An boarding party is not everywhere on the ship, it is
     somewhere else entirely, and a landing party carrying the fabricator is not a
     scoping bug anybody notices until it is on screen."""
 
@@ -277,19 +277,19 @@ class TestTheAwayConsoleOptsIn(EpaddBase):
         for p in ("cargo", "messages", "surveying"):
             GuiAppDecoratorLabel(p)
         gui_app_register("cargo", title="Cargo", consoles="engineering")
-        gui_app_register("messages", title="Messages", away=True)
-        gui_app_register("surveying", title="Surveying", consoles="away")
+        gui_app_register("messages", title="Messages", boarding=True)
+        gui_app_register("surveying", title="Surveying", consoles="boarding")
 
     def test_a_star_app_does_NOT_follow_the_team_down(self):
-        self.assertNotIn("Cargo", self.titles("away"))
+        self.assertNotIn("Cargo", self.titles("boarding"))
 
     def test_an_app_that_opts_in_does(self):
-        self.assertIn("Messages", self.titles("away"))
+        self.assertIn("Messages", self.titles("boarding"))
 
     def test_and_still_shows_on_the_ship(self):
         self.assertIn("Messages", self.titles("helm"))
 
     def test_an_away_only_app_stays_off_the_bridge(self):
-        self.assertIn("Surveying", self.titles("away"))
+        self.assertIn("Surveying", self.titles("boarding"))
         self.assertNotIn("Surveying", self.titles("helm"))
         self.assertNotIn("Surveying", self.titles("engineering"))

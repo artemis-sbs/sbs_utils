@@ -1,4 +1,4 @@
-"""A message that asks a question, and the away team's live audiences.
+"""A message that asks a question, and the boarding party's live audiences.
 
 The architecture is `hail.py`'s, and so is the property that matters most: **the seq
 moves before the outcomes run**, so a second console pressing in the same frame is
@@ -236,27 +236,27 @@ class TestLiveAudiences(ChoiceBase):
     a mission, so they are answered when the inbox is READ."""
 
     def away(self, *client_ids):
-        from sbs_utils.procedural import away as away_mod
-        away_mod._TEAM.clear()
+        from sbs_utils.procedural import boarding as boarding_mod
+        boarding_mod._TEAM.clear()
         for cid in client_ids:
-            away_mod._TEAM[cid] = [1000 + cid]
-        self.addCleanup(away_mod._TEAM.clear)
+            boarding_mod._TEAM[cid] = [1000 + cid]
+        self.addCleanup(boarding_mod._TEAM.clear)
 
     def test_a_note_to_the_away_team_reaches_a_console_that_is_down_there(self):
         self.away(7)
-        message_send("Watch your footing.", to="away", sender="The Captain")
+        message_send("Watch your footing.", to="boarding", sender="The Captain")
         FrameContext.page = _Page("helm", client_id=7)
         self.assertEqual(len(message_inbox()), 1)
 
     def test_and_not_a_console_that_is_not(self):
         self.away(7)
-        message_send("Watch your footing.", to="away", sender="The Captain")
+        message_send("Watch your footing.", to="boarding", sender="The Captain")
         FrameContext.page = _Page("helm", client_id=9)
         self.assertEqual(message_inbox(), [])
 
     def test_a_note_to_the_ship_reaches_the_ones_still_aboard(self):
         self.away(7)
-        message_send("We are still here.", to="ship", sender="Away Team")
+        message_send("We are still here.", to="ship", sender="Boarding Party")
         FrameContext.page = _Page("helm", client_id=9)
         self.assertEqual(len(message_inbox()), 1)
         FrameContext.page = _Page("helm", client_id=7)
@@ -265,16 +265,16 @@ class TestLiveAudiences(ChoiceBase):
     def test_the_answer_follows_the_team_changing(self):
         """Resolved at read time, which is the whole point: a note written before a
         console beamed down still finds it afterwards."""
-        message_send("Watch your footing.", to="away", sender="The Captain")
+        message_send("Watch your footing.", to="boarding", sender="The Captain")
         FrameContext.page = _Page("helm", client_id=7)
         self.assertEqual(message_inbox(), [])
         self.away(7)
         self.assertEqual(len(message_inbox()), 1)
 
     def test_the_away_console_name_alone_is_enough(self):
-        """gui_console_enter sets the console to "away" when it morphs one."""
-        message_send("Watch your footing.", to="away", sender="The Captain")
-        self.assertEqual(len(message_inbox("away")), 1)
+        """gui_console_enter sets the console to "boarding" when it morphs one."""
+        message_send("Watch your footing.", to="boarding", sender="The Captain")
+        self.assertEqual(len(message_inbox("boarding")), 1)
 
 
 class TestAsk(ChoiceBase):
@@ -308,29 +308,29 @@ def _scene_doc(key="door", body=None):
 
 
 class TestAwayBeatsReachTheInbox(ChoiceBase):
-    """The away team's only channel has always been the shared main screen, read-only.
+    """The boarding party's only channel has always been the shared main screen, read-only.
     Mirroring each beat gives them a transcript they can scroll and a place to answer
-    from, without touching the away console - which keeps rendering the scene as it
+    from, without touching the crew console - which keeps rendering the scene as it
     always did, so `LandingParty` is unaffected.
     """
 
     def setUp(self):
         super().setUp()
-        from sbs_utils.procedural import away as away_mod
-        self.away_mod = away_mod
-        away_mod.away_clear()
-        away_mod._TEAM.clear()
-        self.addCleanup(away_mod.away_clear)
-        self.addCleanup(away_mod._TEAM.clear)
-        self.addCleanup(away_mod.away_mirror_to_inbox, True)
+        from sbs_utils.procedural import boarding as boarding_mod
+        self.boarding_mod = boarding_mod
+        boarding_mod.boarding_clear()
+        boarding_mod._TEAM.clear()
+        self.addCleanup(boarding_mod.boarding_clear)
+        self.addCleanup(boarding_mod._TEAM.clear)
+        self.addCleanup(boarding_mod.boarding_mirror_to_inbox, True)
 
     def open(self, **kw):
-        return self.away_mod.away_scene_begin(_scene_doc(), "door",
+        return self.boarding_mod.boarding_scene_begin(_scene_doc(), "door",
                                               speaker=kw.get("speaker", "The Keeper"))
 
     def test_a_beat_arrives_as_a_message(self):
         self.open()
-        got = message_inbox("away")
+        got = message_inbox("boarding")
         self.assertEqual(len(got), 1)
         self.assertEqual(got[0]["kind"], "scene")
         self.assertEqual(got[0]["from"], "The Keeper")
@@ -343,39 +343,39 @@ class TestAwayBeatsReachTheInbox(ChoiceBase):
 
     def test_it_carries_the_scene_key(self):
         self.open()
-        self.assertEqual(message_inbox("away")[0]["scene"], "door")
+        self.assertEqual(message_inbox("boarding")[0]["scene"], "door")
 
     def test_it_carries_NO_choices_of_its_own(self):
-        """The replies differ per character and away_answer already arbitrates them.
+        """The replies differ per character and boarding_answer already arbitrates them.
         A copy on the message would give one scene two competing paths."""
         self.open()
-        self.assertEqual(message_inbox("away")[0]["choices"], [])
-        self.assertEqual(message_choices(message_inbox("away")[0]["id"], "away"), [])
+        self.assertEqual(message_inbox("boarding")[0]["choices"], [])
+        self.assertEqual(message_choices(message_inbox("boarding")[0]["id"], "boarding"), [])
 
     def test_each_beat_adds_to_the_transcript(self):
         self.open()
         self.open()
-        self.assertEqual(len(message_inbox("away")), 2)
+        self.assertEqual(len(message_inbox("boarding")), 2)
 
     def test_a_mission_can_turn_the_mirror_off(self):
-        self.away_mod.away_mirror_to_inbox(False)
+        self.boarding_mod.boarding_mirror_to_inbox(False)
         self.open()
-        self.assertEqual(message_inbox("away"), [])
+        self.assertEqual(message_inbox("boarding"), [])
 
     def test_the_away_console_still_gets_its_own_choices(self):
-        """The regression that matters: mirroring is additive, and away play is
+        """The regression that matters: mirroring is additive, and boarding play is
         unchanged for a mission that never opens the PADD."""
-        self.away_mod._TEAM[7] = [1]
+        self.boarding_mod._TEAM[7] = [1]
         self.open()
-        self.assertEqual(self.away_mod.away_scene(), "door")
-        self.assertTrue(self.away_mod.away_line())
+        self.assertEqual(self.boarding_mod.boarding_scene(), "door")
+        self.assertTrue(self.boarding_mod.boarding_line())
 
 
 class TestAConversationAdvances(ChoiceBase):
     """Reported from the engine: answering a beat did nothing, or the first one worked
     and then no further messages were visible.
 
-    The beats WERE arriving - `away_answer` opens the next scene and that mirrors a
+    The beats WERE arriving - `boarding_answer` opens the next scene and that mirrors a
     message. What did not move was the SELECTION: it stayed pinned to the beat just
     answered, so the pane kept showing a question already settled while the new one
     sat unseen in the list.
@@ -383,13 +383,13 @@ class TestAConversationAdvances(ChoiceBase):
 
     def setUp(self):
         super().setUp()
-        from sbs_utils.procedural import away as away_mod
-        self.A = away_mod
-        away_mod.away_clear()
-        away_mod._TEAM.clear()
-        away_mod._TEAM[7] = [1]
-        self.addCleanup(away_mod.away_clear)
-        self.addCleanup(away_mod._TEAM.clear)
+        from sbs_utils.procedural import boarding as boarding_mod
+        self.A = boarding_mod
+        boarding_mod.boarding_clear()
+        boarding_mod._TEAM.clear()
+        boarding_mod._TEAM[7] = [1]
+        self.addCleanup(boarding_mod.boarding_clear)
+        self.addCleanup(boarding_mod._TEAM.clear)
 
         def node(key, body):
             return {"key": key, "display_text": key, "data": {}, "children": [],
@@ -399,26 +399,26 @@ class TestAConversationAdvances(ChoiceBase):
             "inside": node("inside", "It opens on a dim room.\n\n- [Step in](done)\n"),
             "done": node("done", "You step in. That is all of it.\n"),
         }
-        self.A.away_scene_begin(self.scenes, "door", speaker="The Keeper")
+        self.A.boarding_scene_begin(self.scenes, "door", speaker="The Keeper")
 
     def pane(self):
         """What the screen would land on, by its own rule."""
         from sbs_utils.procedural.gui.messages_gui import _live_beat, _is_stale_beat
         from sbs_utils.procedural.messages import message_select
-        inbox = message_inbox("away")
+        inbox = message_inbox("boarding")
         sel = None
         from sbs_utils.procedural.messages import message_selected
-        chosen = message_selected("away")
+        chosen = message_selected("boarding")
         if chosen is not None:
             sel = next((m for m in inbox if m["id"] == chosen), None)
         live = _live_beat(inbox)
         if live is not None and (sel is None or _is_stale_beat(sel)):
             sel = live
-            message_select(live["id"], "away")
+            message_select(live["id"], "boarding")
         return sel
 
     def answer(self):
-        return self.A.away_answer(7, 0, seq=self.A.away_seq(), agent=self.A.away_me(7))
+        return self.A.boarding_answer(7, 0, seq=self.A.boarding_seq(), agent=self.A.boarding_me(7))
 
     def test_the_pane_follows_the_conversation(self):
         self.assertIn("door is shut", self.pane()["text"])
@@ -430,11 +430,11 @@ class TestAConversationAdvances(ChoiceBase):
     def test_every_beat_is_kept_as_a_transcript(self):
         self.answer()
         self.answer()
-        self.assertEqual(len(message_inbox("away")), 3)
+        self.assertEqual(len(message_inbox("boarding")), 3)
 
     def test_an_answered_beat_stops_offering_its_replies(self):
         from sbs_utils.procedural.gui.messages_gui import _is_stale_beat
-        first = message_inbox("away")[0]
+        first = message_inbox("boarding")[0]
         self.answer()
         self.assertTrue(_is_stale_beat(first))
 
@@ -442,17 +442,17 @@ class TestAConversationAdvances(ChoiceBase):
         """The rule follows the live beat only from a STALE one. Somebody reading a
         letter from home while the scene runs keeps reading it."""
         from sbs_utils.procedural.messages import message_select, message_selected
-        letter = message_send("Your nan says hello.", to="away", sender="Mum")
-        message_select(letter["id"], "away")
+        letter = message_send("Your nan says hello.", to="boarding", sender="Mum")
+        message_select(letter["id"], "boarding")
         self.answer()
         self.assertEqual(self.pane()["id"], letter["id"])
-        self.assertEqual(message_selected("away"), letter["id"])
+        self.assertEqual(message_selected("boarding"), letter["id"])
 
     def test_the_scene_ending_leaves_the_transcript_alone(self):
         self.answer()
         self.answer()
-        self.assertIsNone(self.A.away_scene() and None)
-        self.assertEqual(len(message_inbox("away")), 3)
+        self.assertIsNone(self.A.boarding_scene() and None)
+        self.assertEqual(len(message_inbox("boarding")), 3)
 
 
 class TestASettledBeatShowsWhatWasSaid(ChoiceBase):
@@ -461,13 +461,13 @@ class TestASettledBeatShowsWhatWasSaid(ChoiceBase):
 
     def setUp(self):
         super().setUp()
-        from sbs_utils.procedural import away as away_mod
-        self.A = away_mod
-        away_mod.away_clear()
-        away_mod._TEAM.clear()
-        away_mod._TEAM[7] = [1]
-        self.addCleanup(away_mod.away_clear)
-        self.addCleanup(away_mod._TEAM.clear)
+        from sbs_utils.procedural import boarding as boarding_mod
+        self.A = boarding_mod
+        boarding_mod.boarding_clear()
+        boarding_mod._TEAM.clear()
+        boarding_mod._TEAM[7] = [1]
+        self.addCleanup(boarding_mod.boarding_clear)
+        self.addCleanup(boarding_mod._TEAM.clear)
         self.scenes = {
             "door": {"key": "door", "display_text": "door", "data": {}, "children": [],
                      "description": "The door is shut.\n\n"
@@ -475,27 +475,27 @@ class TestASettledBeatShowsWhatWasSaid(ChoiceBase):
             "inside": {"key": "inside", "display_text": "inside", "data": {},
                        "children": [], "description": "It opens.\n"},
         }
-        self.A.away_scene_begin(self.scenes, "door", speaker="The Keeper")
+        self.A.boarding_scene_begin(self.scenes, "door", speaker="The Keeper")
 
     def test_the_beat_records_what_was_chosen(self):
-        beat = message_inbox("away")[0]
-        self.A.away_answer(7, 0, seq=self.A.away_seq(), agent=self.A.away_me(7))
+        beat = message_inbox("boarding")[0]
+        self.A.boarding_answer(7, 0, seq=self.A.boarding_seq(), agent=self.A.boarding_me(7))
         got = message_answered(beat["id"])
         self.assertIsNotNone(got, "an answered beat showed nothing at all")
         self.assertEqual(got["label"], "Knock")
 
     def test_and_what_was_not(self):
-        beat = message_inbox("away")[0]
-        self.A.away_answer(7, 0, seq=self.A.away_seq(), agent=self.A.away_me(7))
+        beat = message_inbox("boarding")[0]
+        self.A.boarding_answer(7, 0, seq=self.A.boarding_seq(), agent=self.A.boarding_me(7))
         self.assertEqual(message_answered(beat["id"])["others"], ["Listen first"])
 
     def test_a_beat_nobody_answered_records_nothing(self):
-        self.assertIsNone(message_answered(message_inbox("away")[0]["id"]))
+        self.assertIsNone(message_answered(message_inbox("boarding")[0]["id"]))
 
     def test_a_refused_pick_leaves_the_beat_unanswered(self):
         """The token moves on a refusal, but nothing was decided."""
-        beat = message_inbox("away")[0]
-        self.A.away_answer(7, 99, seq=self.A.away_seq(), agent=self.A.away_me(7))
+        beat = message_inbox("boarding")[0]
+        self.A.boarding_answer(7, 99, seq=self.A.boarding_seq(), agent=self.A.boarding_me(7))
         self.assertIsNone(message_answered(beat["id"]))
 
 
@@ -511,14 +511,14 @@ class TestYouCanReadSomethingElse(ChoiceBase):
         super().setUp()
         from sbs_utils.procedural.gui import messages_gui
         self.gui = messages_gui
-        from sbs_utils.procedural import away as away_mod
-        self.A = away_mod
-        away_mod.away_clear()
-        away_mod._TEAM.clear()
-        away_mod._TEAM[7] = [1]
-        self.addCleanup(away_mod.away_clear)
-        self.addCleanup(away_mod._TEAM.clear)
-        FrameContext.page = _Page("away", client_id=7)
+        from sbs_utils.procedural import boarding as boarding_mod
+        self.A = boarding_mod
+        boarding_mod.boarding_clear()
+        boarding_mod._TEAM.clear()
+        boarding_mod._TEAM[7] = [1]
+        self.addCleanup(boarding_mod.boarding_clear)
+        self.addCleanup(boarding_mod._TEAM.clear)
+        FrameContext.page = _Page("boarding", client_id=7)
         from sbs_utils.gui import GuiClient
         GuiClient(7)
         scenes = {
@@ -528,24 +528,24 @@ class TestYouCanReadSomethingElse(ChoiceBase):
             "inside": {"key": "inside", "display_text": "inside", "data": {},
                        "children": [], "description": "It opens." + chr(10)},
         }
-        self.A.away_scene_begin(scenes, "door", speaker="The Keeper")
+        self.A.boarding_scene_begin(scenes, "door", speaker="The Keeper")
 
     def test_a_beat_is_followed_the_first_time_it_is_seen(self):
-        live = self.gui._live_beat(message_inbox("away"))
+        live = self.gui._live_beat(message_inbox("boarding"))
         self.assertTrue(self.gui._follow_once(live))
 
     def test_and_NOT_on_every_repaint_after_that(self):
         """The bug: five repaints a second, each one snatching the selection back."""
-        live = self.gui._live_beat(message_inbox("away"))
+        live = self.gui._live_beat(message_inbox("boarding"))
         self.gui._follow_once(live)
         for _ in range(5):
             self.assertFalse(self.gui._follow_once(live),
                              "the selection would be dragged back on every repaint")
 
     def test_a_NEW_beat_is_followed_again(self):
-        live = self.gui._live_beat(message_inbox("away"))
+        live = self.gui._live_beat(message_inbox("boarding"))
         self.gui._follow_once(live)
-        self.A.away_answer(7, 0, seq=self.A.away_seq(), agent=self.A.away_me(7))
-        nxt = self.gui._live_beat(message_inbox("away"))
+        self.A.boarding_answer(7, 0, seq=self.A.boarding_seq(), agent=self.A.boarding_me(7))
+        nxt = self.gui._live_beat(message_inbox("boarding"))
         self.assertIsNotNone(nxt)
         self.assertTrue(self.gui._follow_once(nxt), "the conversation stopped moving")
