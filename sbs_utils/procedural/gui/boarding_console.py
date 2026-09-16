@@ -53,6 +53,32 @@ PANEL_TOP = 3
 #: nothing is left to agree by coincidence.
 ACTIONS_BAND_PX = 230
 
+#: What the xESS's own readout takes, above the choices. Same contract as the band below
+#: it: the flow reserves it, the device's region is pinned to it, and it is one number.
+XESS_BODY_PX = 190
+
+#: How much of the screen the interior takes, in percent. The device is everything right
+#: of it. A default rather than a constant so a mission can still hand a different width
+#: to `gui_boarding_console`, but the two regions have to agree with the flow, so the
+#: last width used is remembered here for `xess_body_area` to read.
+MAP_WIDTH_DEFAULT = 66
+_map_width = MAP_WIDTH_DEFAULT
+
+
+def panel_left():
+    """The device column's left edge, matching whatever map width was last built."""
+    return _map_width + 1
+
+
+def boarding_reserve_px():
+    """Everything the two pinned regions take off the bottom.
+
+    ONE row reserves both, because the flow has to stop above the HIGHER of them and a
+    second reserve row after the first would sit inside the band it was trying to keep
+    clear.
+    """
+    return XESS_BODY_PX + ACTIONS_BAND_PX
+
 
 def boarding_actions_area(map_width):
     """The absolute area the choices region occupies. Paired with
@@ -62,8 +88,8 @@ def boarding_actions_area(map_width):
 
 
 def boarding_actions_reserve():
-    """The row style that keeps the flow OUT of the band the region covers."""
-    return "row-height: %dpx;" % ACTIONS_BAND_PX
+    """The row style that keeps the flow OUT of the bands the regions cover."""
+    return "row-height: %dpx;" % boarding_reserve_px()
 
 
 def _client(client_id=None):
@@ -133,6 +159,8 @@ def gui_boarding_console(client_id=None, map_width=66, on_leave=None):
     from ..boarding import boarding_line
 
     cid = _client(client_id)
+    global _map_width
+    _map_width = map_width
 
     # THE MAP, IN ITS OWN SECTION. An engine widget draws at its own size over anything
     # MAST puts beside it, so it never shares a row - the controls do not overlap it,
@@ -171,10 +199,14 @@ def gui_boarding_console(client_id=None, map_width=66, on_leave=None):
     gui_row("row-height: 1fr;")
     w_line = gui_text_area(boarding_line() or " ")
 
-    # RESERVE THE BAND. This row is the only thing keeping the prose above out of the
-    # region below: the engine does not clip, so without it a long line runs under the
-    # choices. `messages_gui` does exactly this and says why - "the body must not flow
-    # into it".
+    # THE DEVICE'S OWN STRIP, the last thing in the flow. Below it are two pinned
+    # regions - the xESS's readout and the choices - so this is where the flow stops.
+    from .xess import gui_xess
+    xess = gui_xess(cid)
+
+    # RESERVE BOTH BANDS. This row is the only thing keeping the prose above out of the
+    # regions below: the engine does not clip, so without it a long line runs under them.
+    # `messages_gui` does exactly this and says why - "the body must not flow into it".
     gui_row(boarding_actions_reserve())
     gui_blank()
 
@@ -186,7 +218,8 @@ def gui_boarding_console(client_id=None, map_width=66, on_leave=None):
         _draw_actions(cid, on_leave)
 
     view = {"cid": cid, "name": w_name, "job": w_job, "room": w_room, "line": w_line,
-            "actions": actions, "on_leave": on_leave, "rev": boarding_console_revision(cid)}
+            "actions": actions, "xess": xess, "on_leave": on_leave,
+            "rev": boarding_console_revision(cid)}
     page = FrameContext.page
     if page is not None:
         setattr(page, VIEW, view)
@@ -338,4 +371,8 @@ def gui_boarding_console_tick():
     gui_rebuild(view["actions"])
     with view["actions"]:
         _draw_actions(cid, view.get("on_leave"))
+    # The device keeps its own revision - switching tool must not wait for a scene beat,
+    # and a scene beat must not rebuild a tool that has not changed.
+    from .xess import gui_xess_tick
+    gui_xess_tick()
     return True

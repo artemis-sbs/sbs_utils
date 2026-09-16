@@ -65,6 +65,8 @@ CALLED_FROM_MAST = [
     "boarding_who", "boarding_set_who", "boarding_label", "gui_boarding_screen",
     "gui_boarding_console", "gui_boarding_console_tick",
     "boarding_console_revision",
+    # the device
+    "gui_xess", "gui_xess_tick", "xess_revision", "xess_mode", "xess_set_mode",
     # THE ACCESSORS. These exist only because MAST cannot see a constant.
     "boarding_room_roles", "boarding_console_type", "boarding_figure_role",
     "boarding_site_role",

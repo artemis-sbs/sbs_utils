@@ -34,6 +34,7 @@ from sbs_utils.gui import GuiClient
 from sbs_utils.procedural import boarding as A
 from sbs_utils.procedural import boarding_site as B
 from sbs_utils.procedural.gui import boarding_console as C
+from sbs_utils.procedural.gui import xess as X
 from sbs_utils.procedural.lifeform import lifeform_spawn
 from sbs_utils.procedural.query import to_id, to_object
 from sbs_utils.procedural.spawn import npc_spawn, player_spawn
@@ -159,9 +160,14 @@ class TheFlowAndTheActionsNeverShareAPixel(unittest.TestCase):
     These tests assert they agree by construction rather than by coincidence.
     """
 
-    def test_the_reserved_row_and_the_region_are_the_same_band(self):
-        self.assertIn("%dpx" % C.ACTIONS_BAND_PX, C.boarding_actions_reserve())
+    def test_the_choices_region_is_pinned_to_its_own_band(self):
         self.assertIn("100-%dpx" % C.ACTIONS_BAND_PX, C.boarding_actions_area(66))
+
+    def test_the_reserve_keeps_the_flow_above_EVERY_region(self):
+        """Not just the choices - the device's readout is pinned below the flow too, so
+        reserving only the choices band would let the prose run under the device."""
+        self.assertIn("%dpx" % C.boarding_reserve_px(), C.boarding_actions_reserve())
+        self.assertGreater(C.boarding_reserve_px(), C.ACTIONS_BAND_PX)
 
     def test_the_region_is_pinned_to_the_BOTTOM_not_a_guessed_percent(self):
         """A percentage would only line up with the flow at one screen height."""
@@ -189,6 +195,49 @@ class TheFlowAndTheActionsNeverShareAPixel(unittest.TestCase):
         src = inspect.getsource(C.gui_boarding_console)
         self.assertIn("PANEL_TOP, PANEL_RIGHT", src)
         self.assertNotIn("99,97", src.replace(" ", ""))
+
+
+class TheThreeBandsTileExactly(unittest.TestCase):
+    """Flow, then the device's readout, then the choices - three bands, no overlap and no
+    gap, all measured from the BOTTOM in px so they agree at any screen height.
+
+    This is the strongest form of the overlap test: rather than checking two rectangles
+    are merely different, it checks the whole column adds up. A band that moved without
+    its neighbour moving would be caught here even if each looked right alone.
+    """
+
+    def _px(self, area, which):
+        """Pull the px offset out of one edge of an area string.
+
+        `100-230px` is 230 off the bottom; a bare `100` is the bottom itself, which is 0.
+        No regex - the escaping is not worth getting wrong in a test whose whole job is
+        to be trusted.
+        """
+        edge = area.split(":", 1)[1].split(",")[which].strip().rstrip(";")
+        if "-" not in edge:
+            return 0
+        return int(edge.split("-", 1)[1].replace("px", ""))
+
+    def test_the_device_body_ends_where_the_choices_begin(self):
+        body_bottom = self._px(X.xess_body_area(), 3)
+        actions_top = self._px(C.boarding_actions_area(66), 1)
+        self.assertEqual(body_bottom, actions_top)
+        self.assertEqual(C.ACTIONS_BAND_PX, actions_top)
+
+    def test_the_flow_stops_where_the_device_body_begins(self):
+        reserved = C.boarding_reserve_px()
+        body_top = self._px(X.xess_body_area(), 1)
+        self.assertEqual(reserved, body_top)
+
+    def test_the_reserve_covers_BOTH_regions(self):
+        """One row, not two: a second reserve row would sit inside the band the first was
+        keeping clear."""
+        self.assertEqual(C.XESS_BODY_PX + C.ACTIONS_BAND_PX, C.boarding_reserve_px())
+        self.assertIn("%dpx" % C.boarding_reserve_px(), C.boarding_actions_reserve())
+
+    def test_every_band_starts_at_the_same_left_edge(self):
+        for area in (X.xess_body_area(), C.boarding_actions_area(C._map_width)):
+            self.assertIn("area: %d," % C.panel_left(), area)
 
 
 class TheFaceRowIsNotFlex(unittest.TestCase):
