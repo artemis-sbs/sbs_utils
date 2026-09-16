@@ -701,12 +701,25 @@ def boarding_invite_count():
 
 CREW_ROLE = "boarding"
 
-# The CONSOLE TYPE a boarded console wears, which is deliberately NOT the same word as
-# CREW_ROLE above. CREW_ROLE is worn by the boarder's LIFEFORM BODY; this is worn by the
-# CLIENT. Give them the same word and `has_role(x, "boarding")` stops meaning one thing -
-# a body and a console would answer the same question. "crew" is free: nothing in any
-# repo uses it as a role.
-BOARDING_CONSOLE = "crew"
+# The CONSOLE TYPE a boarded console wears. THREE words are in play here and no two of
+# them may be the same:
+#
+#   CREW_ROLE        "boarding"       the boarder's LIFEFORM BODY
+#   BOARDING_CONSOLE "boarding_crew"  the CLIENT sitting at a crew console
+#   (already taken)  "crew"           every DAMCON TEAM on every ship
+#
+# That last one is why this is not simply "crew", and it cost an engine run to find.
+# LegendaryMissions spawns damcon teams as `grid_spawn(..., "crew,damcons,lifeform")`
+# (ai/grid_brains.mast), so `role("crew")` already means "damcon teams" and a nine-ship
+# session has dozens of them. A console wearing the same word would join that set: an
+# audience narrowed with `any_role("crew")` - announce(), overlays, comms - would try to
+# address damcon grid objects, and a mission asking "which consoles are boarded" would
+# get 29 answers, which is exactly what the probe logged.
+#
+# Grepping for READERS of `role("crew")` found nothing and was not enough; the role is
+# created in a mastlib, so only grepping for what CREATES it shows the collision.
+# The player still sees "Crew" - this is the internal name, not the label.
+BOARDING_CONSOLE = "boarding_crew"
 
 
 def _crew_bodies(ship_id, consoles=None, assign_missing=True):

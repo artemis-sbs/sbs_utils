@@ -12,7 +12,7 @@ from ...helpers import FrameContext
 from ..boarding import (boarding_invitation, boarding_invite_title, boarding_open_roster,
                     boarding_beam_down, boarding_beam_up, boarding_held, boarding_me, boarding_team,
                     boarding_clients, boarding_job_text, boarding_is_open, boarding_client_of,
-                    boarding_reserved)
+                    boarding_reserved, BOARDING_CONSOLE)
 from ..query import to_object
 from .epadd import ACCENT, DIM, PANEL, PANEL_HEAD, _esc, gui_app_chrome
 
@@ -278,7 +278,7 @@ def boarding_go_down(client_id, host=None):
     from ..inventory import get_inventory_value, set_inventory_value
     from .console import gui_console_enter
     from ..crew import crew_assign
-    from ..query import to_id
+    from ..query import to_id, is_client_id
     from ..signal import signal_emit
     from .viewscreen import viewscreen_home_ship
     if not boarding_held(client_id):
@@ -294,7 +294,7 @@ def boarding_go_down(client_id, host=None):
         # Remembered BEFORE the morph, because the morph is what overwrites it.
         set_inventory_value(client_id, RETURN_KEY,
                             get_inventory_value(client_id, "CONSOLE_TYPE", "helm"))
-    gui_console_enter(client_id, "crew", ship=home)
+    gui_console_enter(client_id, BOARDING_CONSOLE, ship=home)
     # KEEP THEIR NAME ACROSS THE MORPH, and this is a second, separate rename from the
     # host one. `gui_console_enter` re-asserts the seat as `crew_assign(cid, home,
     # "crew")`, and `crew_resolve` autonames per (ship, CONSOLE) seat - so science and
@@ -303,12 +303,25 @@ def boarding_go_down(client_id, host=None):
     # (`crew_resolve` documents it) and wrong here: a boarding party is the SAME people,
     # now standing on a deck. Re-assert what they were called, which wins as tier `own`.
     if post_name:
-        crew_assign(client_id, home, "crew", own_name=post_name, own_face=post_face,
+        crew_assign(client_id, home, BOARDING_CONSOLE, own_name=post_name, own_face=post_face,
                     own_portrait=post_portrait)
-    if host is not None:
-        # AFTER the door, and unconditionally. `gui_console_enter` returns False and does
-        # nothing at all when the type is unchanged, so a console moving from one site to
-        # another would never be re-assigned if this were left to it.
+    if host is not None and (is_client_id(client_id) or client_id == 0):
+        # AFTER the door, and unconditionally for a real console. `gui_console_enter`
+        # returns False and does nothing at all when the type is unchanged, so a console
+        # moving from one site to another would never be re-assigned if this were left
+        # to it.
+        #
+        # THE GUARD IS NOT CEREMONY. This was the one `assign_client_to_ship` in the
+        # library that reached the engine unfiltered - the three in camera.py all sit
+        # inside `consoles_of`, which screens ids for exactly this. The engine asserts
+        # when handed an id that is not a client, and "a client id was sent that was not
+        # a client id" is a hard stop on a live bridge, not a logged warning. A caller
+        # holding a set of agents that merely LOOKS like consoles is an easy mistake:
+        # `role("crew")` already means damcon grid objects, which is how this was found.
+        #
+        # `or client_id == 0` because the SERVER console is id 0 and `is_client_id` tests
+        # the 0x8000... bit, which 0 does not have - the same carve-out log_panel_gui and
+        # overlay make.
         FrameContext.context.sbs.assign_client_to_ship(client_id, to_id(host))
     signal_emit("boarding_went_down", {"BOARDING_CLIENT": client_id,
                                        "BOARDING_WHO": boarding_me(client_id),

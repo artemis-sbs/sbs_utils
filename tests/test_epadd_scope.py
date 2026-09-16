@@ -179,7 +179,7 @@ class TestTheScreensThatShould(EpaddScopeBase):
         """The crew console is entered with `gui_console_enter` and no `@console`
         label, so it never sets `page.console` - and carrying the PADD down is the
         whole point of it. It declares a back tab, which is what saves it."""
-        set_inventory_value(CID, "CONSOLE_TYPE", "crew")
+        set_inventory_value(CID, "CONSOLE_TYPE", "boarding_crew")
         self.declare(back="select_console")
         self.assertTrue(self.padd_drawn())
 

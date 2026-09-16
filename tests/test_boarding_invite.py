@@ -171,11 +171,11 @@ class TestTheConsoleHalf(InviteBase):
         from sbs_utils.procedural.roles import has_role
         self.assertIsNotNone(A.boarding_beam_down(HELM))
         self.assertTrue(self.gui.boarding_go_down(HELM))
-        self.assertEqual(self.value("CONSOLE_TYPE"), "crew")
+        self.assertEqual(self.value("CONSOLE_TYPE"), "boarding_crew")
         # The CONSOLE wears `crew`; `boarding` is the LIFEFORM BODY's role. Keeping the
         # two words apart is deliberate - one word for both and `has_role(x, "boarding")`
         # could not tell a console from a person standing on a deck.
-        self.assertTrue(has_role(HELM, "crew"))
+        self.assertTrue(has_role(HELM, "boarding_crew"))
 
     def test_it_remembers_the_post_to_come_back_to(self):
         from sbs_utils.procedural.gui.console import gui_console_enter

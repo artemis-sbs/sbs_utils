@@ -77,8 +77,8 @@ class ReturnBase(unittest.TestCase):
 class TheWayDown(ReturnBase):
     def test_it_morphs_to_the_crew_console(self):
         G.boarding_go_down(CID, self.site)
-        self.assertEqual("crew", self.post("CONSOLE_TYPE"))
-        self.assertTrue(has_role(CID, "crew"))
+        self.assertEqual("boarding_crew", self.post("CONSOLE_TYPE"))
+        self.assertTrue(has_role(CID, "boarding_crew"))
 
     def test_the_interior_it_sees_is_the_HOST(self):
         G.boarding_go_down(CID, self.site)
@@ -95,7 +95,7 @@ class TheWayDown(ReturnBase):
     def test_boarding_with_no_host_is_still_the_old_dialogue_morph(self):
         """A mission that only wants menus should not have to invent a site."""
         G.boarding_go_down(CID)
-        self.assertEqual("crew", self.post("CONSOLE_TYPE"))
+        self.assertEqual("boarding_crew", self.post("CONSOLE_TYPE"))
         self.assertEqual(self.ship.id, sbs.get_ship_of_client(CID))
 
 
@@ -137,7 +137,7 @@ class TheWayBack(ReturnBase):
     def test_the_crew_console_role_does_not_outlive_the_crew_console(self):
         G.boarding_go_down(CID, self.site)
         G.boarding_go_up(CID)
-        self.assertFalse(has_role(CID, "crew"))
+        self.assertFalse(has_role(CID, "boarding_crew"))
 
     def test_it_stops_driving_anybody(self):
         fig = B.boarding_figure_spawn(self.site, self.who, 10, 10)
@@ -162,6 +162,50 @@ class TheWayBack(ReturnBase):
         G.boarding_go_down(CID, self.site)
         G.boarding_go_up(CID)
         self.assertEqual("science", self.post("CONSOLE_TYPE"))
+
+
+class NothingButAConsoleReachesTheEngine(ReturnBase):
+    """The engine ASSERTS when handed an id that is not a client id.
+
+    Reported from a live run as "a client ID was sent that was not a client ID" - a hard
+    stop on a real bridge, not a logged warning. `boarding_go_down` was the one
+    `assign_client_to_ship` in the library that reached the engine unfiltered; the three
+    in camera.py all sit inside `consoles_of`, which screens ids for exactly this reason.
+
+    The mistake is easy to make from a mission, which is why the guard lives in the
+    library rather than in advice: `role("crew")` ALREADY means damcon grid objects
+    (LegendaryMissions spawns them `"crew,damcons,lifeform"`), so a loop over a set that
+    merely looks like consoles hands this function grid objects.
+    """
+
+    def setUp(self):
+        super().setUp()
+        self.sent = []
+        self._real_assign = sbs.assign_client_to_ship
+
+        def spy(cid, sid):
+            self.sent.append(cid)
+            return self._real_assign(cid, sid)
+
+        sbs.assign_client_to_ship = spy
+        self.addCleanup(setattr, sbs, "assign_client_to_ship", self._real_assign)
+
+    def test_a_grid_object_id_never_reaches_the_engine(self):
+        fig = B.boarding_figure_spawn(self.site, self.who, 10, 10)
+        A.boarding_assign(to_id(fig), self.who)      # pretend a figure is a console
+        G.boarding_go_down(to_id(fig), self.site)
+        self.assertEqual([], self.sent, "a grid object id was handed to the engine")
+
+    def test_a_real_console_still_does(self):
+        """The guard must not be a blanket refusal - the feature needs this call."""
+        G.boarding_go_down(CID, self.site)
+        self.assertIn(CID, self.sent)
+
+    def test_the_server_console_counts_as_one(self):
+        """Client 0 is the server console and is legitimate; `is_client_id` tests the
+        0x8000... bit, which 0 does not have - the same carve-out overlay makes."""
+        from sbs_utils.procedural.query import is_client_id
+        self.assertFalse(is_client_id(0))
 
 
 class WhenTheSiteIsGone(ReturnBase):

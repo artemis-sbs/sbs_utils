@@ -181,22 +181,22 @@ class TestAnUnregisteredConsoleType(DoorBase):
     """
 
     def test_its_role_is_stripped_when_the_console_moves_on(self):
-        gui_console_enter(self.cid, "crew")
-        self.assertTrue(has_role(self.cid, "crew"))
+        gui_console_enter(self.cid, "boarding_crew")
+        self.assertTrue(has_role(self.cid, "boarding_crew"))
         gui_console_enter(self.cid, "helm")
-        self.assertFalse(has_role(self.cid, "crew"),
+        self.assertFalse(has_role(self.cid, "boarding_crew"),
                          "the crew-console role outlived the crew console")
 
     def test_the_new_console_still_gets_its_own_role(self):
-        gui_console_enter(self.cid, "crew")
+        gui_console_enter(self.cid, "boarding_crew")
         gui_console_enter(self.cid, "helm")
         self.assertTrue(has_role(self.cid, "helm"))
         self.assertEqual(get_inventory_value(self.cid, "CONSOLE_TYPE"), "helm")
 
     def test_two_unregistered_types_in_a_row_leave_nothing_behind(self):
-        gui_console_enter(self.cid, "crew")
+        gui_console_enter(self.cid, "boarding_crew")
         gui_console_enter(self.cid, "brig")
-        self.assertFalse(has_role(self.cid, "crew"))
+        self.assertFalse(has_role(self.cid, "boarding_crew"))
         self.assertTrue(has_role(self.cid, "brig"))
         gui_console_enter(self.cid, "helm")
         self.assertFalse(has_role(self.cid, "brig"))
