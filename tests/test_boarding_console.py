@@ -240,6 +240,61 @@ class TheThreeBandsTileExactly(unittest.TestCase):
             self.assertIn("area: %d," % C.panel_left(), area)
 
 
+class PressingAToolDoesSomething(_ConsoleBase):
+    """Reported as "the SCAN and FIRE tabs do nothing", and it was two bugs at once.
+
+    The state changed and nothing repainted, because `boarding_console_revision` - the
+    value the screen's `on change` watches - did not include the device. And the strip was
+    not clickable at all, because the click properties were written as STYLE KEYS rather
+    than set as attributes on the widget, which is silently ignored.
+
+    Both are invisible without a console, and both are cheap to pin here.
+    """
+
+    def test_switching_tool_moves_the_consoles_revision(self):
+        """Without this the device changes and the screen never hears about it."""
+        before = C.boarding_console_revision(CID)
+        X.xess_set_mode(CID, X.MODE_FIRE)
+        self.assertNotEqual(before, C.boarding_console_revision(CID))
+
+    def test_arming_moves_it_too(self):
+        """Armed has to be visible the instant it is true - that is a safety feature."""
+        X.xess_set_mode(CID, X.MODE_FIRE)
+        before = C.boarding_console_revision(CID)
+        B.boarding_arm(CID)
+        self.assertNotEqual(before, C.boarding_console_revision(CID))
+
+    def test_the_mode_is_per_console(self):
+        other = 0x8000000000000002
+        GuiClient(other)
+        X.xess_set_mode(CID, X.MODE_FIRE)
+        self.assertEqual(X.MODE_FIRE, X.xess_mode(CID))
+        self.assertNotEqual(X.MODE_FIRE, X.xess_mode(other))
+
+    def test_leaving_FIRE_disarms(self):
+        """Switching to the scanner with a live weapon is the same accident the
+        disarm-on-shot rule prevents, one step earlier."""
+        X.xess_set_mode(CID, X.MODE_FIRE)
+        B.boarding_arm(CID)
+        X.xess_set_mode(CID, X.MODE_SCAN)
+        self.assertFalse(B.boarding_armed(CID))
+
+    def test_the_strip_sets_click_properties_as_ATTRIBUTES(self):
+        """Written into the style string they are ignored and the widget never becomes
+        clickable - it just draws. `epadd._app_link` is the proven shape."""
+        import inspect
+        src = inspect.getsource(X._mode_strip)
+        self.assertIn("w.click_tag", src)
+        self.assertNotIn("click_tag:", src, "click_tag in a style string does nothing")
+
+    def test_the_handler_is_filtered_by_its_own_tag(self):
+        """`Layout.on_message` hands every event to every callback, so an unfiltered one
+        fires on somebody else's click."""
+        import inspect
+        src = inspect.getsource(X._bind_mode)
+        self.assertIn("sub_tag", src)
+
+
 class TheFlowFinishesBeforeAnyRegionOpens(unittest.TestCase):
     """The rule a screenshot taught: **opening a region ENDS the flow.**
 
@@ -288,8 +343,7 @@ class TheFlowFinishesBeforeAnyRegionOpens(unittest.TestCase):
         """`gui_xess_strip` must stay a row. If it ever opens a region again the reserve
         below it stops working and the symptom comes back."""
         import inspect
-        from sbs_utils.procedural.gui import xess as XM
-        src = inspect.getsource(XM.gui_xess_strip)
+        src = inspect.getsource(X.gui_xess_strip)
         self.assertNotIn("gui_region", src)
 
 

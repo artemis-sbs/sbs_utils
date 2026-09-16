@@ -140,11 +140,19 @@ def xess_body_area():
 
 
 def _mode_strip(client_id):
-    """Three buttons, one row. The tool you are holding reads differently from the two
-    you are not, and an armed FIRE reads differently again."""
+    """Three tools, one row. The one you are holding reads differently from the two you
+    are not, and an armed FIRE reads differently again.
+
+    Built the way `epadd._app_link` builds a tab, because that one is proven and this one
+    was not: the click properties are ATTRIBUTES ON THE WIDGET, not keys in the style
+    string. Written as style keys they are silently ignored - the widget draws, it just
+    never becomes clickable, which is exactly how this shipped as "the SCAN and FIRE tabs
+    do nothing". A `gui_text` rather than a `gui_button` for the same reason the PADD's
+    tabs are: the engine gives a button its own bevel and renders the backticks of a
+    quoted label as literal characters.
+    """
     from .row import gui_row
     from .text import gui_text
-    from .message import gui_message_callback
     from ..boarding_site import boarding_armed
     current = xess_mode(client_id)
     armed = boarding_armed(client_id)
@@ -156,25 +164,30 @@ def _mode_strip(client_id):
         if mode == MODE_FIRE and armed:
             color = ARMED
             label = "ARMED"
-        # A `gui_text` with a click tag, not a `gui_button`: the engine draws a bevel on a
-        # button and the backticks of a `$text:` label, neither of which suits a strip.
-        w = gui_text("$text:`%s`;justify:center;font:gui-2;color:%s;" % (label, color),
-                     style="click_tag: xess-%s; click_text: ;click_background: %s;"
-                           % (mode, PANEL_HI))
-        _bind_mode(w, client_id, mode)
+        click = "xess-%s" % mode
+        w = gui_text("$text:`%s`;justify:center;font:gui-2;color:%s;" % (label, color))
+        if w is None:
+            continue
+        # The hit region is the whole slot, not the width of the word.
+        w.background_color = PANEL_HI if on else PANEL
+        w.click_tag = click
+        w.click_color = "#FFF"
+        w.click_background = PANEL_HI
+        _bind_mode(w, client_id, mode, click)
 
 
-def _bind_mode(widget, client_id, mode):
+def _bind_mode(widget, client_id, mode, click):
     """Switch tool on click. A callback rather than `on_press=<label>`, because a label
     handler would jump this console's GUI task."""
     from .message import gui_message_callback
 
-    def _go(event=None, sender=None, **kwargs):
-        # The page walks its whole tree, so a handler fires for events that are not its
-        # own unless it checks - see `Layout.on_message`.
-        if event is not None and getattr(event, "sub_tag", None) != ("xess-%s" % mode):
+    def _go(event=None, sender=None, _mode=mode, _click=click):
+        # FILTERED. `Layout.on_message` hands every event to every callback, so an
+        # unfiltered one fires on somebody else's click - which cost the PADD a playtest
+        # round and is written down in `_app_link` for exactly this reason.
+        if getattr(event, "sub_tag", None) != _click:
             return
-        xess_set_mode(client_id, mode)
+        xess_set_mode(client_id, _mode)
 
     gui_message_callback(widget, _go)
 

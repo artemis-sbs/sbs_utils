@@ -107,10 +107,15 @@ def boarding_console_revision(client_id=None):
     """
     from ..boarding import boarding_seq, boarding_me
     from ..boarding_site import boarding_where
+    from .xess import xess_revision
     cid = _client(client_id)
     if cid is None:
         return 0
-    return (boarding_seq(), boarding_me(cid), boarding_where(cid))
+    # THE DEVICE IS PART OF THIS SCREEN. Without its revision here, pressing SCAN or FIRE
+    # changed the stored mode and nothing ever repainted - the `on change` this feeds
+    # never moved, so the tick never ran and the tabs "did nothing". A device whose state
+    # the console does not watch is a device that cannot be seen to work.
+    return (boarding_seq(), boarding_me(cid), boarding_where(cid), xess_revision(cid))
 
 
 def _where_text(client_id):
