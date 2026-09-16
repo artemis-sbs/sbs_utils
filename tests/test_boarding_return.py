@@ -122,6 +122,54 @@ class TheCrewKeepTheirNames(ReturnBase):
         self.assertEqual(self.face_before, self.post("CREW_FACE"))
 
 
+class TheInvitationKnowsWhereYouAreGoing(ReturnBase):
+    """A mission says `site=` once; the SHIPPED beam-down button does the rest.
+
+    The ePADD app calls `boarding_go_down(cid)` with no host and knows nothing about
+    interiors. Carrying the site on the invitation is what lets that untouched button put
+    a party on a floor - otherwise every spatial mission would have to replace the app.
+    """
+
+    def test_without_a_site_it_is_still_the_dialogue_party(self):
+        G.boarding_go_down(CID)
+        self.assertIsNone(B.boarding_my_host(CID))
+        self.assertIsNone(B.boarding_my_figure(CID))
+
+    def test_with_one_the_button_lands_them_on_the_interior(self):
+        A.boarding_invite(self.ship, [self.who], title="Kepler", site=self.site)
+        A.boarding_beam_down(CID, self.who)
+        G.boarding_go_down(CID)                       # no host - as the app calls it
+        self.assertEqual(self.site.id, B.boarding_my_host(CID))
+        self.assertIsNotNone(B.boarding_my_figure(CID))
+
+    def test_they_arrive_at_the_airlock(self):
+        """One place, so the party arrives together rather than scattered."""
+        A.boarding_invite(self.ship, [self.who], title="Kepler", site=self.site)
+        A.boarding_beam_down(CID, self.who)
+        G.boarding_go_down(CID)
+        self.assertEqual(B.boarding_entry_cell(self.site), B.boarding_where(CID))
+
+    def test_beaming_down_twice_does_not_leave_a_body_behind(self):
+        """A reconnect, or moving between sites. An abandoned figure would stand on the
+        floor for the rest of the mission and show up in everybody's map."""
+        A.boarding_invite(self.ship, [self.who], title="Kepler", site=self.site)
+        A.boarding_beam_down(CID, self.who)
+        G.boarding_go_down(CID)
+        first = B.boarding_my_figure(CID)
+        G.boarding_go_down(CID)
+        self.assertEqual(first, B.boarding_my_figure(CID))
+        self.assertEqual(1, B.boarding_figure_count())
+
+    def test_an_explicit_host_still_wins(self):
+        other = to_object(npc_spawn(-9000, 0, 0, "Other", "tsn", "tsn_destroyer",
+                                    "behav_station"))
+        B.boarding_site_build(other)
+        A.boarding_invite(self.ship, [self.who], title="Kepler", site=self.site)
+        A.boarding_beam_down(CID, self.who)
+        G.boarding_go_down(CID, other)
+        self.assertEqual(other.id, B.boarding_my_host(CID))
+
+
 class TheWayBack(ReturnBase):
     def test_it_lands_on_the_post_it_left(self):
         G.boarding_go_down(CID, self.site)

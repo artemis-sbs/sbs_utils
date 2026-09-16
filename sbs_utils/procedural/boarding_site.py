@@ -33,6 +33,7 @@ Hosting them silently cuts that channel. Identity stays hostless; the GRID OBJEC
 they are.
 """
 from ..agent import Agent
+from ..helpers import FrameContext
 from .inventory import get_inventory_value, set_inventory_value
 from .links import link, linked_to, unlink
 from .query import to_id, to_object
@@ -93,6 +94,39 @@ def boarding_site_build(target, layout=None):
     add_role(so, SITE_ROLE)
     grid_rebuild_grid_objects(so, layout=layout)
     return so
+
+
+def boarding_entry_cell(target, roles="access"):
+    """Where a party materialises on this interior, as ``(x, y)``.
+
+    The AIRLOCK if the floor plan drew one - a room carrying `access` - because that is
+    where an author means people to come aboard, and it puts the whole party in one place
+    so they arrive together rather than scattered.
+
+    Falls back to the interior's own centre cell, then to (0, 0). A fallback is not a
+    failure worth refusing over: a plan with no airlock is a plan the author simply did
+    not mark, and a party standing in the middle of it can still walk.
+    """
+    from .grid import grid_objects, grid_pos_data
+    from .roles import any_role
+    site = to_object(target)
+    if site is None:
+        return 0, 0
+    doors = grid_objects(site.id) & any_role(roles)
+    for node in sorted(doors):
+        at = grid_pos_data(node)
+        if at is not None and at[0] is not None:
+            return int(at[0]), int(at[1])
+    hm = FrameContext.context.sbs.get_hull_map(site.id)
+    if hm is not None and hm.w and hm.h:
+        cx, cy = hm.w // 2, hm.h // 2
+        if hm.is_grid_point_open(cx, cy):
+            return cx, cy
+        for y in range(hm.h):
+            for x in range(hm.w):
+                if hm.is_grid_point_open(x, y):
+                    return x, y
+    return 0, 0
 
 
 def boarding_site_is(target):

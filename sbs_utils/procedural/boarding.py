@@ -579,13 +579,18 @@ def boarding_clear():
 INVITE_KEY = "__BOARDING_INVITE__"
 
 
-def boarding_invite(ship, roster, title=None):
-    """Open a landing party. Nobody moves until a console beams down.
+def boarding_invite(ship, roster, title=None, site=None):
+    """Open a boarding party. Nobody moves until a console beams down.
 
     Args:
         ship: the ship the party leaves from.
         roster (list): the lifeforms available to play, in offer order.
         title (str, optional): what this place is called on screen.
+        site (optional): the ship or station they are boarding. Given one, going down
+            also puts each character on its interior with a body to walk - and the
+            shipped BEAM DOWN button does that without knowing anything about it, which
+            is the point of carrying it here rather than at the call site. Without one
+            this is the dialogue-only party, which is still a valid way to play.
 
     Returns:
         dict: the invitation.
@@ -594,6 +599,7 @@ def boarding_invite(ship, roster, title=None):
         "ship": to_id(ship),
         "roster": [to_id(m) for m in (roster or []) if to_id(m)],
         "title": title or "BOARDING PARTY",
+        "site": to_id(site) if site is not None else None,
         "open": True,
     }
     Agent.SHARED.set_inventory_value(INVITE_KEY, invite)
@@ -622,6 +628,12 @@ def boarding_invite_title():
 def boarding_invite_ship():
     invite = Agent.SHARED.get_inventory_value(INVITE_KEY, None)
     return (invite or {}).get("ship")
+
+
+def boarding_invite_site():
+    """The interior this party is boarding, or None for a dialogue-only party."""
+    invite = Agent.SHARED.get_inventory_value(INVITE_KEY, None)
+    return (invite or {}).get("site")
 
 
 def boarding_open_roster(client_id=None):
@@ -798,7 +810,8 @@ def _body_for(post, client_id):
     return lifeform_spawn(full, face, ", ".join([w for w in words if w]))
 
 
-def boarding_invite_crew(ship, title=None, consoles=None, assign_missing=True):
+def boarding_invite_crew(ship, title=None, consoles=None, assign_missing=True,
+                         site=None):
     """Open a landing party made of the crew, each body RESERVED to its own console.
 
     The difference from :func:`boarding_invite` is the reservation. A crew-derived party
@@ -807,7 +820,7 @@ def boarding_invite_crew(ship, title=None, consoles=None, assign_missing=True):
     character instead of a roster.
     """
     pairs = _crew_bodies(to_id(ship), consoles, assign_missing)
-    invite = boarding_invite(ship, [body for _cid, body in pairs], title)
+    invite = boarding_invite(ship, [body for _cid, body in pairs], title, site=site)
     for client_id, body in pairs:
         boarding_reserve(client_id, body)
     # A crew party is whoever was on the bridge, so a missing job is an accident of

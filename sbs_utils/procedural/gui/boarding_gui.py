@@ -10,6 +10,7 @@ mission adds sit beside this one.
 """
 from ...helpers import FrameContext
 from ..boarding import (boarding_invitation, boarding_invite_title, boarding_open_roster,
+                    boarding_invite_site,
                     boarding_beam_down, boarding_beam_up, boarding_held, boarding_me, boarding_team,
                     boarding_clients, boarding_job_text, boarding_is_open, boarding_client_of,
                     boarding_reserved, BOARDING_CONSOLE)
@@ -283,6 +284,14 @@ def boarding_go_down(client_id, host=None):
     from .viewscreen import viewscreen_home_ship
     if not boarding_held(client_id):
         return False
+    # THE INVITATION KNOWS WHERE THEY ARE GOING. Taking the site from there rather than
+    # from the caller is what lets the shipped BEAM DOWN button put a party on a floor
+    # without knowing a floor exists: a mission that passes `site=` to `boarding_invite`
+    # gets the spatial version, and one that does not gets the dialogue-only party it
+    # always had. An explicit `host` still wins, for a mission moving a console between
+    # two interiors.
+    if host is None:
+        host = boarding_invite_site()
     # Captured BEFORE anything moves, because the move is what makes it unanswerable.
     home = viewscreen_home_ship(client_id)
     set_inventory_value(client_id, HOME_KEY, home)
@@ -323,10 +332,34 @@ def boarding_go_down(client_id, host=None):
         # the 0x8000... bit, which 0 does not have - the same carve-out log_panel_gui and
         # overlay make.
         FrameContext.context.sbs.assign_client_to_ship(client_id, to_id(host))
+    if host is not None:
+        _give_a_body(client_id, host)
     signal_emit("boarding_went_down", {"BOARDING_CLIENT": client_id,
                                        "BOARDING_WHO": boarding_me(client_id),
                                        "BOARDING_HOST": to_id(host) if host else 0})
     return True
+
+
+def _give_a_body(client_id, host):
+    """Put this console's character on the interior, and hand the console that body.
+
+    Idempotent: a console that already has a figure keeps it, so a second beam-down (a
+    reconnect, a move between sites) does not leave an abandoned body standing on the
+    floor for the rest of the mission.
+    """
+    from ..boarding_site import (boarding_figure_of, boarding_figure_spawn, boarding_take,
+                                 boarding_my_figure, boarding_entry_cell)
+    from ..query import to_id
+    who = boarding_me(client_id)
+    if not who:
+        return None
+    fig = boarding_figure_of(who)
+    if not fig:
+        x, y = boarding_entry_cell(host)
+        fig = boarding_figure_spawn(host, who, x, y)
+    if fig:
+        boarding_take(client_id, fig, host)
+    return fig
 
 
 def boarding_go_up(client_id):
