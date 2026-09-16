@@ -95,26 +95,31 @@ def xess_revision(client_id=None):
 
 # --- the surface ---------------------------------------------------------------------
 
-def gui_xess(client_id=None):
-    """Draw the device into the caller's current section.
+def gui_xess_strip(client_id=None):
+    """Draw the mode strip into the caller's CURRENT FLOW. A row, nothing more.
+
+    SPLIT FROM THE BODY ON PURPOSE, and this cost a screenshot. The first version drew the
+    strip and opened the body region in one call - but opening a region ENDS the flow, so
+    the reserve row emitted after it never took effect, the strip fell to the bottom of
+    the section, and it was drawn straight over the "Beam up" button.
+
+    The rule that falls out: **finish the flow, THEN open every region.** A caller draws
+    this, reserves the band, and only then calls `gui_xess_body`.
+    """
+    return _mode_strip(_client(client_id))
+
+
+def gui_xess_body(client_id=None):
+    """Open the device's readout region and fill it. Call AFTER the flow is finished.
 
     Returns:
-        dict: the held widgets, also stored on the page for :func:`gui_xess_tick`.
+        dict: the held region, also stored on the page for :func:`gui_xess_tick`.
     """
-    from .row import gui_row
-    from .text import gui_text
     from .section import gui_region
     cid = _client(client_id)
-
-    _mode_strip(cid)
-
-    # The body is a REGION rather than flowed rows, because switching tool changes the
-    # SHAPE of what is below - and a plain layout cannot take its own content off the
-    # screen, so the previous tool would stay painted underneath the new one.
     body = gui_region(xess_body_area())
     with body:
         _mode_body(cid)
-
     view = {"cid": cid, "body": body, "rev": xess_revision(cid)}
     page = FrameContext.page
     if page is not None:

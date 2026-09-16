@@ -240,6 +240,59 @@ class TheThreeBandsTileExactly(unittest.TestCase):
             self.assertIn("area: %d," % C.panel_left(), area)
 
 
+class TheFlowFinishesBeforeAnyRegionOpens(unittest.TestCase):
+    """The rule a screenshot taught: **opening a region ENDS the flow.**
+
+    The first version drew the mode strip and opened the device's region in one call, then
+    emitted the reserve row afterwards. The reserve never took effect, so the strip fell to
+    the bottom of the section and was drawn straight over the "Beam up" button - reported
+    as "tabs overlap buttons".
+
+    So the builder has an ORDER, and it is not cosmetic: every flow row, then the reserve,
+    then every region. These assert that order rather than the symptom, because the
+    symptom is only visible on a real console.
+    """
+
+    def _positions(self):
+        import inspect
+        src = inspect.getsource(C.gui_boarding_console)
+        return src, {
+            "strip": src.index("gui_xess_strip("),
+            "reserve": src.index("boarding_actions_reserve()"),
+            "xess_region": src.index("gui_xess_body("),
+            "actions_region": src.index("gui_region(boarding_actions_area("),
+        }
+
+    def test_the_strip_is_drawn_before_the_reserve(self):
+        _, at = self._positions()
+        self.assertLess(at["strip"], at["reserve"])
+
+    def test_and_the_reserve_before_EVERY_region(self):
+        _, at = self._positions()
+        self.assertLess(at["reserve"], at["xess_region"])
+        self.assertLess(at["reserve"], at["actions_region"])
+
+    def test_no_flow_row_is_emitted_after_a_region_opens(self):
+        """The actual trap. A `gui_row` after the first region is a row nothing reserved,
+        so it lands wherever the section has space - which is on top of the regions."""
+        src, at = self._positions()
+        first_region = min(at["xess_region"], at["actions_region"])
+        tail = src[first_region:]
+        # `with` blocks fill the regions, so rows inside them are fine; what must not
+        # appear is a row at the builder's own indentation.
+        stray = [ln for ln in tail.splitlines()
+                 if ln.startswith("    gui_row(") or ln.startswith("    gui_blank(")]
+        self.assertEqual([], stray, "a flow row after a region: %s" % stray)
+
+    def test_the_strip_function_opens_no_region(self):
+        """`gui_xess_strip` must stay a row. If it ever opens a region again the reserve
+        below it stops working and the symptom comes back."""
+        import inspect
+        from sbs_utils.procedural.gui import xess as XM
+        src = inspect.getsource(XM.gui_xess_strip)
+        self.assertNotIn("gui_region", src)
+
+
 class TheFaceRowIsNotFlex(unittest.TestCase):
     """`gui_face` builds a SQUARE with no `measure()`, and `_measure_row_height` excludes
     squares by construction - "a row of nothing but squares therefore has no natural

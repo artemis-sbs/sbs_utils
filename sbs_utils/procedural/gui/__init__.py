@@ -7,7 +7,8 @@ from .boarding_gui import (gui_boarding_screen, boarding_who, boarding_set_who, 
                        boarding_home_ship)
 from .boarding_console import (gui_boarding_console, gui_boarding_console_tick,
                                boarding_console_revision)
-from .xess import (gui_xess, gui_xess_tick, xess_revision, xess_mode, xess_set_mode)
+from .xess import (gui_xess_strip, gui_xess_body, gui_xess_tick, xess_revision,
+                   xess_mode, xess_set_mode)
 from .epadd import (gui_app_subnav,
                     gui_app_register, gui_app_unregister, gui_app_is_registered,
                     gui_app_get_registered, gui_app_list, gui_app_groups,

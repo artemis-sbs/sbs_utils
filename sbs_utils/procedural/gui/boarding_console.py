@@ -201,14 +201,19 @@ def gui_boarding_console(client_id=None, map_width=66, on_leave=None):
 
     # THE DEVICE'S OWN STRIP, the last thing in the flow. Below it are two pinned
     # regions - the xESS's readout and the choices - so this is where the flow stops.
-    from .xess import gui_xess
-    xess = gui_xess(cid)
+    from .xess import gui_xess_strip, gui_xess_body
+    gui_xess_strip(cid)
 
     # RESERVE BOTH BANDS. This row is the only thing keeping the prose above out of the
     # regions below: the engine does not clip, so without it a long line runs under them.
     # `messages_gui` does exactly this and says why - "the body must not flow into it".
     gui_row(boarding_actions_reserve())
     gui_blank()
+
+    # THE FLOW IS DONE. Every region below is pinned to an absolute area, and opening one
+    # ENDS the flow - so a row emitted after this point is not reserved by anything and
+    # lands wherever the section has space left, which is on top of these regions.
+    xess = gui_xess_body(cid)
 
     # THE ONLY PART THAT CHANGES SHAPE. A different scene offers a different NUMBER of
     # choices, so this is a region - a sub-section would leave every previous set of
