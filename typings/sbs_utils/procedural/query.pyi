@@ -3,6 +3,27 @@ from sbs_utils.agent import CloseData
 from sbs_utils.agent import SpawnData
 from sbs_utils.delete_queue import DeleteQueue
 from sbs_utils.helpers import FrameContext
+def _agent_id_or_raise (value):
+    """One agent id, or a TypeError that says what was actually passed.
+    
+    :func:`to_id` and :meth:`Agent.resolve_id` are pass-throughs with no ``else`` branch -
+    an ``Agent`` / ``CloseData`` / ``SpawnData`` is unwrapped to its ``.id`` and EVERYTHING
+    ELSE is returned untouched. So a dict, a Vec3, a nested list or a ``dict_keys`` view
+    reaches the set construction in :func:`to_set` unchanged, and Python raises
+    ``unhashable type: 'dict'`` against a set literal in this file. That message names
+    neither the resolver nor the argument, and the frame it is reported against is the
+    least useful one in the stack - the mission author is told about query.py, not about
+    the ``link()`` / ``add_role()`` call their script made.
+    
+    RAISING, NOT DROPPING. The list resolvers next door legitimately drop what they cannot
+    resolve, but every :func:`to_set` caller is a WRITE - link, add_role, target, brain_add,
+    modifier_add - so swallowing a bad argument turns the write into a no-op with nothing
+    logged. That is the LM #719 failure mode, where a silently skipped write cost far more
+    to find than a crash would have. Bad data should be loud; it just has to say what it is.
+    
+    Only genuinely unusable values are rejected, tested by hashability rather than by an
+    allowlist of accepted types. Every value that works today still works - this converts
+    an opaque crash into an explained one and changes nothing else."""
 def all_objects_exists (the_set):
     """Return whether every object in a collection exists in the simulation.
     
@@ -20,6 +41,20 @@ def are_variables_defined (keys):
     
     Returns:
         bool: ``True`` if every key is defined in the current task scope."""
+def dec_disable_client_comms_selection (client_id):
+    ...
+def dec_disable_client_grid_selection (client_id):
+    ...
+def dec_disable_client_science_selection (client_id):
+    ...
+def dec_disable_client_selection (client_id, console_selected_UID):
+    """Reverse an :func:`inc_disable_client_selection` call.
+    
+    Args:
+        client_id (Agent | int): The console (client) to restore.
+        console_selected_UID (str): The blob key for the console."""
+def dec_disable_client_weapons_selection (client_id):
+    ...
 def dec_disable_grid_selection (id_or_obj):
     ...
 def dec_disable_science_selection (id_or_obj):
@@ -52,16 +87,26 @@ def get_crew (id_or_obj):
     
     Returns:
         str: The crew string, or ``""`` if the object does not exist."""
-def get_data_set_value (id_or_obj, key, index=0):
+def get_data_set_value (id_or_obj, key, index=0, default=None):
     """Get a value from the engine data-set (blob) of a space or grid object.
     
     Args:
         id_or_obj (Agent | int): The agent ID or object.
         key (str): The data-set key.
         index (int, optional): The slot index within that key. Defaults to 0.
+            **This is an INDEX, not a fallback** - the third positional argument is
+            which slot to read (shield 0 vs shield 1), and passing a "default" there
+            reads the wrong slot or fails outright.
+        default (any, optional): what to return when the field has never been set.
+            The engine answers ``None`` for such a field, and a mission that then
+            compares it (``if fuel < 1000``) raises on a real bridge while running
+            clean against the mock's typed defaults - the bug behind LM's Florbin
+            cargo-hold watcher and an earlier helm crash. Pass ``default=0`` (or
+            ``default=""``) and the caller gets something it can use. ``sbs lint``
+            flags the unguarded shape as ``blob-unguarded-none``.
     
     Returns:
-        any: The stored value, or ``None`` if the object or key is not found."""
+        any: The stored value, ``default`` if the object or key is not found."""
 def get_engine_data_set (id_or_obj):
     """Return the engine data-set (blob) for an agent.
     
@@ -126,6 +171,41 @@ def get_weapons_selection (id_or_not):
     
     Returns:
         int | None: The selected agent ID, or ``None`` if unavailable."""
+def inc_disable_client_comms_selection (client_id):
+    ...
+def inc_disable_client_grid_selection (client_id):
+    ...
+def inc_disable_client_science_selection (client_id):
+    ...
+def inc_disable_client_selection (client_id, console_selected_UID):
+    """Make ONE console take no part in a selection, without affecting the others.
+    
+    The selection itself lives on the SHIP, so `inc_disable_selection` is all-or-nothing
+    for every console looking at that ship: disable it so a second, display-only view
+    cannot click and the console that is meant to be driving stops selecting too. This
+    is the per-console form: the shared value is left exactly as it was, which is what a
+    read-only second view of an interior needs.
+    
+    It RESTORES rather than refuses, because refusing is too late. The ENGINE writes the
+    ship's selection into the blob before the event reaches the script - measured by
+    instrumenting ``do_select`` in a real run, where the blob already held the new value
+    on entry - so declining to write leaves the engine's change standing. The dispatcher
+    puts back ``approved_<console>``, the last selection the library allowed.
+    
+    KNOWN LIMITATION: this does not fully hold for a ship's INTERIOR view. On a real
+    console a display-only second view still moves the grid highlight - the engine owns
+    that selection and the write-back does not stick. Gate `//point/grid` on the client's
+    role as well, which is what actually stops a display console driving anybody. The
+    other surfaces are untested in the engine.
+    
+    Pair with :func:`dec_disable_client_selection`; the count nests.
+    
+    Args:
+        client_id (Agent | int): The console (client) that must not select.
+        console_selected_UID (str): The blob key for the console (e.g.
+            ``"grid_selected_UID"``)."""
+def inc_disable_client_weapons_selection (client_id):
+    ...
 def inc_disable_grid_selection (id_or_obj):
     ...
 def inc_disable_science_selection (id_or_obj):
@@ -300,6 +380,28 @@ def set_weapons_selection (id_or_not, other_id_or_obj):
     Args:
         id_or_not (Agent | int): The player ship agent ID or object.
         other_id_or_obj (Agent | int): The object to select."""
+def to_agent_list (the_set):
+    """Resolve to Agent objects for a WRITE, the SERVER CONSOLE included.
+    
+    `to_object` refuses id 0 by design - 0 means "no object" for a space object - so
+    every write built on :func:`to_object_list` silently skipped the server console.
+    That is not a corner case: the server window is a console like any other, and
+    `add_role(client_id, "console, mainscreen")` on it was a no-op, which is why an
+    overlay narrowed with `consoles="mainscreen"` never reached the main screen when
+    the main screen WAS the server.
+    
+    The reads already knew better - `get_inventory_value` has carried an explicit
+    `Agent.get(0)` branch for exactly this. This is that branch generalized, so a write
+    can reach everything a read can see.
+    
+    Space-object callers keep using `to_object_list`: id 0 there really does mean "no
+    object", and this must not resurrect it for them.
+    
+    Args:
+        the_set (set[Agent | int] | list[Agent | int] | Agent | int): what to resolve.
+    
+    Returns:
+        list[Agent]: resolved agents; unresolvable entries are dropped."""
 def to_blob (id_or_obj):
     """Return the engine data-set (blob) for an agent. Same as ``to_data_set``.
     
@@ -383,19 +485,6 @@ def to_object (other: sbs_utils.agent.Agent | sbs_utils.agent.CloseData | int):
     
     Returns:
         Agent | None: The agent, or ``None`` if it could not be resolved."""
-def to_agent_list (the_set):
-    """Resolve to Agent objects for a WRITE, the SERVER CONSOLE included.
-
-    Same as ``to_object_list`` except that id ``0`` resolves to the server's agent
-    instead of being dropped. Use this whenever a collection is resolved in order to
-    write to it (roles, links, inventory); ``to_object_list`` stays the space-object
-    resolver, where 0 really does mean "no object".
-
-    Args:
-        the_set (set[Agent | int] | list[Agent | int] | Agent | int): what to resolve.
-
-    Returns:
-        list[Agent]: resolved agents; unresolvable entries are dropped."""
 def to_object_list (the_set):
     """Convert a set or list of IDs/agents to a list of Agent objects (excluding None).
     
@@ -406,14 +495,29 @@ def to_object_list (the_set):
         list[Agent]: Resolved Agent objects; items that cannot be resolved are
             excluded."""
 def to_py_object_list (the_set):
-    """Convert a set of IDs to a list of Agent objects.
+    """Convert a set of raw agent IDs to a list of Agent objects.
+    
+    The odd one out of the list resolvers, and kept that way for compatibility:
+    
+    * **IDs only.** It indexes ``Agent.all`` directly, so an ``Agent`` / ``CloseData`` /
+      ``SpawnData`` in the set resolves to ``None``, not to itself.
+    * **``None`` is kept, not dropped**, so positions line up with the input - every
+      other list resolver filters instead.
+    * **No liveness check**, so a deleted agent's id yields ``None`` (it is out of
+      ``Agent.all``) while a stale ``Agent`` object yields ``None`` too, for the other
+      reason.
+    * id ``0`` resolves to the SERVER console, as ``Agent.get`` always has.
+    
+    Prefer :func:`to_object_list` (space objects, drops what it cannot resolve) or
+    :func:`to_agent_list` (the write side, keeps the server). See the resolver table in
+    :func:`to_object_list`.
     
     Args:
         the_set (set[int]): A set of agent IDs.
     
     Returns:
-        list[Agent]: Agents resolved from the set; items that no longer exist
-            are included as ``None``."""
+        list[Agent | None]: Agents resolved from the set, ``None`` where an id is not in
+            ``Agent.all``."""
 def to_set (other: sbs_utils.agent.Agent | sbs_utils.agent.CloseData | int):
     """Normalize any agent-like value or collection into a set of integer IDs.
     

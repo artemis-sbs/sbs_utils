@@ -22,6 +22,35 @@ from zipfile import ZipFile
 from functools import partial
 def DEBUG (msg):
     ...
+def _describe_expr_values (code):
+    """`name = type: repr` for each name a failing expression referenced, or "".
+    
+    A MAST runtime error quotes the source line and stops there, which is one step short
+    of useful: `link(p, "extra_scan_source", o)` says nothing about what `p` WAS, and
+    every "where did that value come from" hunt starts by trying to find out. This is
+    what identified the loop-iterator leak - the log showed `p` holding a dict from a
+    completely different collection while `o`, iterating the very same list one line
+    above, held a correct id. That asymmetry is the whole diagnosis, and it is invisible
+    without the values.
+    
+    co_names is what the compiler recorded for this expression, so only names the line
+    really uses are printed. Callables are skipped - the procedural function being called
+    is never the surprise."""
+def _safe_for_gui (text):
+    """Make a repr safe to put in front of the engine.
+    
+    This block ends up in an ErrorPage, so it is engine-rendered text, and the values in
+    it are arbitrary mission data - a ship name, a loaded YAML row, whatever the author
+    put in a variable. Two things in there are not the engine's friends:
+    
+      * NON-ASCII. Engine-rendered strings are ASCII only; a name with a curly quote or an
+        accent has no business reaching a GUI string through a diagnostic.
+      * `^`, which is a GUI style SEPARATOR. handlerhooks already strips it from the
+        hook-level error text (`text_err.replace(chr(94), "")`), but the MAST-level path
+        does not - so before this, a caret inside a repr went straight through.
+    
+    Neither was reachable before values were printed here; adding the values added the
+    exposure, so the sanitising belongs with it."""
 def close_lib_zips ():
     """Drop every cached .mastlib handle. Safe to call at any time; the next read
     reopens."""
@@ -184,6 +213,10 @@ class MastAsyncTask(Agent, Promise):
         ...
     def get_variable (self, key, default=None):
         ...
+    def gui_host_task (self):
+        """The page's GUI task, when this task is not it. Else None."""
+    def handler_defaults_to_sub_task ():
+        """Whether an unspecified on_press=<label> runs as a sub-task."""
     def has_inventory_list (collection_name):
         ...
     def has_inventory_set (collection_name):
@@ -211,6 +244,8 @@ class MastAsyncTask(Agent, Promise):
         ...
     def jump (self, label='main', activate_cmd=0, respect_inline=False):
         ...
+    def jump_in_label (self, label, activate_cmd=0):
+        """Intra-label pointer move for loop control flow. See MastTicker."""
     def jump_restart_task (self, label='main', activate_cmd=0):
         """Used by the mission runner to run multiple labels"""
     def poll (self):
@@ -430,6 +465,34 @@ class MastTicker(object):
         ...
     def jump (self, label='main', activate_cmd=0):
         ...
+    def jump_in_label (self, label, activate_cmd=0):
+        """Move the instruction pointer WITHIN the current label. Not a jump.
+        
+        A `for`/`while` loop implements iteration by moving the pointer back to
+        its own start and, when it finishes, forward to its dedent - both inside
+        one label. That is not leaving anywhere, but it used to go through
+        `jump()`, which unwinds `pop_on_jump` "to get back to the main flow" and
+        so POPPED the enclosing inline block off `label_stack`.
+        
+        An inline block is how a widget handler runs, and its `data=` lives on
+        that stack entry, so a single loop anywhere in an `on gui_message` block
+        silently deleted every injected variable from the loop onward:
+        
+            fab_btn = gui_button("Build", data={"rk": key, "rnames": names})
+            on gui_message(fab_btn):
+                for n in rnames:      # <- reads fine, then eats the block
+                    ...
+                signal_emit("build", {"recipe": rk})   # NameError: 'rk'
+        
+        Reported from LegendaryMissions' Fabricator (beacon_tabs.mast), where
+        the Build button could not build anything. An EMPTY loop did it too, so
+        "it only breaks with items" was not even a clue. The `cosmos-gui` skill
+        recommends `data=` as the reliable escape from the OTHER for-loop trap
+        (handlers registered inside a loop), which walked straight into this one.
+        
+        Worse than the lost variables: the pop left the stack one entry short,
+        so when the block ended `pop_label` took an entry belonging to whoever
+        pushed before it."""
     def next (self):
         ...
     def pop_label (self, inc_loc=True, true_pop=False):

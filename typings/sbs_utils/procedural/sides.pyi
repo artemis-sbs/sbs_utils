@@ -17,16 +17,26 @@ def _warn_missing_side (key):
     
     Keeping the whole policy here means callers never have to special-case any of
     it: ``to_side_id`` just hands every miss to this function."""
-def get_data_set_value (id_or_obj, key, index=0):
+def get_data_set_value (id_or_obj, key, index=0, default=None):
     """Get a value from the engine data-set (blob) of a space or grid object.
     
     Args:
         id_or_obj (Agent | int): The agent ID or object.
         key (str): The data-set key.
         index (int, optional): The slot index within that key. Defaults to 0.
+            **This is an INDEX, not a fallback** - the third positional argument is
+            which slot to read (shield 0 vs shield 1), and passing a "default" there
+            reads the wrong slot or fails outright.
+        default (any, optional): what to return when the field has never been set.
+            The engine answers ``None`` for such a field, and a mission that then
+            compares it (``if fuel < 1000``) raises on a real bridge while running
+            clean against the mock's typed defaults - the bug behind LM's Florbin
+            cargo-hold watcher and an earlier helm crash. Pass ``default=0`` (or
+            ``default=""``) and the caller gets something it can use. ``sbs lint``
+            flags the unguarded shape as ``blob-unguarded-none``.
     
     Returns:
-        any: The stored value, or ``None`` if the object or key is not found."""
+        any: The stored value, ``default`` if the object or key is not found."""
 def get_inventory_value (id_or_object, key: str, default=None):
     """Get an inventory value from an agent by key.
     
@@ -61,6 +71,10 @@ def has_link_to (link_source, link_name: str, link_target) -> bool:
         bool: ``True`` if the link from source to target exists."""
 def has_role (so, role):
     """Return whether an agent currently holds a given role.
+    
+    Answers for the SERVER console too. It used to always say False for client id 0,
+    which reads exactly like "the role is not there" - so a check on the server was
+    indistinguishable from a real negative and passed silently for years.
     
     Args:
         so (Agent | int): Agent ID or object.

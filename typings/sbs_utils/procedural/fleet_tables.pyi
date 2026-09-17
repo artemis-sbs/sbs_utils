@@ -3,6 +3,18 @@ def _rand_choice (seq):
     ...
 def _rand_range (n):
     ...
+def fleet_table_can_field (race):
+    """:func:`fleet_table_has`, but it SAYS SO the first time a race fails.
+    
+    The gate a roster should be filtered through before a race is handed to a fleet
+    builder. A race can be perfectly real - in the ship table, with hulls and an
+    interior - and still have no ladder, and the two are declared in different files by
+    different people. The TNG pack's Breen was exactly that: a shipData side with one
+    hull, rostered at 4-20% in two theaters, and no ``fleets.yaml``. Picking it made
+    `fleet_create` return None and the caller die on ``fleet.id``.
+    
+    Silence is the wrong failure here in both directions - crash, or a faction that is
+    written into the roster and never turns up - so the miss is named once per race."""
 def fleet_table_get (race, difficulty, variant=None):
     """One fleet: a list of ship keys, or ``[]`` when the race has no ladder.
     

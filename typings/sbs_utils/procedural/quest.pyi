@@ -631,6 +631,17 @@ def signal_emit (name, data=None):
         name (str): The signal name.
         data (dict, optional): Arbitrary data passed to each signal handler.
             Defaults to None."""
+def to_client_object (other: sbs_utils.agent.Agent | int):
+    """Resolve a client/console ID or Agent to its Agent object.
+    
+    Returns ``None`` when the ID is not a valid client ID or the agent no
+    longer exists.
+    
+    Args:
+        other (Agent | int): Client ID or agent to resolve.
+    
+    Returns:
+        Agent | None: The client agent, or ``None``."""
 def to_id (other: sbs_utils.agent.Agent | sbs_utils.agent.CloseData | int):
     """Extract the integer ID from an agent, ``CloseData``, ``SpawnData``, or bare int.
     

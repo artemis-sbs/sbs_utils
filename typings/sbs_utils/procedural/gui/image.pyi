@@ -266,6 +266,18 @@ class ImageAtlas(object):
         ...
     def is_valid (self):
         ...
+    def local_file (self):
+        """`self.file` as a path THIS process can open.
+        
+        `self.file` is what the ENGINE is handed - `engine_file` shape, relative to the
+        Cosmos root (or absolute, when the art lives outside the install; `os.path.join`
+        passes that through). So the base to resolve it against is the root, and the one
+        rule lives here rather than being spelled out at each reader.
+        
+        It used to be resolved against `data/graphics`, which was right while `self.file`
+        was `relpath(file, graphics)` and became wrong the moment it stopped being - so
+        every mission image answered `is_valid() == False` and drew "IMAGE NOT FOUND",
+        and `get_size()` measured nothing."""
     def qualify (key, domain=None):
         """The key a registration is stored under. `ImageAtlas.all` is one process-wide
         dict, so without a domain two addons can claim the same word and the last one

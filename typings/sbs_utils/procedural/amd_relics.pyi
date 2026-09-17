@@ -83,7 +83,7 @@ def _relic_trigger_fired (rec):
     ...
 def amd_coords (s, n=2):
     """'6, 4' -> [6, 4] (the first `n` signed-integer tokens)."""
-def amd_parse_facts (text, handler=None, default=<function amd_num at 0x0000028640FEBF60>, archetype=None, errors=None):
+def amd_parse_facts (text, handler=None, default=<function amd_num at 0x000002741D0E0540>, archetype=None, errors=None):
     """Parse one fact-sheet fence into a dict.
     
     Per label, in order: the caller's `handler` gets first refusal (returns truthy to
@@ -192,6 +192,18 @@ def relic_point (relic_key, name):
         item_spawn("relic_core", *relic_point("ossuary", "cache"), qty=2)
         npc_spawn(*relic_point("ossuary", "picket"), "Sentry", "raider", ...)
         marker_point(*relic_point("ossuary", "mouth"), "The Ossuary")"""
+def relic_point_display (relic_key, name):
+    """What a point is CALLED - the authored label, else its key.
+    
+    The same string `_relic_place_role_markers` names the marker with, so a list of places
+    to go and the label that lights up on the radar cannot disagree."""
+def relic_point_revealed (relic_key, name):
+    """Whether the crew has been close enough to light this point's marker.
+    
+    TRUE WHEN THERE IS NO MARKER, which is the case that matters: a point without
+    `Roles:` is never armed, and a relic whose contents were never armed has no markers at
+    all. Answering False for those would hide every destination in a relic that simply
+    does not use the reveal mechanism."""
 def relic_point_roles (relic_key, name):
     """The roles authored on one point, lowercased. Empty when it has none."""
 def relic_points (relic_key, role=None):

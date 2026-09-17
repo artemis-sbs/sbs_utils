@@ -105,7 +105,7 @@ class MediaLabel(DecoratorLabel):
         ...
     def get_objects_from_set (the_set):
         ...
-    def get_of_type (kind, task=<object object at 0x000001FAEC9610B0>):
+    def get_of_type (kind, task=<object object at 0x000002741C785010>):
         """Every registered label of this kind whose condition passes and whose file is
         on disk.
         

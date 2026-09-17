@@ -2,12 +2,14 @@ from sbs_utils.helpers import FrameContext
 from sbs_utils.lifetimedispatcher import LifetimeDispatcher
 from sbs_utils.tickdispatcher import TickDispatcher
 from sbs_utils.vec import Vec3
-def _orbit_aim (carrier_id, angle):
+def _orbit_aim (carrier_id, angle, dt=None):
     """Point the carrier at a spot further round the circle and let it fly there.
     
     It is aimed AHEAD rather than at where it should be: a carrier told to go where it
     already is would brake to a stop, and the whole orbit with it."""
-def _orbit_aim_radius (carrier_id, center_obj, radius, accumulate=True):
+def _orbit_aim_period (radius, speed):
+    """How often THIS orbit needs re-aiming, in seconds. See ORBIT_AIM_SWEEP."""
+def _orbit_aim_radius (carrier_id, center_obj, radius, accumulate=True, dt=None):
     """Where to put the aim point so the carrier's PATH ends up at ``radius``.
     
     A PI controller on the radius error. See ORBIT_RADIUS_GAIN for why aiming at the wanted
@@ -30,8 +32,13 @@ def _orbit_connect (carrier_id, ship_id):
     """The one place the raw engine call is made."""
 def _orbit_disconnect (a_id, b_id):
     ...
-def _orbit_ensure_tick ():
-    ...
+def _orbit_ensure_tick (period=None):
+    """One shared pass, run at whatever the FASTEST live orbit needs.
+    
+    Aiming a slow orbit more often than it asked for is harmless - every rate in here is
+    multiplied by the real dt - while aiming a fast one too rarely collapses its circle.
+    So the period only ever ratchets DOWN while orbits are live; it goes back to the
+    default when the last one ends and the task is dropped."""
 def _orbit_exclusion (obj):
     """An object's exclusion radius, or 0.0 when the engine object cannot be asked."""
 def _orbit_frame (ship_obj, center_obj):
@@ -104,6 +111,13 @@ def _orbit_wrap_pi (a):
 def add_role (set_holder, role):
     """Add a role to one or more agents.
     
+    THE SERVER CONSOLE COUNTS. `to_object(0)` returns None by design, so this used to
+    be a silent no-op for client id 0 - and LM's main screen adds `console, mainscreen`
+    to its own client id. On the server window that role was never added, so every
+    audience narrowed with `any_role("mainscreen")` - a hail placed on the main screen,
+    a hero card, a lower third - resolved to nobody and drew nothing, with no error.
+    `to_agent_list` resolves the server the same way `get_inventory_value` always has.
+    
     Args:
         set_holder (Agent | int | set[Agent | int]): Agent(s) to update.
         role (str): The role name to add."""
@@ -137,6 +151,10 @@ def get_inventory_value (id_or_object, key: str, default=None):
         any: The inventory value, or ``default`` if the key is not set."""
 def has_role (so, role):
     """Return whether an agent currently holds a given role.
+    
+    Answers for the SERVER console too. It used to always say False for client id 0,
+    which reads exactly like "the role is not there" - so a check on the server was
+    indistinguishable from a real negative and passed silently for years.
     
     Args:
         so (Agent | int): Agent ID or object.
@@ -183,6 +201,11 @@ def orbit_capture (ship, center, radius=None, speed=None, seconds=None, release_
         speed (float, optional): Orbital speed in units/sec. Defaults to
             ``ORBIT_DEFAULT_SPEED``. Ignored when ``seconds`` is given.
         seconds (float, optional): Wanted period for one full lap. Overrides ``speed``.
+        release_on_undock (bool): End the orbit when the ship reads as undocked. True is
+            the docking case this module was written for. **A ship that flew here rather
+            than docked is undocked the whole time**, so a free-flying capture - a
+            slingshot round a black hole, a scripted flyby - is released on its very
+            first tick unless this is False.
     
     Returns:
         int | None: The carrier's id, or None if either object is missing or the engine
@@ -198,12 +221,6 @@ def orbit_count ():
     """How many orbits are live. Cheap probe for tests, diagnostics and the reset ledger."""
 def orbit_is (ship):
     """Whether a ship is currently held in an orbit."""
-def orbit_swept_of (ship):
-    """Total radians this ship has flown since capture, or None if it is not orbiting.
-
-    Cumulative, deliberately NOT wrapped to a turn: a caller ending a maneuver after half
-    a lap has to be able to tell half a lap from one and a half. ``math.pi`` is the far
-    side of the body, ``2*math.pi`` is all the way round."""
 def orbit_radius_of (ship):
     """The radius a ship is orbiting at, or None."""
 def orbit_release (ship, delete_carrier=True):
@@ -229,6 +246,12 @@ def orbit_release_all ():
     already emptied, and the agents are about to be cleared anyway."""
 def orbit_riders ():
     """Every ship currently held in an orbit, as a set of ids."""
+def orbit_swept_of (ship):
+    """Total radians this ship has flown since capture, or None if it is not orbiting.
+    
+    Cumulative, deliberately NOT wrapped to a turn: a caller ending a maneuver after half
+    a lap has to be able to tell half a lap from one and a half. ``math.pi`` is the far
+    side of the body, ``2*math.pi`` is all the way round."""
 def orbit_tick (tick_task=None):
     """Advance every live orbit, and clean up the ones that have ended.
     
@@ -237,6 +260,9 @@ def orbit_tick (tick_task=None):
     reason grav_tether re-applies its impulse cap every pass."""
 def remove_role (agents, role):
     """Remove a role from one or more agents.
+    
+    Reaches the server console, for the same reason :func:`add_role` does - and it has
+    to be the same set, or a console that could gain a role could never lose it.
     
     Args:
         agents (Agent | int | set[Agent | int]): Agent(s) to update.

@@ -6,6 +6,7 @@ from sbs_utils.mast_sbs.story_nodes.button import Button
 from sbs_utils.mast_sbs.story_nodes.comms_message import CommsMessageStart
 from sbs_utils.mast_sbs.story_nodes.comms_message import CommsMessageStartRuntimeNode
 from sbs_utils.mast_sbs.story_nodes.define_format import DefineFormat
+from sbs_utils.mast_sbs.story_nodes.gui_app_decorator_label import GuiAppDecoratorLabel
 from sbs_utils.mast_sbs.story_nodes.gui_console_decorator_label import GuiConsoleDecoratorLabel
 from sbs_utils.mast_sbs.story_nodes.gui_tab_decorator_label import GuiTabDecoratorLabel
 from sbs_utils.mast_sbs.story_nodes.inline_route import InlineRoute

@@ -26,7 +26,11 @@ def _hail_may_answer_here (client_id):
     """Whether THIS console is one that can press an answer.
     
     Mirrors the server-side check in `hail_answer` rather than re-deciding it: a console
-    that cannot answer must not be given buttons that will be refused."""
+    that cannot answer must not be given buttons that will be refused.
+    
+    That mirroring is why this line moves with `_hail_may_answer` - it faithfully
+    mirrored the `bool(client_id)` bug too, so the SERVER console (id 0, falsy) was shown
+    the read-only readout: no answer buttons, no placement dropdown, no audio checkbox."""
 def _hail_radar_follow (ship, client_id):
     """Aim a comms console's 2D radar at the hail's subject.
     
@@ -380,6 +384,10 @@ def hail_where_props (current=None):
 def has_role (so, role):
     """Return whether an agent currently holds a given role.
     
+    Answers for the SERVER console too. It used to always say False for client id 0,
+    which reads exactly like "the role is not there" - so a check on the server was
+    indistinguishable from a real negative and passed silently for years.
+    
     Args:
         so (Agent | int): Agent ID or object.
         role (str): The role name to test for.
@@ -387,7 +395,12 @@ def has_role (so, role):
     Returns:
         bool: ``True`` if the agent has the role."""
 def overlay_clear (slot=None, to=None, consoles=None):
-    """Clear one slot (or all slots if ``slot`` is None) on the ``to`` targets."""
+    """Clear one slot (or all slots if ``slot`` is None) on the ``to`` targets.
+    
+    Taking a card down means taking it down, including for anyone who has not
+    arrived yet - otherwise the catch-up would put it straight back. But only
+    for the consoles actually named: a record the cleared consoles fully account
+    for is retired, a wider one keeps running for everybody else."""
 def overlay_register (kind, builder):
     """Register a content builder for an overlay ``kind``.
     

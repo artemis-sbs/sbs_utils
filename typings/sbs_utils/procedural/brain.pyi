@@ -8,7 +8,7 @@ from sbs_utils.tickdispatcher import RollingSlicer
 from sbs_utils.tickdispatcher import TickDispatcher
 def _brains_run_all (tick_task, pass_seconds=None):
     ...
-def brain_add (agent_id_or_set, label, data=None, client_id=0, parent=None):
+def brain_add (agent_id_or_set, label, data=None, client_id=0, parent=None, root_type=<BrainType.Select: 1024>):
     """Add a behaviour-tree node to one or more agents.
     
     Creates or extends the agent's brain tree. The root is a **Select** node
@@ -30,7 +30,14 @@ def brain_add (agent_id_or_set, label, data=None, client_id=0, parent=None):
         client_id (int, optional): Client context for GUI-task resolution.
             Defaults to 0 (server).
         parent (Brain | None, optional): Parent node to attach to. Defaults to
-            None (attaches to the agent's root Select node).
+            None (attaches to the agent's root node, creating it if needed).
+        root_type (BrainType, optional): Composite type for the root when this call
+            CREATES it. Defaults to ``BrainType.Select`` - children run in priority
+            order and the first success wins, which is what a behaviour list wants.
+            Pass ``BrainType.Sequence`` when every child should run each pass (e.g. a
+            set of independent per-console jobs, where a Select would let the first
+            success starve the rest). Ignored when the agent already has a root, so a
+            later call can never silently re-type an existing tree.
     
     Example:
         brain_add(ENEMY_ID, patrol_label)
@@ -154,6 +161,17 @@ def set_inventory_value (so, key: str, value):
         so (Agent | int | set[Agent | int]): The agent(s) to update.
         key (str): The inventory key.
         value (any): The value to store."""
+def to_client_object (other: sbs_utils.agent.Agent | int):
+    """Resolve a client/console ID or Agent to its Agent object.
+    
+    Returns ``None`` when the ID is not a valid client ID or the agent no
+    longer exists.
+    
+    Args:
+        other (Agent | int): Client ID or agent to resolve.
+    
+    Returns:
+        Agent | None: The client agent, or ``None``."""
 def to_object (other: sbs_utils.agent.Agent | sbs_utils.agent.CloseData | int):
     """Resolve an ID, ``CloseData``, or ``SpawnData`` to its Agent object.
     
@@ -201,7 +219,20 @@ class Brain(object):
     def run_sub_label (self, loc):
         ...
 class BrainType(IntFlag):
-    """Support for integer-based Flags"""
+    """int([x]) -> integer
+    int(x, base=10) -> integer
+    
+    Convert a number or string to an integer, or return 0 if no arguments
+    are given.  If x is a number, return x.__int__().  For floating point
+    numbers, this truncates towards zero.
+    
+    If x is not a number or if base is given, then x must be a string,
+    bytes, or bytearray instance representing an integer literal in the
+    given base.  The literal can be preceded by '+' or '-' and be surrounded
+    by whitespace.  The base defaults to 10.  Valid bases are 0 and 2-36.
+    Base 0 means to interpret the base from the string as an integer literal.
+    >>> int('0b100', base=0)
+    4"""
     AlwayFail : 4
     AlwaySuccess : 8
     Invert : 2

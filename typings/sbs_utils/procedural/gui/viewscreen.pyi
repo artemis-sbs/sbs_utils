@@ -130,6 +130,38 @@ def camera_dolly (to, subject, from_distance, to_distance, yaw=0.0, pitch=12.0, 
     
     Returns:
         Promise: resolves when the push ends."""
+def camera_establishing (to, subject, world, angle='behind', distance=None, seconds=14.0, arc=8.0, consoles=None):
+    """Frame ``subject`` AND ``world`` together - the orbital establishing shot.
+    
+    Both bodies in one picture: the ship close enough to read, the world filling the
+    space behind it or crowding one edge. `camera_orbit` cannot make this - it swings
+    around ONE object, so pointed at the world there is no ship in shot, and pointed at
+    the ship the world falls wherever the heading puts it.
+    
+    The lens is placed within a narrow cone about the WORLD-WARD axis (the line from the
+    world out through the ship), so the camera always looks roughly world-ward and the
+    body cannot leave the picture. ``angle`` names how far off that axis to lean and
+    which way, and the frame is rebuilt from live positions each tick, so the
+    composition holds all the way round the orbit.
+    
+    Args:
+        to: audience (see ``consoles_of``).
+        subject: what is framed and tracked - the SHIP.
+        world: the body it is in orbit of. Only its position is used, so a planet, a
+            station or a marker all work. ``None`` degrades to a plain tracking shot.
+        angle (str): a key of ``ESTABLISHING_ANGLES``, or a ``(cone, roll)`` pair in
+            degrees. Cone is clamped to ``ESTABLISHING_MAX_CONE``.
+        distance (float, optional): lens distance from the subject. Defaults to a
+            framing scaled off the subject's own size.
+        seconds (float): length of the leg.
+        arc (float): degrees of slow roll across the leg, so the shot breathes rather
+            than sitting dead still. 0 holds it fixed.
+    
+    Returns:
+        Promise: resolves when the leg ends.
+    
+    Example:
+        await camera_establishing(role("mainscreen"), ship, planet, angle="side")"""
 def camera_move_stop (to=None, consoles=None):
     """Stop any running move on these consoles, leaving the lens where it is.
     

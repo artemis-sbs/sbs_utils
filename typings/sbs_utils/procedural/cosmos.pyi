@@ -21,7 +21,12 @@ def sim_create () -> None:
     before this point, and a mission registers at story load - which is always before its
     first map calls this. Nothing reports the loss; it arrives later as a spawn failing for
     a hull the engine no longer has. Replaying here makes it an ordering fact rather than
-    something every add-on has to remember."""
+    something every add-on has to remember.
+    
+    Then SAYS what could not be replayed. The replay only knows about files registered
+    through `ship_data_add_extra`; a mod that calls `sbs.add_extra_ship_data()` itself is
+    invisible to it, and its hulls are gone from this point on with nothing reporting it.
+    This is the only moment the fact is both known and still worth printing."""
 def sim_pause () -> None:
     """Pause the simulation."""
 def sim_resume () -> None:

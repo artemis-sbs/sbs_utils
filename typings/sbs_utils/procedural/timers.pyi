@@ -1,6 +1,11 @@
 from sbs_utils.helpers import FrameContext
 from sbs_utils.mast.pollresults import PollResults
 from sbs_utils.futures import Promise
+def _format_elapsed (seconds, display):
+    """Fill ``display``'s hh/mm/ss tokens in from a count of seconds.
+    
+    Shared by every elapsed readout, so the mission clock and a per-agent counter
+    round and pad the same way."""
 def _signal_arm (agent_id, inv_key, name, due, signal, every, anchor):
     ...
 def _signal_disarm (id_or_obj, inv_key):
@@ -92,6 +97,31 @@ def delay_test (seconds=0, minutes=0):
     
     Returns:
         DelayForTests: A promise that resolves after enough poll ticks."""
+def format_counter_elapsed_seconds (id_or_obj, name, display='hh:mm:ss'):
+    """Return a counter's elapsed time as a formatted string, rounded to the second.
+    
+    The counterpart to ``format_time_remaining`` for counters, with the layout
+    left to the caller: ``hh`` is hours, ``mm`` minutes, ``ss`` seconds. Any other
+    text in ``display`` is kept as-is, so ``"mm minutes, ss seconds"`` works.
+    
+    Only the units NAMED in ``display`` are used, and the largest one present
+    absorbs everything above it - ``"mm:ss"`` reports 90 minutes as ``"90:00"``
+    rather than silently dropping the hour, which is the same convention
+    ``format_time_remaining`` follows with its ``M:SS``.
+    
+    A counter that was never started reads as zero.
+    
+    Args:
+        id_or_obj (Agent | int): Agent ID or object.
+        name (str): Counter name.
+        display (str): Layout to fill in. Use ``hh`` for hours, ``mm`` for
+            minutes and ``ss`` for seconds. Defaults to ``"hh:mm:ss"``.
+    
+    Returns:
+        str: The formatted elapsed time.
+    
+    Example:
+        gui_text("Elapsed: {format_counter_elapsed_seconds(SHIP_ID, 'mission')}")"""
 def format_time_remaining (id_or_obj, name):
     """Return the time remaining on a timer as a ``M:SS`` string.
     
@@ -192,6 +222,45 @@ def is_timer_set_and_finished (id_or_obj, name):
         if is_timer_set_and_finished(SHIP_ID, "cooldown"):
             clear_timer(SHIP_ID, "cooldown")
             "Weapons ready!""""
+def mission_clock_start ():
+    """Stamp now as the start of the mission.
+    
+    Called by ``map_start`` - the one door every mission goes through - so a
+    mission gets a clock without asking for one. Call it directly to restart the
+    clock at a moment the mission thinks is the real beginning (the end of a
+    cutscene, say).
+    
+    Example:
+        mission_clock_start()"""
+def mission_elapsed_seconds ():
+    """Sim seconds since the mission started.
+    
+    Falls back to the sim's own clock when nothing stamped a start - a mission
+    that never calls ``map_start`` has been running for as long as its sim has,
+    which is the honest answer and never ``None``.
+    
+    Returns:
+        float: Seconds since the mission started.
+    
+    Example:
+        if mission_elapsed_seconds() > 600:
+            "You have been out here ten minutes.""""
+def mission_elapsed_text (display='hh:mm:ss'):
+    """The mission clock as text, rounded to the second.
+    
+    Same layout tokens as ``format_counter_elapsed_seconds``: ``hh``, ``mm``,
+    ``ss``, with the largest one present absorbing everything above it. Fixed
+    width by default, so a readout drawn with it does not twitch as the digits
+    roll over.
+    
+    Args:
+        display (str): Layout to fill in. Defaults to ``"hh:mm:ss"``.
+    
+    Returns:
+        str: The formatted elapsed time.
+    
+    Example:
+        gui_text("$text:{gui_text_escape(mission_elapsed_text())};")"""
 def set_interval (id_or_obj, name, signal, seconds=0, minutes=0):
     """Emit a signal on an agent every ``seconds``, until it is cleared.
     

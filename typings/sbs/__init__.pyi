@@ -112,6 +112,8 @@ def query_client_widget_state(clientID: int, widgetName: str, fullScreenFlag: in
     """sends a request for the client to send a 'widget_box_state' script event back."""
 def remove_gui_hotkey(clientID: int, tag: str) -> None:
     """tells the targeted client (0 = server screen) to delete an existing hot key for a certain retained gui element."""
+def reposition_space_object(space_object: sbs.space_object, x: float, y: float, z: float) -> None:
+    """immediately changes the position of a spaceobject"""
 def request_client_string(clientComputerID: int, string_key: str) -> None:
     """requests a string value from the client computer.  This results in a script message, 'client_string'"""
 def resume_sim() -> None:
@@ -128,7 +130,7 @@ def send_client_widget_rects(arg0: int, arg1: str, arg2: float, arg3: float, arg
     """changes the rects of a gameplay widget, on the targeted client (0 = server screen)."""
 def send_comms_button_info(arg0: int, arg1: str, arg2: str, arg3: str) -> None:
     """sends a complex message to the comms console of a certain ship. args:  uint64 playerID (0 = all ships), std::string color, std::string bodyText"""
-def send_comms_message_to_player_ship(contactID: int, playerID: int, otherID: int, faceDesc: str, titleText: str, titleColor: str, bodyText: str, bodyColor: str, tagset: str) -> None:
+def send_comms_message_to_player_ship(contactID: int, playerID: int, otherID: int, faceDesc: str, titleText: str, titleColor: str, bodyText: str, bodyColor: str, tagset: str, name: str = 'unset') -> None:
     """sends a complex message to the comms console of a certain ship. args:  uint64 contactID (message sender entity),  uint64 playerID (0 = all ships), uint64 otherID, std::string titleText, std::string titleColor, std::string bodyText, std::string bodyColor, std::string tagset"""
 def send_comms_selection_info(arg0: int, arg1: str, arg2: str, arg3: str) -> None:
     """sends a complex message to the comms console of a certain ship. args:  uint64 playerID (0 = all ships), std::string color, std::string bodyText"""
@@ -682,7 +684,7 @@ class simulation(object): ### from pybind
         """returns true if the navpoint exists, by integer id"""
     def navproxy_exists(self: sbs.simulation, id: int) -> bool:
         """returns true if the navproxy exists, by integer id"""
-    def reposition_space_object(self: sbs.simulation, arg0: sbs.space_object, arg1: float, arg2: float, arg3: float) -> None:
+    def reposition_space_object(self: sbs.simulation, space_object: sbs.space_object, x: float, y: float, z: float) -> None:
         """immediately changes the position of a spaceobject"""
     def set_diplomacy_color(self: sbs.simulation, diplomacyEnumValue: int, colorString: str) -> None:
         """set the color of a diplomatic state (like DIPLOMACY::UNKNOWN or DIPLOMACY::ALLIED)"""

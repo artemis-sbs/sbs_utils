@@ -45,6 +45,18 @@ def backdrop_props (image, color, layer=None):
     
     `layer` None keeps the historic 1000, which is UNDER content -- so a
     backdrop cannot hide a neighbour's spill unless the author raises it."""
+def backdrop_tag (item):
+    """The tag to address one item's background / border widget by.
+    
+    A layout item that never took a tag -- a `gui_blank` used as a spacer, a bare section --
+    has ``tag is None``, and ``"__bg:" + None`` is a `TypeError`. It fires only the FIRST
+    time somebody gives such an item a background, which is why it sat unseen until an
+    opaque gutter was needed beside a face (a face cannot be layered, so the fill has to go
+    around it -- see the note above).
+    
+    Minted lazily and CACHED on the item. The engine addresses widgets by tag, so a value
+    that changed from frame to frame would emit a NEW widget every present instead of
+    updating the one already there."""
 def measure_block_height (font, text, px_width):
     """Height in PIXELS of `text` wrapped to `px_width`, or None.
     

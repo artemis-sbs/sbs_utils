@@ -29,11 +29,79 @@ def clear_face (ship_id):
     
     Args:
         ship_id (Agent | int): The id of the ship/object"""
+def face_gender_index (gender):
+    """A gender word as the terran builder's face index, or None for "any".
+    
+    0 male, 1 female, 2 fluid - the numbering :func:`terran` documents. Unknown words
+    answer None rather than guessing, so a mod's own vocabulary degrades to a random face
+    instead of to the wrong one."""
+def face_mod_reset ():
+    """Drop every mod registration. Called by reset_mission_state()."""
+def face_mod_size ():
+    """Reset-ledger probe: how much mod registration is currently held."""
+def face_overlay (face_string, *overlays):
+    """Stack overlay layers onto an existing face string.
+    
+    This is the whole point of keeping implants as separate cells: any face can be
+    assimilated at runtime, including one that was never drawn with implants. Layers
+    composite lowest-first, so overlays go last.
+    
+        face_overlay(random_face("terran"), "tng6 #fff 2 1", "tng6 #fff 5 3")
+    
+    Empty/None overlays are skipped so a caller can pass an optional one straight in."""
+def face_race_mapped (race):
+    """Re-point a race name at the face race its portraits should come from. ART ONLY.
+    
+    The third of the mod re-skin maps (`RACE_ART` and `ART_KEYS` are the other two, in
+    procedural/ship_data.py). Returns `race` unchanged unless a mission or profile set
+    ``RACE_FACES``, so stock behavior is untouched.
+    
+    WHY FACES NEED THEIR OWN MAP AND CANNOT REUSE `RACE_ART`: face races are SPECIES,
+    ship-data sides are FACTIONS, and they do not spell the same. A mod's Federation ships
+    are crewed by `human`, not by `federation`; a faction can field hulls and register no
+    portraits at all (Cosmos-TNG-Mod has Breen ships and no Breen faces). Feeding a faction
+    name to random_face() therefore matches nothing and falls back to terran - the exact
+    "NPC comms faces are still stock" symptom this exists to fix.
+    
+    Applied INSIDE random_face() rather than at its call sites, because a mission has many
+    (LM alone has four for NPCs, one of them in a fleet spawner) and a missed one looks
+    identical to the bug. A name with no entry passes through untouched, so player faces
+    already named by species (`human`) are unaffected."""
+def face_random_registered (race, role=None):
+    """A random registered face for a race, or None if the race was never registered.
+    
+    A role with no faces falls back to the race pool rather than returning nothing -
+    asking for a Breen science officer should still get a Breen."""
+def face_register_race (race, faces, roles=None, in_random=True):
+    """Declare ready-made face strings for a race so random_face(race) can use them.
+    
+    Args:
+        race:      race name as scripts will ask for it, case-insensitive.
+        faces:     list of face strings - the pool used when no role is asked for.
+        roles:     optional {role: [face strings]} for role-filtered picks, e.g.
+                   random_face("klingon", "command").
+        in_random: whether a bare random_face()/random_face("random") may return this
+                   race. A mod that only wants its faces when asked for by name
+                   passes False."""
+def face_register_sheet (alias, cols=8, rows=8):
+    """Declare a mod atlas alias and its cell grid.
+    
+    `alias` is the short name in a face string ("tng1") and must match the name the
+    engine reads from data/graphics/allFaceFiles.txt - the library cannot write that
+    file, so registering here does NOT make the sheet loadable, it only teaches the
+    library and the browser compositor how to read cells out of it."""
+def face_registered_races (in_random_only=False):
+    ...
+def face_registered_sheets ():
+    """{alias: {"cols","rows"}} - what the mock compositor and AMD renderer need."""
 def face_resolve (spec):
     """Resolve a declarative face spec to a face string. A KEYWORD (terran / male / female /
     fluid) -> a fresh random face of that kind; a literal face string -> itself unchanged;
     None/empty -> a random terran. Lets AMD/data author a face as a simple word instead of a
     raw face string. (Promoted from Open Universe's lifeform_face.)"""
+def face_sheet_grid (alias):
+    """(cols, rows) for an alias. Stock geometry for the six built-ins: the Terran
+    sheet is 15 wide, every other sheet is 8."""
 def get_face (ship_id):
     """Returns a face string for a specified ID
     
@@ -77,11 +145,24 @@ def random_arvonian ():
     
     Returns:
         (str):   A Face string"""
-def random_face (race=None):
+def random_face (race=None, role=None, gender=None, civilian=None):
     """Returns a random face for the specified race.
     
+    Mod races registered with face_register_race() are checked FIRST, so an add-on
+    can supply "klingon" or "cardassian" without this function knowing they exist.
+    That is what the TODO which used to sit here was asking for.
+    
     Args:
-        race (str): The Race Terran, Torgoth etc.
+        race (str): The Race Terran, Torgoth etc, or a registered mod race.
+        role (str): optional role filter for registered races ("command", "ops"...).
+                    Ignored by the six stock races, which have no role concept.
+        gender (str): "male", "female", "fluid" - so a face can be asked to AGREE with
+                    a name. Only terran has a gender axis; the other stock races ignore
+                    it, as do mod races, whose faces are whole drawn portraits.
+        civilian (bool): True forces no uniform, False forces one, None (the default)
+                    leaves it to chance - which is one civilian in five. A crew member
+                    wants False: a bridge officer out of uniform is not a variation, it
+                    is a stranger on the bridge. Terran only, for the same reason.
     
     Returns:
         str: The Face String"""

@@ -5,7 +5,11 @@ def command_line_get (key, default=None):
     
     The key is matched case-insensitively and without surrounding spaces, because a launch
     argument is typed by a person or pasted from a script and `Map=` should not behave
-    differently from `map=`."""
+    differently from `map=`.
+    
+    A mission-scoped argument (`profile=`, `map=`, `console=`, `var.NAME=`) reads as
+    absent once we have switched missions, so every caller gets the scoping without having
+    to remember it."""
 def gui_record_begin (event):
     """Start describing one interaction. Called before the event is dispatched."""
 def gui_record_count ():

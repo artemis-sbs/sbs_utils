@@ -7,6 +7,13 @@ from sbs_utils.tickdispatcher import TickDispatcher
 def add_role (set_holder, role):
     """Add a role to one or more agents.
     
+    THE SERVER CONSOLE COUNTS. `to_object(0)` returns None by design, so this used to
+    be a silent no-op for client id 0 - and LM's main screen adds `console, mainscreen`
+    to its own client id. On the server window that role was never added, so every
+    audience narrowed with `any_role("mainscreen")` - a hail placed on the main screen,
+    a hero card, a lower third - resolved to nobody and drew nothing, with no error.
+    `to_agent_list` resolves the server the same way `get_inventory_value` always has.
+    
     Args:
         set_holder (Agent | int | set[Agent | int]): Agent(s) to update.
         role (str): The role name to add."""
@@ -113,6 +120,9 @@ def modifier_remove (obj_or_id_or_set, key_or_modifier, source=None) -> None:
 def remove_role (agents, role):
     """Remove a role from one or more agents.
     
+    Reaches the server console, for the same reason :func:`add_role` does - and it has
+    to be the same set, or a console that could gain a role could never lose it.
+    
     Args:
         agents (Agent | int | set[Agent | int]): Agent(s) to update.
         role (str): The role name to remove."""
@@ -153,6 +163,17 @@ def task_schedule_server (label: str | sbs_utils.mast.core_nodes.label.Label, da
     
     Returns:
         MastAsyncTask: The task created, or None outside a server task context."""
+def to_client_object (other: sbs_utils.agent.Agent | int):
+    """Resolve a client/console ID or Agent to its Agent object.
+    
+    Returns ``None`` when the ID is not a valid client ID or the agent no
+    longer exists.
+    
+    Args:
+        other (Agent | int): Client ID or agent to resolve.
+    
+    Returns:
+        Agent | None: The client agent, or ``None``."""
 def to_object (other: sbs_utils.agent.Agent | sbs_utils.agent.CloseData | int):
     """Resolve an ID, ``CloseData``, or ``SpawnData`` to its Agent object.
     

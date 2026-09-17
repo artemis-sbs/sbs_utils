@@ -3,6 +3,8 @@ from sbs_utils.agent import SpawnData
 from sbs_utils.helpers import FrameContext
 from enum import IntEnum
 from sbs_utils.vec import Vec3
+def ascii_name (name):
+    """A name the engine can draw. Returns `name` unchanged when it is already ASCII."""
 def get_ship_data_for (ship_key):
     """Return the full ship data entry for a given key.
     
@@ -11,6 +13,12 @@ def get_ship_data_for (ship_key):
     
     Returns:
         dict | None: Ship data dict, or ``None`` if not found."""
+def safe_name (name):
+    """A name safe to hand the engine: no `^`, `;`, backtick or control characters.
+    
+    Applies `ascii_name` as well, so this is the single call every name path needs.
+    Returns `name` unchanged when it is a non-string (`None` is a legal name) or is
+    already clean."""
 class MSpawn(object):
     """class MSpawn"""
     def spawn_common (self, obj, x, y, z, name, side, art_id):
@@ -313,7 +321,23 @@ class SpaceObject(Agent):
     def set_ship_data_key (self, ship_data_key):
         """Set the ship key from shipData for this space object to change it's 3D model and art.
         Args:
-            ship_data_key (str): The ship key."""
+            ship_data_key (str): The ship key.
+        
+        Emits the ``ship_hull_changed`` signal when the key actually changes. Its data
+        becomes task variables in the handler: ``SHIP_ID``, ``HULL_OLD_KEY``,
+        ``HULL_NEW_KEY``. CAPS because the convention reserves that spelling for signals
+        the SYSTEM emits, as against a mission's own snake_case ones.
+        
+        WHY A SIGNAL. Changing the hull re-sizes the ship's internal map, but the
+        engineering grid standing in it is NOT rebuilt - and nothing in sbs_utils rebuilds
+        it, because ``grid_rebuild_grid_objects`` has no caller here. Missions build the
+        interior once from a ``//spawn`` route, so any hull change after that leaves a
+        blank or mismatched Engineering console with nothing logged. This is the hook that
+        lets a mission notice; see ``LegendaryMissions/ai/grid_ai.mast``.
+        
+        The signal is emitted, not acted on: a rebuild deletes and respawns 60-100 grid
+        objects, which is far too heavy to hide inside a property setter, and the library
+        has no other dependency on that function."""
     def set_side (self, side):
         """Get the side of the object
         

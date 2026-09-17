@@ -153,6 +153,19 @@ def music_find (spec):
     """Find one music ``@media`` label. See :func:`media_find`."""
 def music_get_list ():
     """Every usable music ``@media`` label. See :func:`media_get_list`."""
+def music_name_list ():
+    """Dropdown options string for a music picker: ``'random, <Display>, ...'``.
+    
+    For a map's ``Properties:`` block, so the control appears because a map asked for it
+    rather than being hardcoded into the server console for every mission::
+    
+        default shared MUSIC_SELECT = music_selected_name()
+        default shared MUSIC_LIST   = music_name_list()
+        ...
+        Music: 'gui_drop_down("$text: {MUSIC_SELECT};list: {MUSIC_LIST}", var="MUSIC_SELECT")'
+    
+    Built from ``music_get_list``, so a mod that ships banks appears without the map
+    knowing about it."""
 def music_play_sting (name, ids_or_obj=0):
     """Play a one-shot out of the bank that is CURRENTLY PLAYING - `victory`, `failure`,
     `start`, `main`.
@@ -209,6 +222,12 @@ def music_schedule_select (spec, ID=0):
     A spec that matches nothing WARNS BY NAME and falls back to random. Silence there was
     the tempting choice and the wrong one: ``MUSIC_SELECT: Artmeis2`` would play a random
     track, which is indistinguishable from working."""
+def music_selected_name ():
+    """The current MUSIC_SELECT, or ``"random"``.
+    
+    What a map seeds its shared var from. Reads the shared value if one is already set,
+    otherwise the setting - so a `default shared` line cannot overwrite a profile's choice
+    with the fallback the moment the panel builds."""
 def skybox_find (spec):
     """Find one skybox ``@media`` label. See :func:`media_find`."""
 def skybox_get_list ():

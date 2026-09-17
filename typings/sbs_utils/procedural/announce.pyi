@@ -108,11 +108,25 @@ def comms_message (msg, from_ids_or_obj, to_ids_or_obj, title=None, face=None, c
         color (str, optional): Body text color. Defaults to ``"#fff"``.
         title_color (str, optional): Title text color. Defaults to the
             sender's side color.
-        is_receive (bool, optional): ``True`` = message is received (``< <``
-            prefix); ``False`` = message is sent (``> >`` prefix). Defaults
-            to ``True``.
+        is_receive (bool, optional): ``True`` = the player ship RECEIVED this
+            (tagged ``recv``); ``False`` = the player ship TRANSMITTED it
+            (tagged ``send``). Defaults to ``True``.
         from_name (str, optional): Override the display name of the sender.
             Defaults to None (uses the sender object's ``comms_id``).
+    
+    Note:
+        When BOTH ends are player ships a transmit reaches both bridges: the
+        sender gets the outgoing copy and the receiving crew gets the matching
+        incoming one, each named for the other ship. Send it once - a second
+        call with the ids swapped now duplicates it.
+    
+    Note:
+        The console threads messages by CONTACT - the other party in the
+        conversation. For a lifeform that is the LIFEFORM's id, not its host
+        ship's, so two crew aboard one hull are two conversations rather than
+        one, and a lifeform hailing another lifeform arrives on the far bridge
+        named for the person who sent it. The title names the same contact the
+        thread is filed under, in both directions.
     
     Example:
         comms_message("Incoming!", ENEMY_ID, SHIP_ID, title="Commander")"""

@@ -16,18 +16,62 @@ from sbs_utils.lifetimedispatcher import LifetimeDispatcher
 from sbs_utils.mast.mastscheduler import MastAsyncTask
 from sbs_utils.tickdispatcher import TickDispatcher
 from sbs_utils.vec import Vec3
+def _await_gui_sites ():
+    ...
+def _boarding_figure_count ():
+    """Reset-ledger probe: bodies still standing on one."""
+def _boarding_fire_count ():
+    """Reset-ledger probe: consoles left holding a live weapon."""
+def _boarding_invite_count ():
+    """Reset-ledger probe."""
+def _boarding_room_count ():
+    """Reset-ledger probe: rooms the party is believed to be standing in."""
+def _boarding_scene_count ():
+    """Reset-ledger probe: whether a beat is being held."""
+def _boarding_site_count ():
+    """Reset-ledger probe: interiors still marked as being boarded."""
+def _boarding_team_count ():
+    """Reset-ledger probe: how many clients are bound to a character."""
 def _button_promise ():
     """Lazy import: procedural.gui imports back into this module."""
 def _cosmos_event_handler (sim, event):
     ...
+def _crew_complement_count ():
+    """Reset-ledger probe: how many automatic names are allocated to seats.
+    
+    A third probe rather than a bigger one, for the same reason `crew_seat_count` is separate:
+    a complement that survives into the next mission is a DIFFERENT bug from a leaked seat -
+    it shows up as run 2 naming its bridge after run 1's, or eventually as a pool with no free
+    names left."""
+def _crew_count ():
+    """Reset-ledger probe: how much DECLARED roster data is held."""
+def _crew_seat_count ():
+    """Reset-ledger probe: how many LIVE seats are held.
+    
+    Separate from :func:`crew_count` on purpose - declared rosters and occupied seats leak
+    for different reasons, and one probe covering both cannot say which of them happened."""
 def _dead_handler_sites ():
     ...
 def _drops_size ():
     ...
+def _epadd_apps_count ():
+    """Reset-ledger probe. `Agent.SHARED` is rebuilt by `clear_shared()` on every
+    mission reset, so this should always report 0 after one - it is registered so that
+    a future move off SHARED cannot go unnoticed."""
+def _eva_route_count ():
+    """Reset-ledger probe: consoles still flying a route."""
+def _eva_suit_count ():
+    """Reset-ledger probe: suits still in the world."""
+def _face_mod_size ():
+    """Reset-ledger probe: how much mod registration is currently held."""
 def _log_size ():
     """Lazy import: procedural.log_panel is not needed until a reset audit runs."""
 def _mast_expr_source_count ():
     ...
+def _messages_count ():
+    """Reset-ledger probe."""
+def _messages_pending ():
+    """Reset-ledger probe for the undelivered pile."""
 def _particle_count ():
     """How many attached emitters are live. Ledger probe."""
 def _phase (store, name, fn, *args):
@@ -52,6 +96,8 @@ def _relics_count ():
     """Number of registered relic records. The reset-ledger probe."""
 def _report_reentry (event):
     ...
+def _standby_parked_count ():
+    """Reset-ledger probe: parked loose objects + parked fleets."""
 def _vocab_size ():
     ...
 def _volume_anchor_count ():
@@ -60,6 +106,8 @@ def _volume_count ():
     """Number of defined volumes. The reset-ledger probe."""
 def _volume_watch_count ():
     """Number of live watchers. The reset-ledger probe."""
+def _xess_log_count (kind=None):
+    """How many readings there are. What the tile's badge says."""
 def amd_content_cache_size ():
     ...
 def amd_cutscene_clear ():
@@ -72,6 +120,14 @@ def amd_doc_cache_size ():
     ...
 def amd_effects_count ():
     """Ledger probe."""
+def amd_sides_audience_count ():
+    """Reset-ledger probe: how many token rules are held."""
+def amd_sides_clear ():
+    """Drop the cross-document side registries - the per-mission reset."""
+def amd_theater_clear ():
+    """Drop every declared theater. Called from reset_mission_state()."""
+def amd_theater_count ():
+    """How many theaters are declared - the reset-ledger probe."""
 def amd_vocabulary_added ():
     """How many vocabulary entries exist beyond the library's own baseline.
     
@@ -81,6 +137,8 @@ def amd_vocabulary_added ():
     DIAGNOSTIC: when two missions declare one label differently, amd_register_fields
     raises at startup on a mission that was fine a moment ago, and this is the number
     that tells you the previous mission's words are still loaded."""
+def art_keys_cache_clear ():
+    """Drop the generated ART_KEYS pairing. On the reset ledger with the theaters."""
 def clear_shared ():
     ...
 def comms_history_clear ():
@@ -90,7 +148,17 @@ def comms_history_size ():
 def conformance_error_count ():
     """Runtime errors seen so far. Reset-ledger probe."""
 def cosmos_event_handler (sim, event):
-    """Engine entry point. Guards the non-reentrancy the rest of this file assumes."""
+    """Engine entry point. Guards the non-reentrancy the rest of this file assumes.
+    
+    It also FREEZES the event on the way in, when the event knows how. The engine's
+    own event is a Pybind11 object with read-only attributes; the mock's FakeEvent
+    is a plain Python object that takes an assignment happily. That difference hid a
+    real defect - code that re-stamped `event.sub_tag` to carry an arbitrated value
+    onward passed the whole suite and raised on a live bridge. Freezing here makes
+    the mock refuse it too, at the one place every event goes through.
+    
+    Nothing in the library writes to an event, so this asserts an invariant rather
+    than changing behavior. A real engine event has no `freeze`, and is skipped."""
 def dialogue_scenes_registry_clear ():
     """Drop the registry - the per-mission reset."""
 def dialogue_slots_clear ():
@@ -125,6 +193,8 @@ def get_startup_mission_name ():
         str: The default mission folder name from game preferences."""
 def grid_data_is_loaded () -> int:
     """Reset-ledger probe: 1 while grid data (possibly mod-merged) is held, else 0."""
+def grid_interior_pending ():
+    """Ships recorded but not yet built, plus queued work still to run."""
 def grid_theme_current_index () -> int:
     """Reset-ledger probe: the selected theme index, which must be back to 0 (default).
     
@@ -168,6 +238,12 @@ def particle_charge_count ():
     """Ledger probe: build-ups in flight."""
 def particle_presets_mission_count ():
     """Ledger probe: how many mission-defined presets are live."""
+def player_roster_clear ():
+    """Drop every record and binding. On the reset ledger."""
+def player_roster_count_records ():
+    """How much state is held. The reset-ledger probe."""
+def player_roster_crew_warn_count ():
+    """How many unloaded CREW_HULL keys have been reported. On the reset ledger."""
 def print_event (event):
     """Print the event data.
     Args:
@@ -179,6 +255,10 @@ def quest_consoles_clear ():
     enabled."""
 def quest_consoles_count ():
     ...
+def races_clear ():
+    """Drop every declared race override. Called from reset_mission_state()."""
+def races_count ():
+    """How many race overrides are declared - the reset-ledger probe."""
 def register_reset_state (name: str, probe) -> None:
     """Declare a per-mission container that must be empty after reset_mission_state().
     
@@ -211,23 +291,60 @@ def tick_the_rest (event):
     ...
 def timer_signals_count ():
     """How many timers/counters are armed to emit a signal (reset audit)."""
-def viewscreen_helm_override (ship, view, facing, mode):
-    """Helm touched the main-screen control: the viewer stands down.
+def viewscreen_helm_override (ship, view, facing, mode, client_id=None):
+    """Helm or weapons touched the engine's main-screen control.
     
     Called from the ``main_screen_change`` handler with the triple the engine just
-    reported. No restore - helm's choice IS the new state, and putting the viewer's
-    idea of "before" back over the top would undo the very change being handled.
+    reported. What happens next depends on WHO holds the screen:
     
-    A triple identical to what the viewer asked for is NOT a takeover: a console
-    reconnecting replays the state it is already in.
+    * **A console claim** - science's "on screen", weapons', docking's - stands
+      down, and nothing is restored: helm's choice IS the new state, and putting a
+      recorded "before" back over the top would undo the very change being handled.
+      Any request parked behind a story beat is thrown away too; helm just spoke,
+      and a stale drop-down pick firing later would override the officer who
+      overrode it.
+    * **A story claim** - a cutscene, a hail, a mission beat - does NOT stand down.
+      The crew's press is PARKED and applied when the story releases, so it is
+      honored a few seconds late rather than lost, and the story's own triple is
+      written back so the engine and the record agree again.
+    
+    **WHO pressed decides, not what the values are.** Only helm and weapons carry
+    the ``main_screen_control`` widget; a main screen's widget list is
+    ``3dview^ship_data`` / ``2dview^ship_data``, so a main screen cannot press one
+    at all - every ``main_screen_change`` carrying a main screen's client id is
+    that screen reporting back what we set it to. So an event from one of this
+    ship's main screens is never a takeover, and an event from anywhere else
+    always is.
+    
+    Comparing the reported triple against ``VIEWER_EXPECT`` instead was wrong in
+    both directions, and each cost a real bug:
+    
+    * **The dial forces the view back to 3D.** Touching FRONT or CHASE means "show
+      me that camera", so during a 3D shot it sends ``("3d_view", facing, mode)``
+      - which is exactly what the shot recorded. Helm's press was read as a replay
+      and swallowed; the engine moved the camera anyway (the flash), and the shot
+      that was never stood down re-aimed it a moment later. Reported as science
+      stealing the screen back.
+    * **The shot cancelled itself.** Every shot goes through
+      ``gui_cinematic_full_control``, which calls ``set_main_view_modes(cid,
+      "3dview", "front", "cinematic")``. Coming back as an event that matches
+      nothing, it read as a takeover - the viewer's own camera standing the viewer
+      down.
+    
+    ``client_id=None`` keeps the old value comparison, for a caller that cannot say
+    who pressed.
     
     The triple is written here as well as by the caller. ``handlerhooks`` already
     records it (issue #595) and writing it twice is harmless - but a function whose
     postcondition depends on the caller having gone first is a trap for the next
     caller, so this one leaves the ship in the state it was told about either way.
+    On the story path that means writing the story's triple BACK over what the
+    caller just recorded, which is the whole point.
     
     Returns:
-        bool: True if a viewer was stood down."""
+        bool: True if a claim was stood down. False for a story claim that held -
+        see ``viewscreen_effective_state`` for what the screen is actually showing
+        afterwards, which is what the reroute has to carry."""
 def viewscreen_reset ():
     """Drop every running shot WITHOUT touching the engine - for mission reset.
     

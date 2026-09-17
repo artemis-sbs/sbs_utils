@@ -1,4 +1,6 @@
 from sbs_utils.helpers import FrameContext
+def _framing (text):
+    """`Framing: close` -> "close"; `Framing: wide, close` -> ["wide", "close"] (a move)."""
 def _log (message):
     ...
 def _move (text):
@@ -25,6 +27,8 @@ def _truthy (v, default):
     ...
 def _vec (text):
     """`0, 900, -4000` -> (0.0, 900.0, -4000.0). None when it will not parse."""
+def _warn_camera_lookalikes (fields, key):
+    """Say when a camera-sounding field was swept into the overlay instead."""
 def amd_body_transition (line):
     """The transition a body line names (`CUT TO:`), or None.
     
@@ -62,6 +66,16 @@ def amd_records (section):
     Returns ``[]`` when ``section`` is None."""
 def cutscene_amd (key, to=None, consoles=None, **overrides):
     """Play a cutscene declared in AMD. Returns the Promise, or None if unknown."""
+def cutscene_amd_shots (key):
+    """The playable shots of an AMD cutscene, without playing it.
+    
+    Same resolution `cutscene_amd` does - subjects bound now, unresolvable shots
+    dropped - but handed back instead of handed to `cutscene_play`. That is what lets
+    a caller step a shot list one shot at a time (`shot_apply`) rather than run it on
+    a clock: a capture harness holding each shot for a still, an editor previewing a
+    single shot, a test asserting what a scene resolved to.
+    
+    Returns [] for a key no loaded AMD declares."""
 def cutscene_cast (name, obj=None):
     """Bind (or read) a cast name used by ``Subject:`` in AMD shots.
     
@@ -77,13 +91,18 @@ def cutscene_define (name, shots, letterbox=True, skippable=True, bar=4, release
         name (str): what ``cutscene_play`` will look up.
         shots (list[dict]): in order. Per shot:
             ``subject`` (required) - what the shot looks at, and necessarily what
-            the lens rides; ``lens`` (world position) OR ``move`` ([from, to]);
-            ``seconds`` (default 4); ``ease``; ``overlay`` ({"kind": ..., plus that
-            kind's fields}).
+            the lens rides; ``framing`` (``close``/``medium``/``wide``, or a two-item
+            list for a move) OR ``lens`` (world position) OR ``move`` ([from, to]);
+            ``seconds`` (default 4); ``ease``; ``yaw``/``pitch``; ``overlay``
+            ({"kind": ..., plus that kind's fields}).
+            Prefer ``framing``: it scales to the subject's hull, so one shot frames a
+            runabout and a starbase alike. ``lens``/``move`` are world POSITIONS and
+            so also depend on where the subject is parked.
         letterbox (bool): black bars for the duration.
         skippable (bool): whether ``cutscene_skip`` ends it.
         bar (float): letterbox bar height in em.
-        release (bool): hand the camera back to the engine's director at the end.
+        release (bool): at the end, put each console back on the object it was riding
+            and hand the camera to the engine's director.
             Leave it True unless the next thing the story does is set its own shot -
             a cutscene that ends still holding a dolly will drop to the engine
             default the moment that object is deleted.
@@ -101,12 +120,15 @@ def cutscene_play (name_or_shots, to=None, consoles=None, **overrides):
     
     Returns:
         Promise: resolves with ``{"skipped": bool, "shots": int, "name": str}``."""
-def rundown_add (name, subject, lens=None, move=None, seconds=4, ease='in_out', label=None, overlay=None):
+def rundown_add (name, subject, lens=None, move=None, seconds=4, ease='in_out', label=None, overlay=None, framing=None, yaw=None, pitch=None):
     """Add (or replace) a shot in the rundown.
     
     Args:
         name (str): how the director refers to it.
         subject: what the shot looks at - and necessarily what the lens rides.
+        framing: a named size (``close``/``medium``/``wide``), or two for a move.
+            PREFERRED over lens/move - the distance is taken from the subject own
+            hull, so one shot frames a runabout and a starbase alike.
         lens: world position for a static shot.
         move: ``[from, to]`` world positions for a moving one.
         seconds (float): duration of a ``move`` (a static shot holds until punched away).

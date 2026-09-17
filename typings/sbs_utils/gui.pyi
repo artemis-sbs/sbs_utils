@@ -34,6 +34,13 @@ class Gui(object):
         :type class: A python class typically a Page"""
     def dirty (client_id):
         ...
+    def forget_widget_rect (client_id, widget):
+        """A script HID an engine widget. See ``Gui.widget_rects``.
+        
+        Call from anywhere that sends a widget a rect meaning "be gone". The
+        widget keeps whatever rect it was just given; what it loses is our claim
+        to know where it belongs, so nothing will move it again on its owner's
+        behalf."""
     def on_event (event):
         """on_event
         
@@ -68,6 +75,17 @@ class Gui(object):
         :type int: client id from the engine
         :param page:
         :type Page: A GUI Page"""
+    def record_widget_rect (client_id, widget, left, top, right, bottom, *alt):
+        """A script PLACED an engine widget here. See ``Gui.widget_rects``.
+        
+        Call from anywhere that sends a widget a rect meaning "be visible here".
+        Recording it is what later lets the widget be parked offscreen and put
+        back where it was.
+        
+        ``send_client_widget_rects`` takes TWO rects; pass the second as ``alt``
+        if it differs, and the widget is put back with exactly what it was given.
+        Omit it and the one rect is used for both, which is what a caller that
+        computed a single rect meant anyway."""
     def root_clear (sbs, client_id):
         """Clear a client's ROOT region, recording that it happened.
         
@@ -108,6 +126,10 @@ class Gui(object):
         exempt from the engine-console purge in Gui.present.
         
         Returns True if a matching web route was found and opened."""
+    def widget_rect_of (client_id, widget):
+        """The 8 numbers a script last placed ``widget`` with - both rects, ready
+        to hand straight back to ``send_client_widget_rects``. None if we never
+        placed it."""
 class GuiClient(Agent):
     """Manages the pages for a client
     

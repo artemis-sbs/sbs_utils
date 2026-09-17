@@ -114,3 +114,16 @@ def gui_reroute_server (label, data=None):
     
     Example:
         gui_reroute_server(server_status_page)"""
+def page_gui_task_jump (page, label, activate_cmd=0, tick=False):
+    """Queue a jump on a page's GUI task. The one place that does this.
+    
+    Three callers steer a console's GUI task from outside it -- gui_task_jump,
+    gui_reroute_client, and the `await gui()` promotion in gui.py (LM #714) --
+    and they used to each spell it out. They differ only in whether the jump
+    runs in the CURRENT frame:
+    
+      tick=False  queue it; the next scheduler tick picks it up.
+      tick=True   run it now, under a FrameContextOverride, the way a repaint
+                  triggered by a click has to.
+    
+    Returns True when the jump was queued."""

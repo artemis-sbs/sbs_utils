@@ -49,7 +49,7 @@ def gui_blank (count=1, style=None):
         gui_blank()
         gui_icon("icons/shield")
         gui_blank()"""
-def gui_button (props, style=None, data=None, on_press=None, is_sub_task=False):
+def gui_button (props, style=None, data=None, on_press=None, is_sub_task=None):
     """Add a button to the current GUI layout outside of an ``await gui()`` block.
     
     Unlike buttons declared with ``*`` or ``+`` inside ``await gui()``, this
@@ -70,10 +70,24 @@ def gui_button (props, style=None, data=None, on_press=None, is_sub_task=False):
         on_press (label | callable | Promise, optional): What to do when the
             button is pressed. A label is jumped to; a callable is called; a
             Promise has its result set. Defaults to None.
-        is_sub_task (bool, optional): When ``True`` the handler runs as an
-            independent sub-task. Use ``False`` (default) only when pressing
-            the button will rebuild the entire GUI via ``await gui()``.
-            Defaults to False.
+    
+            **A callable is called with NOTHING unless it asks.** Declare a
+            REQUIRED parameter and it is handed `data`; declare two and it gets
+            `(data, event)`. Required parameters are the discriminator, never the
+            parameter count -- the house idiom is a closure with bound defaults
+            (`lambda _cid=client_id: go(_cid)`), which declares parameters that all
+            have defaults and must keep being called with nothing::
+    
+                gui_button("Go", on_press=lambda _c=cid: fire(_c))   # -> ()
+                gui_button("Go", on_press=shoot, data={"cid": cid})  # def shoot(data)
+        is_sub_task (bool, optional): How an ``on_press`` **label** runs.
+            ``True`` runs it as a sub-task: safe to press repeatedly, and it
+            should end with ``->END``. ``False`` jumps the task that built the
+            widget, so the press takes that task over and the handler must hand
+            the console back -- this is the historical behavior and is
+            **deprecated**. Defaults to None, meaning the library decides; a
+            handler that paints a screen and reaches ``await gui()`` sends the
+            GUI task there either way, so you should not need this.
     
     Valid Styles:
         area:
@@ -395,20 +409,29 @@ def gui_sub_section (style=None):
     keyword. The sub-section is added to the current layout when the ``with``
     block exits.
     
+    The returned object can be hidden and restored after it is built, with
+    ``gui_hide`` / ``gui_show`` or its own ``show()``. Hiding takes the whole
+    sub-tree off screen, and its siblings reclaim the space on the next layout
+    pass. Hold on to the object to do that - hiding one before its ``with``
+    block has run is a no-op, since the layout it stands for does not exist yet.
+    
     Args:
         style (str, optional): CSS-like style string controlling the column
             width, row height, background, etc. of the sub-section.
             Defaults to None.
     
     Returns:
-        PageSubSection: Context manager object. Use with ``with``.
+        PageSubSection: Context manager object with ``show()`` and
+            ``is_hidden``. Use with ``with``.
     
     Example:
         gui_row(style="row-height:3em;")
         with gui_sub_section(style="col-width:30%;"):
             gui_text("Left column")
-        with gui_sub_section():
-            gui_text("Right column")"""
+        right = gui_sub_section()
+        with right:
+            gui_text("Right column")
+        gui_hide(right)     # and gui_show(right) to bring it back"""
 def gui_tabbed_panel (items=None, style=None, tab=0, tab_location=0, icon_size=0):
     """Create a tabbed panel widget with icon-based tab navigation.
     

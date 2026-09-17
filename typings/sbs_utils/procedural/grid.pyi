@@ -4,8 +4,30 @@ from sbs_utils.helpers import FrameContext
 from sbs_utils.griddispatcher import GridDispatcher
 from sbs_utils.tickdispatcher import TickDispatcher
 from sbs_utils.vec import Vec3
+def _grid_clear_selection_of (host_id, gid):
+    """Drop the console's grid selection if it names the object being deleted.
+    
+    ``grid_selected_UID`` lives on the HOST SHIP's blob and is what the engine's
+    grid_object_list widget resolves into an index every frame. Nothing used to
+    clear it on delete, so deleting the selected object - a damcon that dies, a
+    repaired hallway marker, or the whole interior during a grid rebuild - left
+    the widget pointing at an id that is no longer in the array. Doing it here
+    rather than at each call site means every caller inherits it."""
+def _grid_say (msg, level='warning'):
+    """Report a grid-data problem on a channel the ENGINE shows.
+    
+    ``log()`` alone is not enough: in the engine it reaches a Python logger with no
+    handler, so every merge failure below was invisible on the one platform where a mod
+    is actually loaded. See the twin in ``internal_damage._grid_say``."""
 def add_role (set_holder, role):
     """Add a role to one or more agents.
+    
+    THE SERVER CONSOLE COUNTS. `to_object(0)` returns None by design, so this used to
+    be a silent no-op for client id 0 - and LM's main screen adds `console, mainscreen`
+    to its own client id. On the server window that role was never added, so every
+    audience narrowed with `any_role("mainscreen")` - a hail placed on the main screen,
+    a hero card, a lower third - resolved to nobody and drew nothing, with no error.
+    `to_agent_list` resolves the server the same way `get_inventory_value` always has.
     
     Args:
         set_holder (Agent | int | set[Agent | int]): Agent(s) to update.
@@ -208,6 +230,38 @@ def grid_get_theme_name (ship_key, layout=None):
     made per-race themes impossible. A hull, or a single layout of it, can now name its
     own: a captured TSN hull refitted by pirates is the same mesh with a different
     interior AND a different vocabulary."""
+def grid_hull_has_role (ship_or_key, role, layout=None):
+    """Does this HULL's floor plan declare a node with this role? e.g. ``"jump"``.
+    
+    Answers from the STATIC grid data, so it is true from the moment the ship exists -
+    **before its interior has been built**. That is the whole point of it.
+    
+    The obvious way to ask "does this ship have a jump drive" is to look for a grid
+    object with the ``jump`` role, or to read a blob value some route wrote after
+    looking. Both need the interior to exist, and an interior is built LATE and
+    asynchronously (see ``grid_interior_request``: the build is deferred so a roster of
+    eight player ships is not built three times over before anyone picks a map). A
+    console that opens before that lands therefore asks too early, gets "no", and lays
+    itself out without the drive's controls - and nothing tells it to try again, so the
+    crew has to switch console and come back. Reported on a xim_dreadnought, whose hull
+    plainly has the drive.
+    
+    The hull's own floor plan knows the answer immediately and never changes, so ask it.
+    
+    Args:
+        ship_or_key (Agent | int | str): a ship, or a shipData key directly.
+        role (str): the grid-object role to look for, matched case-insensitively
+            against the comma-separated ``roles`` of each node.
+        layout (str, optional): which named layout. Defaults to the ship's own
+            ``grid_layout``, then ``"default"`` - the same resolution the build uses,
+            so a jump-drive refit layout answers for itself.
+    
+    Returns:
+        bool: True when some node in that plan carries the role.
+    
+    Example:
+        if grid_hull_has_role(ship, "jump"):
+            gui_layout_widget("helm_jump")"""
 def grid_merge_ascii (content, mod=None, ship_key=None):
     """Merge one ASCII floor plan (see :mod:`grid_ascii`) into the grid data.
     
@@ -269,6 +323,17 @@ def grid_merge_mod_theme (content):
     
     Returns:
         list | None: The updated theme list, or ``None`` if nothing parsed."""
+def grid_merge_report ():
+    """How many hull interiors each mod supplied: ``{mod_name: count}``.
+    
+    The question "did my floor plans actually load?" had no answer short of poking at
+    ``grid_get_grid_data()`` by hand, and getting it wrong is invisible - a hull with no
+    interior is a dead Engineering console and nothing else. Built-in hulls are not
+    counted; they carry no ``#mod`` stamp.
+    
+    Intended for a mission's own start-up assertion and for the test suite::
+    
+        assert grid_merge_report().get("tng_races") == 50"""
 def grid_object_valid (id_or_obj) -> bool:
     """Return whether a grid object still has a valid backing space object.
     
@@ -417,6 +482,9 @@ def load_json_data (file):
         dict or None: Parsed JSON data, or None if loading fails."""
 def remove_role (agents, role):
     """Remove a role from one or more agents.
+    
+    Reaches the server console, for the same reason :func:`add_role` does - and it has
+    to be the same set, or a console that could gain a role could never lose it.
     
     Args:
         agents (Agent | int | set[Agent | int]): Agent(s) to update.

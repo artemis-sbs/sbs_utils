@@ -6,6 +6,13 @@ def _role_expr_tokenize (expr):
 def add_role (set_holder, role):
     """Add a role to one or more agents.
     
+    THE SERVER CONSOLE COUNTS. `to_object(0)` returns None by design, so this used to
+    be a silent no-op for client id 0 - and LM's main screen adds `console, mainscreen`
+    to its own client id. On the server window that role was never added, so every
+    audience narrowed with `any_role("mainscreen")` - a hail placed on the main screen,
+    a hero card, a lower third - resolved to nobody and drew nothing, with no error.
+    `to_agent_list` resolves the server the same way `get_inventory_value` always has.
+    
     Args:
         set_holder (Agent | int | set[Agent | int]): Agent(s) to update.
         role (str): The role name to add."""
@@ -53,6 +60,10 @@ def has_any_role (so, roles):
 def has_role (so, role):
     """Return whether an agent currently holds a given role.
     
+    Answers for the SERVER console too. It used to always say False for client id 0,
+    which reads exactly like "the role is not there" - so a check on the server was
+    indistinguishable from a real negative and passed silently for years.
+    
     Args:
         so (Agent | int): Agent ID or object.
         role (str): The role name to test for.
@@ -70,6 +81,9 @@ def has_roles (so, roles):
         bool: ``True`` if the agent has every role in the list."""
 def remove_role (agents, role):
     """Remove a role from one or more agents.
+    
+    Reaches the server console, for the same reason :func:`add_role` does - and it has
+    to be the same set, or a console that could gain a role could never lose it.
     
     Args:
         agents (Agent | int | set[Agent | int]): Agent(s) to update.
@@ -148,6 +162,39 @@ def roles_matching (expr):
     
     Returns:
         set[int]: IDs of all agents matching the expression."""
+def to_agent_list (the_set):
+    """Resolve to Agent objects for a WRITE, the SERVER CONSOLE included.
+    
+    `to_object` refuses id 0 by design - 0 means "no object" for a space object - so
+    every write built on :func:`to_object_list` silently skipped the server console.
+    That is not a corner case: the server window is a console like any other, and
+    `add_role(client_id, "console, mainscreen")` on it was a no-op, which is why an
+    overlay narrowed with `consoles="mainscreen"` never reached the main screen when
+    the main screen WAS the server.
+    
+    The reads already knew better - `get_inventory_value` has carried an explicit
+    `Agent.get(0)` branch for exactly this. This is that branch generalized, so a write
+    can reach everything a read can see.
+    
+    Space-object callers keep using `to_object_list`: id 0 there really does mean "no
+    object", and this must not resurrect it for them.
+    
+    Args:
+        the_set (set[Agent | int] | list[Agent | int] | Agent | int): what to resolve.
+    
+    Returns:
+        list[Agent]: resolved agents; unresolvable entries are dropped."""
+def to_client_object (other: sbs_utils.agent.Agent | int):
+    """Resolve a client/console ID or Agent to its Agent object.
+    
+    Returns ``None`` when the ID is not a valid client ID or the agent no
+    longer exists.
+    
+    Args:
+        other (Agent | int): Client ID or agent to resolve.
+    
+    Returns:
+        Agent | None: The client agent, or ``None``."""
 def to_object (other: sbs_utils.agent.Agent | sbs_utils.agent.CloseData | int):
     """Resolve an ID, ``CloseData``, or ``SpawnData`` to its Agent object.
     

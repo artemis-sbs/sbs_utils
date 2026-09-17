@@ -67,15 +67,6 @@ def to_object (other: sbs_utils.agent.Agent | sbs_utils.agent.CloseData | int):
     
     Returns:
         Agent | None: The agent, or ``None`` if it could not be resolved."""
-def to_object_list (the_set):
-    """Convert a set or list of IDs/agents to a list of Agent objects (excluding None).
-    
-    Args:
-        the_set (set[Agent | int] | list[Agent | int]): IDs or agent objects.
-    
-    Returns:
-        list[Agent]: Resolved Agent objects; items that cannot be resolved are
-            excluded."""
 def urge_actors ():
     """Every agent holding urges, as a LIST.
     

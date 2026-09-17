@@ -1,6 +1,15 @@
 from sbs_utils.vec import Vec3
 def _item_spawn_pool (categories):
-    """(keys, weights) eligible to spawn in space, weighted by 1/tier."""
+    """(keys, weights) eligible to spawn in space, weighted by 1/tier.
+    
+    ``mode: install`` is never scattered. An install is a permanent fitting that is not
+    consumed when used, so finding one loose in a debris field hands out a forever-upgrade
+    at loot rates - and unlike every buff in the pool, nothing ever takes it back. That is
+    a property of the MODE rather than of any one item, which is why it lives here instead
+    of each install dodging the pool by claiming an off-label ``type:`` (a trick that
+    quietly changes what ``items_of_category`` callers see - LM's debug console builds its
+    "Test Items" list by subtracting that set, so an item retyped to escape the scatter
+    starts being spawned by the debug console instead)."""
 def item_get (key):
     """Return the item label whose metadata ``key`` matches, or ``None``."""
 def item_keys ():

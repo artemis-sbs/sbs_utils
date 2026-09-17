@@ -94,6 +94,15 @@ def gui_sub_task_schedule (label, data=None, var=None) -> 'MastAsyncTask':
 def gui_task_jump (label):
     """Redirect the active GUI task to a new label.
     
+    Use this to steer a console from a task that is NOT its GUI task and does
+    not itself go there -- a watcher loop that kicks a panel to a repaint label
+    and keeps looping, or a Python callback that cannot ``await``. A handler
+    that goes there itself does not need this: reaching ``await gui()`` sends
+    the GUI task to the screen the handler just built.
+    
+    Queues the jump; the next scheduler tick takes it. Note it is silently
+    discarded if the GUI task has already finished.
+    
     Args:
         label (str | Label): The label to jump to."""
 def jump (label) -> sbs_utils.mast.pollresults.PollResults:

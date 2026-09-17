@@ -14,15 +14,70 @@ def _coerce (text):
     int, then float, then true/false, else the string unchanged. Documented rather than
     clever on purpose - anything needing a list or a dict belongs in a profile file, which
     is where the boundary between the two surfaces sits."""
+def _log (message):
+    """Say which of two places answered. Not a warning - nothing is wrong, but "the
+    profile applied" and "WHICH profile applied" are different facts once there are two
+    folders it could have come from."""
+def _merge_section (base, added):
+    """Fold one profile's `addons:`/`media:` block into the running one.
+    
+    A setting is a single value, so the last profile to name it simply wins. A content
+    section is not: `profile=skies,autoplay` excluding the stock skybox in one file and
+    adding a debug add-on in the other must do BOTH, and a plain `|` would silently keep
+    only the second. So include lists CONCATENATE (in typed order, deduped) and exclude
+    lists UNION.
+    
+    An entry that one profile excludes and a later one includes ends up in both lists;
+    the consumer applies excludes first and includes second, so the include wins. That is
+    the useful direction - it lets a specific profile re-add something a broad one
+    removed - and it is the same order a reader of the command line would assume."""
 def _note_explicit (data):
     """Record a source's top-level keys as explicitly authored."""
+def _profile_load (path_for):
+    """Read `<name>.yaml`, falling back to `<name>.json`, from one profile folder."""
+def _profile_load_named (name):
+    """One profile by name, from the mission then from common_data. None if neither has it.
+    
+    Two places are searched, in order:
+    
+    1. `<mission>/profiles/<name>.yaml` - the mission's own, authored by whoever wrote the
+       mission and shipped with it. Full featured: settings, `addons:`, `media:`.
+    2. `common_data/profiles/<name>.yaml` - the OPERATOR's own, beside the missions rather
+       than inside one, so a host's house setup is not written into a folder that a `git
+       pull` or a re-extract owns. Equally full featured: an `addons:`/`media:` selection
+       resolves through `__lib__`, which is shared, so "the Artemis 2.8 skies in whatever
+       I am running tonight" is one file rather than one per mission.
+    
+    The mission wins on a name collision, so a mission can always ship a definitive
+    profile under a name an operator also happens to use."""
+def _profile_merge (base, added):
+    """`base` overlaid with `added` - later wins on settings, sections accumulate."""
+def _profile_names (raw):
+    """`profile=a,b,c` -> ["a", "b", "c"], in the order they were typed.
+    
+    Comma-separated because a launch argument has no other list syntax that survives a
+    Windows shortcut, and because the order IS the meaning - later profiles win.
+    
+    Duplicates are dropped rather than applied twice: `profile=house,house` merging a file
+    into itself would be a no-op for settings but would double every `include:` entry."""
 def _profile_overrides ():
     """Settings from `profile=<name>` on the command line -> `profiles/<name>.yaml`.
     
     The command line is for a HANDFUL of short, memorable arguments; a profile is how a
     launch carries twenty settings without twenty arguments. `cmd.exe` caps a command line
     at 8191 characters, shortcuts truncate, Windows quoting around spaces and `=` is
-    painful, and none of it is diffable or reviewable. A file is all of those things."""
+    painful, and none of it is diffable or reviewable. A file is all of those things.
+    
+    **Several may be named**, comma separated - `profile=autoplay7,tng_all` - and they are
+    merged LEFT TO RIGHT, so the last one typed wins a settings key the earlier ones also
+    set. That is what makes profiles composable instead of combinatorial: a host with three
+    house settings and four mods needs seven files, not twelve. `addons:` and `media:`
+    accumulate rather than replace (see :func:`_merge_section`) - excluding the stock
+    skybox in one profile and adding a debug add-on in another has to do both.
+    
+    A name that matches no file is warned about and SKIPPED; the rest still apply. One
+    typo in a list of four must not silently discard the other three, which is what a
+    single-name reader did when handed a comma list."""
 def _profile_section (name):
     """One `include:` / `exclude:` section of the profile, lowercased.
     
@@ -44,6 +99,10 @@ def _set_path (target, dotted, value):
     Dotted paths exist for exactly one reason: the interesting settings are nested.
     `var.AUTO_PLAY.enable=true` is the case that motivated it - turning autoplay on from a
     launch argument is the whole point, and AUTO_PLAY is a dict."""
+def _settings_add_races (key, races):
+    """Append ``races`` to the comma-separated setting ``key``, keeping what is there.
+    
+    Shared by :func:`settings_add_playable_races` and :func:`settings_add_npc_races`."""
 def _warn (message):
     """Loud about a launch argument that did nothing.
     
@@ -90,6 +149,51 @@ def settings_add_defaults (additions):
     
     Args:
         additions (dict): Default key-value pairs to add if not already present."""
+def settings_add_npc_races (*races):
+    """Add races to ``NPC_RACES``, keeping whatever is already listed.
+    
+    The NPC twin of :func:`settings_add_playable_races` - same semantics, same ordering
+    caveat. Separate from the playable list on purpose: the races a player may BE and the
+    races that raid them are different questions.
+    
+    Args:
+        *races: race names, as separate arguments, a comma-separated string, or a list.
+    
+    Returns:
+        list: the names actually added, in order."""
+def settings_add_playable_races (*races):
+    """Add races to ``PLAYABLE_RACES``, keeping whatever is already listed.
+    
+    The call a MOD that ships player-flyable hulls should make. Accepts names as separate
+    arguments, one comma-separated string, or a list::
+    
+        settings_add_playable_races("Federation", "Klingon")
+        settings_add_playable_races("Federation, Klingon")
+    
+    ADD rather than replace, so a mod can put a Galaxy alongside a TSN crew instead of
+    taking the mission's own races away. A total conversion stays a MISSION's choice - it
+    sets the setting to its own races alone - rather than something installing a mastlib
+    does to you.
+    
+    WHY NOT `settings_set_mod_default`. That is the right tier for "a value the library
+    ships and the mission did not override", and it deliberately returns False once the
+    mission has spoken (`_explicit_keys`). Adding a race is not overriding a choice, it is
+    widening a list, and it has to work even when the mission named the key - a mission
+    that lists `TSN, Ximni` has said nothing at all about the Federation. So this edits the
+    live settings dict, which is what every mod doing this had to hand-roll.
+    
+    ORDER MATTERS, and this is the one sharp edge. Addons decide which floor plans and
+    fleet ladders to load by READING these settings at load time, and addon load order is
+    non-deterministic. Adding a race the mod supplies hulls for is safe, because the mod's
+    own addon merges those. Adding a race to unlock ANOTHER addon's content is a race with
+    that addon's own load - call this as early as possible (the first line of the mod's
+    ``__init__.mast``) and do not rely on it.
+    
+    Args:
+        *races: race names, as separate arguments, a comma-separated string, or a list.
+    
+    Returns:
+        list: the names actually added, in order. Empty when every one was already listed."""
 def settings_get_defaults ():
     """Return the merged default settings dict, loading ``settings.yaml`` or ``setup.json`` if present.
     

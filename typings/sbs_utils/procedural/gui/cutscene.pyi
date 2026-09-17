@@ -188,8 +188,9 @@ def cutscene_framing (subject, size='medium'):
     
     Args:
         subject: the object the shot looks at.
-        size (str): ``close``, ``medium`` or ``wide``. Anything else is treated as
-            ``medium`` - a misspelled size should give a usable shot, not no shot.
+        size (str): ``tight``, ``close``, ``medium`` or ``wide``. Anything else is
+            treated as ``medium`` - a misspelled size should give a usable shot, not
+            no shot.
     
     Returns:
         float: distance from the subject, in world units."""

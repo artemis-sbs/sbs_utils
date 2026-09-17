@@ -73,12 +73,46 @@ class RollingSlicer(object):
     sorted order is cached and only rebuilt when membership changes, so the
     cursor advances predictably as ids are added/removed.
     
+    THE PASS IS MEASURED IN TICKS, NOT IN CALLS. This used to add
+    ``n / (pass_seconds * tps)`` once per call, which only delivers the advertised
+    period if ``slice()`` is called exactly ``tps`` times a second. Nothing calls it
+    that often. Measured 2026-08-26 against a live 1.3.7 engine and the mock, both
+    running ``time_tick_counter`` at 30.0/sim-second:
+    
+    ======  =======================  =========================
+    host    dispatch calls/sim-sec   real pass for pass_seconds
+    ======  =======================  =========================
+    engine  15.0                     2x too long
+    mock     6.0                     5x too long
+    ======  =======================  =========================
+    
+    So ``BRAIN_PASS_SECONDS = 3`` really meant a 6-second pass in the engine and a
+    15-second one headless -- and the two hosts disagreed with each other by 2.5x, which
+    is why a brain-driven ship re-decided its throttle far less often headless than the
+    same logic written as a ``delay_sim`` loop. Scaling by the ELAPSED TICK COUNT makes
+    the period honest and identical in both hosts, and matches how ``TickTask._update``
+    has always measured its own delay two classes up this file.
+    
     Usage:
         _slicer = RollingSlicer()
         for id in _slicer.slice(id_set, pass_seconds=3):
             ...work one item..."""
     def __init__ (self):
         """Initialize self.  See help(type(self)) for accurate signature."""
+    def _now_tick ():
+        """The engine tick counter, or None if there is no sim yet.
+        
+        Read defensively: a slicer can be exercised by a unit test with no FrameContext
+        at all, and returning a usable number there keeps the class testable without a
+        running simulation."""
+    def reset (self):
+        """Forget the cursor, the fractional accumulator and the cached order.
+        
+        `brains_reset()` / `objective_reset()` have always tried to call this behind a
+        `hasattr` guard, and the guard was always False - the method did not exist, so a
+        mission restart carried the previous mission's cursor and accumulator into the
+        next one. Harmless in practice (a changed id set re-sorts and the cursor is taken
+        modulo the size), but the reset ledger claimed something it was not doing."""
     def slice (self, ids, pass_seconds):
         ...
 class TickDispatcher(object):

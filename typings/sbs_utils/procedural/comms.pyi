@@ -20,6 +20,11 @@ def AWAIT (promise: sbs_utils.futures.Promise) -> sbs_utils.futures.PromiseWaite
     
     Returns:
         PromiseWaiter: A waiter that reports completion without blocking."""
+def _comms_contact_name (obj, is_life_form):
+    """The label for a contact.
+    
+    A lifeform goes by its plain name: `comms_id` decorates a space object with its
+    side ("Lt Rios (TSN)"), which reads wrong for a person."""
 def _comms_get_colors (to_obj, from_obj, is_receive, title_color, color):
     ...
 def _comms_get_origin_id () -> int:
@@ -210,11 +215,25 @@ def comms_message (msg, from_ids_or_obj, to_ids_or_obj, title=None, face=None, c
         color (str, optional): Body text color. Defaults to ``"#fff"``.
         title_color (str, optional): Title text color. Defaults to the
             sender's side color.
-        is_receive (bool, optional): ``True`` = message is received (``< <``
-            prefix); ``False`` = message is sent (``> >`` prefix). Defaults
-            to ``True``.
+        is_receive (bool, optional): ``True`` = the player ship RECEIVED this
+            (tagged ``recv``); ``False`` = the player ship TRANSMITTED it
+            (tagged ``send``). Defaults to ``True``.
         from_name (str, optional): Override the display name of the sender.
             Defaults to None (uses the sender object's ``comms_id``).
+    
+    Note:
+        When BOTH ends are player ships a transmit reaches both bridges: the
+        sender gets the outgoing copy and the receiving crew gets the matching
+        incoming one, each named for the other ship. Send it once - a second
+        call with the ids swapped now duplicates it.
+    
+    Note:
+        The console threads messages by CONTACT - the other party in the
+        conversation. For a lifeform that is the LIFEFORM's id, not its host
+        ship's, so two crew aboard one hull are two conversations rather than
+        one, and a lifeform hailing another lifeform arrives on the far bridge
+        named for the person who sent it. The title names the same contact the
+        thread is filed under, in both directions.
     
     Example:
         comms_message("Incoming!", ENEMY_ID, SHIP_ID, title="Commander")"""
@@ -402,6 +421,11 @@ def comms_transmit (msg, title=None, face=None, color=None, title_color=None) ->
         title_color (str, optional): Title text color. Defaults to the
             sender's side color.
     
+    Note:
+        When the selected target is another PLAYER ship this delivers both
+        halves - the ``> >`` copy on the sending bridge and the ``< <`` copy on
+        the receiving one. One call is the whole exchange.
+    
     Example:
         comms_transmit("Requesting docking clearance.", title="Artemis")"""
 def comms_transmit_internal (msg, ids_or_obj=None, to_name=None, title=None, face=None, color=None, title_color=None) -> None:
@@ -511,6 +535,10 @@ def gui_properties_set (p=None, tag=None):
         gui_properties_set({"Speed": "gui_text(str(ship_speed))", "Shields": "gui_slider(shield_pct)"})"""
 def has_role (so, role):
     """Return whether an agent currently holds a given role.
+    
+    Answers for the SERVER console too. It used to always say False for client id 0,
+    which reads exactly like "the role is not there" - so a check on the server was
+    indistinguishable from a real negative and passed silently for years.
     
     Args:
         so (Agent | int): Agent ID or object.

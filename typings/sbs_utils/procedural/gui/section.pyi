@@ -74,20 +74,29 @@ def gui_sub_section (style=None):
     keyword. The sub-section is added to the current layout when the ``with``
     block exits.
     
+    The returned object can be hidden and restored after it is built, with
+    ``gui_hide`` / ``gui_show`` or its own ``show()``. Hiding takes the whole
+    sub-tree off screen, and its siblings reclaim the space on the next layout
+    pass. Hold on to the object to do that - hiding one before its ``with``
+    block has run is a no-op, since the layout it stands for does not exist yet.
+    
     Args:
         style (str, optional): CSS-like style string controlling the column
             width, row height, background, etc. of the sub-section.
             Defaults to None.
     
     Returns:
-        PageSubSection: Context manager object. Use with ``with``.
+        PageSubSection: Context manager object with ``show()`` and
+            ``is_hidden``. Use with ``with``.
     
     Example:
         gui_row(style="row-height:3em;")
         with gui_sub_section(style="col-width:30%;"):
             gui_text("Left column")
-        with gui_sub_section():
-            gui_text("Right column")"""
+        right = gui_sub_section()
+        with right:
+            gui_text("Right column")
+        gui_hide(right)     # and gui_show(right) to bring it back"""
 class PageRegion(object):
     """class PageRegion"""
     def __enter__ (self):
@@ -125,6 +134,9 @@ class PageSubSection(object):
     @click_tag.setter
     def click_tag (self, v):
         ...
+    @property
+    def is_hidden (self):
+        ...
     def is_message_for (self, event):
         """Used by MessageTrigger i.e. gui_message to know if message is for this object
         
@@ -140,6 +152,8 @@ class PageSubSection(object):
     def on_message_cb (self, v):
         ...
     def represent (self, event):
+        ...
+    def show (self, _show):
         ...
     @property
     def tag (self):

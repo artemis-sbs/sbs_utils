@@ -2,6 +2,27 @@ def _near_any (x, y, z, pts, r2):
     ...
 def _player_points ():
     """(x,y,z) of every player, or None if there are no players."""
+def _standby_push (oid):
+    """Push one id to standby, but ONLY if the engine still has the object.
+    
+    `sbs.push_to_standby_list_id` IS A NULL DEREF ON A DEAD ID - it crashes the
+    server, it does not raise. The engine's `PushToStandbyList(ID64)` does
+    `PushToStandbyList(allMap[id])`, and for an id the container never had (or no
+    longer has) `allMap[id]` is NULL; the pointer overload's only early-out is
+    `if (standbyMapID[sco])`, which is 0 for null, so it falls straight through into
+    `Remove(NULL)` and reads a member off address 0.
+    (Measured: `SuperContainer.cpp:562`, `mov r13,[rbx+38h]` with rbx=0, reached from
+    `GSPushToStandbyListID` - a Storm's Beacon server CTD, 2026-09-17.)
+    
+    The RETRIEVE side is safe by luck - same lookup, but a null takes the early-out -
+    yet a missing key still inserts a null entry into the engine's two standby maps,
+    so it is guarded here too (`_standby_retrieve`).
+    
+    The mock cannot substitute for this guard: it popped a missing id and did nothing.
+    
+    Returns True if the object was pushed."""
+def _standby_retrieve (oid):
+    """Retrieve one id from standby if the engine still has the object."""
 def brain_pause (agent_id_or_set, paused=True):
     """Pause (or resume) one or more agents' brains without removing them.
     
@@ -23,6 +44,14 @@ def linked_to (link_source, link_name: str):
     
     Returns:
         set[int]: IDs of all linked targets, or an empty set if none."""
+def object_exists (so_id):
+    """Return whether an object currently exists in the simulation.
+    
+    Args:
+        so_id (Agent | int): Agent ID or object.
+    
+    Returns:
+        bool: ``True`` if the engine reports the object present."""
 def role (role: str):
     """Return the set of agent IDs that currently hold a given role.
     
@@ -45,6 +74,19 @@ def standby_cull_fleets (fleet_role, radius):
     is paused (it lives on the fleet agent). It is retrieved the moment a player
     comes near. Treating the formation as one unit keeps the fleet brain from
     steering non-simulated ships."""
+def standby_cull_parked_count ():
+    """Reset-ledger probe: parked loose objects + parked fleets."""
+def standby_cull_reset ():
+    """The per-mission reset: FORGET what is parked, retrieve nothing.
+    
+    Distinct from `standby_cull_clear`, and the difference matters. `clear` is a
+    GAMEPLAY call - the sim still exists, so it hands parked objects back to normal
+    space first. This is the RELOAD call: the sim is gone, every id here is dead, and
+    touching one is the null deref on `_standby_push`.
+    
+    `cosmos_dev` reuses one interpreter across `run_next_mission` (the engine forks a
+    process per mission), so without this run 2 of a soak starts holding run 1's parked
+    ids and reports them as already-parked - the classic second-run bug."""
 def standby_cull_step (candidates, radius):
     """Park candidates with no player within `radius` (out of the engine
     network); retrieve parked ones once a player comes near. `candidates` is an
@@ -69,3 +111,10 @@ def to_object_list (the_set):
     Returns:
         list[Agent]: Resolved Agent objects; items that cannot be resolved are
             excluded."""
+def unlink (set_holder, link_name: str, set_to):
+    """Remove a named link from one or more source agents to one or more targets.
+    
+    Args:
+        set_holder (Agent | int | set[Agent | int]): Source agent(s).
+        link_name (str): The link key name.
+        set_to (Agent | int | set[Agent | int]): Target agent(s) to unlink."""

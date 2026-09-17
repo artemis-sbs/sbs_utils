@@ -3,6 +3,24 @@ from sbs_utils.pages.layout.column import Column
 from sbs_utils.pages.widgets.control import Control
 from sbs_utils.helpers import FrameContext
 from textwrap import TextWrapper
+def _layer_prop (layer):
+    """``draw_layer:N;`` for a raised container, or ``''`` when nobody asked for one.
+    
+    A SUFFIX rather than a parameter, so a props string in an unraised text area is
+    emitted byte-for-byte as it always was and nothing existing can shift.
+    
+    WHY THE RICH PATH NEEDS THIS AT ALL. `_present_simple` gets the cascade for free
+    (`get_cascade_props(..., layer=True)`), but the rich path builds its own per-segment
+    props and so drops it -- which meant a markdown text area in a RAISED container
+    (an overlay panel with an opaque background above it) rendered underneath its own
+    backdrop and vanished. The cascade still must not go into the `$$` per-line
+    mini-language, which is what the comment in `_apply_cascade` protects: that is a
+    style string the text area parses itself, not one the engine reads."""
+def _line_has_embed (line):
+    """Does this line carry an `ns://urn` the rich path would turn into a widget?
+    
+    `RE_LINK_REF` has every group optional, so it matches almost any line - a bare `ns` is
+    what says a reference is present at all, and the scheme is what says it draws something."""
 def amd_parse_url (text):
     """`key?scale=0.5&align=center` -> `{"url": "key", "scale": "0.5", ...}`.
     
@@ -114,20 +132,20 @@ class FaceLine(object):
     """class FaceLine"""
     def __init__ (self, text, ar) -> None:
         """Initialize self.  See help(type(self)) for accurate signature."""
-    def send_gui (self, SBS, client_id, region_tag, tag, left, top, right, bottom):
+    def send_gui (self, SBS, client_id, region_tag, tag, left, top, right, bottom, layer=None):
         ...
 class HrLine(object):
     """Horizontal rule (`<hr>` / `<hr/>`) — a thin full-width divider. Uses `<hr>`
     rather than `---` so it never clashes with the table separator row."""
     def __init__ (self, ar) -> None:
         """Initialize self.  See help(type(self)) for accurate signature."""
-    def send_gui (self, SBS, client_id, region_tag, tag, left, top, right, bottom):
+    def send_gui (self, SBS, client_id, region_tag, tag, left, top, right, bottom, layer=None):
         ...
 class ImageLine(object):
     """class ImageLine"""
     def __init__ (self, text, ar) -> None:
         """Initialize self.  See help(type(self)) for accurate signature."""
-    def send_gui (self, SBS, client_id, region_tag, tag, left, top, right, bottom):
+    def send_gui (self, SBS, client_id, region_tag, tag, left, top, right, bottom, layer=None):
         ...
 class LinkLine(object):
     """A whole-line hyperlink `[Display](ref://key)`. Renders as styled clickable
@@ -135,13 +153,13 @@ class LinkLine(object):
     owning TextArea's on_message, which resolves the key (intra-document nav)."""
     def __init__ (self, display, click_tag, ar, sbs, font='gui-2') -> None:
         """Initialize self.  See help(type(self)) for accurate signature."""
-    def send_gui (self, SBS, client_id, region_tag, tag, left, top, right, bottom):
+    def send_gui (self, SBS, client_id, region_tag, tag, left, top, right, bottom, layer=None):
         ...
 class ShipLine(object):
     """class ShipLine"""
     def __init__ (self, text, ar) -> None:
         """Initialize self.  See help(type(self)) for accurate signature."""
-    def send_gui (self, SBS, client_id, region_tag, tag, left, top, right, bottom):
+    def send_gui (self, SBS, client_id, region_tag, tag, left, top, right, bottom, layer=None):
         ...
 class TableLine(object):
     """A GFM pipe-table rendered as a grid of text cells — a block-line like
@@ -152,7 +170,7 @@ class TableLine(object):
     scrolling is line-indexed so a tall table clips at the block boundary."""
     def __init__ (self, rows, aligns, ar, pixel_width, sbs) -> None:
         """Initialize self.  See help(type(self)) for accurate signature."""
-    def send_gui (self, SBS, client_id, region_tag, tag, left, top, right, bottom):
+    def send_gui (self, SBS, client_id, region_tag, tag, left, top, right, bottom, layer=None):
         ...
 class TextArea(Control):
     """class TextArea"""

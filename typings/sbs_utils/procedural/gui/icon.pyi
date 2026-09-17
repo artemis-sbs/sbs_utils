@@ -47,7 +47,7 @@ def gui_icon_add_atlas (name, image, left=None, top=None, right=None, bottom=Non
 def gui_icon_add_atlas_grid (image, cols, rows=None, names=None, cell=None, color=None, start=0):
     """Claim a whole sheet of icon names at once - `gui_image_add_atlas_grid` in the icon
     domain. Names are laid out row-major; a `None` entry skips a cell."""
-def gui_icon_button (props, style=None, data=None, on_press=None, is_sub_task=False):
+def gui_icon_button (props, style=None, data=None, on_press=None, is_sub_task=None):
     """Add a clickable icon button to the current GUI layout.
     
     Like ``gui_icon`` but the rendered item accepts click events. Takes
@@ -65,8 +65,14 @@ def gui_icon_button (props, style=None, data=None, on_press=None, is_sub_task=Fa
             icon is pressed. A label is jumped to; a callable is called; a
             Promise has its result set. Defaults to None - attach the handler
             with ``gui_message`` / ``gui_click`` instead.
-        is_sub_task (bool, optional): When ``True`` an ``on_press`` label runs
-            as an independent sub-task. Defaults to False.
+        is_sub_task (bool, optional): How an ``on_press`` **label** runs.
+            ``True`` runs it as a sub-task: safe to press repeatedly, and it
+            should end with ``->END``. ``False`` jumps the task that built the
+            widget, so the press takes that task over and the handler must hand
+            the console back -- this is the historical behavior and is
+            **deprecated**. Defaults to None, meaning the library decides; a
+            handler that paints a screen and reaches ``await gui()`` sends the
+            GUI task there either way, so you should not need this.
     
     Returns:
         IconButton: The layout item created.
@@ -101,6 +107,34 @@ def gui_icon_name (name, color=None, style=None, props=None):
     
     Returns:
         Icon | Image | None"""
+def gui_icon_name_button (name, color=None, style=None, props=None, data=None, on_press=None, is_sub_task=None):
+    """`gui_icon_name`, but clickable - the button form of drawing an icon BY NAME.
+    
+    Without this a caller that wanted a named icon it could press had to resolve the
+    sheet index itself and hand it to `gui_icon_button`, which is exactly the bare
+    index the name indirection exists to remove: a mission that re-skins the sheet
+    then moves every icon on the screen EXCEPT the ones you can click.
+    
+    `data`/`on_press` behave as on `gui_button`, so a row of these built in a plain
+    `for` loop each knows which row it belongs to - the documented escape from the
+    for-loop handler trap.
+    
+    An unknown name draws NOTHING and says so once, same as `gui_icon_name`: a wrong
+    icon is worse than a missing one because it looks deliberate.
+    
+    Args:
+        name (str): a meaning or a look - see `icon_names.icon_names()`.
+        color (str, optional): tint.
+        style (str, optional): layout style.
+        props (str, optional): extra icon properties appended verbatim.
+        data (object, optional): carried by the widget; a dict is unpacked into the
+            handler's variables.
+        on_press (label | callable | Promise, optional): what a press does.
+        is_sub_task (bool, optional): how an `on_press` LABEL runs. See
+            `gui_icon_button`.
+    
+    Returns:
+        IconButton | None"""
 def gui_icon_recolor (widget, color):
     """Tint an icon that is already on screen, whatever `gui_icon_name` gave back.
     

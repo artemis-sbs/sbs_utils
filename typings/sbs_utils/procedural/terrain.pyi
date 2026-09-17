@@ -2,8 +2,52 @@ from sbs_utils.tickdispatcher import DripQueue
 from sbs_utils.vec import Vec3
 def _asteroid_scatter_now (cluster_spawn_points, height, selectable=False):
     ...
+def _mix32 (x):
+    """A stable integer hash -- the point is that it DRAWS NOTHING.
+    
+    Per-object jitter has to come from a value the object already has, not from
+    `random`. The sower draws every per-object value up front so a queued chunk carries
+    no randomness of its own (see _nebula_plan); a draw down here would break that and
+    shift every later spawn. `random_seed` is already per nebula, so hashing it gives
+    variety for free and a sown cluster stays identical to an inline one."""
+def _neb_icon_jitter (scaled, seed):
+    """Nudge saturation and value, hold hue exactly.
+    
+    Hue is the thing that carries the name -- purple has to stay purple -- so it is not
+    touched at all. Saturation and value are what make a cluster look like cloud rather
+    than a stencil, which is what the old color_noise() was reaching for and never
+    delivered: it ran once at import, so every purple nebula in a session shared one
+    value and only the NEXT session looked different."""
 def _nebula_chunk_now (specs, density, selectable):
     """Pure creation: the mirror of terrain_nebula_spawn with the draws removed."""
+def _nebula_marker_spawn (x, y, z, name, color):
+    """Spawn one nebula cluster marker and return its space object.
+    
+    Extracted from ``terrain_spawn_nebula_common`` so the cluster merge can place
+    markers itself, once it knows which ones survive."""
+def _nebula_markers_place (cluster_pos, cluster_color, name, merge_dist=15000):
+    """Merge nebula clusters and place ONE marker per merged group.
+    
+    The merge is decided before anything is spawned, so a marker that would be
+    merged away is never created.
+    
+    **Why it works this way.** The markers used to be spawned one per cluster and
+    the redundant ones deleted immediately afterwards, in the same frame. The
+    engine defers adding a new object (``Simulation::objectToAddList``), so an
+    object freed before that add-pass runs can land in ``SuperContainer::allList``
+    as a dangling pointer -- which the per-object slow tick then dereferences.
+    That is the ObjectDataBlob crash-to-desktop. Never create and free a
+    SpaceObject in one frame.
+    
+    A marker left over from an EARLIER frame is still folded in the old way,
+    deletion included: it has been through a tick, so freeing it is the safe case.
+    
+    Args:
+        cluster_pos (list[Vec3]): Cluster origins, in spawn order.
+        cluster_color (list[str]): Each cluster's color display name.
+        name (str): Marker display name.
+        merge_dist (float, optional): Markers closer than this merge. Defaults to
+            15 000."""
 def _nebula_plan (points, cluster_color, rainbow, color_is_set, height, neb_size):
     """Draw every per-object value now, in the same order the inline spawn draws
     them -- so the caller's RNG stream advances exactly as it would have, and the
@@ -12,6 +56,23 @@ def _nebula_scatter_now (points, height, cluster_color, neb_size, density, selec
     ...
 def _sowing ():
     ...
+def _unit (seed, salt):
+    """`seed` mixed with `salt`, as a float in [0, 1)."""
+def art_key_for (ship_key):
+    """The hull key to DRAW in place of `ship_key`. ART ONLY.
+    
+    The companion to :func:`art_faction_for`, for the OTHER way a hull gets chosen. Some
+    callers do not look a ship up by faction at all - they name the key outright:
+    
+      * stations (``station_type``), and
+      * fleet ladders, which list their hulls class by class so a wave keeps its shape.
+    
+    A faction map cannot help those, so they get a key map instead - ``ART_KEYS``, keyed by
+    the STOCK key being replaced. Mapping per key also PRESERVES THE LADDER'S CHOICES: a
+    battleship is replaced by a specific hull rather than by a random ship of some faction.
+    
+    Returns `ship_key` unchanged when unset, or when the replacement is not in the ship
+    table - a half-written map should degrade to stock art, never to nothing spawning."""
 def awaitable (func):
     ...
 def closest_list (source: int | sbs_utils.agent.CloseData | sbs_utils.agent.SpawnData | sbs_utils.agent.Agent | sbs_utils.vec.Vec3, the_set, max_dist=None, filter_func=None) -> list[sbs_utils.agent.CloseData]:
@@ -85,6 +146,9 @@ def random_terran (face=None, civilian=None):
 def remove_role (agents, role):
     """Remove a role from one or more agents.
     
+    Reaches the server console, for the same reason :func:`add_role` does - and it has
+    to be the same set, or a console that could gain a role could never lose it.
+    
     Args:
         agents (Agent | int | set[Agent | int]): Agent(s) to update.
         role (str): The role name to remove."""
@@ -154,6 +218,44 @@ def terrain_field_plan_keyed (key, cell, x_min, z_min, x_max, z_max, nebula_chan
         list[tuple[Vec3, str]]: ``(position, "nebula"|"asteroid")`` entries."""
 def terrain_nebula_color (cluster_color):
     ...
+def terrain_nebula_icon_color (color, peak=204, seed=None):
+    """The radar tint for a nebula, computed FROM that nebula's own emission.
+    
+    A nebula used to carry two unrelated descriptions of itself: a hand-written
+    "radar_color_override" hex for the 2D icon, and the emission/scattering/absorption
+    levers the engine actually draws the cloud with. Nothing tied them together, so
+    retuning either side desynced them silently -- which is how "red" ended up with a
+    magenta icon over a red cloud (the icon line survived 0ae545ea byte-identical while
+    the cloud was rewritten), and how every icon ended up ~3x too dark to read.
+    
+    Deriving the icon here removes the second copy: there is one color, and the icon is
+    a view of it.
+    
+    EMISSION ONLY, and that is not a guess. Running the engine shader's own raymarch
+    (data/graphics/shader-emissivenebula.ps:152-180) over each entry shows the rendered
+    hue tracks NORMALIZED EMISSION almost exactly -- purple [0.70,0.00,1.00] renders
+    [0.69,0.00,1.00], red [1.00,0.30,0.10] renders [1.00,0.29,0.10]. Absorption and
+    scattering largely cancel: they form `ext`, which appears both inside `trans` and as
+    the divisor of the integral, so they set how BRIGHT and how thick the cloud is far
+    more than what color it is.
+    
+    The lit term (`light * phase * (1-absorption) * scattering * p`) is deliberately not
+    used. It swings the hue by 0.3-0.8 per channel across plausible light intensities and
+    goes NEGATIVE wherever absorption exceeds 1.0 (red absorbs green/blue at 1.5), so it
+    is not a stable thing to name a color from.
+    
+    Args:
+        color (dict | str): a _neb_colors entry, a color name, or any dict carrying
+            emission_red/green/blue.
+        peak (int, optional): value the largest channel is scaled to. Defaults to
+            ``NEB_ICON_PEAK``.
+        seed (int, optional): the nebula's own ``random_seed``. Given one, the HUE is
+            kept exactly and saturation/value are nudged per object, so a cluster reads
+            as a drift of one color rather than a block of identical dots. Defaults to
+            None -- the canonical, unjittered color of that entry.
+    
+    Returns:
+        str: ``"#rrggbb"``."""
 def terrain_nebula_spawn (v2, height, cluster_color, diameter, density, selectable):
     ...
 def terrain_random_point_box (all_points, left, top, front, right, bottom, back, inside=True, count=1):
@@ -444,7 +546,7 @@ def terrain_spawn_nebula_clusters (terrain_value, center=None, selectable=False,
     
     Returns:
         list[SpaceObject]: All spawned nebula objects."""
-def terrain_spawn_nebula_common (x, y, z, size_x=10000, size_z=None, radius=None, density_scale=1.0, density=1, height=1000, cluster_color=None, selectable=False, marker=True, name=''):
+def terrain_spawn_nebula_common (x, y, z, size_x=10000, size_z=None, radius=None, density_scale=1.0, density=1, height=1000, cluster_color=None, selectable=False, marker=True, name='', color_out=None):
     """Spawn a nebula cluster using either box or sphere geometry.
     
     Shared implementation called by ``terrain_spawn_nebula_box`` and
@@ -498,7 +600,7 @@ def terrain_spawn_nebula_scatter (cluster_spawn_points, height, cluster_color=No
     
     Returns:
         list[SpaceObject]: The spawned nebula objects."""
-def terrain_spawn_nebula_sphere (x, y, z, radius=1500, density_scale=1.0, density=1.0, height=1000, cluster_color=None, selectable=False, marker=True, name=''):
+def terrain_spawn_nebula_sphere (x, y, z, radius=1500, density_scale=1.0, density=1.0, height=1000, cluster_color=None, selectable=False, marker=True, name='', color_out=None):
     """Spawn nebulae scattered inside a sphere volume.
     
     Delegates to ``terrain_spawn_nebula_common`` with sphere geometry.

@@ -19,7 +19,15 @@ def name_random_canonical_kralien_comms_id (id, key: str):
 def name_random_common_kralien (key: str):
     ...
 def name_random_hostile (race):
-    ...
+    """A call sign for an NPC of `race` - one letter from that race's set, plus a number.
+    
+    The letters used to be TWO literals: `KLMNQ` for everyone and `TR` for skaraan, the only
+    race this function had ever heard of. So every faction any mod ever shipped - Klingon,
+    Cardassian, Romulan - drew Kralien call signs, which is a small thing that reads as the
+    mod not really being installed.
+    
+    A race declares its own set as `Call Sign:` in a races.amd. Unset falls back to `KLMNQ`,
+    so the stock races are untouched and skaraan keep `TR` by declaring it."""
 def name_random_kralien (id):
     ...
 def name_random_pirate_ship ():

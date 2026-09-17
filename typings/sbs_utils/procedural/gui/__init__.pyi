@@ -1,4 +1,83 @@
 from sbs_utils.procedural.gui.gui import ButtonPromise
+def boarding_console_revision (client_id=None):
+    """A value that changes when anything on this console's screen should change.
+    
+    What an `on change` watches. Per CONSOLE, not global: one crew member answering a
+    choice must not repaint the other five screens, and a shared counter would.
+    
+    THE DEVICE IS PART OF THIS SCREEN. Without its revision here, opening an app changed
+    the stored state and nothing ever repainted - the `on change` never moved, so the
+    tick never ran and the tiles "did nothing"."""
+def boarding_go_down (client_id, host=None):
+    """Morph this console into the character it just took, and show it where it is.
+    
+    The PADD stays open across it - the crew pressed a button on a screen and that
+    screen is still there, now saying who they are. That is the whole reason identity
+    lives in the bar rather than in an app.
+    
+    **`gui_console_enter` is given the console's OWN ship, never the host**, and the
+    assignment to the host is a separate line afterwards. That split is not tidiness; it
+    is the difference between a player keeping their name and losing it. The door
+    re-asserts the crew seat with `crew_assign(client_id, home, console_type)`, and
+    `own_pick` is None for anybody auto-named - so handing it the host resolves the seat
+    against the HOST's roster and hull and, failing both, autonames from
+    `_complement_key(host, slot)`. `crew_resolve`'s own docstring says it outright:
+    moving seats RENAMES an auto-named player. The crew would beam across and arrive as
+    strangers.
+    
+    So the seat and the camera stay home; only the interior view follows the host.
+    
+    Args:
+        client_id: the console going down.
+        host (optional): the ship or station whose interior it will walk. Without one
+            this is the old dialogue-only morph, which is still a valid way to play.
+    
+    Returns:
+        bool: False when this console is not holding anybody."""
+def boarding_go_up (client_id):
+    """Put this console back at the post it left.
+    
+    The character is released first, so somebody still down there could take them.
+    Where the console goes next is the mission's business - `boarding_came_back` is how it
+    is told - but the console TYPE is restored here, because leaving a crew member
+    wearing `away` is what the role-strip bug was."""
+def boarding_home_ship (client_id):
+    """The ship this console BELONGS to, even while it is looking at a boarded interior.
+    
+    `viewscreen_home_ship` cannot answer once a console is boarded: it falls back to
+    `sbs.get_ship_of_client`, and boarding has just pointed that at the site. So the real
+    answer is captured on the way down and kept here."""
+def boarding_label (lifeform):
+    """A character as a person: their name and what they are for.
+    
+    The job words are not decoration - the scene guards read exactly these - so a crew
+    member choosing a character is reading the same thing the story will."""
+def boarding_panel_width (map_width):
+    """Set how much of the screen the map takes, and return the device's left edge.
+    
+    Public because there is more than one console now: the EVA console puts a `3dview`
+    where this one puts `ship_internal_view`, and both hand their width to the SAME two
+    area functions the device reads. Without one call that sets it, the second console
+    draws its map at one width and its device at the other's."""
+def boarding_relevant (client_id=None):
+    """Whether the Boarding Party app has anything to offer this console.
+    
+    True when a party is forming, or when this console is already down there. A
+    mission with no landing parties in it has neither, and the tile is then pure
+    noise on every console - which is what a playtest reported: six screens each
+    carrying a button that says "No landing party".
+    
+    Put this on the ROUTE (`//gui/tab/boarding_team if boarding_relevant()`) rather than
+    inventing a visibility flag: a route's own condition is already what ePADD tests
+    when it builds the app list, and it is how `casino` and `brain` gate themselves."""
+def boarding_set_who (client_id, lifeform):
+    """Which of this console's characters is acting."""
+def boarding_who (client_id=None):
+    """The character this console is playing, or None.
+    
+    A console holding several has an ACTIVE one - the roster picker sets it - because
+    four characters' readings side by side is a dozen buttons and no sense of who is
+    doing what."""
 def camera_anchor (x, y, z, name='', roles='camera_anchor'):
     """Spawn an invisible camera post and return its id.
     
@@ -305,8 +384,9 @@ def cutscene_framing (subject, size='medium'):
     
     Args:
         subject: the object the shot looks at.
-        size (str): ``close``, ``medium`` or ``wide``. Anything else is treated as
-            ``medium`` - a misspelled size should give a usable shot, not no shot.
+        size (str): ``tight``, ``close``, ``medium`` or ``wide``. Anything else is
+            treated as ``medium`` - a misspelled size should give a usable shot, not
+            no shot.
     
     Returns:
         float: distance from the subject, in world units."""
@@ -334,6 +414,48 @@ def cutscene_stop (to=None, consoles=None):
     """Stop a running cutscene without honouring ``skippable`` - the teardown path.
     
     Resolves its promise as skipped, so a story awaiting it still continues."""
+def epadd_console_name (console):
+    """The name a script would use for a console, whatever the engine calls it."""
+def eva_camera_mode (mode=None):
+    """Read, or set, the camera every EVA console rides.
+    
+    Args:
+        mode (str, optional): `chase`, `first_person`, `tracking` or `cinematic`. Omit to
+            read the current one.
+    
+    Returns:
+        str: the mode in force."""
+def eva_console_revision (client_id=None):
+    """A value that changes when anything on this console's screen should change.
+    
+    Per CONSOLE, not global: one boarder arriving somewhere must not repaint the other
+    five screens.
+    
+    THE SUIT'S DESTINATION IS IN HERE through the device's own revision - `xess_revision`
+    folds in every app's badge, and NAV's badge carries the distance left to run. Without
+    that the screen would freeze the moment a destination was picked and never show the
+    suit arriving."""
+def eva_console_type ():
+    """What an EVA console's `CONSOLE_TYPE` is. A FUNCTION, because MAST only sees
+    functions and a route has to name it."""
+def eva_go_in (client_id):
+    """Put this console back at the post it left, and take its suit away.
+    
+    The suit is DELETED rather than parked. A boarding figure is left standing because the
+    interior persists and somebody may take it over; a suit is a ship in open space, and
+    an abandoned one is a contact on everybody's radar for the rest of the mission."""
+def eva_go_out (client_id, relic_key=None):
+    """Morph this console into a suit, out in the relic, and show it what it sees.
+    
+    Args:
+        client_id: the console going out.
+        relic_key (optional): which relic. Defaults to the one :func:`eva_offer` named.
+    
+    Returns:
+        bool: False when this console is not holding anybody, or nothing is on offer."""
+def eva_home_ship (client_id):
+    """The ship this console came from, read back after the morph overwrote the obvious
+    place to look for it."""
 def gui (buttons=None, timeout=None):
     """Present the GUI layout that has been queued up for the current client.
     
@@ -378,6 +500,186 @@ def gui_add_console_type (path, display_name, description, label):
         console (str): Console name
         tab_name (str): Tab name
         label (label): Label to run when tab selected"""
+def gui_app_activate (app_name: str):
+    """Records which ePADD app this client is on. Injected by every `//gui/app` label.
+    
+    DELIBERATELY DOES NOT TOUCH `__active_tab__`. That asymmetry with
+    `gui_tab_activate` is the whole return-point mechanism: an app never overwrites the
+    tab you were on, so the PADD's single Back knows where to send you with nothing
+    having to capture it.
+    
+    Args:
+        app_name (str): The path of a //gui/app"""
+def gui_app_badge (app):
+    """An app's live badge, as text.
+    
+    Never raises: a provider that throws costs its own tile a badge and nothing else.
+    
+    RE-ENTRANT PROVIDERS ARE ANSWERED, NOT RE-ENTERED. A provider is free to ask what
+    the other apps are reporting - LM's Status tile does exactly that, counting the apps
+    with something to say - and `status_rows` computes a badge for EVERY app, the asking
+    one included. That is a cycle: the provider was entered 332 times for one badge
+    (measured), unwound only when Python's own recursion limit tripped, and the
+    RecursionError caught below was logged as "status provider for 'status' raised" on
+    every badge computation, several times a second. The badge still came out right,
+    which is why it read as noise rather than as a bug."""
+def gui_app_chrome (title, subtitle=None):
+    """An app's title bar. OPTIONAL - an app draws it when a title helps orient.
+    
+    ITS OWN BAND, 45px..109px, from `design/epadd/Spec.src`. It used to be a bare
+    `gui_row` with no section of its own, so it landed in the ambient full-screen section
+    at y=0 and painted over the engine's Options button. Every caller already reserved
+    `area: 0, 109px, 100, 100` for its body, so the bar was always MEANT to own this
+    band - it just never claimed it.
+    
+    45px is the console body top, the LM convention every tab body already follows, so
+    this clears the tab strip as well as Options.
+    
+    NO HOME BUTTON. The strip's status region opens the PADD home already; a HOME here
+    was a second control for the same thing. And no back: the one Back in the game is
+    the console's, on the tab bar, declared by every PADD screen with
+    `gui_tab_back(CONSOLE_SELECT)`.
+    
+    NOT EVERY APP WANTS ONE. Upgrades and the other list/detail screens use their whole
+    sheet and read better for it, so this is opt-in rather than something every screen
+    must remember to draw.
+    
+    Args:
+        title (str): the screen's name.
+        subtitle (str, optional): a second, dimmer line. Leave it out unless it says
+            something the screen below does not - a board captioned with the count of
+            what it is already listing says nothing.
+    
+            Pass "" rather than None for a line that is EMPTY NOW but will have text
+            later: the widget is created either way, so a live screen can update it in
+            place instead of rebuilding the page to make one appear.
+    
+    Returns:
+        Text | None: the subtitle widget, so a caller can keep it and update it."""
+def gui_app_get_active (client_id=None):
+    """The ePADD app this client is on, or "" when they are not in the PADD.
+    
+    Takes an explicit client because the PAGE asks this question while drawing, and
+    `_tab_client_id` answers with the ambient page - which during a strip build is not
+    reliably the page being built. The same distinction `epadd._client_id` documents."""
+def gui_app_get_registered ():
+    """Every registration, unfiltered - the raw table, for tools and tests."""
+def gui_app_groups (console=None, client_id=None):
+    """`gui_app_list` folded into (heading, apps) pairs, in drawing order.
+    
+    An empty group is not returned at all, which is why Helm - registering no ship
+    apps - draws no "Ship" heading rather than an empty one."""
+def gui_app_home (ship_name=None, columns=None, title='ePADD'):
+    """Draw the PADD home screen for this console.
+    
+    Called from the `//gui/tab/epadd` route's screen label, which then sits in
+    `await gui()` - so the tile handlers belong to a task that stays alive.
+    
+    Args:
+        ship_name (str, optional): shown beside the wordmark.
+        columns (int, optional): tiles per row. Defaults to 4, or 6 once the console
+            carries more than twelve apps, where the descriptions are dropped too.
+        title (str, optional): the wordmark."""
+def gui_app_home_tick ():
+    """Move the mission clock on, without rebuilding the home sheet.
+    
+    The screen calls this from an `on change mission_elapsed_text()` block, so it
+    runs once a second - which means it has to be cheap, and it has to not care
+    about being called when the home screen is no longer up:
+    
+        gui_app_home()
+        on change mission_elapsed_text():
+            gui_app_home_tick()
+    
+    Returns:
+        bool: True when the clock was changed, False when there was nothing to do -
+            no home screen on this page, or the same second again."""
+def gui_app_is_registered (tab):
+    ...
+def gui_app_list (console=None, client_id=None):
+    """The apps this console should offer, in the order they should be drawn.
+    
+    Registered apps scoped to `console`. An entry whose `//gui/app/` route does not
+    exist, or whose route condition is false right now, is left out - the route's own
+    `if` is still the authority on whether a panel is available. A MISSING route is
+    reported by name; it is almost always a typo or an unmigrated `//gui/tab`.
+    
+    Returns:
+        list[dict]: each with tab, title, icon, group, sort, description, label."""
+def gui_app_open (tab):
+    """Open an app: send the GUI task to that app's label.
+    
+    The same two lines `TabControl.on_message` runs when a tab button is clicked, so
+    an app opened from the PADD arrives exactly as a tab would have.
+    
+    Returns:
+        bool: False when the app has no route or there is no GUI task to send."""
+def gui_app_register (tab, title=None, icon=None, consoles='*', group=None, sort=100, description=None, status=None, boarding=False):
+    """Present an existing `//gui/tab/<tab>` route as an ePADD app.
+    
+    The route is not touched and keeps its own `if` condition, which is still what
+    decides whether the app is offered at all.
+    
+    Args:
+        tab (str): the `//gui/tab/` path this app opens.
+        title (str, optional): the tile's name. Defaults to the tab path, title-cased.
+        status (callable | str, optional): a short live value for the tile's badge -
+            "3 unread", "2 building", "42/60". A callable is called at build time and
+            anything it raises is swallowed, because a badge must never be able to
+            take the home screen down with it. This is what the crew read WITHOUT
+            opening anything, and it is why the apps that carry live state do not each
+            need a panel of their own.
+        icon (str, optional): an icon NAME for `gui_icon_name` - a meaning or a look,
+            never a sheet index. An unknown name draws nothing and says so once, so an
+            app can be registered before its art exists.
+        consoles (str, optional): comma list of console names, or "*" for every SHIP
+            console. Matched after `epadd_console_name`, so "engineering" matches the
+            engine's `normal_engi`. Defaults to "*".
+        boarding (bool, optional): also offer this app to the crew console. `"*"` does NOT
+            include it: a boarding party is not everywhere on the ship, it is somewhere
+            else entirely, and a landing party has no use for the cargo hold. An app
+            opts in, or names `consoles="crew"` to go there and nowhere else.
+        group (str, optional): heading to file the tile under. Defaults to "Mission".
+        sort (int, optional): order within the group, low first. Ties break on title.
+        description (str, optional): the tile's second line."""
+def gui_app_revision (console=None, client_id=None):
+    """What the HOME screen watches to know it must repaint.
+    
+    A signal does not wake `await gui()`, so the home screen polls - the same shape
+    the inbox and the crew console use. Two things change under it: a badge (mail
+    arrives, a build finishes) and the app LIST itself, because a route condition can
+    turn an app on or off while the PADD is open. Without this the home screen was
+    frozen at whatever it said when it was opened.
+    
+    Cheap: the badges are computed for the tiles anyway."""
+def gui_app_subnav (apps):
+    """The screens THIS app can reach, on the bar's own line.
+    
+    Called straight after `gui_app_chrome`, and deliberately opens NO row of its own -
+    it appends to the bar's, so the sub-apps sit to the right of the title in the same
+    45..109px band instead of eating a second one:
+    
+        gui_app_chrome("Debug")
+        gui_app_subnav(["brain", "mast"])
+    
+        [ Debug ..................... [Brain] [MAST] ]
+    
+    The chrome's trailing blank is what puts them on the right: it takes the slack, so
+    everything after it is pushed to the far end of the row.
+    
+    Its own call rather than a parameter on the bar, because exactly one app has
+    sub-apps and folding that into the component every screen draws is how the bar
+    accumulated the special cases that made it wrong.
+    
+    Replaces `gui_tab_enable("brain,mast")`, which put an app's sub-screens on the
+    CONSOLE'S tab bar - the last place the PADD and the tab system still met.
+    
+    Args:
+        apps (list[str]): app names. A sub-app has no registration, so a name with no
+            registered title falls back to its own name."""
+def gui_app_unregister (tab):
+    """Drop an app registration. The `//gui/app/` route is untouched - it simply stops
+    being offered on the PADD."""
 def gui_blank (count=1, style=None):
     """Add one or more empty columns to the current layout row.
     
@@ -397,6 +699,31 @@ def gui_blank (count=1, style=None):
         gui_blank()
         gui_icon("icons/shield")
         gui_blank()"""
+def gui_boarding_console (client_id=None, map_width=66, on_leave=None):
+    """Build the crew console: the interior on the left, the xESS on the right.
+    
+    Args:
+        client_id (optional): the console. Defaults to the page's own.
+        map_width (int, optional): how much of the screen the interior takes, in percent.
+        on_leave (optional): ignored, and kept so a mission that passed it still runs.
+            Leaving is the CREW app's Beam up now, which calls `boarding_go_up` - there
+            is no longer a button on every screen to hand a handler to.
+    
+    Returns:
+        dict: the held widgets, also stored on the page for
+        :func:`gui_boarding_console_tick`."""
+def gui_boarding_console_tick ():
+    """Refresh the crew console in place. What an `on change` should CALL.
+    
+    Never `jump` back to the screen label instead: that re-sends every widget on the
+    screen over the network to that console, and does it again on the next change,
+    forever.
+    
+    Returns:
+        bool: False when the screen is gone - a handler can outlive the page that
+        registered it, and this is called from one."""
+def gui_boarding_screen (title='Boarding Party'):
+    """Draw the join/leave screen for this console."""
 def gui_button (props, style=None, data=None, on_press=None, is_sub_task=None):
     """Add a button to the current GUI layout outside of an ``await gui()`` block.
     
@@ -418,6 +745,16 @@ def gui_button (props, style=None, data=None, on_press=None, is_sub_task=None):
         on_press (label | callable | Promise, optional): What to do when the
             button is pressed. A label is jumped to; a callable is called; a
             Promise has its result set. Defaults to None.
+    
+            **A callable is called with NOTHING unless it asks.** Declare a
+            REQUIRED parameter and it is handed `data`; declare two and it gets
+            `(data, event)`. Required parameters are the discriminator, never the
+            parameter count -- the house idiom is a closure with bound defaults
+            (`lambda _cid=client_id: go(_cid)`), which declares parameters that all
+            have defaults and must keep being called with nothing::
+    
+                gui_button("Go", on_press=lambda _c=cid: fire(_c))   # -> ()
+                gui_button("Go", on_press=shoot, data={"cid": cid})  # def shoot(data)
         is_sub_task (bool, optional): How an ``on_press`` **label** runs.
             ``True`` runs it as a sub-task: safe to press repeatedly, and it
             should end with ``->END``. ``False`` jumps the task that built the
@@ -712,6 +1049,23 @@ def gui_drop_down (props, style=None, var=None, data=None):
     Example:
         speed = gui_drop_down("text:Medium;list:Slow,Medium,Fast;", var="speed_setting")
         speed.value = "Fast"      # move the selection from script"""
+def gui_eva_console (client_id=None, map_width=66, suit=None):
+    """Build the EVA console: the relic on the left, the xESS on the right.
+    
+    Args:
+        client_id (optional): the console. Defaults to the page's own.
+        map_width (int, optional): how much of the screen the view takes, in percent.
+        suit (optional): the ship to ride. Defaults to the one this console was given by
+            :func:`eva_take`.
+    
+    Returns:
+        dict: the held widgets, also stored on the page for :func:`gui_eva_console_tick`."""
+def gui_eva_console_tick ():
+    """Refresh the EVA console in place. What an `on change` should CALL.
+    
+    Returns:
+        bool: False when the screen is gone - a handler can outlive the page that
+        registered it, and this is called from one."""
 def gui_face (face, style=None):
     """Add a character face portrait to the current GUI layout.
     
@@ -738,7 +1092,7 @@ def gui_get_console_types ():
     """Get the list of consoles defined by @console decorator labels
     
         """
-def gui_grid (columns=1):
+def gui_grid (columns=1, row_style=None):
     """Lay the GUI items you add next out as a grid, as a context manager.
     
     Inside the ``with`` block, items flow left-to-right and wrap to a new row
@@ -748,6 +1102,11 @@ def gui_grid (columns=1):
     
     Args:
         columns (int): Number of columns (cells per row). Minimum 1.
+        row_style (str, optional): style applied to every row the grid starts - a
+            grid makes its own rows, so this is the only way to size them. A row
+            that declares nothing is ``1fr`` and shares out the whole section, which
+            stretches a short grid of cards over the screen; ``row-style=
+            "row-height: content;"`` sizes each band to its tallest cell instead.
     
     Returns:
         PageGrid: Context manager. Use with ``with``.
@@ -972,6 +1331,34 @@ def gui_icon_name (name, color=None, style=None, props=None):
     
     Returns:
         Icon | Image | None"""
+def gui_icon_name_button (name, color=None, style=None, props=None, data=None, on_press=None, is_sub_task=None):
+    """`gui_icon_name`, but clickable - the button form of drawing an icon BY NAME.
+    
+    Without this a caller that wanted a named icon it could press had to resolve the
+    sheet index itself and hand it to `gui_icon_button`, which is exactly the bare
+    index the name indirection exists to remove: a mission that re-skins the sheet
+    then moves every icon on the screen EXCEPT the ones you can click.
+    
+    `data`/`on_press` behave as on `gui_button`, so a row of these built in a plain
+    `for` loop each knows which row it belongs to - the documented escape from the
+    for-loop handler trap.
+    
+    An unknown name draws NOTHING and says so once, same as `gui_icon_name`: a wrong
+    icon is worse than a missing one because it looks deliberate.
+    
+    Args:
+        name (str): a meaning or a look - see `icon_names.icon_names()`.
+        color (str, optional): tint.
+        style (str, optional): layout style.
+        props (str, optional): extra icon properties appended verbatim.
+        data (object, optional): carried by the widget; a dict is unpacked into the
+            handler's variables.
+        on_press (label | callable | Promise, optional): what a press does.
+        is_sub_task (bool, optional): how an `on_press` LABEL runs. See
+            `gui_icon_button`.
+    
+    Returns:
+        IconButton | None"""
 def gui_icon_recolor (widget, color):
     """Tint an icon that is already on screen, whatever `gui_icon_name` gave back.
     
@@ -1319,7 +1706,7 @@ def gui_int_slider (msg, style=None, var=None, data=None):
     
     Example:
         gui_int_slider("low:1;high:5;text:int;", var="torp_count")"""
-def gui_layout_widget (widget, style=None):
+def gui_layout_widget (widget, style=None, alt=None):
     """Place a specific engine widget at a fixed position in the layout.
     
     Adds the named engine widget to the console widget list AND places a
@@ -1331,6 +1718,12 @@ def gui_layout_widget (widget, style=None):
             ``"helm_movement"``.
         style (str, optional): Layout style for the PLACEHOLDER, as for any other
             widget - most usefully ``col-width``. Defaults to None (the whole row).
+        alt (str | sequence, optional): the SECOND rect, ``"left,top,right,bottom"``.
+            ``send_client_widget_rects`` takes two and the engine chooses between
+            them; a layout can only compute one, so by default the computed rect
+            goes in both slots. Pass this to reproduce a stock widget's own pair
+            from ``data/guiboxdata.txt`` exactly instead of flattening it to one
+            variant. Defaults to None (use the computed rect for both).
     
     DO NOT SHARE A ROW WITH MAST CONTROLS. The placeholder lays out correctly - measured:
     `red_alert` beside three checkboxes computes four clean quarters, and every rect is
@@ -1347,7 +1740,11 @@ def gui_layout_widget (widget, style=None):
         gui_layout_widget("2dview")
         # sharing one row with a checkbox:
         gui_checkbox("Follow", "col-width:90px;", var="follow_tag")
-        gui_layout_widget("red_alert", "col-width:1fr;")"""
+        gui_layout_widget("red_alert", "col-width:1fr;")
+        # a stock widget kept exactly where the engine had it (guiboxdata.txt
+        # normal_helm throttle):
+        gui_section(style="area:0,62,10,100;")
+        gui_layout_widget("throttle", alt="0,61,5,99")"""
 def gui_list (items, style='', select=False, multi=False, title=None, read_only=False, row_height='1.6em'):
     """Data-bound listbox: the ``with`` block is the per-row template.
     
@@ -1579,6 +1976,29 @@ def gui_message_label (layout_item, label):
     Example:
         section = gui_sub_section(style="col-width:30%;")
         gui_message_label(section, handle_section_click)"""
+def gui_messages_screen (consoles=None, title='Messages'):
+    """Draw the inbox, the reading pane and the compose line.
+    
+    Args:
+        consoles (list, optional): who a crew message can be sent to. Defaults to the
+            standard bridge consoles.
+        title (str, optional): the app bar's title."""
+def gui_messages_tick ():
+    """Bring the open inbox up to date WITHOUT rebuilding the screen.
+    
+    This is what the app's route calls on `on change message_revision()`. It used to
+    `jump` the screen's own label, which tears down and rebuilds the whole page - the
+    chrome, the list, the reading pane and the compose line - every time a single number
+    moved. That is why the panel flickered, why it could be caught mid-build showing an
+    empty list, and why scrolling sometimes showed what looked like two list boxes: the
+    old page and the new one, briefly both on screen.
+    
+    NOTHING HERE IS REBUILT. A listbox re-renders its own rows from `items`; the reading
+    pane's four widgets are assigned to; the replies are the one part that changes shape,
+    and they have a region that clears itself. An arriving message touches the list, a new
+    selection touches the pane's values, and neither touches anything else.
+    
+    Safe to call when the screen is not up: it does nothing without a recorded view."""
 def gui_options_button (transparent=True, client_id=None):
     """Make the engine Options button transparent (or normal) for a client, and
     keep it that way across page rebuilds.
@@ -1703,7 +2123,7 @@ def gui_properties_set (p=None, tag=None):
     
     Example:
         gui_properties_set({"Speed": "gui_text(str(ship_speed))", "Shields": "gui_slider(shield_pct)"})"""
-def gui_property_list_box (name=None, tag=None, temp=<function _property_lb_item_template_one_line at 0x0000027B65ACC930>):
+def gui_property_list_box (name=None, tag=None, temp=<function _property_lb_item_template_one_line at 0x000002741D2A7A60>):
     """Create a property list box with single-line label/control layout.
     
     Each property is rendered as a label on the left and its control widget
@@ -1772,6 +2192,16 @@ def gui_rebuild (region):
     
     Clears the region's sub-layout so it is reconstructed from scratch the
     next time the region is rendered.
+    
+    USE THIS ON A REGION, NOT ON A PLAIN SUB-SECTION. A region brackets its own
+    drawing region and sends ``send_gui_clear`` for it before redrawing
+    (``Layout.region_begin``), so its old children genuinely go. A plain
+    ``gui_sub_section`` has no region to clear and the engine offers no "delete
+    this widget", so a refill allocates NEW tags and every earlier fill stays
+    painted underneath - which is how the ePADD inbox came to draw three
+    messages on top of each other. A pane that is refilled out of band has to be
+    a region, or a ``Control`` that owns its region (a text area, a listbox),
+    updated in place.
     
     Args:
         region: A section or region layout item.
@@ -2054,6 +2484,8 @@ def gui_slider (msg, style=None, var=None, data=None, is_int=False):
     
     Example:
         gui_slider("low:0;high:100;text:float;", var="speed_pct")"""
+def gui_status_screen (title='Status'):
+    """Draw the status board for this console."""
 def gui_style_def (style):
     """Parse a CSS-like style string into a StyleDefinition object.
     
@@ -2099,9 +2531,23 @@ def gui_sub_section (style=None):
         with right:
             gui_text("Right column")
         gui_hide(right)     # and gui_show(right) to bring it back"""
+def gui_survey_screen (title='Survey'):
+    """Draw the log and the reading pane."""
+def gui_survey_screen_tick ():
+    """Refresh the log in place. What an `on change xess_log_revision()` should CALL.
+    
+    Never a jump back to the screen label: that re-sends every widget on the sheet over
+    the network, and a watcher would do it forever.
+    
+    Returns:
+        bool: False when the screen is gone - a handler can outlive the page."""
 def gui_tab_activate (tab_name: str):
     """Sets the back tab (left most) tab for the console tabs.
     This is general called automatically by //gui/tab and //console labels
+    
+    ALSO ENDS THE PADD. Arriving at a tab is how you leave the ePADD, so this clears
+    `__active_app__` - otherwise the strip would go on drawing the PADD's bar over a
+    console. Doing it here rather than in each tab means nothing has to remember to.
     
     Args:
         tab_name (str): The path of a //gui/tab"""
@@ -2115,8 +2561,25 @@ def gui_tab_back (tab_name: str):
     The back tag is set by //gui/tab and //console labels
     This allows overriding
     
+    A console that is currently BOARDED goes back to the crew console instead, whatever
+    the caller asked for - see the comment above. Nothing to do at the call sites.
+    
     Args:
         tab_name (str): The path of a //gui/tab"""
+def gui_tab_back_while_boarded (tab_name=None):
+    """Name the tab a BOARDED console's Back should go to, or clear it with ``None``.
+    
+    Called once by the addon that declares that tab::
+    
+        gui_tab_back_while_boarded("boarding_crew")
+    
+        //gui/tab/boarding_crew
+            jump boarding_crew_console
+    
+    Returns:
+        str | None: the name now installed."""
+def gui_tab_boarded_back_tab ():
+    """The tab a boarded console's Back goes to, or None when nothing installed one."""
 def gui_tab_clear_top ():
     """Specify a tab by default to shown when the page is shown for standard consoles.
     
@@ -2124,6 +2587,12 @@ def gui_tab_clear_top ():
         tab_name (str): A comma separated list of paths of a //gui//tab e.g. helm,weapons"""
 def gui_tab_enable (tab_name: str):
     """Enable a tab on the console tabs
+    
+    A NAME THAT IS NOT A STRING IS IGNORED, not a crash. Callers pass a variable -
+    `gui_tab_back(CONSOLE_SELECT)` is the shipped shape - and a task variable that was
+    never set arrives as None, which used to reach `None.split(",")` and raise INSIDE a
+    GUI build. A screen that cannot draw is a far worse outcome than a screen with no
+    back tab, and the missing tab is reported where it is noticed rather than here.
     
     Args:
         tab_name (str): A comma separated list of paths of a //gui//tab e.g. helm,weapons"""
@@ -2433,6 +2902,30 @@ def gui_widget_offscreen (widget, client_id=None):
     Args:
         widget (str): engine widget name, e.g. ``"text_waterfall"``.
         client_id (int, optional): defaults to the current client."""
+def gui_xess (client_id=None):
+    """Build the device: the identity bar, then the app area.
+    
+    The bar is a plain flow in its own section; the app area is a REGION, because it is
+    the part that changes shape and a region is one of only two things in the library
+    that can take its own content off the screen. A `gui_sub_section` cannot - refilling
+    one leaves every earlier fill painted underneath, which is what three superimposed
+    messages in the ePADD inbox turned out to be.
+    
+    Returns:
+        dict: the held widgets, also stored on the page for :func:`gui_xess_tick`."""
+def gui_xess_head (client_id, title, back=True):
+    """An app's title line, with the way back to the tiles.
+    
+    Every app draws this, so Back is in the same place on all of them - which is the
+    only reason a crew member can leave an app they have never seen before."""
+def gui_xess_tick ():
+    """Refresh the device in place. What an `on change` should CALL.
+    
+    Never a jump back to the screen label: that re-sends every widget on the console over
+    the network, and a watcher would do it forever.
+    
+    Returns:
+        bool: False when the screen is gone - a handler can outlive the page."""
 def hail_audio_checkbox (client_id=None, style=None):
     """`Audio` - ticked when hails may play their `Audio:`, which is the default.
     
@@ -2887,6 +3380,24 @@ def rundown_tiles ():
     A list of ``{name, label, live, staged, suggested, excitement}`` in rundown
     order. Returned as DATA so the console is a mission's to design - this layer
     has no opinion about what a tile looks like."""
+def status_rows (console=None):
+    """The apps with something to say, in the order the PADD lays them out.
+    
+    Each row is the app record plus the badge text it produced, so a caller renders
+    it without calling a provider a second time - a provider can be expensive and
+    can change between calls, and a row that showed one value and opened on another
+    would be worse than no row."""
+def survey_badge ():
+    """The tile's badge: how many readings the party has taken.
+    
+    "" when there are none, which is the convention every PADD provider follows - an
+    app with nothing to say says nothing rather than "0"."""
+def survey_relevant ():
+    """Whether this app is worth a tile.
+    
+    A mission with no boarding party in it has never filed a reading, and a tile that
+    opens an empty page on every console is the noise the Boarding Party app's own
+    condition exists to prevent."""
 def viewscreen_apply (ship):
     """Make the engine match the recorded state. Safe to call repeatedly.
     
@@ -3270,3 +3781,62 @@ def viewscreen_view_modes (client_id, ship_id=None):
     
     Returns:
         tuple: ``(view, facing, mode)``, ready to pass straight through."""
+def xess_app_badge (app):
+    """An app's live badge, as text, or None.
+    
+    Never raises: a provider that throws costs its own tile a badge and nothing else.
+    A provider asking for its own badge is ANSWERED with None rather than re-entered."""
+def xess_app_count ():
+    """Reset-ledger probe: how many apps are registered."""
+def xess_apps (client_id=None):
+    """The apps this console may open, in tile order.
+    
+    An `available` that raises drops its own tile and nothing else - the same bargain the
+    badge makes. A device that goes blank because one mission app asked an awkward
+    question is worse than a device missing one tile."""
+def xess_clear ():
+    """Forget every registration. The mission reset calls this; the built-ins re-register
+    themselves immediately after, so a reset never leaves a device with no apps."""
+def xess_focus (client_id=None):
+    """The row the open app is showing, for the apps that are a list and a detail."""
+def xess_open (client_id, key=None):
+    """Open an app on this console, or go home with ``None``.
+    
+    Leaving FIRE DISARMS. Walking away from a live weapon with the gun still up is
+    exactly the accident the disarm-on-shot rule exists to prevent, one step earlier."""
+def xess_opened (client_id=None):
+    """The app this console has open, or None for the tile sheet."""
+def xess_register (key, title=None, icon=None, blurb=None, sort=100, draw=None, badge=None, available=None):
+    """Put an app on the device.
+    
+    Args:
+        key (str): its name, unique. Lower-cased.
+        title (str, optional): what the tile says. Defaults to the key, upper-cased.
+        icon (str, optional): an icon NAME, resolved by `gui_icon_name`. An unknown name
+            draws nothing and says so once, which is what lets an app be registered
+            before its art exists.
+        blurb (str, optional): the second line of the tile.
+        sort (int, optional): tile order. Lower is earlier.
+        draw (callable): ``draw(client_id)``, called INSIDE the app region to build the
+            app. Required - an app with nothing to draw is a tile that does nothing.
+        badge (str | callable, optional): short text on the tile - "3 here", "2 new".
+            Called at build time; never allowed to raise (see :func:`xess_app_badge`).
+        available (callable, optional): ``available(client_id)`` - False means no tile.
+            The route's `if` is the ePADD's equivalent; this device has no routes.
+    
+    Returns:
+        dict: the registration."""
+def xess_registered ():
+    """Every app key on the device. An accessor because MAST cannot see a module-level
+    dict - only functions become MAST globals."""
+def xess_revision (client_id=None):
+    """What an `on change` watches. PER CONSOLE.
+    
+    A shared counter would mean one crew member opening an app repainting five other
+    screens. Carries the armed state so the device redraws the moment the weapon goes
+    live - that visibility is a safety feature, not decoration - and the badges, so a
+    tile that starts saying "2 new" is seen to say it."""
+def xess_set_focus (client_id, value):
+    ...
+def xess_unregister (key):
+    """Take an app off the device. True when there was one."""

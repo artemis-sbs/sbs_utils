@@ -293,6 +293,10 @@ def gui_list_box_is_header (item):
 def has_role (so, role):
     """Return whether an agent currently holds a given role.
     
+    Answers for the SERVER console too. It used to always say False for client id 0,
+    which reads exactly like "the role is not there" - so a check on the server was
+    indistinguishable from a real negative and passed silently for years.
+    
     Args:
         so (Agent | int): Agent ID or object.
         role (str): The role name to test for.

@@ -8,6 +8,20 @@ from sbs_utils.helpers import FrameContext
 from sbs_utils.pages.layout.hole import Hole
 from enum import IntEnum
 from sbs_utils.pages.layout.row import Row
+def _col_weight (col, row):
+    """The column twin of :func:`_row_weight`.
+    
+    Reads the column's OWN `col-width` only. A weight must not cascade the way a
+    plain `col-width` does: a section saying `col-width: 2fr` means "I take two
+    shares in MY row", and giving that to every column inside it would multiply
+    every child by two - which, since they all share one row, is the same layout
+    and a slower one."""
+def _row_weight (row):
+    """How many shares of the leftover height this row asks for.
+    
+    1 for every row that does not say `Nfr`, which is what makes weighted flex
+    free: an even split IS a weighted split when every weight is 1, so no
+    existing layout moves by a pixel."""
 def apply_col_width (item, width):
     """Set `default_width` / `square` from a col-width value, keeping the two
     MUTUALLY EXCLUSIVE.
@@ -27,6 +41,18 @@ def backdrop_props (image, color, layer=None):
     
     `layer` None keeps the historic 1000, which is UNDER content -- so a
     backdrop cannot hide a neighbour's spill unless the author raises it."""
+def backdrop_tag (item):
+    """The tag to address one item's background / border widget by.
+    
+    A layout item that never took a tag -- a `gui_blank` used as a spacer, a bare section --
+    has ``tag is None``, and ``"__bg:" + None`` is a `TypeError`. It fires only the FIRST
+    time somebody gives such an item a background, which is why it sat unseen until an
+    opaque gutter was needed beside a face (a face cannot be layered, so the fill has to go
+    around it -- see the note above).
+    
+    Minted lazily and CACHED on the item. The engine addresses widgets by tag, so a value
+    that changed from frame to frame would emit a NEW widget every present instead of
+    updating the one already there."""
 def calc_bounds (att, aspect_ratio, font_size):
     ...
 def calc_float_attribute (name, col, row, sec, aspect_ratio_axis, font_size):
@@ -53,6 +79,12 @@ def effective_font (col, row_font):
     into one place only so the width pass and the presentation pass can never
     drift apart on it -- a measure pass that used a different font than the
     renderer would mis-size every cell."""
+def flex_weight (size):
+    """How many shares of the leftover space this size asks for.
+    
+    1 for everything that is not a weighted `Nfr`, which keeps every existing
+    layout exactly where it was: an even split IS a weighted split when every
+    weight is 1."""
 def get_client_aspect_ratio (cid):
     """Get the aspect ratio of the specified client's screen.
     Args:
@@ -335,7 +367,20 @@ class Layout(Clickable):
         Args:
             _show (bool): Should the element be visible."""
 class RegionType(IntEnum):
-    """Enum where members are also (and must be) ints"""
+    """int([x]) -> integer
+    int(x, base=10) -> integer
+    
+    Convert a number or string to an integer, or return 0 if no arguments
+    are given.  If x is a number, return x.__int__().  For floating point
+    numbers, this truncates towards zero.
+    
+    If x is not a number or if base is given, then x must be a string,
+    bytes, or bytearray instance representing an integer literal in the
+    given base.  The literal can be preceded by '+' or '-' and be surrounded
+    by whitespace.  The base defaults to 10.  Valid bases are 0 and 2-36.
+    Base 0 means to interpret the base from the string as an integer literal.
+    >>> int('0b100', base=0)
+    4"""
     REGION_ABSOLUTE : 100
     REGION_RELATIVE : 200
     SECTION_AREA_ABSOLUTE : 0

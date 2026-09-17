@@ -12,6 +12,26 @@ def _drive (to, consoles, subject, seconds, lens_at, ease='in_out'):
     move below, because the only thing that differs between them is that function."""
 def _ease (name, t):
     """Ours, because the engine has none. `t` is 0..1."""
+def _engine_lens (base, want):
+    """The offset to HAND the engine so the lens ends up at ``want``.
+    
+    THE ENGINE PUTS THE LENS ON THE FAR SIDE OF THE OFFSET IT IS GIVEN - mirrored
+    through the dolly. Engine-observed 2026-08-31 on an orbital establishing shot, with
+    the geometry logged and correct: the shot came out on the world side of the ship
+    looking away from it, and the orbit tether ran from the hull toward the camera,
+    which it can only do if the camera is between ship and world.
+    
+    It hid for as long as it did because it is INVISIBLE to a single-subject shot: a
+    lens mirrored through its subject still frames that subject, just from a side
+    nobody asked for. `camera_orbit_lens` even documents ``Vec3(0, 0, distance)`` as
+    "straight back", which is only true once mirrored - the offsets in this module were
+    authored against the behavior, not against the arithmetic.
+    
+    So the shots that are WRONG are the ones that compute a real world position from
+    real geometry - a chase that must be behind a heading, an establishing shot that
+    must be opposite a world. Those go through here. The angle-based shots
+    (`camera_dolly`, `camera_orbit`) build their offset in the engine's own convention
+    and are left exactly as they are."""
 def _now ():
     ...
 def _vec (v):
@@ -124,6 +144,38 @@ def camera_dolly (to, subject, from_distance, to_distance, yaw=0.0, pitch=12.0, 
     
     Returns:
         Promise: resolves when the push ends."""
+def camera_establishing (to, subject, world, angle='behind', distance=None, seconds=14.0, arc=8.0, consoles=None):
+    """Frame ``subject`` AND ``world`` together - the orbital establishing shot.
+    
+    Both bodies in one picture: the ship close enough to read, the world filling the
+    space behind it or crowding one edge. `camera_orbit` cannot make this - it swings
+    around ONE object, so pointed at the world there is no ship in shot, and pointed at
+    the ship the world falls wherever the heading puts it.
+    
+    The lens is placed within a narrow cone about the WORLD-WARD axis (the line from the
+    world out through the ship), so the camera always looks roughly world-ward and the
+    body cannot leave the picture. ``angle`` names how far off that axis to lean and
+    which way, and the frame is rebuilt from live positions each tick, so the
+    composition holds all the way round the orbit.
+    
+    Args:
+        to: audience (see ``consoles_of``).
+        subject: what is framed and tracked - the SHIP.
+        world: the body it is in orbit of. Only its position is used, so a planet, a
+            station or a marker all work. ``None`` degrades to a plain tracking shot.
+        angle (str): a key of ``ESTABLISHING_ANGLES``, or a ``(cone, roll)`` pair in
+            degrees. Cone is clamped to ``ESTABLISHING_MAX_CONE``.
+        distance (float, optional): lens distance from the subject. Defaults to a
+            framing scaled off the subject's own size.
+        seconds (float): length of the leg.
+        arc (float): degrees of slow roll across the leg, so the shot breathes rather
+            than sitting dead still. 0 holds it fixed.
+    
+    Returns:
+        Promise: resolves when the leg ends.
+    
+    Example:
+        await camera_establishing(role("mainscreen"), ship, planet, angle="side")"""
 def camera_lens (to=None, consoles=None):
     """Where the lens is right now on the first of these consoles, or None.
     

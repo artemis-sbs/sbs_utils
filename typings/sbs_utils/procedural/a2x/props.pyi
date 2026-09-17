@@ -1,6 +1,22 @@
-def _add_sensor_beacons_to_cargo (o, count):
-    """Fabricate ``count`` Sensor Beacons into a ship's cargo (the ``beacon_built`` list the
-    LM fabrication uses), and signal the cargo UI to refresh. Returns the number added."""
+def _add_beacons_to_cargo (o, count, kind='sensor'):
+    """Fabricate ``count`` beacons of ``kind`` into a ship's cargo (the ``beacon_built``
+    list the LM fabrication uses), and signal the cargo UI to refresh. Returns the number
+    added."""
+def _beacon_program (kind):
+    """A default beacon program dict of ``kind``, shaped the way the LM fabrication builds
+    them: the recipe's own fields plus the ``recipe`` key, so a beacon made this way can be
+    fired with real behavior and scrapped back into real materials."""
+def _set_beacon_store (o, count, kind='bio'):
+    """Give a ship a 2.8 Beacon/Probe store under the Cosmos fabricate-only model.
+    
+    The Cosmos Beacon tube holds ``Beacon_MAX`` rounds - ONE, stock - and only a delivery
+    from Engineering queues the PROGRAM a fired round carries. Writing a 2.8 store of 20
+    straight onto ``Beacon_NUM`` (which is what this used to do) reads as 20/1 on the
+    Weapons tube and fires 20 rounds with nothing behind them. So fill the tube to its
+    capacity, queue a matching program for each loaded round, and put the remainder in
+    cargo as built-but-undelivered beacons - which is what a 2.8 store actually was.
+    
+    Returns the number of loaded rounds set."""
 def addto_object_property (obj, prop, value, index=None):
     """2.8 ``addto_object_property``: add ``value`` to a mapped property's current value."""
 def copy_object_property (src, dst, prop):

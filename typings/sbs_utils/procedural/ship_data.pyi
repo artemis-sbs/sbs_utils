@@ -1,3 +1,11 @@
+def _art_map (name):
+    """The RACE_ART / ART_KEYS map, lowercased keys. Empty when unset.
+    
+    An explicit setting WINS; otherwise the active theater supplies it. That ordering is
+    what stops the three maps drifting apart: authored by hand they can disagree (and did -
+    a hand-written RACE_ART said `kralien -> Cardassian` while the generated ART_KEYS said
+    Kazon, so one race produced different factions depending on which code path spawned
+    it), while derived from one theater they cannot."""
 def _art_root_exists (graphics, root):
     """Is there art for this `artfileroot`, named the way the engine now resolves it?
     
@@ -21,6 +29,14 @@ def _art_root_exists (graphics, root):
     
     Matching is on the base name before the first dot, because one root covers a family:
     `<name>.paxmesh`, `<name>1024.png`, `<name>_diffuse.png`."""
+def _art_sibling_exists (graphics, root, suffix):
+    """Is ``<artfileroot><suffix>`` on disk, resolved the way the engine resolves art?
+    
+    Same two-base search as :func:`_art_root_exists` - a STOCK root is relative to
+    ``data/graphics`` and a MOD's is relative to the exe - but matching an EXACT file
+    name rather than the base-name-before-the-first-dot family. That distinction is the
+    whole point: the family match is what lets a bare ``.obj`` stand in for art that was
+    never generated."""
 def _art_that_is_not_there (text):
     """Which `artfileroot` values in this file have no art in the install?
     
@@ -44,6 +60,12 @@ def _art_that_is_not_there (text):
     installs nothing. The `except` below would then swallow the ImportError and return "no
     art is missing" - so this check silently did nothing everywhere it was meant to run,
     which is the failure mode it exists to prevent."""
+def _engine_name (path):
+    """Drop a ship-data file's extension, because the engine appends its own.
+    
+    Only the three the engine searches are removed (.yaml, .yml, .json); any other
+    trailing dot is left alone, since a pack is free to have one in a folder or stem
+    and guessing there would break a path that already works."""
 def _engine_path (path):
     """A path in the form the ENGINE wants: relative to the Cosmos root.
     
@@ -86,6 +108,40 @@ def _find_extra_root (folder, filename):
     
     Falls back to the mission folder, so a genuinely missing file still reports
     against somewhere a person can go and look."""
+def _hull_rank (key):
+    """A rough size rank for a hull key, so a battleship maps to a capital ship.
+    
+    `hullpoints` where the entry has it, else `meshscale` - neither is a real tonnage but
+    both order a faction's ships the same way its author intended them to be read."""
+def _interior_art_that_is_not_there (text):
+    """Hulls that declare an interior but ship no silhouette sprite to cut it from.
+    
+    THE ENGINE DOES NOT TAKE INTERIOR CELL VALIDITY FROM shipData. It cuts it from the
+    alpha channel of ``<artfileroot>1024.png`` (GRID_REFERENCE.md s2). So a hull can have
+    a perfect floor plan, correct ``internalmapw``/``internalmaph``, and a merged
+    ``.grid`` - and still render a BLANK Engineering console, because the engine found no
+    valid cells to put any of it in.
+    
+    That is invisible from every angle a mod author has:
+    
+    * the floor plan parses and merges, so ``grid_get_layout`` answers happily;
+    * ``grid_rebuild_grid_objects`` spawns the objects without complaint;
+    * the MOCK fabricates a hull map from ``internalmapw`` alone and never looks at the
+      art, so every headless run reports a healthy grid;
+    * and ``_art_root_exists`` passes, because it matches the base name before the first
+      dot - a bare ``<name>.obj`` satisfies it.
+    
+    Which is why this is a SEPARATE check rather than a stricter version of that one.
+    Found on Cosmos-TNG-Mod, where 36 of 51 hulls shipped no derived art at all: the pack
+    relied on the engine generating it in place, and the engine crashes doing that from a
+    bare ``.obj``, so it stopped after 15.
+    
+    Only entries that declare ``internalmapw`` are checked - a hull with no interior has
+    no reason to carry the sprite, and every one of the 63 stock hulls that declares one
+    has it.
+    
+    Returns a list of ``(key, root, [missing file, ...])``. Quiet when it cannot check,
+    for the same reason :func:`_art_that_is_not_there` is."""
 def _looks_like_hjson (text):
     """Is this extra ship data in a shape the ENGINE can read?
     
@@ -103,6 +159,20 @@ def _looks_like_hjson (text):
     reason (found 2026-08-14).
     
     So check the shape at load, where the file is in front of us."""
+def _prepend_replacing (entries):
+    """Put `entries` at the front of the `#ship-list`, dropping anything already there
+    that carries one of the same keys.
+    
+    A merge used to be a blind prepend, so re-supplying a file ADDED it rather than
+    REPLACED it. `add_extra` merges the file it read, and the MOCK's
+    `add_extra_ship_data` merges it a second time (the real engine does not merge
+    library-side at all), so every headless run doubled a mod's hulls - 51 became 102 -
+    while the engine saw one copy. `get_ship_data_for` reads the newest copy first, so
+    nothing looked wrong until something counted: `filter_ship_data_by_side` answering
+    with eight Klingon warships where the pack declares four.
+    
+    Prepending still means "addon data ahead of built-in". This only stops one key being
+    present twice."""
 def _read_extra_ship_data (filename, path):
     """`(text, file)` for the file, trying the extensions the engine tries, or
     `(None, None)`.
@@ -113,6 +183,20 @@ def _read_extra_ship_data (filename, path):
     or the `.json`. Deciding it twice - once to read, once to tell the engine -
     is how the two drift apart, so it is decided once, here, by which file
     actually opened."""
+def _record_extra (filename, path, reached, engine_arg):
+    """Remember this file for `extra_replay()`, ONCE.
+    
+    The record used to be a plain append, so declaring the same file twice made the replay
+    issue the engine call twice. An addon's top-level statement is only once-only when it
+    says `shared`, so a second client connecting re-runs the declaration - and
+    `extra_loaded()` is what the reset ledger counts, so the duplicate read as a leak too."""
+def _side_split (side):
+    """A side's hulls as (mobile, stations).
+    
+    Deliberately NOT filtered on the `ship` role. Plenty of hulls do not carry it -
+    `arvonian_fighter` is `cockpit,fighter` - and a role filter silently skips them, which
+    shows up as "most of the faction converted and a few ships are still stock". Stations
+    are split out because a starbase must be re-skinned as a starbase."""
 def _tag_mod_entries (entries, mod):
     """Stamp every entry (in place) with its source mod so spawns can post-process it."""
 def add_extra (name, path=None, mod=None):
@@ -167,6 +251,69 @@ def alien_keys ():
     
     Returns:
         list[str]: Alien pickup type keys."""
+def art_faction_for (race, role=None):
+    """The shipData faction whose hulls should be DRAWN for `race`. ART ONLY.
+    
+    Returns `race` unchanged unless a mission or profile set ``RACE_ART``, so stock behavior
+    is untouched by default.
+    
+    THIS DOES NOT CHANGE WHOSE SIDE ANYTHING IS ON. shipData `side` is a LOOKUP field - "what
+    kind of ship is this" - while the side handed to :func:`npc_spawn` is the diplomatic
+    faction that drives relations, comms and contact colour. The prefabs already keep the two
+    apart as `origin` and `side_value`; this maps the first and never touches the second, so
+    a Cardassian hull can spawn as a `raider` and the mission's diplomacy is unchanged.
+    
+    WHY A MOD NEEDS THIS. Overriding a STOCK ship key with mod art works on the server and
+    never on a client: a client resolves a key it already knows against its own
+    `data/shipData.yaml`, so its stock artfileroot wins and the override never crosses the
+    wire. Pointing the lookup at the mod's OWN keys is what reaches clients, because the
+    client has no local record for those and renders what the server sends.
+    
+    Args:
+        race (str): the mission's own faction name, e.g. ``"kralien"``.
+        role (str, optional): if given, the mapping is only honored when the mapped faction
+            actually has hulls in that role. Without this a typo or a partial mod would
+            silently spawn nothing at all, which is much harder to notice than wrong art.
+    
+    Returns:
+        str: the faction to look hulls up under."""
+def art_key_for (ship_key):
+    """The hull key to DRAW in place of `ship_key`. ART ONLY.
+    
+    The companion to :func:`art_faction_for`, for the OTHER way a hull gets chosen. Some
+    callers do not look a ship up by faction at all - they name the key outright:
+    
+      * stations (``station_type``), and
+      * fleet ladders, which list their hulls class by class so a wave keeps its shape.
+    
+    A faction map cannot help those, so they get a key map instead - ``ART_KEYS``, keyed by
+    the STOCK key being replaced. Mapping per key also PRESERVES THE LADDER'S CHOICES: a
+    battleship is replaced by a specific hull rather than by a random ship of some faction.
+    
+    Returns `ship_key` unchanged when unset, or when the replacement is not in the ship
+    table - a half-written map should degrade to stock art, never to nothing spawning."""
+def art_key_in_faction (ship_key, faction):
+    """Pair one hull into ``faction`` by size rank. Identity when it cannot.
+    
+    The single-key form of what :func:`art_keys_from_theater` does in bulk, for the case
+    where a caller wants a DIFFERENT faction than the theater's own race map gives - the
+    crew flying Orion hulls while the theater still re-skins `tsn` allies as Federation.
+    
+    Falls back to ``ship_key`` when the faction has no comparable hull, because spawning
+    stock art is recoverable and spawning nothing is not."""
+def art_keys_cache_clear ():
+    """Drop the generated ART_KEYS pairing. On the reset ledger with the theaters."""
+def art_keys_from_theater ():
+    """Generate a stock-key -> mod-key map from the active theater's ``Art:`` map.
+    
+    The faction map (`RACE_ART`) only reaches hulls that are LOOKED UP by faction. A fleet
+    LADDER names its hulls outright, class by class, so a wave keeps its shape - and those
+    never consult a faction map at all. This bridges them: for every race the theater
+    repoints, pair that race's stock hulls against the target faction's hulls BY SIZE RANK,
+    so the ladder's shape survives the re-skin (its biggest ship is still the biggest).
+    
+    Cached per theater - the pairing is deterministic, and recomputing it per spawn would
+    walk the whole ship table every time."""
 def arvonian_ship_keys ():
     """Return all Arvonian ship keys (cached).
     
@@ -228,8 +375,37 @@ def extra_replay ():
     
     Replayed from the record rather than from the files: the library merge already happened
     and only the engine forgot."""
+def extra_report_untold ():
+    """Name the mods the engine does not have, while it can still be acted on.
+    
+    Called from sim_create() right after extra_replay() - the point where the table has
+    just been rebuilt and re-fed, so anything still missing is missing for the rest of
+    the mission. Goes to debug.log too, the channel that survives an engine session."""
 def extra_reset ():
     """Forget the record. Called by the per-mission reset, not by missions."""
+def extra_ship_data_enabled ():
+    """Whether extra ship data may be loaded at all.
+    
+    Reads the `EXTRA_SHIP_DATA` setting, defaulting to False. A caller that has to
+    decide before settings exist - or a test - overrides it with
+    `extra_ship_data_force`."""
+def extra_ship_data_force (on=True):
+    """Override the setting. `None` hands control back to it."""
+def extra_untold ():
+    """Which mods have hulls in the LIBRARY that the ENGINE was never (re-)told about?
+    
+    [(mod, hull_count)], sorted. Empty is the healthy answer.
+    
+    A mod that calls sbs.add_extra_ship_data() ITSELF is not in _extra_ship_data_loaded,
+    so extra_replay() has nothing to replay for it - and create_new_sim() rebuilding the
+    table is what takes its hulls away. Everything library-side keeps working, which is
+    why it goes unnoticed: every lookup, picker, headless run and lint reports the hulls
+    present. The bill arrives as a spawn dying inside the engine, in a mission that never
+    mentions ship data. Three shipped mods were in exactly that state on engine 1.3.6.
+    
+    Matched on the ship KEY, not on the #mod stamp: under the MOCK, add_extra_ship_data
+    merges the file a second time and re-stamps every entry with its own name, so a name
+    comparison reports a correctly-declared mod as untold."""
 def filter_ship_data_by_side (test_ship_key, sides, role=None, ret_key_only=False):
     """Return ship data entries matching a key substring, side filter, and optional role.
     
@@ -431,6 +607,32 @@ def reset_ship_data_caches ():
     Called by the merge/add functions after they change the ``#ship-list`` so the next
     lookup sees the new entries. For the mission-boundary reset that also drops the
     loaded data, use :func:`ship_data_reset_for_mission`."""
+def ship_art_image (id_or_key, size=1024):
+    """The image key for a ship's flat art -- e.g. ``ships/TSNBattleship1024``.
+    
+    The engine ships a top-down sprite beside every hull mesh, named
+    ``<artfileroot><size>.png``: 1024 is the big one the hull mask is cut from,
+    256 the small one. It is the only picture of a ship a GUI can draw without
+    asking the engine for a 3d render, so it is what a panel uses to show WHICH
+    ship it is talking about.
+    
+    ``artfileroot`` carries the whole path (``ships/<name>``) and the base for it
+    is ``data/graphics`` -- so what comes back here can be handed straight to
+    ``gui_image*`` or to a ``background-image:`` style. Neither wants the ``.png``.
+    A bare root (no ``/``) is the spelling engine 1.3.6 stopped resolving; it is
+    returned unchanged rather than guessed at, because ``_art_root_exists`` is
+    where that judgement belongs.
+    
+    Args:
+        id_or_key (Agent | int | str): A space object, its id, or a shipData key.
+        size (int, optional): Which sprite - 1024 or 256. Defaults to 1024.
+    
+    Returns:
+        str | None: The image key, or ``None`` when the ship data has no art.
+    
+    Example:
+        art = ship_art_image(target_id)
+        gui_sub_section(f"col-width: square; background-image: {art}; background: white;")"""
 def ship_data_is_loaded () -> int:
     """Reset-ledger probe: 1 while ship data (possibly mod-merged) is held, else 0."""
 def ship_data_reset_for_mission ():

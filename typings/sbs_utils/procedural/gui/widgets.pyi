@@ -12,7 +12,7 @@ def apply_control_styles (control_name, extra_style, layout_item, task):
             parsed dict applied after the base style.
         layout_item (LayoutItem): Layout item to receive the style.
         task (MastAsyncTask): GUI task used for string formatting."""
-def gui_layout_widget (widget, style=None):
+def gui_layout_widget (widget, style=None, alt=None):
     """Place a specific engine widget at a fixed position in the layout.
     
     Adds the named engine widget to the console widget list AND places a
@@ -24,6 +24,12 @@ def gui_layout_widget (widget, style=None):
             ``"helm_movement"``.
         style (str, optional): Layout style for the PLACEHOLDER, as for any other
             widget - most usefully ``col-width``. Defaults to None (the whole row).
+        alt (str | sequence, optional): the SECOND rect, ``"left,top,right,bottom"``.
+            ``send_client_widget_rects`` takes two and the engine chooses between
+            them; a layout can only compute one, so by default the computed rect
+            goes in both slots. Pass this to reproduce a stock widget's own pair
+            from ``data/guiboxdata.txt`` exactly instead of flattening it to one
+            variant. Defaults to None (use the computed rect for both).
     
     DO NOT SHARE A ROW WITH MAST CONTROLS. The placeholder lays out correctly - measured:
     `red_alert` beside three checkboxes computes four clean quarters, and every rect is
@@ -40,7 +46,11 @@ def gui_layout_widget (widget, style=None):
         gui_layout_widget("2dview")
         # sharing one row with a checkbox:
         gui_checkbox("Follow", "col-width:90px;", var="follow_tag")
-        gui_layout_widget("red_alert", "col-width:1fr;")"""
+        gui_layout_widget("red_alert", "col-width:1fr;")
+        # a stock widget kept exactly where the engine had it (guiboxdata.txt
+        # normal_helm throttle):
+        gui_section(style="area:0,62,10,100;")
+        gui_layout_widget("throttle", alt="0,61,5,99")"""
 def gui_update_widget_list (add_widgets=None, remove_widgets=None):
     """Add or remove widgets from the current client's active widget list.
     

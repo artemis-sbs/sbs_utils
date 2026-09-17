@@ -20,6 +20,16 @@ def gui_rebuild (region):
     Clears the region's sub-layout so it is reconstructed from scratch the
     next time the region is rendered.
     
+    USE THIS ON A REGION, NOT ON A PLAIN SUB-SECTION. A region brackets its own
+    drawing region and sends ``send_gui_clear`` for it before redrawing
+    (``Layout.region_begin``), so its old children genuinely go. A plain
+    ``gui_sub_section`` has no region to clear and the engine offers no "delete
+    this widget", so a refill allocates NEW tags and every earlier fill stays
+    painted underneath - which is how the ePADD inbox came to draw three
+    messages on top of each other. A pane that is refilled out of band has to be
+    a region, or a ``Control`` that owns its region (a text area, a listbox),
+    updated in place.
+    
     Args:
         region: A section or region layout item.
     

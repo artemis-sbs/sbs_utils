@@ -33,6 +33,14 @@ def _vol_block_jump (so):
     ENGINE-VERIFIED (2026-08-12, from the helm seat): writing these DOES stop the drive
     engaging, so a volume can genuinely forbid jumping out. Still opt-in, because
     confiscating a drive is a gameplay decision rather than a containment necessity."""
+def _vol_both (vol, a, b, p):
+    ...
+def _vol_box_overlap (a, b):
+    """The centre of the region two boxes share, or None. EXACT - no sampling.
+    
+    Boxes need the exact answer because relic doorways are THIN: `voice.amd`'s throat and
+    concourse share a slab 100 units deep across a 2600-unit gap between their centres, so
+    any sampled walk of that segment steps straight over it."""
 def _vol_box_surface (prim, count, rng, out):
     """FACES, not a shell. A box dressed as a sphere of props reads as a cave again and
     hides the corners that are the whole reason it is a box.
@@ -52,6 +60,16 @@ def _vol_capsule_args (args):
     here means the AMD reader needs no special case and neither does the caller."""
 def _vol_capsule_surface (prim, count, rng, out, per_ring=6):
     ...
+def _vol_centre (prim):
+    """A primitive's middle, whatever kind it is."""
+def _vol_core_pair (a, b):
+    """Closest pair of points on two primitives' cores, by alternating projection.
+    
+    Both cores are convex, so bouncing a point between them converges in a few steps.
+    Needed because two shapes do not always meet on the line joining their centres."""
+def _vol_core_project (prim, p):
+    """The point of a primitive's CORE nearest to p - a sphere's centre, a capsule's
+    segment, a box itself."""
 def _vol_default_agents ():
     """Players and fighters, minus anything docked.
     
@@ -60,6 +78,8 @@ def _vol_default_agents ():
     are excluded so a carrier's own bay is not a hazard."""
 def _vol_dist (p, q):
     ...
+def _vol_doorway (vol, a, b):
+    """A point inside both primitives and inside nothing subtracted, or None."""
 def _vol_even_sphere (n):
     """`n` roughly-even directions on the unit sphere - a golden-angle spiral.
     
@@ -144,6 +164,8 @@ def _vol_shift_solid (kind, args, origin):
     POINTS plus a radius."""
 def _vol_ship_radius (so):
     """A ship's own radius, so containment can treat it as a hull rather than a dot."""
+def _vol_sight_graph (vol, points, margin):
+    """`{i: [j, ...]}` over `points`, cached on the volume. The static half of a route."""
 def _vol_sphere_surface (prim, count, rng, out):
     ...
 def _vol_tractor_hold (vol, ship_id, pos, margin, scrape_band=120.0, radius=0.0):
@@ -200,6 +222,20 @@ def volume_box (volume, name, x, y, z, hx, hy, hz):
     """Add an axis-aligned rectangular space. Half-extents, not widths."""
 def volume_chamber (volume, name, x, y, z, radius):
     """Add one chamber to a volume (by object or by name)."""
+def volume_chamber_at (volume, pos):
+    """The name of the chamber containing `pos`, else the nearest chamber's, else None.
+    
+    The other half of `volume_path`, which needs two chamber names and is handed two
+    positions. NEAREST rather than strictly-containing on purpose: a relic's navigable
+    space is chambers, passages AND boxes, so a ship can legitimately be inside the volume
+    while inside no chamber at all - standing in a passage, or in a box that no chamber
+    covers. Answering None there would refuse to route from a perfectly ordinary place."""
+def volume_chamber_pos (volume, name):
+    """The centre of a named chamber, or None.
+    
+    The navmesh answers in NAMES - `volume_path` returns a route of them - and anything
+    steering along that route needs somewhere to aim. Reading `vol.chambers` for it would
+    put the storage shape in every caller."""
 def volume_clear ():
     """Drop every volume and stop every watcher. Called by reset_mission_state()."""
 def volume_containment_tick (t=None):
@@ -229,6 +265,10 @@ def volume_depth (volume, pos):
     
     The number the graded response is built on - scrape near zero, govern the
     throttle further out, clamp as the backstop."""
+def volume_doorways (volume):
+    """Every point where two navigable primitives meet - the openings between rooms.
+    
+    Waypoint material for :func:`volume_route`, not a route in itself."""
 def volume_engaged (volume):
     """The ids containment is currently applying to - the ships that are IN this relic.
     
@@ -291,6 +331,47 @@ def volume_remove (name):
     galaxy. An Open Universe cell is torn down while the next one is already being built,
     so clearing everything there would delete the relic the crew is standing in. Returns
     True if there was something to remove."""
+def volume_route (volume, start, goal, waypoints=None, margin=0.0, strict=False):
+    """Waypoints from `start` to `goal` that stay inside the volume.
+    
+    Args:
+        waypoints: the places worth routing through - a relic's authored `Point:` list.
+            Defaults to the centre of every primitive, which is a poor substitute and
+            only there so a caller with no places still gets something.
+        margin: how far inside the wall a leg has to stay.
+        strict (bool, optional): answer `[]` when there is no route, instead of the
+            straight line. **Use this whenever flying the answer can hurt.**
+    
+    Returns `[goal]` when the way is already clear, and `[]` when the volume is unknown.
+    
+    THE STRAIGHT-LINE FALLBACK IS A TRAP FOR A FLYER, which is why `strict` exists. There
+    are four ways to fail here - no waypoints, nothing in sight of the start, nothing in
+    sight of the goal, no chain between them - and every one of them used to answer with
+    the same `[goal]` a genuinely clear run gives. So a caller could not tell "one clean
+    leg" from "I could not find a way", and a relic has no engine collision at all: the
+    suit flew the straight line THROUGH THE ROCK, which is the one thing this whole mode
+    exists to prevent. Owner-reported from a bridge 2026-09-17: "it seems like it flies
+    directly toward it which can take it through walls."
+    
+    The default is unchanged, because a caller that only wants a heading is better served
+    by a guess than by nothing - but anything that will actually FLY the result should
+    ask for `strict` and refuse the trip."""
+def volume_sight_count (volume, waypoints, margin=0.0):
+    """How many legs the visibility graph found. Zero on a relic whose places cannot see
+    one another means every route through it will be a straight line."""
+def volume_skirts (volume, per_solid=14, clearance=None):
+    """Points that let a route get AROUND each subtracted mass.
+    
+    Doorways connect one room to the next; nothing connects one side of a pillar to the
+    other. `voice.amd`'s transmitter bay holds a subtracted cradle, and with doorways
+    alone the bay's own places could see nothing at all - the route into the deepest room
+    of the relic simply did not exist, and the router fell back to a straight line through
+    the ruin.
+    
+    Each solid gets a ring of candidates just clear of its surface, kept only where they
+    are really navigable. They are waypoint material for :func:`volume_route`; a solid a
+    route never needs to pass contributes nodes nobody visits, which costs one visibility
+    test each."""
 def volume_solid (volume, kind, *args):
     """SUBTRACT a shape from the navigable space.
     
@@ -363,6 +444,11 @@ def volume_unwatch (name):
     plus a live engine connection, and neither belongs to the watcher's task - so dropping
     the task alone leaves a ship roped to an invisible post that nothing will ever release,
     which reads in play as a ship that cannot fly after the ruin around it is gone."""
+def volume_visible (volume, a, b, margin=0.0, step=30.0):
+    """Whether the straight line from a to b stays inside the volume.
+    
+    Samples along the segment, so a passage narrower than `step` can be missed - the
+    default is well under the tightest thing the shipped relics are built from."""
 def volume_watch (volume, agents=None, scrape_band=120.0, margin=0.0, govern=True, clamp=True, seconds=0, hold='tractor', speed_limit=None, block_jump=False, engage='entered'):
     """Start enforcing containment for a volume. Replaces any existing watch.
     

@@ -1,7 +1,55 @@
 from sbs_utils.agent import Agent
 from sbs_utils.helpers import FrameContext
+def _grid_begin (ship_id, layout):
+    """Resolve what a build needs and clear whatever is standing there.
+    
+    Shared by the inline build and the phased one so the two can never drift. Returns
+    ``(so, blob, SBS, items, theme_name, layout)``, or ``None`` when there is nothing to
+    build - having already said why."""
 def _grid_damcon_decl (ship_id, layout=None):
     """The hull's damcon declaration, or ``None`` when it declares nothing."""
+def _grid_finish (ship_id, so, SBS, counts, layout):
+    """Everything that must happen once the last room is in.
+    
+    Kept apart from the spawning so a PHASED build can run it after the final slice - a
+    ship must not sit with a damage model that counts only the rooms created so far.
+    
+    RESOLVE THE BLOB HERE, NEVER CARRY ONE IN. `Agent.data_set` returns None once the
+    agent is dead (`agent.py`, "Every crashing write went through here"), and that guard
+    is the whole defense against the ObjectDataBlob use-after-free. A phased build runs
+    this up to `over` seconds after `_grid_begin` resolved things, so a blob captured
+    back then walks straight past the guard and writes into freed engine memory - which
+    is a server crash to desktop, not an exception. Measured 2026-08-25: fault in
+    `ObjectDataBlob::operator[]` under `ObjectDataBlob::Set`, from `Simulation::Tick`."""
+def _grid_interior_done (ship_id, so, SBS, counts, layout):
+    """Finish one ship's phased build and let it be requested again."""
+def _grid_interior_enqueue (ship_id, layout):
+    ...
+def _grid_interior_focus (ship_id):
+    ...
+def _grid_interior_skip (ship_id):
+    """Should this build be dropped rather than run? Says why, quietly.
+    
+    Reading the hull at build time collapses the re-hulling churn, but it does not answer
+    the other half: a ship may not be FLOWN at all. The roster parks every slot past
+    PLAYER_COUNT - suspended to standby, hull blanked to `invisible` - and building an
+    interior for one means walking the whole layout lookup to discover there is no
+    floor plan for `invisible`, then saying so loudly, once per parked hull. Seven of
+    those per run on a default roster, and every one of them is noise.
+    
+    Standby is the test rather than `__player__`, because it is what "not in play" means
+    to the engine and it keeps this general - the roster is not the only thing that parks."""
+def _grid_interior_start (ship_id, layout):
+    """Resolve the hull NOW - not when it was requested - and queue its rooms in slices."""
+def _grid_promote_maintenance_to_repair (node_id):
+    """A node under a TUNE order just broke - the order becomes a REPAIR order.
+    
+    Local import: work_orders imports this module for grid_node_state, so a
+    top-level import would be a cycle.
+    
+    Without this the order keeps its `maintain` kind, and `work_order_is_satisfied`
+    for maintenance asks "is it tuned" - which a broken node never is - so the team
+    keeps walking to it and `ai_tune_node` tries to tune something in pieces."""
 def _grid_resolve_point (SBS, ship_id, hm, declared, used=None, prefer_empty=True, who=''):
     """Where to put one grid object: the declared cell if it is usable, else the engine's.
     
@@ -30,6 +78,25 @@ def _grid_retire_extra_damcons (hm, ship_id, count):
     
     Matches ``DC<n>`` carrying the ``damcons`` role only, so nothing else on the grid can
     be caught by a name that happens to look like one."""
+def _grid_say (msg, level='warning'):
+    """Say something about the engineering grid, on a channel the ENGINE actually shows.
+    
+    Every failure on this path used to be a bare ``return``. A hull that was never
+    merged, a floor plan that was rejected, and a misspelled ``ship:`` key all present
+    identically - as a dead Engineering console with nothing written anywhere. That cost
+    a full engine session to diagnose once, and it would have cost the same every time.
+    
+    Two channels on purpose. ``log()`` is the library convention and is what a headless
+    run and the test suite read, but in the engine it goes to a Python logger with NO
+    handler attached, so it is invisible exactly where this class of bug lives. ``DEBUG``
+    writes ``debug.log`` beside the executable, which survives the session.
+    
+    ASCII only - these strings can reach engine-rendered surfaces."""
+def _grid_spawn_chunk (ship_id, so, theme_name, chunk, counts):
+    """Spawn one slice of a hull's rooms. Returns False if the engine refused one.
+    
+    A PHASED build queues its slices ahead of time, so once one fails the rest are
+    already scheduled - they check this and do nothing rather than half-filling a hull."""
 def _grid_unused_point (hm, point, used):
     """The nearest open cell to ``point`` that is not already in ``used``.
     
@@ -50,6 +117,13 @@ def _grid_unused_point (hm, point, used):
         list[int]: ``[x, y]``."""
 def add_role (set_holder, role):
     """Add a role to one or more agents.
+    
+    THE SERVER CONSOLE COUNTS. `to_object(0)` returns None by design, so this used to
+    be a silent no-op for client id 0 - and LM's main screen adds `console, mainscreen`
+    to its own client id. On the server window that role was never added, so every
+    audience narrowed with `any_role("mainscreen")` - a hail placed on the main screen,
+    a hero card, a lower third - resolved to nobody and drew nothing, with no error.
+    `to_agent_list` resolves the server the same way `get_inventory_value` always has.
     
     Args:
         set_holder (Agent | int | set[Agent | int]): Agent(s) to update.
@@ -127,6 +201,8 @@ def get_pos (id_or_obj):
     
     Returns:
         Vec3 | None: The agent's position, or ``None`` if it does not exist."""
+def grid_add_node_wear (id_or_obj, amount, ship_id=None):
+    """Add to a node's wear. Negative restores it."""
 def grid_apply_system_damage (id_or_obj):
     """Update system-damage counts and coefficients; explode the ship if all nodes are damaged.
     
@@ -311,6 +387,113 @@ def grid_get_theme_name (ship_key, layout=None):
     made per-race themes impossible. A hull, or a single layout of it, can now name its
     own: a captured TSN hull refitted by pirates is the same mesh with a different
     interior AND a different vocabulary."""
+def grid_interior_arm (over=None, chunk=None):
+    """The hulls are final: build every interior that was asked for, phased over ticks.
+    
+    Call this once a map has settled - past the roster cull and past whatever re-hulling
+    the map does for itself. Requests made after this point are queued immediately, so a
+    mid-game refit still gets an interior without anyone re-arming anything.
+    
+    Args:
+        over (float, optional): sim-seconds to spread the work across (default 4).
+        chunk (int, optional): rooms created per slice (default 16).
+    
+    Returns:
+        int: how many ships were released to build."""
+def grid_interior_flush ():
+    """Build everything outstanding right now.
+    
+    For a test, a headless conformance run, or anything that cannot wait for the drip."""
+def grid_interior_is_armed ():
+    """Whether interiors are being built as they are requested."""
+def grid_interior_pending ():
+    """Ships recorded but not yet built, plus queued work still to run."""
+def grid_interior_request (id_or_obj, layout=None):
+    """Ask for this ship's engineering interior. Built ONCE, when the hull has settled.
+    
+    The call a ``//spawn`` route should make. Nothing is created here: before
+    :func:`grid_interior_arm` the ship is simply recorded, and after it the build is
+    queued and dripped over ticks. Either way the hull is read when the build RUNS, so a
+    ship re-hulled between the request and the build gets the interior it ends up
+    needing - not the one it had when it spawned.
+    
+    Idempotent by ship: requesting the same ship repeatedly produces one build.
+    
+    Args:
+        id_or_obj (Agent | int): the ship.
+        layout (str, optional): a named layout; defaults to the ship's own.
+    
+    Returns:
+        bool: whether the request was recorded."""
+def grid_interior_reset ():
+    """Drop queued interior work and disarm (mission reset)."""
+def grid_node_apply_color (id_or_obj, theme_name=None):
+    """THE place a grid node's icon color is decided.
+    
+    Four tiers, one write point - so a node can never be drawn in a color that
+    disagrees with its condition:
+    
+    * damaged -> the theme's ``damage_colors``
+    * worn    -> the theme's ``worn_colors`` (Gold by default)
+    * tuned   -> the theme's ``tuned_colors`` (cyan by default)
+    * nominal -> the node's OWN cached healthy color, from inventory ``color``,
+      written at spawn - so a re-skinned room keeps its own hue instead of being
+      flattened to a theme default.
+    
+    Args:
+        id_or_obj: the grid node.
+        theme_name (str, optional): theme to read; None uses the current one.
+    
+    Returns:
+        str | None: the color written, or None if there was no blob to write to."""
+def grid_node_efficiency (id_or_obj):
+    """What this node contributes to its system's effectiveness.
+    
+    damaged 0.0 | worn WEAR_WORN_FACTOR | nominal 1.0 | tuned 1.0 + WEAR_TUNED_BONUS.
+    
+    A node nothing has ever worn reads WEAR_NOMINAL and so weighs exactly 1.0 - which
+    is what makes the whole idea inert until something writes wear, and why
+    set_damage_coefficients produces numbers identical to the old undamaged/total
+    fraction on a ship that has never worn anything."""
+def grid_node_is_system (id_or_obj):
+    """Is this node part of a ship SYSTEM - the only kind of node that wears?
+    
+    Every shipped interior says so in its own roles: a system room's roles begin with
+    ``system`` (``system,weapon,beam``, ``system,ENGINE,impulse``, ``system,shield,fwd``)
+    and a crew space's begin with ``room`` (``room,cabin,gym``, ``room,cabin,quarters``,
+    ``room,bay,cargo``). Measured across `data/grid_data.json`: 38 rolesets, 11 of them
+    systems, and not one where `system` appears anywhere but first. LegendaryMissions'
+    docking repair and the EPad room list already read the same role.
+    
+    Wear is a SYSTEM idea - a tuned beam array fires harder, a worn impulse drive pushes
+    less - and none of that means anything for a gymnasium. Before this, upkeep aged
+    every node on the ship, so the gym went worn on schedule and Engineering offered a
+    damage-control team to go and tune it.
+    
+    Damage is different and is deliberately NOT gated: a fire in the galley is a real
+    fire, and a team still goes and puts it out."""
+def grid_node_state (id_or_obj):
+    """The node's condition as one word.
+    
+    Damage wins over wear - a broken node is "damaged" whatever its wear says,
+    which is why grid_damage_grid_object clears `__worn__`.
+    
+    Args:
+        id_or_obj: The grid node (id or Agent).
+    
+    Returns:
+        str: "damaged", "worn", "tuned" or "nominal"."""
+def grid_node_wear (id_or_obj):
+    """How worn a grid node is, 0.0 (perfect) to 1.0 (worn out).
+    
+    A node nothing has ever worn reads WEAR_NOMINAL, so callers never have to
+    special-case "no wear recorded".
+    
+    Args:
+        id_or_obj: The grid node (id or Agent).
+    
+    Returns:
+        float: the node's wear."""
 def grid_objects (so_id) -> set[int]:
     """Get a set of agent ids of the grid objects on the specified ship
     
@@ -330,16 +513,31 @@ def grid_objects_at (so_id, x, y) -> set[int]:
     Returns:
         set[int]: A set of agent ids"""
 def grid_rebuild_grid_objects (id_or_obj, grid_data=None, layout=None):
-    """Rebuild all engineering-grid objects on a ship from shipData JSON.
+    """Rebuild all engineering-grid objects on a ship, NOW, in this frame.
     
-    Deletes all existing grid objects for the ship, then re-creates them from
-    the grid layout defined in the ship's art-ID entry in ``grid_data``.
-    Also re-creates the damcon teams, the position marker, and the EPad.
+    Deletes any existing grid objects, re-creates them from the layout registered for the
+    ship's shipData key, and re-creates the damcon teams, the position marker and the
+    EPad.
+    
+    Prefer :func:`grid_interior_request` for a ship that is being set up. This builds
+    immediately, which is right for a mid-game refit a player is watching, and wrong at
+    game start - see that function for why.
     
     Args:
         id_or_obj (Agent | int): The player ship agent ID or object.
-        grid_data (dict, optional): Pre-loaded grid data. If ``None``, loaded
-            via ``grid_get_grid_data()``."""
+        grid_data (dict, optional): **Accepted and deliberately ignored.** Kept because
+            missions pass it positionally (``LegendaryMissions/ai/grid_ai.mast``) and
+            removing it would break them.
+        layout (str, optional): Which named layout to build. Defaults to the ship's own
+            ``grid_layout`` inventory value, then ``"default"``.
+    
+    ``grid_data`` stopped being read when the lookup moved to :func:`grid_get_layout`,
+    which resolves the module-level store itself. That is not an oversight to tidy up -
+    honoring the argument again would REINTRODUCE a restart bug. The one caller that
+    passes it captures it once, at top level, into a MAST ``shared`` variable; but
+    ``grid_reset_caches()`` rebinds the store to a fresh dict on a mission restart, so
+    that snapshot pins run 1's dict while every floor plan merged for run 2 lands in the
+    new one. Reading the global each time is what keeps the two in step."""
 def grid_repair_grid_objects (player_ship, id_or_set, who_repaired=None):
     """Repair one or more grid objects and update the ship's damage state.
     
@@ -389,6 +587,46 @@ def grid_set_max_hp (max_hp):
     
     Args:
         max_hp (int): New maximum HP value. Defaults to 6 at module load."""
+def grid_set_node_wear (id_or_obj, value, ship_id=None):
+    """Set a node's wear, reconciling everything that follows from it.
+    
+    The ONLY writer. It clamps, stores, adds or removes ``__worn__``, repaints
+    through grid_node_apply_color, and recomputes the ship's coefficients - but only
+    when the TIER actually changed, so wear moving within a band costs one dict write
+    and nothing else.
+    
+    Only a SYSTEM node carries wear at all (see ``grid_node_is_system``); on anything
+    else this is a no-op that answers with the nominal reading. Gating the one writer
+    rather than each caller is what makes the whole model system-only: upkeep, the
+    wear a damcon patch leaves behind, a mission's own call, all of it.
+    
+    ``__worn__`` never coexists with ``__damaged__``: damage supersedes wear, and a
+    worn node keeps ``__undamaged__`` so nothing that counts undamaged system nodes
+    changes meaning because a node got tired.
+    
+    Args:
+        id_or_obj: the grid node.
+        value (float): the new wear, clamped to 0.0 - 1.0.
+        ship_id (optional): the host, for the coefficient recompute. Read from the
+            node when not given.
+    
+    Returns:
+        float: the wear actually stored."""
+def grid_set_wear_tuning (worn_factor=None, tuned_bonus=None, worn_min=None, tuned_max=None, upkeep_rate=None, **rates):
+    """Retune the wear model for a mission that wants different numbers.
+    
+    ``grid_set_wear_tuning(tuned_bonus=0.0)`` gives strict parity with the old
+    coefficients even on a ship with tuned nodes - the escape hatch for a mission
+    that wants the maintenance loop without any over-unity.
+    
+    Any arrival RATE can be passed by its short name as a keyword, so a mission tunes
+    the feel without touching the library::
+    
+        grid_set_wear_tuning(beam_hit=0.0005, warp_minute=0.05)
+        grid_set_wear_tuning(upkeep_rate=0)     # no time-based upkeep at all
+    
+    An unknown rate name is a warning, not a silent no-op - a typo here would look
+    exactly like "the dial does nothing"."""
 def grid_spawn (id, name, tag, x, y, icon_index, color, roles):
     """Spawn a grid object (engineering component) onto a ship's grid.
     
@@ -405,6 +643,34 @@ def grid_spawn (id, name, tag, x, y, icon_index, color, roles):
     
     Returns:
         GridObject: The newly created grid object."""
+def grid_system_signature (id_or_obj):
+    """A value that CHANGES whenever an indicator row should be redrawn.
+    
+    For ``on change grid_system_signature(ship_id):`` - the polling form, which is
+    what a console layout can actually use. A ``//damage/internal`` route fires on
+    the SERVER and would not repaint a client's panel; ``on change`` re-evaluates on
+    the console itself and so cannot miss a hit.
+    
+    Args:
+        id_or_obj: The ship (id, Agent or SpaceObject).
+    
+    Returns:
+        str: e.g. ``"weapon1/0/0/6,engine0/1/0/4"`` - hurt/worn/tuned/total per pool."""
+def grid_system_states (id_or_obj):
+    """What each of the ship's system pools is worth right now.
+    
+    Only pools the ship actually HAS are returned - a fighter with no shield rooms
+    gets no shield light rather than a permanently-green one for a system it cannot
+    lose. Order is fixed by GRID_SYSTEM_ICONS so a row built from this never
+    reshuffles under the player between repaints.
+    
+    Args:
+        id_or_obj: The ship (id, Agent or SpaceObject).
+    
+    Returns:
+        list[dict]: one per pool, with ``role``, ``icon``, ``hurt``, ``worn``,
+        ``tuned``, ``total``, ``state`` ("hurt"/"worn"/"tuned"/"ok") and the theme
+        ``color`` to draw it in."""
 def grid_take_internal_damage_at (id_or_obj, source_point, system_hit=None, damage_amount=None):
     """Apply internal damage to a ship at a 3D world position.
     
@@ -421,6 +687,20 @@ def grid_take_internal_damage_at (id_or_obj, source_point, system_hit=None, dama
     
     Returns:
         bool: ``True`` if the ship was destroyed by this damage."""
+def grid_tune_grid_object (ship_id, node_id, who=None):
+    """A node brought back to spec - what a maintenance order delivers.
+    
+    Wear to zero, ``__worn__`` off, drawn in the tuned color, coefficients
+    recomputed, and the order closed for EVERY team on it rather than just whoever
+    happened to be standing there.
+    
+    Args:
+        ship_id: the host ship.
+        node_id: the node to tune.
+        who (optional): the team that did it, carried on the signal.
+    
+    Returns:
+        bool: whether anything was tuned."""
 def grid_valid_blob (id_or_obj):
     """Return a grid object's engine blob only if its backing space object is
     still valid, otherwise ``None``.
@@ -437,8 +717,101 @@ def grid_valid_blob (id_or_obj):
     Returns:
         data_set | None: The live blob, or ``None`` if the object is gone or its
             host space object has been destroyed."""
+def grid_wear_beam_hit (ship_id, count=1):
+    """Wear a ship's beam systems for landing `count` beam hits.
+    
+    THE AMOUNT IS LOOKED UP HERE, which is the whole reason this exists. `WEAR_PER_*` are
+    module-level constants, and only FUNCTIONS become MAST globals - a constant named in
+    a `.mast` expression is a NameError, every time, at the moment the route fires. So
+    `grid_wear_system(id, "beam", WEAR_PER_BEAM_HIT)` in a route reads perfectly and
+    crashes on the first shot.
+    
+    `grid_wear_shield_hit` and `grid_wear_travel` already had this shape; beams and tubes
+    did not, and those were the two routes that fired.
+    
+    Args:
+        ship_id: the ship that fired.
+        count (int, optional): how many hits to charge for. Defaults to 1.
+    
+    Returns:
+        int: how many nodes were worn."""
+def grid_wear_shield_hit (ship_id, face):
+    """Wear the shield facing that took a hit.
+    
+    Args:
+        ship_id: the ship that was hit.
+        face (int): 0 forward, anything else aft - the same two pools
+            set_damage_coefficients writes as shield_damage_coeff[0] and [1].
+    
+    Returns:
+        int: how many nodes were worn."""
+def grid_wear_system (ship_id, sys_role, amount, count=1):
+    """Wear `count` random working nodes of a system.
+    
+    Random rather than spread evenly: wearing every node a hair each time would move
+    a whole pool across the threshold together, so the ship would go from fine to
+    fully worn in one tick with nothing in between.
+    
+    Damaged nodes are skipped - they are already at zero effectiveness, so wear on
+    them would mean nothing and would be lost the moment they were repaired.
+    
+    Args:
+        ship_id: the ship.
+        sys_role (str): a role or comma-separated roles, e.g. "beam", "shield,fwd".
+        amount (float): wear to add to each chosen node.
+        count (int, optional): how many nodes. Defaults to 1.
+    
+    Returns:
+        int: how many nodes were worn."""
+def grid_wear_travel (ship_id, throttle=None):
+    """Wear the drive a ship is actually using, for one minute of travel.
+    
+    ``playerThrottle`` is <= 1.0 for impulse and > 1.0 for warp (the mock's model is
+    calibrated against the engine's own speed capture), so this splits the wear
+    between the impulse and warp pools rather than charging both.
+    
+    The read is coalesced because **the engine answers None for a blob field nothing
+    has set** - a ship sitting still since spawn has never had a throttle written.
+    An unguarded compare is ``None > 1.0`` on a real bridge, and since a failing
+    expression stops the command, the caller would simply stop working with no
+    symptom beyond "wear stopped happening".
+    
+    Args:
+        ship_id: the ship.
+        throttle (float, optional): override, for tests. Read from the blob when None.
+    
+    Returns:
+        str | None: which pool was worn - "warp", "impulse", or None when stopped."""
+def grid_wear_tube_shot (ship_id, count=1):
+    """Wear a ship's torpedo systems for launching `count` rounds.
+    
+    See `grid_wear_beam_hit` for why the amount is looked up here rather than passed in
+    from MAST.
+    
+    Args:
+        ship_id: the ship that launched.
+        count (int, optional): how many launches to charge for. Defaults to 1.
+    
+    Returns:
+        int: how many nodes were worn."""
+def grid_wear_upkeep (ship_id, amount=None):
+    """Age every working SYSTEM node on a ship by one upkeep step.
+    
+    Crew spaces are left alone: a gymnasium does not drift out of tune, and one that
+    read `worn` put a tuning job for it on the Engineering board.
+    
+    Args:
+        ship_id: the ship.
+        amount (float, optional): defaults to WEAR_UPKEEP_RATE.
+    
+    Returns:
+        int: how many nodes were aged."""
 def has_role (so, role):
     """Return whether an agent currently holds a given role.
+    
+    Answers for the SERVER console too. It used to always say False for client id 0,
+    which reads exactly like "the role is not there" - so a check on the server was
+    indistinguishable from a real negative and passed silently for years.
     
     Args:
         so (Agent | int): Agent ID or object.
@@ -500,6 +873,9 @@ def prefab_spawn (label, data=None, OFFSET_X=None, OFFSET_Y=None, OFFSET_Z=None)
             invalid."""
 def remove_role (agents, role):
     """Remove a role from one or more agents.
+    
+    Reaches the server console, for the same reason :func:`add_role` does - and it has
+    to be the same set, or a console that could gain a role could never lose it.
     
     Args:
         agents (Agent | int | set[Agent | int]): Agent(s) to update.

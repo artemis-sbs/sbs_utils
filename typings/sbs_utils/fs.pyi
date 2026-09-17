@@ -76,6 +76,41 @@ def get_artemis_graphics_dir ():
     
     Returns:
         str: The graphics folder path (data directory + "\graphics")."""
+def get_common_data_dir ():
+    """The shared folder beside the missions, for state that is NOT mission content.
+    
+    ``<missions>/common_data``. Everything a mission WRITES rather than ships belongs
+    here: saved setups, saves, results. Anything written into the mission folder instead
+    sits inside a distributed repo, so it needs a ``.gitignore`` line in every mission and
+    is lost to a re-extract; that is what this exists to avoid.
+    
+    Derived from the MISSION's own location, not from :func:`get_missions_dir` - the
+    latter is ``exe_dir + "/data/missions"``, which does not follow a mission run from
+    outside the Artemis tree. Every ``cosmos_dev`` run and every ``--use-working-tree``
+    run is exactly that case.
+    
+    Created on demand, so a caller can write to the result without a guard.
+    
+    Returns:
+        str: the common_data folder path."""
+def get_common_data_filename (*parts):
+    """A file under :func:`get_common_data_dir`, in a named sub-folder.
+    
+    Sub-folders, not one flat pile: the flat version was already carrying two different
+    owners' files distinguished only by filename prefix. Group by what the file IS -
+    ``profiles``, ``game_codes``, ``saves``, ``results`` - because the operator-facing
+    ones want browsing by name, and the machine-written ones want staying out of the way.
+    
+    The containing folder is created, so the caller can write straight to the result::
+    
+        get_common_data_filename("game_codes", "LegendaryMissions.yaml")
+        get_common_data_filename("saves", "universe_save_default_1.yaml")
+    
+    Args:
+        *parts (str): path segments below ``common_data``; the last is the file name.
+    
+    Returns:
+        str: the full path."""
 def get_mission_audio_file (file):
     """The path the engine wants for an audio file kept in this mission.
     

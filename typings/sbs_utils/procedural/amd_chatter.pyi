@@ -24,7 +24,7 @@ def amd_chatter_data (text):
     the ``data_parser`` for a chatter-only .amd; a consolidated mission file uses ``amd_mission_data``
     and its chatter headings' bodies fall through the same way. Most chatter needs no fence at all -
     the pool is the heading BODY, not fence values."""
-def amd_parse_facts (text, handler=None, default=<function amd_num at 0x0000028640FEBF60>, archetype=None, errors=None):
+def amd_parse_facts (text, handler=None, default=<function amd_num at 0x000002741D0E0540>, archetype=None, errors=None):
     """Parse one fact-sheet fence into a dict.
     
     Per label, in order: the caller's `handler` gets first refusal (returns truthy to

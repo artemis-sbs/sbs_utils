@@ -68,6 +68,39 @@ def set_dedicated_link (so, link_name: str, to):
         so (Agent | int): The source agent ID or object.
         link_name (str): The link key name.
         to (Agent | int | None): The target agent ID or object, or ``None`` to clear."""
+def to_agent_list (the_set):
+    """Resolve to Agent objects for a WRITE, the SERVER CONSOLE included.
+    
+    `to_object` refuses id 0 by design - 0 means "no object" for a space object - so
+    every write built on :func:`to_object_list` silently skipped the server console.
+    That is not a corner case: the server window is a console like any other, and
+    `add_role(client_id, "console, mainscreen")` on it was a no-op, which is why an
+    overlay narrowed with `consoles="mainscreen"` never reached the main screen when
+    the main screen WAS the server.
+    
+    The reads already knew better - `get_inventory_value` has carried an explicit
+    `Agent.get(0)` branch for exactly this. This is that branch generalized, so a write
+    can reach everything a read can see.
+    
+    Space-object callers keep using `to_object_list`: id 0 there really does mean "no
+    object", and this must not resurrect it for them.
+    
+    Args:
+        the_set (set[Agent | int] | list[Agent | int] | Agent | int): what to resolve.
+    
+    Returns:
+        list[Agent]: resolved agents; unresolvable entries are dropped."""
+def to_client_object (other: sbs_utils.agent.Agent | int):
+    """Resolve a client/console ID or Agent to its Agent object.
+    
+    Returns ``None`` when the ID is not a valid client ID or the agent no
+    longer exists.
+    
+    Args:
+        other (Agent | int): Client ID or agent to resolve.
+    
+    Returns:
+        Agent | None: The client agent, or ``None``."""
 def to_id (other: sbs_utils.agent.Agent | sbs_utils.agent.CloseData | int):
     """Extract the integer ID from an agent, ``CloseData``, ``SpawnData``, or bare int.
     
@@ -94,15 +127,6 @@ def to_object (other: sbs_utils.agent.Agent | sbs_utils.agent.CloseData | int):
     
     Returns:
         Agent | None: The agent, or ``None`` if it could not be resolved."""
-def to_object_list (the_set):
-    """Convert a set or list of IDs/agents to a list of Agent objects (excluding None).
-    
-    Args:
-        the_set (set[Agent | int] | list[Agent | int]): IDs or agent objects.
-    
-    Returns:
-        list[Agent]: Resolved Agent objects; items that cannot be resolved are
-            excluded."""
 def to_set (other: sbs_utils.agent.Agent | sbs_utils.agent.CloseData | int):
     """Normalize any agent-like value or collection into a set of integer IDs.
     

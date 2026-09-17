@@ -1,3 +1,24 @@
+def _fr_text (weight):
+    """`2.0` as `2fr`, `1.5` as `1.5fr` - how the author would have written it."""
+def _weighted_fr (name):
+    """`Nfr` as a weighted flex size, or None when this is not one.
+    
+    `1fr` never reaches here - it is in `_CONTENT_BY_NAME` and comes back as the
+    interned AUTO, so the identity comparisons in the layout hot path are
+    untouched by this feature existing.
+    
+    **A weight of zero is refused**, and loudly. CSS gives a `0fr` item none of
+    the leftover space, which here would be a row of no height that still DRAWS
+    its text - the engine does not clip, so it would land on the row above. That
+    is the exact shape of LM issue 672, and it is not worth reintroducing for a
+    spelling nobody needs: a row that should not be seen is `gui_blank()` or is
+    not built."""
+def flex_weight (size):
+    """How many shares of the leftover space this size asks for.
+    
+    1 for everything that is not a weighted `Nfr`, which keeps every existing
+    layout exactly where it was: an even split IS a weighted split when every
+    weight is 1."""
 class ContentSize(object):
     """A `row-height:`/`col-width:` value that means "size to the content".
     
@@ -42,7 +63,7 @@ class ContentSize(object):
         """Return self==value."""
     def __hash__ (self):
         """Return hash(self)."""
-    def __init__ (self, mode='content'):
+    def __init__ (self, mode='content', weight=1.0):
         """Initialize self.  See help(type(self)) for accurate signature."""
     def __repr__ (self):
         """Return repr(self)."""

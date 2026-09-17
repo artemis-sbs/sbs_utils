@@ -14,6 +14,12 @@ def _strip_line_comments (text):
     
     Only whole lines are stripped. A `//` inside a JSON string is safe because JSON strings
     cannot contain a literal newline, so no string value can start a line."""
+def extra_ship_data_enabled ():
+    """Whether extra ship data may be loaded at all.
+    
+    Reads the `EXTRA_SHIP_DATA` setting, defaulting to False. A caller that has to
+    decide before settings exist - or a test - overrides it with
+    `extra_ship_data_force`."""
 def get_mission_dir ():
     """Get the directory of the current mission.
     
