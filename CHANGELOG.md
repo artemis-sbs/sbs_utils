@@ -50,6 +50,55 @@
 
 ### sbs_utils
 
+- **A relic solves its own navigation once.** `procedural/rails.py` builds a ruin's
+  **rail web** when the relic is built, instead of re-deriving connectivity from the
+  geometry on every destination a console picks. Measured across all seven Storm's Beacon
+  ruins: the first route on a relic went from 96ms to 0.83ms and every later one from 17ms
+  to 0.83ms, per console, per press. The solve itself is 92ms at worst, once.
+- **Nothing about the web is authored.** No links, no edges, no routes - an author still
+  writes rooms and `Point:` records. What the web adds is DENSITY (a 2800-unit hall becomes
+  a line of stations rather than one dot, so there is more than one way across it) and
+  ATTACHMENT (anything placed in the ruin joins the web when it appears, so a cache is
+  somewhere the crew can be SENT). `Rail step:` on the relic is the one dial over it.
+- **`Barrier:` - a way that is shut.** A sphere in the world that severs every route
+  crossing it, with `Opens when:` (the `Starts when:` grammar) and `Clear with:` saying what
+  opens it. Authored as a thing, never as an edge, so it can be dressed with a prop and
+  pointed at by a suit's tools.
+- **`Hidden:` - a place they have not found yet.** Off the destination list until reached,
+  but still ON the graph: a route passes THROUGH a hidden place, because stumbling into a
+  secret on the way somewhere else is the point of having one.
+- **Three lint rules that build the web the way the game will**, so "part of this relic
+  cannot be flown to" is a line number rather than something a player discovers:
+  `relic-disconnected` (rooms must OVERLAP, not abut - the defect `sink` shipped with),
+  `relic-unreachable-node`, `relic-barrier-seals`. The first one found a room in this
+  repo's own "a good relic is clean" test fixture that touched nothing at all.
+- **A third-person camera for an EVA console, because the engine has none.**
+  `set_main_view_modes` exposes four angles and three modes and no distance, orbit or
+  clamp - so inside a 380-unit shaft the engine's chase sits in the rock.
+  `gui/eva_camera.py` drives the lens: framed by the clearance the autopilot already
+  measures, dollying IN as the suit gets going, orbit and dolly controls on Nav, and a
+  bisection that walks the lens back inside the volume. `camera_follow` in `gui/camera.py`
+  is the one aim underneath it, so the engine's mirrored offset stays in its one named
+  place.
+- **A suit can act on what it finds.** `procedural/eva_tools.py` plus a suit-side **Fire**
+  app: one target list, nearest first, TETHER and BEAM. Tether is the engine tractor,
+  guarded against the mass rule that silently reverses the pair and would otherwise reel
+  the BOARDER into the cargo. Beam CUTS a barrier open - there is no engine call that fires
+  a beam or subtracts hull from a space object, so NPC combat inside a relic is deliberately
+  absent rather than a button that does nothing.
+- **A boarding party stops flying single file.** A small deterministic per-suit drift off
+  the rail, bounded by the room actually available, so a wide hall gets a spread and a tight
+  passage still gets single file. A rope holds each suit to the leg it is flying, which is
+  a stronger and cheaper guarantee than "inside the volume somewhere".
+- `Volume.primitives()` is **cached** and `Volume.inside` / `volume_inside` answer "is this
+  clear" without measuring how far - between them about a 3x cut in every containment test,
+  depth sample and visibility walk in the library. A rail web is also dropped whenever its
+  volume is: a web that outlives its geometry describes a ruin that is not there, and the
+  next route walks it without noticing.
+- `{"action": "rails"}` over the debug channel reports what a live relic solved into -
+  nodes, edges, and the component count that separates "my router is wrong" from "this
+  relic is not joined up".
+
 - **A red nebula is red, a yellow one is yellow, and orange is neither of the others.**
   Three of the seven stock nebula colors rendered as something their name did not claim:
   `yellow` came out chartreuse, and `red` and `orange` were the same red-orange one degree

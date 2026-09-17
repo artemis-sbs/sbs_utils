@@ -191,6 +191,7 @@ nav:
       - prefab: api/procedural/prefab.md
       - promise_functions: api/procedural/promise_functions.md
       - query: api/procedural/query.md
+      - rails: api/procedural/rails.md
       - quest: api/procedural/quest.md
       - roles: api/procedural/roles.md
       - routes: api/procedural/routes.md

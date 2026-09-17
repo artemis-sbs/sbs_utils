@@ -19,7 +19,7 @@ WHAT IS AUTHORED, AND WHAT IS NOT
 **No edge is ever authored.** An author writes rooms and `Point:` records exactly as
 before; the web is derived from them. What this module adds is DENSITY and ATTACHMENT:
 
-* a room is no longer one node at its centre. A 2800-unit freight hall becomes a line of
+* a room is no longer one node at its center. A 2800-unit freight hall becomes a line of
   stations along its own long axis, so there is more than one way across it and a route
   can hug a wall to get round a cradle rather than having only the one path;
 * everything worth flying to is IN the graph - a cache, a quest piece, a trigger point.
@@ -173,7 +173,7 @@ class _Web:
 def _rail_spine(prim, step):
     """Stations through one primitive, along its OWN axes.
 
-    A room's centre is one point, and one point is one route. Subdividing is what gives a
+    A room's center is one point, and one point is one route. Subdividing is what gives a
     hall two ways across it - and it is measured off the room rather than off a global
     lattice, so a long thin corridor gets a line of nodes and a cube gets a cube of them.
     """
@@ -242,7 +242,7 @@ def _rail_bucket(nodes, order, span):
     return grid
 
 
-def _rail_neighbours(grid, pos, span):
+def _rail_neighbors(grid, pos, span):
     cx, cy, cz = _rail_cell(pos, span)
     out = []
     for dx in (-1, 0, 1):
@@ -423,7 +423,7 @@ def rail_build(volume, places=None, margin=None, step=None, name=None):
         # every pair is visible, so testing them all is work whose answer is always yes
         # and whose edges are then pruned again straight afterwards.
         cand = []
-        for b in _rail_neighbours(grid, pa, span):
+        for b in _rail_neighbors(grid, pa, span):
             if b == a:
                 continue
             d = _vol_dist(pa, web.nodes[b]["pos"])
@@ -559,7 +559,7 @@ def rail_attach(name, key, pos, kind=KIND_CONTENT, roles=None, display=None,
     A relic's contents do not all exist when it is built - `Starts when: reach ...` places
     a cache the first time somebody gets near the room holding it. Rebuilding the whole
     web for one new thing would be absurd, so a late node tests visibility against its own
-    neighbourhood only, exactly as the build pass does.
+    neighborhood only, exactly as the build pass does.
     """
     web = _WEBS.get(name)
     if web is None:
@@ -589,7 +589,7 @@ def rail_attach(name, key, pos, kind=KIND_CONTENT, roles=None, display=None,
             web.edges[key][other] = d
             web.edges[other][key] = d
     if not web.edges[key]:
-        # Nothing in the neighbourhood could see it. Fall back to the nearest node that
+        # Nothing in the neighborhood could see it. Fall back to the nearest node that
         # can, at any range: one long leg beats a destination nobody can reach.
         order = sorted((k for k in web.order if k != key),
                        key=lambda k: _vol_dist(p, web.nodes[k]["pos"]))

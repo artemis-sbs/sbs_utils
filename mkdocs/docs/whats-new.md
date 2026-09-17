@@ -16,6 +16,7 @@ tools, and finally the library changes. Links go to the relevant docs.
 | | What it is |
 |---|---|
 | **[The ePADD](#epadd)** | One button on every console opens a screen of apps — mail, quests, cargo, the boarding party — each with a live badge you can read without opening it. |
+| **[Into the ruin](#relic-dungeons)** | Put the crew in suits and fly them *inside* a derelict. Rooms, shafts, a way round, doors that are shut until somebody cuts them, and things you will only find by looking. |
 | **["On screen"](#on-screen)** | The captain says it and science can finally do it: hand the main screen a shot of whatever science has selected. |
 | **[Incoming hails](#incoming-hails)** | Comms stops being something only the crew start. The mission calls you, and waits until somebody answers. |
 | **[The old missions fly again](#old-missions)** | All 27 Artemis 2.8 missions in our archive crossed over, and they play — same fleets, same tempers, same voice over comms. |
@@ -84,6 +85,40 @@ and the route keeps its own `if`, which is still what decides whether the app is
 at all.
 
 Docs: [The ePADD](build/epadd.md).
+
+---
+
+#### 🧑‍🚀 Into the ruin — a derelict you walk around inside { #relic-dungeons }
+
+An ancient wreck used to be a contact you scanned from a safe distance. Now you can go
+**in**. The ship docks at the mouth, the crew put on suits, and each console flies its own
+boarder through the inside of the thing.
+
+A suit is flown by **destination**, not by stick. Your device lists the places in the ruin
+and you pick one; the suit takes itself there, round the corners, down the shaft, without
+scraping the walls. That leaves your attention where it belongs — on what is in the room
+when you arrive.
+
+And the ruins are places now, rather than corridors.
+
+- **More than one way through.** A long hall is not a single line any more. There is room
+  to go round the cradle in the middle of it, and a route that is blocked is not the end of
+  the trip — it is the reason to find the other way.
+- **Doors that are shut.** Some ways are seized, fallen in, or simply sealed. Point a
+  cutting beam at one and hold it, and the ruin opens up. Or go the long way round; that is
+  a choice, and sometimes it is the right one.
+- **Things you will only find by looking.** Not everything in a ruin is on the list when
+  you arrive. Fly past a sealed locker and it appears on your device — and a route to
+  somewhere else may take you straight past something nobody knew was there.
+- **A reason to carry a tether.** Salvage, a quest piece, the thing you came for: get a
+  line on it and reel it in. The suits are small, so there are things in a ruin you are not
+  going to move, and the device will tell you so rather than dragging you into them.
+
+The view is over your suit's shoulder, and it stays there. It closes in as you get moving,
+tucks in tight when the walls do, and you can swing it round or push it out to have a look
+at something. It will not end up on the wrong side of a wall.
+
+Storm's Beacon has seven ruins, and no two of them are built by the same hands.
 
 ---
 

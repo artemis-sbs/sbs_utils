@@ -100,7 +100,7 @@ class _Base(unittest.TestCase):
 class ThePartyDoesNotFlySingleFile(_Base):
     def test_two_suits_on_one_route_fly_different_lines(self):
         """The whole of the drift: six consoles on the same web to the same place used to
-        fly the same line to within a metre, which reads as one suit and five copies."""
+        fly the same line to within a meter, which reads as one suit and five copies."""
         for cid in CONSOLES[:2]:
             self.suit_up(cid)
             self.assertTrue(E.eva_goto(cid, "east end"))

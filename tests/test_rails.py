@@ -59,7 +59,7 @@ class TestRailBuild(unittest.TestCase):
     def test_a_room_is_more_than_one_node(self):
         """The whole point of the density pass: a 3000-unit hall is not a dot.
 
-        Before this, a room contributed its centre and nothing else, so every route across
+        Before this, a room contributed its center and nothing else, so every route across
         it was the same route and there was never an alternative to offer.
         """
         corridor()
@@ -369,10 +369,10 @@ class TestRailAttach(unittest.TestCase):
     def test_detaching_takes_its_edges_with_it(self):
         rail_attach("corridor", "thing", (2600, 0, 0))
         web = rail_get("corridor")
-        neighbours = list(web.edges["thing"])
-        self.assertTrue(neighbours)
+        neighbors = list(web.edges["thing"])
+        self.assertTrue(neighbors)
         self.assertTrue(rail_detach("corridor", "thing"))
-        for other in neighbours:
+        for other in neighbors:
             self.assertNotIn("thing", web.edges[other])
         self.assertIsNone(rail_node("corridor", "thing"))
 

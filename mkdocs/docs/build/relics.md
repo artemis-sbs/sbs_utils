@@ -281,6 +281,105 @@ marker_point(*relic_point("ossuary", "mouth"), "The Ossuary")
 `relic_points("ossuary", "spawn")` gives every point with a role, for when there are
 several.
 
+## How it is navigated
+
+A relic is flown by **destination**: a suit picks a place from a list and the autopilot
+takes it there. What makes that safe is that the route is planned on the ruin's own
+**rail web** — and the web is *derived*, not authored. You do not write links, edges or
+routes. You write rooms and `Point:` records, and the web is solved from them when the
+relic is built.
+
+| you author | you get |
+|---|---|
+| rooms that overlap | the ways between them, measured |
+| a `Point:` | a named destination, wherever a route can end |
+| a long hall | several stations across it, so there is more than one way through |
+| an `Item:` | a destination for it, the moment it appears |
+| a `Solid:` | a way round it |
+
+Two things follow that are worth knowing while you lay a ruin out.
+
+**Rooms must OVERLAP, not abut.** A box ending at `x = -2400` and the next one beginning
+at `x = -2400` looks connected to a containment test — a point on that plane is inside
+both — and is not something a ship can fly through. `sink` shipped that way: the relic
+read as flyable while its only way in was sealed. `sbs lint` now says so
+(`relic-disconnected`) with a line number.
+
+**A long room is more than one place.** The web puts a station every `Rail step:` units
+(default 450) along each axis a room is longer than that in, so a 2800-unit freight hall
+becomes a line of them and a route can hug a wall to get round a cradle. Set `Rail step:`
+on the relic to make a ruin finer or coarser; smaller is denser and slower to build.
+
+```
+### [The Voice](voice)
+---
+Atmosphere: purple
+Rail step: 320
+---
+```
+
+### A way that is SHUT
+
+`Barrier:` is a sphere that severs every route crossing it. It is a thing in the world —
+it has a position and a size, so you can dress it with a prop and a suit can point a tool
+at it — and what it does to the web is worked out for you.
+
+```
+### [the seized hatch](hatch)
+---
+Relic: voice
+Barrier: 900, -1600, 0, 240
+Clear with: beam
+---
+A pressure hatch, seized shut across the shaft. The bay is below it - and there is a long
+way round through the sorting floor, if you would rather not cut.
+```
+
+| field | means |
+|---|---|
+| `Barrier: x, y, z, r` | the sphere the way is blocked by |
+| `Opens when:` | the same grammar as `Starts when:` - `signal X`, `reach <role> [r]`, `5 minutes` |
+| `Clear with:` | `beam`, `tether` - which tool a boarder can open it with |
+
+A barrier with **neither** `Opens when:` nor `Clear with:` can never open. That is a
+legitimate thing to author — a wall that is simply a wall — so it is allowed, and
+`relic-barrier-seals` warns only when it walls a named place off with no way round.
+
+**Give the crew a second way, and the barrier becomes a choice rather than a wait.** One
+route shut and one long way round is the shape this is for.
+
+### Somewhere they have not found yet
+
+`Hidden: yes` on a point keeps it off the destination list until the crew has been near
+it. It is a property of the **list**, not of the ruin: a route still passes *through* a
+hidden place, because stumbling into one on the way somewhere else is the point of having
+it.
+
+```
+### [the sealed locker](locker)
+---
+Relic: voice
+Point: 1800, 0, 1500
+Roles: voice_treasure
+Item: torgoth_salvage
+Hidden: yes
+---
+```
+
+### Checking it before anybody flies it
+
+`sbs lint` builds the web the way the game will and reports what came out — so "part of
+this relic cannot be reached" is a line number rather than something a player discovers:
+
+| rule | says |
+|---|---|
+| `relic-disconnected` | the ruin solves into more than one piece |
+| `relic-unreachable-node` | a named place the entrance cannot reach |
+| `relic-barrier-seals` | a barrier shuts places off and nothing can ever open it |
+
+In a running session, `{"action": "rails"}` over the debug channel prints the same
+numbers for the relic as it actually built.
+
 ## What is in it
 
 A relic can hold things, and say when they turn up. That is the half of a ruin the plan
