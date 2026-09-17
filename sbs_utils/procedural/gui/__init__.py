@@ -11,6 +11,10 @@ from .boarding_console import (gui_boarding_console, gui_boarding_console_tick,
 from .eva_console import (gui_eva_console, gui_eva_console_tick, eva_console_revision,
                           eva_camera_mode)
 from .eva_gui import (eva_go_out, eva_go_in, eva_home_ship, eva_console_type)
+from .eva_camera import (eva_camera_aim, eva_camera_orbit, eva_camera_tilt,
+                         eva_camera_dolly, eva_camera_recenter, eva_camera_state,
+                         eva_camera_distance, eva_camera_release, eva_camera_tick,
+                         eva_camera_watch, eva_camera_unwatch, eva_camera_watching)
 from .survey_gui import (gui_survey_screen, gui_survey_screen_tick,
                         survey_badge, survey_relevant)
 from .xess import (gui_xess, gui_xess_tick, gui_xess_head, xess_revision,
@@ -40,7 +44,7 @@ from .cinematic import gui_cinematic_auto, gui_cinematic_full_control
 from .camera import (camera_anchor, camera_assign, camera_track, camera_auto,
                      camera_orbit_lens, camera_shot, camera_move, camera_orbit,
                      camera_rack, camera_move_stop, camera_lens, camera_dolly,
-                     camera_chase, camera_assignment, camera_restore)
+                     camera_chase, camera_follow, camera_assignment, camera_restore)
 from .cutscene import (cutscene_define, cutscene_play, cutscene_skip,
                        cutscene_stop, cutscene_playing, cutscene_get,
                        cutscene_framing)

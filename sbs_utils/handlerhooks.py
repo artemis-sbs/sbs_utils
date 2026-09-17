@@ -203,6 +203,9 @@ def reset_mission_state():
     # Navigable volumes (relic interiors and the like). Per-mission by definition:
     # last mission's chambers would silently contain this mission's ships.
     from .procedural.volume import volume_clear
+    # Takes the rail webs with it: a web is solved FROM a volume, so one that outlives its
+    # geometry describes a ruin that is not there any more - and the next route walks it
+    # without noticing, because a stale web looks exactly like a fresh one.
     volume_clear()
     # Relic records read from AMD. Per-mission by definition - last mission's ruins
     # would still answer relic_record() in this one.
@@ -496,6 +499,12 @@ register_reset_state("volumes", _volume_count)
 register_reset_state("volume watchers", _volume_watch_count)
 from .procedural.volume import volume_anchor_count as _volume_anchor_count
 register_reset_state("volume anchors", _volume_anchor_count)
+from .procedural.rails import rail_count as _rail_count
+register_reset_state("rails", _rail_count)
+from .procedural.gui.eva_camera import eva_camera_watching as _eva_camera_watching
+register_reset_state("eva camera", _eva_camera_watching)
+from .procedural.eva_tools import eva_tools_working as _eva_tools_working
+register_reset_state("eva tools", _eva_tools_working)
 from .procedural.amd_relics import relics_count as _relics_count
 register_reset_state("relic records", _relics_count)
 from .procedural.amd_relics import relic_contents_count as _relic_contents_count

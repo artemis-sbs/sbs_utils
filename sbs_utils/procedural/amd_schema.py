@@ -678,6 +678,10 @@ RELIC = {
     # the schema has no float type.
     "gaps": text(hint="0 to 1 - the fraction of wall plates missing. It is a ruin."),
     "seed": integer(),
+    # How finely the rail web is seeded through this ruin - the ONE dial over it, and a
+    # number rather than a graph. The web itself is DERIVED: nothing in a relic authors a
+    # route, an edge or a link. Smaller means more ways across a room and a slower build.
+    "rail step": integer(hint="units between rail nodes (default 450) - smaller is denser"),
     # -- a part
     "relic": ref("node"),
     "chamber": text(hint="x, y, z, radius"),
@@ -686,6 +690,22 @@ RELIC = {
     "passage to": text(hint="hub 300, gallery 240"),
     "point": text(hint="x, y, z   - a named place: an item, a spawn, the way in"),
     "roles": csv(hint="entrance, item, spawn   - what this point is FOR"),
+    # A secret. The place still EXISTS and a route still passes through it - stumbling
+    # into one on the way somewhere else is the point of having it - but it is not
+    # OFFERED until the crew has been near it.
+    "hidden": boolean(),
+    # -- a way that is SHUT
+    #
+    # A barrier is a thing in the world with a position and a size, so it can be dressed
+    # with a prop and pointed at by a suit's tools. What it does to the rail web - sever
+    # every leg that crosses it - is derived, like everything else about the web.
+    "barrier": text(hint="x, y, z, radius   - a sphere that blocks the way through it"),
+    "opens when": field(trigger(hint="signal power_restored | reach hub 900 | 5 minutes"),
+                        key="opens_when",
+                        doc="When this barrier opens by itself. Without it, and without "
+                            "`Clear with:`, nothing can ever open it - which `sbs lint` "
+                            "reports as `relic-barrier-seals` if it walls anything off."),
+    "clear with": csv(hint="beam, tether   - which tool a suit can open it with"),
     # -- what is AT a part, and when it appears
     #
     # `item` is a reference rather than free text on purpose: a typo in `Roles:` is

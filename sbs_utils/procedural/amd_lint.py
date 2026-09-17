@@ -1019,7 +1019,172 @@ def amd_lint_relics(doc):
                     ln, "warning", "relic-unknown-walls",
                     f"'{value}' is not a wall style ({', '.join(styles)}) - "
                     f"this part falls back to plain rock"))
+    findings.extend(_lint_relic_web(doc))
     return findings
+
+
+def _relic_layouts(doc):
+    """Each relic in the document as plain geometry, read from the RAW fields.
+
+    Not `relics_from_section`: that reads the parsed fence DATA, and the fence is only
+    parsed into numbers when the document was loaded with the relic handler wired in. The
+    linter loads documents generically, so `Chamber: 0, 0, 0, 900` is still a string here.
+    Every other relic rule in this file reads the raw text for the same reason.
+    """
+    layouts = {}
+    parts = []
+    for node, fields in _relic_nodes(doc):
+        key = str(getattr(node, "key", "") or "")
+        if "relic" not in fields:
+            layouts[key] = {"key": key, "line": getattr(node, "line", 1) or 1,
+                            "chambers": {}, "boxes": {}, "solids": [], "passages": [],
+                            "points": {}, "barriers": {}}
+        else:
+            parts.append((node, fields, str(fields["relic"][1]).strip()))
+    for node, fields, owner in parts:
+        rec = layouts.get(owner)
+        if rec is None:
+            continue                       # dangling - relic-dangling-parent says so
+        name = str(getattr(node, "key", "") or "")
+        if "chamber" in fields:
+            n = _relic_nums(fields["chamber"][1])
+            if len(n) >= 4:
+                rec["chambers"][name] = n[:4]
+        if "box" in fields:
+            n = _relic_nums(fields["box"][1])
+            if len(n) >= 6:
+                rec["boxes"][name] = n[:6]
+        if "solid" in fields:
+            value = str(fields["solid"][1])
+            words = [w for w in value.replace(",", " ").split() if not _relic_nums(w)]
+            rec["solids"].append([(words[0].lower() if words else "sphere")]
+                                 + _relic_nums(value))
+        if "point" in fields:
+            n = _relic_nums(fields["point"][1])
+            if len(n) >= 3:
+                roles = [r.strip().lower()
+                         for r in str(fields.get("roles", (0, ""))[1]).split(",")
+                         if r.strip()]
+                hidden = str(fields.get("hidden", (0, ""))[1]).strip().lower() in (
+                    "yes", "true", "on", "1")
+                rec["points"][name] = [n[0], n[1], n[2], roles, name, hidden]
+        if "barrier" in fields:
+            n = _relic_nums(fields["barrier"][1])
+            if len(n) >= 4:
+                opens = fields.get("opens when", fields.get("opens_when", (0, "")))[1]
+                clears = fields.get("clear with", fields.get("clear_with", (0, "")))[1]
+                rec["barriers"][name] = [n[0], n[1], n[2], n[3],
+                                         str(opens).strip(), str(clears).strip(), name]
+        if "passage to" in fields:
+            for group in str(fields["passage to"][1]).split(","):
+                words = [w for w in group.replace(",", " ").split()
+                         if not _relic_nums(w)]
+                if not words:
+                    continue
+                nums = _relic_nums(group)
+                rec["passages"].append([name, words[0], nums[0] if nums else 200.0])
+    return list(layouts.values())
+
+
+def _lint_relic_web(doc):
+    """Build each relic's RAIL WEB and ask it what is unreachable. WARNING.
+
+    THIS IS THE RULE WORTH HAVING. Every other rule in this file reads the text; this one
+    solves the ruin the way the game will and reports what came out - so "part of this
+    relic cannot be flown to" stops being something found by flying and becomes a line
+    number.
+
+    Three things it can say, and each has cost somebody a run:
+
+    * **the web is in pieces** - a room that does not overlap anything, or abuts it with
+      zero thickness. `sink`'s inlet ended at x=-2400 and its basin BEGAN at x=-2400: a
+      containment test calls that one connected space, because a point on that plane is
+      inside both, so the relic read as flyable while its only way in was sealed;
+    * **a named place cannot be reached** from the entrance - the same fault, localised
+      to the part an author can fix;
+    * **a barrier seals the ruin** - it is shut, there is no way round, and nothing opens
+      it. A hard lock is a legitimate thing to author, so this is a warning and says so.
+
+    Quiet when the geometry cannot be built at all: the structural rules above already
+    reported that, and a second complaint about the same line helps nobody.
+    """
+    findings = []
+    try:
+        from .rails import (rail_barrier, rail_build, rail_nodes, rail_reachable,
+                            rail_remove)
+        from .volume import volume_define, volume_remove
+    except Exception:                                   # noqa: BLE001
+        return findings
+
+    for rec in _relic_layouts(doc):
+        key, ln = rec["key"], rec["line"]
+        if not (rec["chambers"] or rec["boxes"]):
+            continue                                    # nothing to solve
+        name = "__lint__%s" % key
+        try:
+            volume_define(name, chambers=rec["chambers"], passages=rec["passages"],
+                          boxes=rec["boxes"], solids=rec["solids"])
+        except Exception:                               # noqa: BLE001
+            continue                                    # already reported structurally
+        try:
+            places = {p: {"pos": (v[0], v[1], v[2]), "hidden": v[5]}
+                      for p, v in rec["points"].items()}
+            stats = rail_build(name, places=places)
+            if stats is None:
+                continue
+            if stats["components"] > 1:
+                findings.append(AmdFinding(
+                    ln, "warning", "relic-disconnected",
+                    "'%s' solves into %d separate pieces - part of it cannot be flown "
+                    "to from the rest. Rooms must OVERLAP, not abut: a zero-thickness "
+                    "join reads as connected and is not"
+                    % (key, stats["components"])))
+            for oname in stats.get("orphans") or ():
+                findings.append(AmdFinding(
+                    ln, "warning", "relic-unreachable-node",
+                    "'%s' is in '%s' but nothing can see it - no route will ever end "
+                    "there" % (oname, key)))
+            entrance = _relic_entrance(rec)
+            if entrance is None or entrance not in dict(rail_nodes(name)):
+                continue
+            reach = rail_reachable(name, entrance, open_only=False)
+            for pname, _prec in rail_nodes(name, listed=True):
+                if pname not in reach:
+                    findings.append(AmdFinding(
+                        ln, "warning", "relic-unreachable-node",
+                        "'%s' cannot be reached from '%s' in '%s'"
+                        % (pname, entrance, key)))
+            for bname, b in rec["barriers"].items():
+                rail_barrier(name, bname, (b[0], b[1], b[2]), b[3])
+            hard = [n for n, b in rec["barriers"].items() if not b[4] and not b[5]]
+            if hard:
+                shut = rail_reachable(name, entrance, open_only=True)
+                lost = [p for p, _r in rail_nodes(name, listed=True)
+                        if p in reach and p not in shut]
+                if lost:
+                    findings.append(AmdFinding(
+                        ln, "warning", "relic-barrier-seals",
+                        "'%s' shuts %d place(s) off (%s) behind %s, which has neither "
+                        "`Opens when:` nor `Clear with:` - nothing can ever open it"
+                        % (key, len(lost), ", ".join(sorted(lost)[:3]),
+                           ", ".join(sorted(hard)))))
+        finally:
+            rail_remove(name)
+            volume_remove(name)
+    return findings
+
+
+def _relic_entrance(rec):
+    """The point a crew arrives at: one carrying the `entrance` role, else the first."""
+    points = rec.get("points") or {}
+    for pname, pt in points.items():
+        roles = pt[3] if len(pt) > 3 else []
+        if "entrance" in [str(r).lower() for r in (roles or [])]:
+            return pname
+    return next(iter(points), None)
+
+
+
 
 
 def _relic_known_art():

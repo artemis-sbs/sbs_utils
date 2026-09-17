@@ -2080,6 +2080,41 @@ def _run(
                     for b in built)})
             except Exception as e:
                 _debug_reply(cid, {"error": f"relic reload failed: {e}"})
+        elif action == "rails":
+            # The RAIL WEB, as data: what the relic solved into and what it says about
+            # itself. This is the editor overlay's source and the answer to "why will it
+            # not fly there" - `components > 1` is the difference between a router being
+            # wrong and a ruin not being joined up, and nothing else in the session can
+            # tell you which.
+            if not _establish_mast_context():
+                _debug_reply(cid, {"error": "rails: no story is running yet "
+                                            "(start a map first)"})
+                return
+            try:
+                from sbs_utils.procedural.rails import rail_dump, rail_names, rail_stats
+                want = str(data.get("name", "") or data.get("key", "") or "").strip()
+                names = [want] if want else rail_names()
+                if not names:
+                    _debug_reply(cid, {"error": "rails: nothing has built a web yet"})
+                    return
+                if data.get("full"):
+                    out = {n: rail_dump(n) for n in names}
+                else:
+                    out = {n: rail_stats(n) for n in names}
+                missing = [n for n, v in out.items() if v is None]
+                if missing:
+                    _debug_reply(cid, {"error": "rails: no web named %s (built: %s)"
+                                                % (", ".join(missing),
+                                                   ", ".join(rail_names()) or "none")})
+                    return
+                _debug_reply(cid, {"ack": "; ".join(
+                    "%s: %d nodes, %d edges, %d component(s)"
+                    % (n, (out[n].get("stats") or out[n])["nodes"],
+                       (out[n].get("stats") or out[n])["edges"],
+                       (out[n].get("stats") or out[n])["components"])
+                    for n in names), "rails": out})
+            except Exception as e:
+                _debug_reply(cid, {"error": "rails failed: %s" % e})
         elif action == "signal":
             name = str(data.get("name", "")).strip()
             if not name:

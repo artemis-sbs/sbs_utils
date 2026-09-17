@@ -92,7 +92,7 @@ Passage to: hub 240
 ### [the hall](hall)
 ---
 Relic: ossuary
-Box: 3600, 0, 2900, 900, 260, 380
+Box: 3600, 0, 500, 900, 260, 380
 ---
 
 ### [the core](core)
@@ -222,8 +222,10 @@ class TestBuildsAVolume(unittest.TestCase):
         self.assertTrue(volume_contains("ossuary", (10000, 1500, -5000)))
 
     def test_the_box_hall_is_navigable_including_a_corner(self):
-        self.assertTrue(volume_contains("ossuary", (10000 + 3600, 0, -5000 + 2900)))
-        self.assertTrue(volume_contains("ossuary", (10000 + 4400, 240, -5000 + 3200)))
+        # The hall is `Box: 3600, 0, 500, 900, 260, 380` - centre, then HALF-extents, so
+        # it runs x 2700..4500, y -260..260, z 120..880 in the relic's own frame.
+        self.assertTrue(volume_contains("ossuary", (10000 + 3600, 0, -5000 + 500)))
+        self.assertTrue(volume_contains("ossuary", (10000 + 4400, 240, -5000 + 800)))
 
     def test_the_subtracted_core_is_solid(self):
         self.assertFalse(volume_contains("ossuary", (10000, 0, -5000)))
@@ -633,6 +635,9 @@ Chamber: 0, 0, 0, 100
         return [f for f in amd_lint(content=text) if str(f.code).startswith("relic-")]
 
     def test_a_good_relic_is_clean(self):
+        """The hall used to sit at z=2900, touching nothing - a room the crew could never
+        reach, in the fixture for "a good relic". Nothing caught it until the web rules
+        went in, which is the whole argument for having them."""
         self.assertEqual(self._relic_findings(DOC), [])
 
     def test_every_fault_is_caught_once(self):

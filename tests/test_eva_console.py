@@ -278,14 +278,28 @@ class TheCameraHoldsStill(_DrawBase):
     that has to show which way the suit is pointing.
     """
 
-    def test_the_console_rides_a_chase_camera(self):
+    def test_the_console_drives_its_own_lens(self):
+        """The default is `third` - our rig - so the lens is placed by script rather than
+        chosen by the engine."""
         self.build()
-        self.assertEqual(mock_sbs._view_modes.get(CID), ("3dview", "front", "chase"))
+        self.assertEqual(mock_sbs._view_modes.get(CID, (None, None, None))[0], "3dview")
+        self.assertEqual(mock_sbs._cinematic.get(CID, {}).get("script"), 1)
 
     def test_it_is_not_the_cinematic_director(self):
+        """THE POINT OF THE REPORT, and it is about who PICKS the shot, not about the view
+        mode's name. `scriptControlsCamera = 1` is the director being taken out of it;
+        `gui_cinematic_auto` sends 0 and is what hands the picking back."""
         self.build()
-        self.assertNotEqual(mock_sbs._view_modes.get(CID, (None, None, None))[2],
-                            "cinematic")
+        self.assertNotEqual(mock_sbs._cinematic.get(CID, {}).get("script"), 0,
+                            "the engine's director is choosing the shot again")
+
+    def test_the_lens_rides_the_suit_and_is_not_inside_it(self):
+        """Dolly and target must be the SAME object or the frame is black, and a lens at
+        zero offset sits inside the hull."""
+        self.build()
+        st = mock_sbs._cinematic.get(CID, {})
+        self.assertEqual(st.get("dolly_id"), st.get("target_id"))
+        self.assertNotEqual(tuple(st.get("dolly_off") or (0, 0, 0)), (0.0, 0.0, 0.0))
 
     def test_a_mission_can_choose_another(self):
         from sbs_utils.procedural.gui.eva_console import eva_camera_mode, CAMERA_MODE_DEFAULT

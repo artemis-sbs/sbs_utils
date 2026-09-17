@@ -680,6 +680,69 @@ def camera_chase(to, subject, distance, height=0.0, seconds=30.0, consoles=None)
     return _drive(to, consoles, subject, seconds, _at, "linear")
 
 
+def camera_follow(to, subject, distance, height=0.0, yaw=0.0, pitch=0.0,
+                  lens_filter=None, consoles=None):
+    """Aim a third-person lens behind a subject, ONCE, from live geometry.
+
+    `camera_chase` is the same idea as a timed move: it takes the dispatcher, runs for a
+    leg, and has to be re-issued. This is the single aim underneath it, so a caller with
+    its own tick - a console driving a camera every frame while it flies - re-aims without
+    starting and stopping a driver each time. That is what the Game Master does, and it is
+    what the engine wants: there is no interpolation, so following IS re-aiming.
+
+    Two things it adds over `camera_chase`, and each is why this exists:
+
+    * **``yaw`` and ``pitch``** orbit the lens around the subject's own heading, so a
+      console can look round its craft without losing the chase.
+    * **``lens_filter(base, want) -> lens``** gets the last word on where the camera
+      actually sits. Handed the subject's position and the lens the angles asked for, it
+      may return something nearer. A ship in open space has no use for it; a suit inside a
+      relic does, because a chase lens `distance` behind it in a 380-unit shaft is in the
+      rock, and the engine's own chase mode has no way to say so.
+
+    Args:
+        distance (float): how far BEHIND the subject to sit.
+        height (float): how far above it. A little is usually better than none.
+        yaw (float): degrees around the subject from dead astern.
+        pitch (float): degrees above (positive) or below it.
+        lens_filter (callable, optional): `(base, want) -> lens`, both world positions.
+
+    Returns:
+        The world position the lens was put at, or None if the subject is not resolvable.
+
+    A subject whose heading cannot be read falls back to a fixed offset rather than
+    raising - a chase that is merely not behind the ship still shows the ship.
+    """
+    from ..query import to_object
+    subj = to_object(subject)
+    if subj is None:
+        return None
+    base = subj.pos
+    try:
+        fwd = subj.engine_object.forward_vector()
+        fx, fy, fz = fwd.x, fwd.y, fwd.z
+        flen = math.sqrt(fx * fx + fy * fy + fz * fz)
+    except Exception:
+        flen = 0.0
+    if flen <= 1e-6:
+        fx, fy, fz = 0.0, 0.0, 1.0
+    else:
+        fx, fy, fz = fx / flen, fy / flen, fz / flen
+    off = Vec3(-fx * distance, -fy * distance, -fz * distance)
+    if yaw or pitch:
+        off = off.rotate_around(Vec3(0, 0, 0), float(pitch), float(yaw), 0)
+    want = Vec3(base.x + off.x, base.y + off.y + height, base.z + off.z)
+    if lens_filter is not None:
+        got = lens_filter(base, want)
+        if got is not None:
+            want = _vec(got)
+    # _engine_lens: this is a real world position computed from the subject's HEADING, so
+    # it is one of the shots the engine's mirrored offset actually breaks. Handed over
+    # straight, "behind" renders in FRONT of the thing being followed.
+    camera_shot(to, subject, _engine_lens(base, want), consoles=consoles)
+    return want
+
+
 def camera_rack(to, subject, consoles=None):
     """Look at something else WITHOUT moving the lens - a rack focus.
 

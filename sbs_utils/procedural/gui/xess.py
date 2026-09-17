@@ -61,6 +61,9 @@ APP_FIRE = "fire"
 #: Flying the suit. Only ever available to a boarder wearing one, so a grid interior's
 #: device never shows it.
 APP_NAV = "nav"
+#: The SUIT's Fire app. A separate key from `APP_FIRE` because the registry is keyed, but
+#: the same title on purpose - the two are gated mutually exclusively.
+APP_WORK = "work"
 
 #: What the scene's line is allowed to take, in px, on HOME and in ACT.
 #:
@@ -1050,6 +1053,102 @@ def _safe(client_id):
     boarding_disarm(client_id)
 
 
+# --- WORK (the suit's own Fire app) ----------------------------------------------------
+#
+# DELIBERATELY TITLED "Fire", the same as the grid one above. `_standing_somewhere` and
+# `_in_a_suit` are mutually exclusive - a boarder has a cell to stand in or a suit to fly,
+# never both - so one Fire tile appears whichever body they are wearing, and a crew member
+# who moves between the two does not have to learn a second word for the same idea.
+#
+# The target selection is Nav's, not the grid app's: a LIST, nearest first, and the
+# selection is the commitment. There is nothing to aim, because a suit is being flown by
+# destination and a boarder's hands are busy.
+
+def _work_app(client_id):
+    """What is in reach, and the two things a suit can do about it."""
+    from .row import gui_row
+    from .text import gui_text
+    from .button import gui_button
+    from .listbox import gui_list_box
+    from .message import gui_message_callback
+    from ..eva_tools import (VERB_BEAM, VERB_TETHER, eva_abort, eva_arm, eva_armed,
+                             eva_disarm, eva_reach, eva_targets, eva_use, eva_working)
+
+    gui_xess_head(client_id, "Fire")
+
+    target, verb, left, display = eva_working(client_id)
+    if target is not None:
+        gui_row("row-height: 2.4em; font:gui-3; padding: 6px, 6px, 6px, 6px;")
+        gui_text("$text:%s;justify:center;font:gui-3;color:%s;background: %s;"
+                 % (_esc("%s - %s, %ds" % (str(verb).upper(), display or target,
+                                           int(left))), ARMED, PANEL_HI))
+        gui_row("row-height: 2.2em; font:gui-2;")
+        gui_button("Stop", on_press=lambda _cid=client_id: eva_abort(_cid))
+        return
+
+    held = eva_armed(client_id) or VERB_BEAM
+    gui_row("row-height: 2.2em; font:gui-2;")
+    for value in (VERB_BEAM, VERB_TETHER):
+        on = value == held
+        # BOUND DEFAULTS. Built in a LOOP, and `on_press` calls a callable with NO
+        # arguments - a closure over the loop variable gives every button the last verb.
+        gui_button("%s%s" % ("> " if on else "", value.upper()),
+                   on_press=lambda _cid=client_id, _v=value: eva_arm(_cid, _v))
+
+    rows = []
+    for key, label, kind, gap, verbs in eva_targets(client_id):
+        mark = "" if held in verbs else "  (wrong tool)"
+        rows.append((key, "%s   %d%s" % (label, int(gap), mark)))
+    if not rows:
+        gui_row("row-height: 1fr;")
+        gui_text("$text:%s;font:gui-2;color:%s;"
+                 % (_esc("Nothing in reach. Fly closer."), DIM))
+    else:
+        gui_row("row-height: 1fr; padding: 4px, 8px, 4px, 8px;")
+        lb = gui_list_box(rows, "item-gap: 0.3em;", item_template=_nav_row,
+                          select=True, reveal=True)
+
+        def _use(event, sender):
+            item = lb.get_value()
+            if item is not None:
+                eva_use(client_id, item[0])
+
+        gui_message_callback(lb, _use)
+
+    gui_row("row-height: 1.4em; font:gui-1;")
+    gui_text("$text:%s;font:gui-1;color:%s;"
+             % (_esc("Reach %d. BEAM cuts a way open; TETHER hauls a find in."
+                     % int(eva_reach(client_id))), DIM))
+
+    gui_row("row-height: 2.2em; font:gui-2;")
+    gui_button("Stow", on_press=lambda _cid=client_id: eva_disarm(_cid))
+
+
+def _work_badge():
+    """What is in reach, and how far - and it has to MOVE.
+
+    `gui_xess_tick` only rebuilds when `xess_revision` changes, and the badge is the part
+    of that tuple a moving suit can shift. Without a number that changes, the whole screen
+    freezes the moment the suit starts flying.
+    """
+    cid = _client()
+    if cid is None:
+        return ""
+    from ..eva_tools import eva_targets, eva_working
+    target, _verb, left, _display = eva_working(cid)
+    if target is not None:
+        return "%ds" % int(left)
+    rows = eva_targets(cid)
+    if not rows:
+        return ""
+    return "%s %d" % (rows[0][1], int(rows[0][3]) // 25)
+
+
+def _in_a_suit_with_tools(client_id):
+    from ..eva import eva_my_suit
+    return eva_my_suit(client_id) is not None
+
+
 # --- NAV ------------------------------------------------------------------------------
 #
 # The device flies the suit. There is no stick and there is not going to be one: a relic's
@@ -1094,6 +1193,7 @@ def _nav_app(client_id):
         gui_text("$text:%s;font:gui-2;color:%s;"
                  % (_esc("Nowhere charted yet. Fly, and the ruin will draw itself."), DIM))
         _nav_speed_row(client_id)
+        _nav_view_row(client_id)
         return
 
     rows = [(name, "%s   %s" % (label, _nav_far(client_id, pos)))
@@ -1112,6 +1212,7 @@ def _nav_app(client_id):
 
     gui_message_callback(lb, _pick)
     _nav_speed_row(client_id)
+    _nav_view_row(client_id)
 
 
 def _nav_speed_row(client_id):
@@ -1133,6 +1234,33 @@ def _nav_speed_row(client_id):
         # a callable handler with no arguments, and a late-binding loop variable would
         # give every button the last speed in the list.
         gui_button(label, on_press=lambda _cid=client_id, _n=name: eva_speed(_cid, _n))
+
+
+def _nav_view_row(client_id):
+    """Orbit and dolly, as four presses and a way back.
+
+    ON NAV RATHER THAN AN APP OF ITS OWN. Looking round is part of flying, not a settings
+    screen - and a tile costs a whole row of the device to say "the camera".
+
+    The centre control is deliberately ONE button. "The camera is somewhere odd" is one
+    problem however it got there - a stray orbit, a dolly left in, or both - and a console
+    that has lost the view wants it back, not a menu.
+    """
+    from .row import gui_row
+    from .button import gui_button
+    from .eva_camera import (eva_camera_dolly, eva_camera_orbit, eva_camera_recenter,
+                             eva_camera_state)
+
+    _yaw, _pitch, dist, free = eva_camera_state(client_id)
+    gui_row("row-height: 2.0em; padding: 2px, 2px, 4px, 6px;")
+    # ZERO-ARG CLOSURES, CLIENT BOUND BY DEFAULT ARG - `MessageHandler` calls a callable
+    # handler with no arguments and `data=` never reaches it.
+    gui_button("<", on_press=lambda _cid=client_id: eva_camera_orbit(_cid, -24.0))
+    gui_button("-", on_press=lambda _cid=client_id: eva_camera_dolly(_cid, -30.0))
+    gui_button("View" if (dist is None and not free) else "[View]",
+               on_press=lambda _cid=client_id: eva_camera_recenter(_cid))
+    gui_button("+", on_press=lambda _cid=client_id: eva_camera_dolly(_cid, 30.0))
+    gui_button(">", on_press=lambda _cid=client_id: eva_camera_orbit(_cid, 24.0))
 
 
 def _nav_gap(client_id, pos):
@@ -1239,6 +1367,9 @@ def _register_builtins():
     xess_register(APP_SCAN, title="Scan", icon="epadd.status", sort=30,
                   blurb="Read the room you are in",
                   draw=_scan_app, available=_standing_somewhere)
+    xess_register(APP_WORK, title="Fire", icon="epadd.damage", sort=35,
+                  blurb="What is in reach, and what to do about it",
+                  draw=_work_app, badge=_work_badge, available=_in_a_suit_with_tools)
     xess_register(APP_FIRE, title="Fire", icon="epadd.damage", sort=40,
                   blurb="Arm, then click the map",
                   draw=_fire_app, badge=_fire_badge, available=_standing_somewhere)

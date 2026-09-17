@@ -238,7 +238,8 @@ class Volume:
     `solids` are SUBTRACTED - the pillar in the middle of the room.
     """
 
-    __slots__ = ("name", "chambers", "passages", "boxes", "solids", "_bound", "_graph")
+    __slots__ = ("name", "chambers", "passages", "boxes", "solids", "_bound", "_graph",
+                 "_prims")
 
     def __init__(self, name):
         self.name = name
@@ -248,6 +249,7 @@ class Volume:
         self.solids = []       # primitives subtracted from the navigable space
         self._bound = None     # ((x, y, z), radius) - whole-volume bounding sphere
         self._graph = None     # the navmesh over ALL primitives; see volume_route
+        self._prims = None     # the tagged primitive list; see primitives()
 
     # -- construction ------------------------------------------------------------
 
@@ -260,6 +262,7 @@ class Volume:
         self.chambers[name] = (float(x), float(y), float(z), r)
         self._bound = None
         self._graph = None
+        self._prims = None
         return self
 
     def _endpoint(self, e):
@@ -293,6 +296,7 @@ class Volume:
         self.passages.append((a_xyz, b_xyz, r, a_name, b_name))
         self._bound = None
         self._graph = None
+        self._prims = None
         return self
 
     # -- geometry ----------------------------------------------------------------
@@ -314,6 +318,7 @@ class Volume:
                             (float(hx), float(hy), float(hz)))
         self._bound = None
         self._graph = None
+        self._prims = None
         return self
 
     def add_solid(self, prim):
@@ -326,10 +331,23 @@ class Volume:
         self.solids.append(prim)
         self._bound = None
         self._graph = None
+        self._prims = None
         return self
 
     def primitives(self):
-        """Every NAVIGABLE primitive, uniformly tagged."""
+        """Every NAVIGABLE primitive, uniformly tagged.
+
+        CACHED, and the cache is what makes the geometry affordable. This is called from
+        `nearest`, so it used to rebuild a fresh list on every containment test, every
+        depth sample and every step of every visibility walk - building a relic's rail web
+        is millions of those. Invalidated by each `add_*`, beside `_bound` and `_graph`.
+
+        The list is shared, not copied: every caller in the library reads it. Do not
+        mutate what comes back.
+        """
+        out = self._prims
+        if out is not None:
+            return out
         out = []
         for (x, y, z, r) in self.chambers.values():
             out.append(("sphere", (x, y, z), r))
@@ -337,7 +355,33 @@ class Volume:
             out.append(("capsule", a, b, r))
         for (c, h) in self.boxes.values():
             out.append(("box", c, h))
+        self._prims = out
         return out
+
+    def inside(self, pos, margin=0.0):
+        """Whether `pos` is inside by at least `margin` - the same question as
+        ``depth(pos) <= -margin``, answered without measuring how far.
+
+        `depth` has to scan every primitive to find the nearest wall. A visibility walk
+        only ever asks "is this sample in the clear", and a sample is usually deep inside
+        one room - so the first primitive that swallows it settles the question. That
+        early-out is the difference between a rail web being solvable and not.
+        """
+        p = _vol_xyz(pos)
+        if p is None:
+            return False
+        lim = -float(margin)
+        for prim in self.primitives():
+            if _vol_sdf(prim, p) <= lim:
+                break
+        else:
+            return False
+        # Subtraction is `max(d_union, -d_solid)`, so any solid holding this point by
+        # more than the margin puts it back outside however deep the room was.
+        for solid in self.solids:
+            if -_vol_sdf(solid, p) > lim:
+                return False
+        return True
 
     def named_primitives(self):
         """Every navigable primitive as `(name, prim)`.
@@ -707,6 +751,18 @@ def volume_contains(volume, pos):
     return volume_depth(volume, pos) < 0.0
 
 
+def volume_inside(volume, pos, margin=0.0):
+    """Whether `pos` is inside by at least `margin` - `depth(pos) <= -margin`, without
+    measuring how far.
+
+    The cheap half of `volume_depth`, and the right question for anything that only needs
+    a yes or no: a visibility sample, a camera looking for somewhere it fits. The first
+    primitive that swallows the point settles it, where `depth` has to scan them all.
+    """
+    vol = _vol_resolve(volume)
+    return False if vol is None else vol.inside(pos, margin)
+
+
 def volume_nearest_inside(volume, pos, margin=0.0):
     """Closest point inside by at least `margin`; the position itself if already so."""
     vol = _vol_resolve(volume)
@@ -876,7 +932,7 @@ def volume_visible(volume, a, b, margin=0.0, step=_VOL_SIGHT_STEP):
         p = (pa[0] + (pb[0] - pa[0]) * t,
              pa[1] + (pb[1] - pa[1]) * t,
              pa[2] + (pb[2] - pa[2]) * t)
-        if vol.depth(p) > -margin:
+        if not vol.inside(p, margin):
             return False
     return True
 
@@ -1416,12 +1472,35 @@ def volume_count():
     return len(_VOLUMES)
 
 
+def _vol_drop_rails(name=None):
+    """Drop the rail web derived from a volume that is going away.
+
+    A WEB CANNOT OUTLIVE ITS VOLUME. It is nodes and edges solved from this geometry, so
+    a volume that is cleared and rebuilt under the same name leaves a web describing a
+    ruin that no longer exists - and the next route walks it, silently, because a stale
+    web looks exactly like a fresh one. Found by a relic test that kept offering a
+    destination the rebuilt relic did not have.
+
+    Imported here rather than at module scope: `rails` is built ON `volume`, so the
+    dependency only runs one way at import time.
+    """
+    try:
+        from .rails import rail_clear, rail_remove
+    except Exception:
+        return
+    if name is None:
+        rail_clear()
+    else:
+        rail_remove(name)
+
+
 def volume_clear():
     """Drop every volume and stop every watcher. Called by reset_mission_state()."""
     for name in list(_WATCHERS.keys()):
         volume_unwatch(name)
     _vol_anchors_clear()
     _VOLUMES.clear()
+    _vol_drop_rails()
 
 
 # =================================================================================
@@ -1633,6 +1712,7 @@ def volume_remove(name):
     True if there was something to remove.
     """
     had_watch = volume_unwatch(name)
+    _vol_drop_rails(name)
     return _VOLUMES.pop(name, None) is not None or had_watch
 
 

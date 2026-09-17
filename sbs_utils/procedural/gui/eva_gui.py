@@ -142,6 +142,7 @@ def eva_go_in(client_id):
     from ..signal import signal_emit
     from ..space_objects import delete_object
     from .console import gui_console_enter
+    from .eva_camera import eva_camera_release
 
     suit = eva_my_suit(client_id)
     if not boarding_beam_up(client_id):
@@ -150,6 +151,10 @@ def eva_go_in(client_id):
     back = get_inventory_value(client_id, RETURN_KEY, None) or "helm"
     set_inventory_value(client_id, RETURN_KEY, None)
     set_inventory_value(client_id, HOME_KEY, None)
+    # Hand the lens back BEFORE the console is re-seated. A script-driven camera left
+    # pointed at a suit that is about to be deleted falls to the engine's own default - a
+    # top-down on a station - which is a worse first frame than the console's own view.
+    eva_camera_release(client_id)
     eva_release(client_id)
     if suit:
         who = eva_lifeform_of(suit)

@@ -37,6 +37,7 @@ Two things make the route safe rather than merely reasonable:
 """
 from ..agent import Agent
 from .inventory import get_inventory_value, set_inventory_value
+from .rails import RAIL_MARGIN
 from .links import link, linked_to, unlink
 from .query import to_id, to_object
 from .roles import remove_role, role
@@ -56,6 +57,7 @@ KEY_GAP = "EVA_GAP"          # what that gap was
 KEY_REPLAN = "EVA_REPLAN"    # how many times this route has been re-planned
 KEY_NOWAY = "EVA_NOWAY"      # a place the router could not reach, so the app can say so
 KEY_SPEED = "EVA_SPEED"      # how hard this console flies: a key into SPEEDS
+KEY_LEG = "EVA_LEG"          # where the current leg STARTED - the other end of the rope
 
 # Consoles ever handed a suit, so a reset can let go of all of them without walking every
 # agent. On SHARED rather than at module level, so the same machinery clears and audits it.
@@ -70,15 +72,14 @@ ARRIVE_RADIUS = 120.0
 #: How close counts as arrived at the actual destination.
 DEST_RADIUS = 60.0
 
-#: How far inside the wall the route keeps its aim point, and how much clearance a leg
-#: must have to count as flyable.
+#: How far inside the wall the autopilot keeps its aim point.
 #:
-#: A SUIT IS A PERSON, NOT A CRUISER, and this was set at a cruiser's 40 out of habit. A
-#: relic doorway can be thin: `false_choir`'s throat meets its concourse in a slab 50
-#: units deep, and asking for 40 of clearance inside a 50-unit slab asks for a point that
-#: cannot exist - the router then declared the way in impassable and flew the straight
-#: line instead. 20 is still most of a suit's length clear of the wall.
-ROUTE_MARGIN = 20.0
+#: THE SAME NUMBER THE RAIL WEB IS BUILT WITH, imported rather than restated. The two
+#: drifting apart is invisible until a relic will not route: a web solved at one clearance
+#: and flown at a tighter one puts the suit outside its own waypoints, and flown at a
+#: looser one it refuses doorways the web says are fine. `rails.RAIL_MARGIN` carries why
+#: it is a person's number and not a cruiser's.
+ROUTE_MARGIN = RAIL_MARGIN
 
 #: How little clearance counts as "against the wall", at which point the autopilot stops
 #: flying the route and starts flying away from the rock. Below this the aim is bent
@@ -103,6 +104,32 @@ APPROACH = 400.0
 #: not double - the turn cap still governs the corners, and a suit that arrives at a
 #: doorway too fast simply spends the time turning instead.
 SPEEDS = (("Careful", 0.12), ("Cruise", CRUISE), ("Fast", 0.45))
+
+#: How far to one side of the rail a suit is allowed to fly, and how much of the room
+#: available it will use to get there.
+#:
+#: PURELY COSMETIC, AND DELIBERATELY SO. Six consoles flying the same web to the same
+#: place fly the same line to within a metre, so a boarding party reads as one suit and
+#: five copies of it trailing in a queue. A small fixed offset per suit, perpendicular to
+#: the leg, spreads them into a loose gaggle. It is scaled by the room actually there and
+#: then projected back inside, so a wide hall gets a spread and a 60-unit passage gets
+#: single file - which is what single file is FOR.
+DRIFT_MAX = 90.0
+DRIFT_FRACTION = 0.35
+
+#: Below this there is no drift at all. A sub-metre wobble is not a look, it is noise on
+#: a course, and a passage with only that much room to spare should read as single file
+#: rather than as a formation nobody can see.
+DRIFT_MIN = 12.0
+
+#: How far off its current leg a suit may drift before the autopilot pulls it back.
+#:
+#: THE ROPE. A rail leg is known clear - that is what the web solved - so the line between
+#: two waypoints is a much stronger guarantee than "somewhere inside the volume", and much
+#: cheaper to check. It is what makes the drift above safe to add at all, and it catches
+#: the other way a suit ends up off course: knocked, or carrying way out of a corner, and
+#: then cutting the next corner through the rock from its new position.
+RAIL_ROPE = 140.0
 
 #: How well the nose must already be pointed before the throttle opens up, as the cosine
 #: of the angle to the aim: 1.0 is dead ahead, 0.0 is square on.
@@ -205,6 +232,73 @@ def _alignment(suit, here, aim):
         return 1.0
     dot = (fwd[0] * want[0] + fwd[1] * want[1] + fwd[2] * want[2]) / (fl * wl)
     return max(-1.0, min(1.0, dot))
+
+
+def _eva_frame(d):
+    """Two unit axes perpendicular to `d`, or None if `d` is too short to have a
+    direction. The helper axis is swapped near vertical, or a shaft gets a degenerate
+    frame and the whole drift collapses onto one line."""
+    import math
+    n = math.sqrt(d[0] * d[0] + d[1] * d[1] + d[2] * d[2])
+    if n <= 1e-6:
+        return None
+    dx, dy, dz = d[0] / n, d[1] / n, d[2] / n
+    hx, hy, hz = (1.0, 0.0, 0.0) if abs(dy) > 0.9 else (0.0, 1.0, 0.0)
+    ux, uy, uz = dy * hz - dz * hy, dz * hx - dx * hz, dx * hy - dy * hx
+    un = math.sqrt(ux * ux + uy * uy + uz * uz)
+    if un <= 1e-6:
+        return None
+    ux, uy, uz = ux / un, uy / un, uz / un
+    vx, vy, vz = dy * uz - dz * uy, dz * ux - dx * uz, dx * uy - dy * ux
+    return ((ux, uy, uz), (vx, vy, vz))
+
+
+def _eva_drift(suit, here, aim, volume, room):
+    """Nudge the aim to one side, the same way for this suit every tick.
+
+    No RNG object and no state: the offset is a pure function of the suit's id, so it
+    cannot drift between ticks, does not need seeding, and has nothing to reset. Two
+    suits get different angles; one suit gets the same angle for the whole trip.
+    """
+    import math
+    span = min(DRIFT_MAX, max(0.0, room - ROUTE_MARGIN) * DRIFT_FRACTION)
+    if span < DRIFT_MIN:
+        return aim
+    frame = _eva_frame((aim[0] - here[0], aim[1] - here[1], aim[2] - here[2]))
+    if frame is None:
+        return aim
+    h = (int(to_id(suit) or 0) * 2654435761) & 0xFFFFFFFF
+    ang = (h % 1024) / 1024.0 * 2.0 * math.pi
+    mag = span * (0.45 + ((h >> 10) % 256) / 256.0 * 0.55)
+    (ux, uy, uz), (vx, vy, vz) = frame
+    ca, sa = math.cos(ang) * mag, math.sin(ang) * mag
+    want = (aim[0] + ux * ca + vx * sa,
+            aim[1] + uy * ca + vy * sa,
+            aim[2] + uz * ca + vz * sa)
+    # Never outside, whatever the maths said: the drift is decoration and the wall is not.
+    from .volume import volume_nearest_inside
+    return _pos(volume_nearest_inside(volume, want, ROUTE_MARGIN)) or aim
+
+
+def _eva_rope(here, aim, leg_start):
+    """Pull the aim back toward the leg the suit is supposed to be flying.
+
+    A rail leg is KNOWN clear, so it is a far stronger guarantee than "inside the volume
+    somewhere" and much cheaper to test. Beyond `RAIL_ROPE` from it, the aim blends toward
+    the nearest point ON the leg, so a suit that got knocked wide comes back to the rail
+    before it tries to take the next corner from where it ended up.
+    """
+    if leg_start is None:
+        return aim
+    from .volume import _vol_seg_closest
+    try:
+        off, on = _vol_seg_closest(here, tuple(leg_start), tuple(aim))
+    except Exception:
+        return aim
+    if off <= RAIL_ROPE:
+        return aim
+    w = min(1.0, (off - RAIL_ROPE) / max(1.0, RAIL_ROPE))
+    return tuple(aim[i] * (1.0 - w) + on[i] * w for i in range(3))
 
 
 def _dist(a, b):
@@ -480,13 +574,17 @@ def eva_points(client_id, role_name=None, revealed_only=False):
     the radar - it is simply not a gate on where they may GO. A suit inside a ruin can see
     the shape of it; that is what sensors are.
     """
-    from .amd_relics import relic_point_display, relic_point_revealed, relic_points
+    from .amd_relics import (relic_point_display, relic_point_revealed, relic_points,
+                             relic_rails_ensure)
+    from .rails import rail_nodes
     key = eva_my_relic(client_id)
     if not key:
         return []
     here = _pos(eva_my_suit(client_id))
     out = []
-    for name, pos in (relic_points(key, role_name) or {}).items():
+    for name, pos, display in _eva_places(key, role_name, rail_nodes,
+                                          relic_rails_ensure, relic_points,
+                                          relic_point_display, client_id):
         if revealed_only and not relic_point_revealed(key, name):
             continue
         # NOT WHERE YOU ALREADY ARE. Offering it reads as a destination and behaves like
@@ -496,9 +594,32 @@ def eva_points(client_id, role_name=None, revealed_only=False):
         # can see. You cannot fly to where you are standing.
         if here is not None and _dist(here, pos) <= DEST_RADIUS:
             continue
-        out.append((name, relic_point_display(key, name), pos))
+        out.append((name, display, pos))
     out.sort(key=lambda row: _dist(here, row[2]))
     return out
+
+
+def _eva_places(key, role_name, rail_nodes, relic_rails_ensure, relic_points,
+                relic_point_display, client_id):
+    """``[(name, pos, display)]`` - the relic's destinations, from its rail web.
+
+    THE WEB, NOT THE AUTHORED POINT LIST, and the difference is the whole of "access to
+    other things": a cache placed by a `Starts when:` trigger joins the web when it
+    appears (`rail_attach`), so it becomes somewhere the crew can be SENT rather than
+    something they have to happen to fly past. `Hidden:` places are left out until they
+    are found, and derived waypoints - the stations through a hall, a doorway, the way
+    round a pillar - are never offered: they are how you get somewhere, not somewhere to
+    go.
+
+    Falls back to the authored points when there is no web, which is a relic built in code
+    with no volume yet rather than a failure.
+    """
+    vol = relic_rails_ensure(key, eva_my_volume(client_id))
+    if vol:
+        return [(name, rec["pos"], rec["display"] or name)
+                for name, rec in rail_nodes(vol, role=role_name, listed=True)]
+    return [(name, pos, relic_point_display(key, name))
+            for name, pos in (relic_points(key, role_name) or {}).items()]
 
 
 def eva_where(client_id):
@@ -513,22 +634,34 @@ def eva_where(client_id):
 # --- flying there ---------------------------------------------------------------------
 
 def eva_goto(client_id, point_name, _replan=False):
-    """Fly this console's suit to a named point in its relic.
+    """Fly this console's suit to a named place in its relic.
 
-    Plans on the relic's chamber graph, then keeps the destination as the last waypoint so
-    the route ends at the PLACE rather than at the middle of the room holding it.
+    Walks the relic's rail web, which was solved once when the ruin was built, and ends at
+    the PLACE rather than at the middle of the room holding it.
 
     Returns:
-        bool: False is ordinary - no suit, or a name this relic does not have.
+        bool: False is ordinary - no suit, a name this relic does not have, somewhere the
+        suit already is, or a way that is currently barred. `eva_no_way` is what the
+        screen shows for the last of those.
     """
-    from .amd_relics import relic_point, relic_points
-    from .volume import (volume_doorways, volume_nearest_inside, volume_route,
-                     volume_skirts)
+    from .rails import rail_node_pos, rail_route
+    from .amd_relics import relic_point, relic_rails_ensure
+    from .volume import volume_nearest_inside
     suit = eva_my_suit(client_id)
     key = eva_my_relic(client_id)
     if not suit or not key:
         return False
-    goal = relic_point(key, point_name)
+    vol = relic_rails_ensure(key, eva_my_volume(client_id)) or eva_my_volume(client_id)
+    # THE WEB'S NODE FIRST. It is the authored point already projected inside the volume
+    # and already joined to its neighbours, so it is the thing the route can actually end
+    # at; the raw `Point:` is a label on a room and several of them sit in a wall.
+    goal = rail_node_pos(vol, point_name)
+    # A relic built before its web, or one built in code with no web at all, still has its
+    # authored points - route to the POSITION in that case rather than refusing outright.
+    target = point_name
+    if goal is None:
+        goal = relic_point(key, point_name)
+        target = goal
     if goal is None:
         return False
     here = _pos(suit)
@@ -536,46 +669,19 @@ def eva_goto(client_id, point_name, _replan=False):
     if here is not None and _dist(here, goal) <= DEST_RADIUS:
         return False
 
-    # THE RELIC'S OWN PLACES ARE THE ROUTE. Every relic names its rooms with `Point:`,
-    # one to a room, chosen by somebody who knows the ruin - so the router flies between
-    # those rather than trying to infer a path from the geometry. Two geometric routers
-    # were tried first (the authored chamber graph, then measured doorways between every
-    # primitive) and the ruins beat both: long thin boxes, vertical shafts and subtracted
-    # masses. This also makes a route explicable - "the shaft head, then the bay floor".
-    # PROJECT EVERY PLACE INSIDE FIRST. An authored point is a label on a room, not a
-    # promise that a ship fits there: the `entrance` markers sit out in open space by
-    # design, and others sit on a wall. A waypoint outside the volume can see nothing, so
-    # it contributes no edges and the graph silently collapses to a straight line.
-    vol = eva_my_volume(client_id)
-    # PLACES AND DOORWAYS BOTH. The places are where a person wants to go; the doorways
-    # are the only spots from which the next room is in view. Measured on `voice.amd`:
-    # eight authored rooms whose places see one another exactly once, because neighbours
-    # meet in a slab a hundred units deep that the line between two room centres clips the
-    # corner of. With both, every leg is short and straight - room, door, next room.
-    places = []
-    # PLACES, DOORWAYS AND SKIRTS. Places are where a person wants to go; doorways are
-    # the only spots from which the next room is in view; skirts get a route around a
-    # subtracted mass standing in the middle of a room. Leave any one out and some part of
-    # a real ruin becomes unreachable - each of the three was added because a Storm's
-    # Beacon relic could not be flown without it.
-    for p in (list((relic_points(key) or {}).values())
-              + list(volume_doorways(vol)) + list(volume_skirts(vol))):
-        inside = volume_nearest_inside(vol, p, ROUTE_MARGIN)
-        if inside is not None:
-            places.append(tuple(inside))
-    # THE DESTINATION GETS PROJECTED IN TOO. An authored point is a label on a room and
-    # several of them sit in the wall - a marker off the room's centre, a cache against a
-    # face. Nothing inside the volume can see a point outside it, so an unprojected goal
-    # leaves the router with nowhere to finish and it falls back to a straight line
-    # through the ruin. Measured: five of Storm's Beacon's seven relics did exactly that.
-    goal = tuple(volume_nearest_inside(vol, goal, ROUTE_MARGIN) or goal)
-    # THE START GETS PROJECTED IN TOO. A suit is allowed to scrape - the containment
-    # governor lets it touch a wall and pulls it back - so `here` is sometimes a few units
-    # OUTSIDE, and a start outside the volume can see no waypoint at all. The router then
-    # had nothing to begin from and answered with the straight line.
+    # THE ROUTE IS A WALK OF THE RELIC'S OWN RAIL WEB, solved once when the ruin was
+    # built (`relic_rails`). What used to be here re-derived the ruin's connectivity from
+    # the geometry on every press - doorways, skirts and an N-squared visibility graph,
+    # measured at 96ms for the first destination a console picked and 17ms for each one
+    # after, per console, on a bridge. Walking the cached web is under a millisecond.
+    #
+    # PROJECT THE START IN FIRST, and only the start: every node in the web is already
+    # inside by construction. A suit is allowed to scrape - the containment governor lets
+    # it touch a wall and pulls it back - so `here` is sometimes a few units OUTSIDE, and
+    # a start outside the volume can see no waypoint at all. Left unprojected, the router
+    # had nothing to begin from.
     start = tuple(volume_nearest_inside(vol, here, ROUTE_MARGIN) or here)
-    route = [tuple(p) for p in volume_route(vol, start, goal, waypoints=places,
-                                            margin=ROUTE_MARGIN, strict=True)]
+    route = [tuple(p) for p in rail_route(vol, start, target)]
     if not route:
         # NO ROUTE MEANS NO TRIP. A relic has no engine collision, so flying the straight
         # line to an unreachable room means flying THROUGH the ruin - which is the one
@@ -585,8 +691,9 @@ def eva_goto(client_id, point_name, _replan=False):
         set_inventory_value(client_id, KEY_NOWAY, point_name)
         from .execution import log
         log(f"no route to '{point_name}' in relic '{key}' - the suit stays put. Either "
-            f"the relic is not joined up there, or the doorway is tighter than the "
-            f"{ROUTE_MARGIN:.0f}-unit margin a suit asks for.", "eva", "warning")
+            f"the way there is barred, or the relic is not joined up there, or the "
+            f"doorway is tighter than the {ROUTE_MARGIN:.0f}-unit margin a suit asks "
+            f"for. `rail_stats` says which.", "eva", "warning")
         return False
     set_inventory_value(client_id, KEY_NOWAY, None)
     # DROP A WAYPOINT WE ARE ALREADY STANDING ON. A degenerate first leg makes the aim
@@ -598,6 +705,9 @@ def eva_goto(client_id, point_name, _replan=False):
 
     set_inventory_value(client_id, KEY_ROUTE, route)
     set_inventory_value(client_id, KEY_DEST, point_name)
+    # The other end of the rope: where this leg began. A leg the web solved is known
+    # clear, so it is worth keeping hold of.
+    set_inventory_value(client_id, KEY_LEG, tuple(here) if here else start)
     set_inventory_value(client_id, KEY_STALL, 0)
     set_inventory_value(client_id, KEY_GAP, None)
     if not _replan:
@@ -608,6 +718,7 @@ def eva_goto(client_id, point_name, _replan=False):
 
 def eva_stop(client_id):
     """Cancel the route and hold station."""
+    set_inventory_value(client_id, KEY_LEG, None)
     from .helm import helm_stop
     set_inventory_value(client_id, KEY_ROUTE, None)
     set_inventory_value(client_id, KEY_DEST, None)
@@ -636,10 +747,21 @@ def eva_route(client_id):
     return (dest, len(route), _dist(_pos(eva_my_suit(client_id)), route[-1]))
 
 
+def eva_drivers():
+    """Every console that has ever been handed a suit.
+
+    The camera's pass walks this rather than `eva_flying`: a console holding station still
+    has a camera, and one that stopped mid-relic is exactly when somebody wants to look
+    round. Kept on SHARED rather than at module level so the same machinery clears and
+    audits it.
+    """
+    return list(Agent.SHARED.get_inventory_value(_DRIVERS_KEY, set()) or set())
+
+
 def eva_flying():
-    """Every console with a route running. What the tick walks."""
+    """Every console with a route running. What the autopilot walks."""
     out = []
-    for cid in list(Agent.SHARED.get_inventory_value(_DRIVERS_KEY, set()) or set()):
+    for cid in eva_drivers():
         if get_inventory_value(cid, KEY_ROUTE, None):
             out.append(cid)
     return out
@@ -698,8 +820,10 @@ def eva_tick(t=None):
             continue
 
         if gap <= (DEST_RADIUS if last else ARRIVE_RADIUS):
-            route.pop(0)
+            reached = route.pop(0)
             set_inventory_value(cid, KEY_ROUTE, route)
+            # The waypoint just reached is where the NEXT leg starts.
+            set_inventory_value(cid, KEY_LEG, tuple(reached))
             if not route:
                 dest = eva_dest(cid)
                 helm_stop(suit)
@@ -731,6 +855,15 @@ def eva_tick(t=None):
         # projection, applied to where the suit IS rather than to where it is going, which
         # keeps this one geometric idea rather than two.
         room_now = -volume_depth(eva_my_volume(cid), here)
+        # SIDE BY SIDE, NOT NOSE TO TAIL. Cosmetic, deterministic per suit, and bounded by
+        # the room actually available - so a hall gets a spread and a passage gets single
+        # file. It goes before the wall bend below, which is what corrects it if the room
+        # ran out between the aim point and here.
+        aim = _eva_drift(suit, here, aim, eva_my_volume(cid), room_now)
+        # AND STAY ON THE RAIL. `volume_nearest_inside` only promises "inside the ruin
+        # somewhere", which is a weak promise in a chamber the size of a hangar; the leg
+        # itself was solved clear, so a suit that has wandered off it is pulled back to it.
+        aim = _eva_rope(here, aim, get_inventory_value(cid, KEY_LEG, None))
         if room_now < CLEAR_MIN:
             safe = _pos(volume_nearest_inside(eva_my_volume(cid), here, CLEAR_FULL))
             if safe is not None and _dist(safe, here) > 1.0:
@@ -868,6 +1001,15 @@ def eva_clear(relic_key=None):
         Agent.SHARED.set_inventory_value(_DRIVERS_KEY, set())
         eva_offer_clear()
         eva_unwatch()
+        # The camera pass is the EVA console's, so it goes with the suits. Lazily
+        # imported: `gui` is built on `procedural`, never the other way round.
+        try:
+            from .gui.eva_camera import eva_camera_unwatch
+            eva_camera_unwatch()
+        except Exception:
+            pass
+        from .eva_tools import eva_tools_clear
+        eva_tools_clear()
 
 
 def eva_suit_count():

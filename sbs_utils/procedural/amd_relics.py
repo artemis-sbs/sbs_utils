@@ -144,6 +144,24 @@ def amd_relic_facts():
             # arm time rather than here so a relic file still reads without the quest
             # layer loaded.
             data["starts_when"] = str(value).strip()
+        elif label == "barrier":
+            # A sphere that severs every rail edge crossing it. FOUR numbers like a
+            # chamber - x, y, z, radius - because a barrier is a thing in the world with
+            # a size, not a property of an edge. Nothing in a relic authors an edge.
+            nums = _amd_relic_numbers(value)
+            data["barrier"] = nums[:4] if len(nums) >= 4 else None
+        elif label in ("opens when", "opens_when"):
+            # Stored RAW, like `Starts when:`, and parsed by the same `amd_trigger` at arm
+            # time - so a barrier's grammar is the one an author already knows.
+            data["opens_when"] = str(value).strip()
+        elif label in ("clear with", "clear_with"):
+            data["clear_with"] = [w.strip().lower()
+                                  for w in str(value).split(",") if w.strip()]
+        elif label == "hidden":
+            data["hidden"] = str(value).strip().lower() in ("yes", "true", "on", "1")
+        elif label in ("rail step", "rail_step"):
+            nums = _amd_relic_numbers(value)
+            data["rail_step"] = nums[0] if nums else None
         elif label in ("scrape band", "scrape_band", "margin", "seed"):
             nums = _amd_relic_numbers(value)
             data[label.replace(" ", "_")] = nums[0] if nums else None
@@ -206,6 +224,9 @@ def relics_from_section(section, source=None, section_key=None):
             "plate": data.get("plate"),
             "gaps": data.get("gaps"),
             "seed": data.get("seed"),
+            # How finely the rail web is seeded through this ruin. A number, not a graph:
+            # the web is DERIVED, and this is the only dial over it.
+            "rail_step": data.get("rail_step"),
             # Per-PART look, filled in below. A relic is rarely one material all
             # through: a plated hall opens into a cave that came down on top of it.
             "part_art": {},
@@ -215,6 +236,7 @@ def relics_from_section(section, source=None, section_key=None):
             "boxes": {},
             "solids": [],
             "points": {},
+            "barriers": {},
             "contents": [],
             "parts": [],
             "data": data,   # carry the raw fence for mission-specific extras
@@ -249,8 +271,20 @@ def relics_from_section(section, source=None, section_key=None):
             # [x, y, z, roles, display]. The display name is APPENDED, so every existing
             # reader of [0..3] is unaffected; it is what a revealed marker is labelled
             # with, and "the transmitter bay" reads better on a radar than "at_bay".
+            # [x, y, z, roles, display, hidden]. `hidden` is APPENDED for the same
+            # reason display was: every existing reader of [0..4] is untouched.
             rec.points[name] = [pt[0], pt[1], pt[2], data.get("roles") or [],
-                                node.get("display_text") or name]
+                                node.get("display_text") or name,
+                                bool(data.get("hidden"))]
+        if data.get("barrier"):
+            # [x, y, z, radius, opens_when, clear_with, display]. A barrier is not
+            # navigable space and it is not subtracted from it either - the geometry is
+            # untouched. It acts on the WEB, which is why it is kept apart from `solids`.
+            b = data["barrier"]
+            rec.barriers[name] = [b[0], b[1], b[2], b[3],
+                                  data.get("opens_when"),
+                                  data.get("clear_with") or [],
+                                  node.get("display_text") or name]
         # CONTENTS may hang off any part - a point marks a spot, but a chamber carrying
         # `Item:` means "somewhere in this room", which is how an author thinks about a
         # ruin. The position is resolved at arm time, from whichever part it is on.
@@ -382,7 +416,9 @@ def relic_release(key):
     if name is None:
         name = key
     from .volume import volume_remove
+    from .rails import rail_remove
     removed = volume_remove(name)
+    rail_remove(name)
     relic_contents_clear(key)
     if rec is not None:
         setattr(rec, "contained", False)
@@ -483,7 +519,111 @@ def relic_volume(record, name=None):
     # the record's key, and when it does, everything keyed on the record key - reload,
     # and `relic_contain` - silently finds nothing.
     setattr(record, "volume", key)
+    relic_rails(record, name=key)
     return vol
+
+
+def relic_rails(record, name=None, margin=None):
+    """Solve this relic's rail web. Called by `relic_volume`; returns the stats dict.
+
+    ONCE PER RELIC, HERE, rather than once per trip. Every destination a console picks
+    used to re-derive the ruin's connectivity from the geometry - doorways, skirts and an
+    N-squared visibility graph, measured at 96ms for the first pick and 17ms for every one
+    after, per console, on a bridge. Connectivity is a property of the RUIN, so it is
+    solved when the ruin is built.
+
+    Nothing about it is authored. The relic's own `Point:` records become named
+    destinations; everything else - the stations through each room, the doorways, the way
+    round a pillar - is derived. `Rail step:` is the one dial, and `Barrier:` parts are
+    registered here so a shut way is shut from the first route anybody asks for.
+    """
+    from .rails import rail_barrier, rail_build
+    key = relic_volume_name(record, name)
+    base = relic_pos(record)
+    places = {}
+    for pname, pt in (record.get("points") or {}).items():
+        places[pname] = {
+            "pos": (base[0] + pt[0], base[1] + pt[1], base[2] + pt[2]),
+            "roles": tuple(pt[3]) if len(pt) > 3 else (),
+            "display": pt[4] if len(pt) > 4 else pname,
+            "hidden": bool(pt[5]) if len(pt) > 5 else False,
+        }
+    step = record.get("rail_step")
+    stats = rail_build(key, places=places, margin=margin,
+                       step=float(step) if step else None)
+    for bname, b in (record.get("barriers") or {}).items():
+        rail_barrier(key, bname,
+                     (base[0] + b[0], base[1] + b[1], base[2] + b[2]), b[3],
+                     display=b[6] if len(b) > 6 else bname)
+    return stats
+
+
+def relic_rails_ensure(relic_key, name=None):
+    """The relic's rail web name, solving the web now if it has not been solved yet.
+
+    `relic_volume` builds it, which covers every relic read from an `.amd`. A mission - or
+    a test - that defines the volume itself and registers the points by hand never goes
+    through that, and a route with no web to walk would simply refuse. So the first route
+    asked for is what builds it, once, and everything after that walks the cache.
+
+    Returns the volume name, or None when there is no such relic or its volume has not
+    been built.
+    """
+    from .rails import rail_get
+    from .volume import volume_get
+    rec = _RELIC_RECORDS.get(relic_key)
+    if rec is None:
+        return None
+    key = relic_volume_name(rec, name)
+    if rail_get(key) is not None:
+        return key
+    if volume_get(key) is None:
+        return None
+    relic_rails(rec, name=key)
+    return key
+
+
+def relic_open_barrier(relic_key, barrier, name=None):
+    """Open one of a relic's barriers - what a cutting beam or a haul ends in.
+
+    Emits `rail_opened` so a suit holding for a shut way re-plans at once rather than
+    waiting out its stall counter. False when there is no such barrier, or it was already
+    open.
+    """
+    from .rails import rail_barrier_open
+    rec = _RELIC_RECORDS.get(relic_key)
+    if rec is None:
+        return False
+    volume = relic_volume_name(rec, name)
+    if not rail_barrier_open(volume, barrier):
+        return False
+    signal_emit("rail_opened", {"RAIL_VOLUME": volume, "RAIL_RELIC": relic_key,
+                                "RAIL_BARRIER": barrier})
+    return True
+
+
+def relic_barriers(relic_key):
+    """``{name: [x, y, z, radius, opens_when, clear_with, display]}`` as AUTHORED.
+
+    Positions are relic-relative, like every other authored part. For the live state - is
+    it open, which edges is it severing - ask the web with `rail_barriers`.
+    """
+    rec = _RELIC_RECORDS.get(relic_key)
+    return dict(rec.get("barriers") or {}) if rec is not None else {}
+
+
+def relic_point_hidden(relic_key, name):
+    """Whether a point is authored `Hidden:` - off the destination list until found.
+
+    Hidden is a property of the LIST, never of the graph: a route still passes THROUGH a
+    hidden place, because stumbling into a secret on the way somewhere else is the point
+    of having one.
+    """
+    rec = _RELIC_RECORDS.get(relic_key)
+    if rec is None:
+        return False
+    pt = (rec.get("points") or {}).get(name)
+    return bool(pt[5]) if pt is not None and len(pt) > 5 else False
 
 
 def relic_volume_name(record, name=None):
@@ -692,7 +832,7 @@ def relic_contents_arm(relic_key, radius_default=900.0,
     if rec is None:
         return 0
     _relic_place_role_markers(rec, relic_key, reveal=reveal)
-    waiting = 0
+    waiting = _relic_arm_barriers(rec, relic_key)
     for c in relic_contents(relic_key):
         key = (relic_key, c["part"])
         if key in _ARMED:
@@ -717,6 +857,36 @@ def relic_contents_arm(relic_key, radius_default=900.0,
     return waiting
 
 
+def _relic_arm_barriers(rec, relic_key):
+    """Arm every `Barrier:` that has an `Opens when:`. Returns how many are waiting.
+
+    A barrier with no trigger is a hard block: it opens when somebody CUTS it, and that is
+    the weapons app's business, not a clock's. One with a trigger is armed on the same
+    shared tick as the contents, using the same `amd_trigger` grammar - so an author has
+    one vocabulary for "when does this happen", not two.
+    """
+    waiting = 0
+    for name, b in (rec.get("barriers") or {}).items():
+        key = ("barrier", relic_key, name)
+        if key in _ARMED:
+            continue
+        phrase = b[4] if len(b) > 4 else None
+        trig = _relic_trigger(phrase)
+        if trig is None:
+            # No trigger is not an error. It means the only way through is to open it.
+            _ARMED[key] = {"kind": "barrier", "done": True, "relic": relic_key,
+                           "barrier": name}
+            continue
+        kind = trig[0] if isinstance(trig, (list, tuple)) else None
+        if kind not in RELIC_TRIGGERS:
+            log(f"relic '{relic_key}': barrier '{name}' waits on '{phrase}', which a "
+                f"relic cannot watch - it will never open on its own", "relics", "warning")
+        _ARMED[key] = {"kind": "barrier", "done": False, "trig": trig,
+                       "relic": relic_key, "barrier": name, "radius_default": 900.0}
+        waiting += 1
+    return waiting
+
+
 def _relic_reveal_tick():
     """Light up the markers the crew has reached. The ruin drawing its own map.
 
@@ -728,6 +898,8 @@ def _relic_reveal_tick():
     """
     from .query import to_object_list, to_object
     from .roles import any_role, role
+    # `key` below is the armed marker's ("marker", relic, point) tuple - the reveal needs
+    # both halves of it to tell the web which node has just been found.
     posts = [(k, v) for k, v in _ARMED.items()
              if len(k) == 3 and not v.get("shown") and v.get("pos") is not None
              and (v.get("reveal") or 0) > 0]
@@ -769,6 +941,15 @@ def _relic_reveal_tick():
             obj.data_set.set("radar_color_override", RELIC_MARK_COLOR, 0)
         except Exception as e:
             log(f"relic marker would not light: {e}", "relics", "warning")
+        # A `Hidden:` place is off the destination list until it is FOUND, and reaching it
+        # is what finds it. An ordinary place was never hidden, so this is a no-op there.
+        try:
+            from .rails import rail_reveal
+            owner = _RELIC_RECORDS.get(key[1])
+            if owner is not None:
+                rail_reveal(relic_volume_name(owner), key[2])
+        except Exception:
+            pass
         rec["shown"] = True
 
 
@@ -876,6 +1057,33 @@ def _relic_place_contents(c):
                 "relics", "warning")
     for phrase in (c.get("spawn") or []):
         _relic_spawn_phrase(phrase, pos, c)
+    _relic_attach_content(c, pos)
+
+
+def _relic_attach_content(c, pos):
+    """Put a placed thing ON THE RAIL WEB, so it is somewhere you can be SENT.
+
+    This is what makes a cache a destination rather than something you happen to fly past.
+    A relic's contents do not all exist when the ruin is built - `Starts when: reach ...`
+    places one the first time somebody gets near the room - so the web is joined to rather
+    than resolved again.
+
+    A content hanging off a POINT is already a node under the author's own key; only one
+    on a chamber or a box needs its own.
+    """
+    rec = _RELIC_RECORDS.get(c.get("relic"))
+    if rec is None:
+        return
+    part = c.get("part")
+    if part in (rec.get("points") or {}):
+        return
+    try:
+        from .rails import rail_attach
+        rail_attach(relic_volume_name(rec), part, pos, roles=tuple(c.get("roles") or ()),
+                    display=part)
+    except Exception as e:
+        log(f"relic contents: '{part}' could not join the rail web: {e}",
+            "relics", "warning")
 
 
 def _relic_mark_placed(obj, c):
@@ -978,9 +1186,26 @@ def _relic_contents_tick(t=None):
     if not pending:
         return
     for key, rec in pending:
-        if _relic_trigger_fired(rec):
+        if not _relic_trigger_fired(rec):
+            continue
+        if rec.get("kind") == "barrier":
+            _relic_open_barrier(rec)
+        else:
             _relic_place_contents(rec["content"])
-            rec["done"] = True
+        rec["done"] = True
+
+
+def _relic_open_barrier(rec):
+    """Open one barrier and say so, so a suit holding for a shut way re-plans at once."""
+    owner = _RELIC_RECORDS.get(rec.get("relic"))
+    if owner is None:
+        return
+    from .rails import rail_barrier_open
+    volume = relic_volume_name(owner)
+    if rail_barrier_open(volume, rec.get("barrier")):
+        signal_emit("rail_opened", {"RAIL_VOLUME": volume,
+                                    "RAIL_RELIC": rec.get("relic"),
+                                    "RAIL_BARRIER": rec.get("barrier")})
 
 
 def _relic_trigger_fired(rec):

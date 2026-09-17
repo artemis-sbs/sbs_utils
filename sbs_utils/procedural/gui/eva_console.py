@@ -42,7 +42,13 @@ MAP_WIDTH_DEFAULT = 66
 #: bridge, 2026-09-17: "the camera changing position is annoying."
 #:
 #: `chase` sits behind the suit and stays there - the standard main-screen flying view.
-CAMERA_MODE_DEFAULT = "chase"
+#:
+#: **`third` IS THE DEFAULT NOW**, and it is `chase` with the three things `chase` cannot
+#: have, because `set_main_view_modes` does not expose them: a distance, an orbit, and a
+#: clamp that keeps the lens out of the rock. See `eva_camera.py` for why a relic needs
+#: all three. `chase` is still here, and is still the right answer if a mission wants the
+#: engine's own framing back.
+CAMERA_MODE_DEFAULT = "third"
 
 _camera_mode = CAMERA_MODE_DEFAULT
 
@@ -51,8 +57,9 @@ def eva_camera_mode(mode=None):
     """Read, or set, the camera every EVA console rides.
 
     Args:
-        mode (str, optional): `chase`, `first_person`, `tracking` or `cinematic`. Omit to
-            read the current one.
+        mode (str, optional): `third` (ours - see `eva_camera.py`), or one of the engine's
+            own: `chase`, `first_person`, `tracking`, `cinematic`. Omit to read the
+            current one.
 
     Returns:
         str: the mode in force.
@@ -70,6 +77,23 @@ def _ride_camera(client_id):
     `cinematic_control` call as well as the view mode; everything else is the plain view
     mode, which is what keeps the camera still.
     """
+    if _camera_mode == "third":
+        # OURS, and the distinction that matters is not the view mode - it is who is
+        # driving. `gui_cinematic_full_control` sends `scriptControlsCamera = 1`, which
+        # takes the engine's director OUT of it; `gui_cinematic_auto` sends 0, which is
+        # what hands the shot picking back and what "the camera changing position is
+        # annoying" was actually about. `camera_track` sets the view mode itself, so
+        # there is nothing to set here.
+        from .eva_camera import eva_camera_aim, eva_camera_watch
+        try:
+            eva_camera_aim(client_id)
+            # The console build aims once so there is no black frame before the first
+            # tick; the pass takes it from there. Idempotent, so every console asking is
+            # one watcher.
+            eva_camera_watch()
+        except Exception:                                # noqa: BLE001
+            pass
+        return _camera_mode
     if _camera_mode == "cinematic":
         from .cinematic import gui_cinematic_auto
         gui_cinematic_auto(client_id)
