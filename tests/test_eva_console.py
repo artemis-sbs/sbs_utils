@@ -235,6 +235,67 @@ class TheViewIsAnEngineWidget(_DrawBase):
                 "widget %r at x=%s is drawn over the 3d view" % (tag, left))
 
 
+class TheCornerRadar(_DrawBase):
+    """A 2D view tucked into the bottom-right of the 3D one.
+
+    Third person tells a pilot what the room LOOKS like and almost nothing about where
+    they are in it - a ruin's chambers all look alike from inside, which is the same
+    problem the Nav marks exist for. The radar is the only thing that answers "what is
+    around me, and which way is out".
+    """
+
+    def test_both_views_are_declared(self):
+        """Two engine widgets are fine in SEPARATE areas - what they cannot do is share
+        a row, because each draws at its own size over whatever is beside it."""
+        self.build()
+        sent = " ".join(str(v) for v in Gui.widget_list_sent.values())
+        self.assertIn("3dview", sent)
+        self.assertIn("2dview", sent)
+
+    def test_it_can_be_turned_off(self):
+        """A console that wants the whole column back says so once, at the build."""
+        from sbs_utils.mast.maststory import MastStory
+        story = MastStory()
+        src = "gui_eva_console(radar=False)" + chr(10) + "await gui()" + chr(10)
+        errors = story.compile(src, "evaconsole_noradar", story)
+        self.assertEqual([], errors, "compile errors: %s" % errors)
+        story.compiler_errors = []
+        ConsolePage.story = story
+        FrameContext.mast = story
+        self.build()
+        sent = " ".join(str(v) for v in Gui.widget_list_sent.values())
+        self.assertIn("3dview", sent)
+        self.assertNotIn("2dview", sent)
+
+    def test_it_sits_inside_the_view_not_beside_it(self):
+        """The whole point: it is ON the 3D view, so the view keeps the full column."""
+        area = EC.eva_radar_area(EC.MAP_WIDTH_DEFAULT)
+        nums = [int(n) for n in area.replace("area:", "").rstrip(";").split(",")]
+        left, top, right, bottom = nums
+        self.assertLess(right, EC.MAP_WIDTH_DEFAULT + 1,
+                        "the radar spills out of the 3d view column")
+        self.assertGreater(left, 0)
+        self.assertGreater(bottom, top)
+
+    def test_it_is_in_the_BOTTOM_RIGHT(self):
+        area = EC.eva_radar_area(EC.MAP_WIDTH_DEFAULT)
+        left, top, right, bottom = [int(n) for n in
+                                    area.replace("area:", "").rstrip(";").split(",")]
+        mid_x = EC.MAP_WIDTH_DEFAULT / 2.0
+        self.assertGreater(left, mid_x, "not on the right half of the view")
+        self.assertGreater(top, 50, "not in the bottom half of the view")
+
+    def test_it_follows_the_map_width(self):
+        """Measured off the SAME width the 3D view uses, so the two cannot drift."""
+        narrow = EC.eva_radar_area(40)
+        wide = EC.eva_radar_area(80)
+        self.assertNotEqual(narrow, wide)
+        n_right = int(narrow.replace("area:", "").rstrip(";").split(",")[2])
+        w_right = int(wide.replace("area:", "").rstrip(";").split(",")[2])
+        self.assertLess(n_right, 40 + 1)
+        self.assertLess(w_right, 80 + 1)
+
+
 class NavIsOnlyThereWhenYouAreFlying(_DrawBase):
     def test_the_nav_tile_is_offered_to_a_suit(self):
         self.build()

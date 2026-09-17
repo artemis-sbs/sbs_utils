@@ -138,7 +138,32 @@ def eva_console_revision(client_id=None):
     return (boarding_me(cid), eva_my_suit(cid), eva_where(cid), xess_revision(cid))
 
 
-def gui_eva_console(client_id=None, map_width=MAP_WIDTH_DEFAULT, suit=None):
+#: How much of the map column the corner radar takes, as a percentage of the SCREEN, and
+#: how far it sits off the bottom-right corner of the view.
+#:
+#: A percentage of the screen rather than of the view, because that is the only unit an
+#: `area:` understands - see `gui_content_sizing`. Sized so it reads at 1024x768, which is
+#: what a client that has not reported its size answers.
+EVA_RADAR_W = 22
+EVA_RADAR_H = 34
+EVA_RADAR_PAD = 1
+
+
+def eva_radar_area(map_width=None):
+    """The corner radar's absolute area, tucked into the view's bottom-right.
+
+    Measured off the SAME map width the 3D view uses, so the two cannot drift apart when
+    a console is built at a different width.
+    """
+    from .boarding_console import panel_left
+    right = (map_width if map_width is not None else panel_left() - 1) - EVA_RADAR_PAD
+    left = max(0, right - EVA_RADAR_W)
+    return "area: %d, %d, %d, %d;" % (left, 100 - EVA_RADAR_H - EVA_RADAR_PAD,
+                                      right, 100 - EVA_RADAR_PAD)
+
+
+def gui_eva_console(client_id=None, map_width=MAP_WIDTH_DEFAULT, suit=None,
+                    radar=True):
     """Build the EVA console: the relic on the left, the xESS on the right.
 
     Args:
@@ -146,6 +171,7 @@ def gui_eva_console(client_id=None, map_width=MAP_WIDTH_DEFAULT, suit=None):
         map_width (int, optional): how much of the screen the view takes, in percent.
         suit (optional): the ship to ride. Defaults to the one this console was given by
             :func:`eva_take`.
+        radar (bool, optional): draw the corner 2D view over the 3D one. Defaults True.
 
     Returns:
         dict: the held widgets, also stored on the page for :func:`gui_eva_console_tick`.
@@ -168,6 +194,20 @@ def gui_eva_console(client_id=None, map_width=MAP_WIDTH_DEFAULT, suit=None):
     gui_section("area:0,0,%d,100;" % map_width)
     gui_activate_console("cinematic")
     gui_layout_widget("3dview")
+
+    # AND A RADAR IN THE CORNER. Third person tells a pilot what the room looks like and
+    # almost nothing about where they are IN it - a ruin's chambers all look alike from
+    # inside, which is the same problem the Nav marks exist for. The 2D view is the only
+    # thing that answers "what is around me, and which way is the way out".
+    #
+    # ITS OWN SECTION, and after the 3D one. Two engine widgets do not share a row - each
+    # draws at its own size over whatever is beside it - but they are perfectly happy in
+    # separate areas, and the later one paints over the earlier where they overlap. That
+    # overlap IS the feature here: this sits ON the view rather than beside it, so the
+    # view keeps the whole column.
+    if radar:
+        gui_section(eva_radar_area(map_width))
+        gui_layout_widget("2dview")
 
     ride = suit if suit is not None else eva_my_suit(cid)
     if ride is not None:
