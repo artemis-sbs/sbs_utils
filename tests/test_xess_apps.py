@@ -420,3 +420,89 @@ class TheCrewListIsStable(_XessBase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class SuitWeaponRepaintTests(unittest.TestCase):
+    """Pressing BEAM or TETHER has to MOVE something on screen.
+
+    The device only rebuilds when `xess_revision` changes (gui_xess_tick), and
+    `eva_console_revision` folds that in - so the revision is the whole repaint chain for
+    the EVA console.
+
+    It carried the GRID weapon's state (`boarding_armed` / `boarding_setting`) and nothing
+    from the SUIT, so `eva_arm` changed the held verb and moved nothing in the tuple. The
+    `> ` marker in the suit's Fire app stayed where it was. It read as "the choices will
+    not change", and as "it is slow" when the suit was moving - because the only other
+    thing a suit can shift in that tuple is its badge, so the pick finally appeared
+    whenever the nearest target's name or distance bucket happened to change.
+    """
+
+    def setUp(self):
+        sbs.create_new_sim()
+        FrameContext.context = Context(sbs.sim, sbs, FakeEvent())
+        SpaceObject.clear()
+        self.cid = 77
+        GuiClient(self.cid)
+
+    def _rev(self):
+        from sbs_utils.procedural.gui.xess import xess_revision
+        return xess_revision(self.cid)
+
+    def _outer(self):
+        from sbs_utils.procedural.gui.eva_console import eva_console_revision
+        return eva_console_revision(self.cid)
+
+    def test_arming_the_suit_moves_the_revision(self):
+        from sbs_utils.procedural.eva_tools import eva_arm, VERB_BEAM
+        before = self._rev()
+        eva_arm(self.cid, VERB_BEAM)
+        self.assertNotEqual(before, self._rev())
+
+    def test_changing_the_verb_moves_the_revision(self):
+        """The actual report: the choices would not change."""
+        from sbs_utils.procedural.eva_tools import eva_arm, VERB_BEAM, VERB_TETHER
+        eva_arm(self.cid, VERB_BEAM)
+        before = self._rev()
+        eva_arm(self.cid, VERB_TETHER)
+        self.assertNotEqual(before, self._rev())
+
+    def test_stowing_moves_the_revision(self):
+        from sbs_utils.procedural.eva_tools import eva_arm, eva_disarm, VERB_BEAM
+        eva_arm(self.cid, VERB_BEAM)
+        before = self._rev()
+        eva_disarm(self.cid)
+        self.assertNotEqual(before, self._rev())
+
+    def test_it_reaches_the_console_gate_too(self):
+        """`on change eva_console_revision()` is the outer gate - a change that stops at
+        xess_revision would never run the tick at all."""
+        from sbs_utils.procedural.eva_tools import eva_arm, VERB_TETHER
+        before = self._outer()
+        eva_arm(self.cid, VERB_TETHER)
+        self.assertNotEqual(before, self._outer())
+
+    def test_an_idle_console_does_not_repaint(self):
+        """The other half of the bargain: a revision that moved on its own would rebuild
+        the screen every tick."""
+        self.assertEqual(self._rev(), self._rev())
+        self.assertEqual(self._outer(), self._outer())
+
+
+class AutoOpenRespectsTheSuitTests(unittest.TestCase):
+    """A new beat must not yank a crew member off a live weapon - in EITHER body."""
+
+    def setUp(self):
+        sbs.create_new_sim()
+        FrameContext.context = Context(sbs.sim, sbs, FakeEvent())
+        SpaceObject.clear()
+        self.cid = 78
+        GuiClient(self.cid)
+
+    def test_a_suit_holding_a_verb_is_not_interrupted(self):
+        from sbs_utils.procedural.gui.xess import _auto_open, xess_open, APP_SCAN
+        from sbs_utils.procedural.eva_tools import eva_arm, VERB_BEAM
+        xess_open(self.cid, APP_SCAN)
+        eva_arm(self.cid, VERB_BEAM)
+        _auto_open(self.cid)
+        from sbs_utils.procedural.gui.xess import xess_opened
+        self.assertEqual(xess_opened(self.cid), APP_SCAN)

@@ -1600,13 +1600,26 @@ def _vol_default_agents():
     are excluded so a carrier's own bay is not a hazard.
     """
     from .roles import any_role, role
-    # `eva_suit` IS in the default set, and leaving it out was a real hole. A boarding
-    # suit is a player hull with `__player__` deliberately REMOVED - that is what keeps
-    # six boarders out of NPC targeting, the scoring and the end-game checks - and the
-    # side effect was that containment stopped watching the one kind of craft most likely
-    # to be inside a relic. Measured: the authored `Containment:` on all seven Storm's
-    # Beacon relics had no effect on a suit whatsoever.
-    return any_role("__player__,cockpit,eva_suit") - role("standby")
+    # `eva_suit` IS NOT IN THIS SET, and it was, and the reversal is deliberate.
+    #
+    # It was added because containment was not watching the craft most likely to be
+    # inside a relic. That was true, and it was the right fix for the tractor. But it
+    # treated the symptom: a suit needed catching constantly because the corridor the
+    # router proved clear was twenty units wide while the flight helped itself to a
+    # hundred and forty - so the suit was outside the proven space most of the time and
+    # the tractor spent the whole flight hauling it back.
+    #
+    # With the lane (`rails.RAIL_LANE`) and a flight envelope scaled to each leg's own
+    # clearance (`eva._eva_room`), a suit stays in the space that was solved for it, and
+    # the clamp stopped being a net and became the thing that FOUGHT the drive: it puts a
+    # breached ship back at `margin`, hard against the wall, while the autopilot pushes
+    # in - which is what "it gets stuck in walls" was.
+    #
+    # WHAT REPLACES IT is `rail_route`'s projection: a suit that ends up in solid rock
+    # gets a route OUT of it rather than being dragged out. An action the crew take, not
+    # a hand on the controls. A mission that still wants a suit contained passes its own
+    # agent set to `volume_watch` - only this default changed.
+    return any_role("__player__,cockpit") - role("standby")
 
 
 def _vol_resolve_agents(agents):

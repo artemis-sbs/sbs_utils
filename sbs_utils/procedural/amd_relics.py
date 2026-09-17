@@ -501,6 +501,18 @@ def relic_point_revealed(relic_key, name):
     return True if rec is None else bool(rec.get("shown"))
 
 
+def relic_point_has_marker(relic_key, name):
+    """Whether this point was armed with a marker at all.
+
+    The companion `relic_point_revealed` answers TRUE for a point with no marker, which
+    is right for its own job - it gates destinations, and a relic that does not use the
+    reveal mechanism must not have every destination hidden. It makes it useless as a
+    record of where the crew has BEEN, though: without this test, every place in an
+    unarmed relic reads as already seen.
+    """
+    return _ARMED.get(("marker", relic_key, name)) is not None
+
+
 def relic_volume(record, name=None):
     """Build the navigable volume for a record and return it.
 

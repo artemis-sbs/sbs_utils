@@ -58,6 +58,8 @@ KEY_REPLAN = "EVA_REPLAN"    # how many times this route has been re-planned
 KEY_NOWAY = "EVA_NOWAY"      # a place the router could not reach, so the app can say so
 KEY_SPEED = "EVA_SPEED"      # how hard this console flies: a key into SPEEDS
 KEY_LEG = "EVA_LEG"          # where the current leg STARTED - the other end of the rope
+KEY_LEG_CLEAR = "EVA_LEG_CLEAR"   # how much room that leg has at its tightest
+KEY_VISITED = "EVA_VISITED"  # {relic key: [place names]} - where this console HAS BEEN
 
 # Consoles ever handed a suit, so a reset can let go of all of them without walking every
 # agent. On SHARED rather than at module level, so the same machinery clears and audits it.
@@ -130,6 +132,27 @@ DRIFT_MIN = 12.0
 #: the other way a suit ends up off course: knocked, or carrying way out of a corner, and
 #: then cutting the next corner through the rock from its new position.
 RAIL_ROPE = 140.0
+
+#: THE CEILINGS ABOVE ARE FOR A WIDE HALL. What follows is what makes them safe in a
+#: passage, and it is the other half of "it drives into the walls".
+#:
+#: `RAIL_ROPE` (140), `DRIFT_MAX` (90) and `ARRIVE_RADIUS` (120) were flat numbers, while
+#: the corridor the router proved clear was `ROUTE_MARGIN` - twenty units. So the flight
+#: was allowed to be up to seven times wider than the only thing anyone had proved, and
+#: the overflow went into the rock. Measured over all seven Storm's Beacon relics: every
+#: route's tightest point was exactly 20.0.
+#:
+#: The web now measures each leg's clearance when it solves (`rail_leg_clearance`), so
+#: these are FRACTIONS of the room a leg actually has. A leg through a 50-unit throat gets
+#: a rope of 25 and turns at its waypoint instead of cutting the corner 120 units early;
+#: a leg down the middle of a freight hall is unchanged, because its clearance is larger
+#: than the ceilings anyway.
+ROPE_FRACTION = 0.5
+ARRIVE_FRACTION = 0.5
+
+#: An arrival radius cannot shrink to nothing or a suit can never register reaching a
+#: waypoint at all - it would orbit it until the stall detector gave up and replanned.
+ARRIVE_MIN = 30.0
 
 #: How well the nose must already be pointed before the throttle opens up, as the cosine
 #: of the angle to the aim: 1.0 is dead ahead, 0.0 is square on.
@@ -280,7 +303,53 @@ def _eva_drift(suit, here, aim, volume, room):
     return _pos(volume_nearest_inside(volume, want, ROUTE_MARGIN)) or aim
 
 
-def _eva_rope(here, aim, leg_start):
+def _eva_leg_clearance(volume, a, b, samples=7):
+    """The tightest clearance along one leg, or None when it cannot be measured.
+
+    MEASURED ONCE PER LEG, never per tick. The rail web exists precisely so that flying
+    does no geometry, so this is called when a waypoint is reached and the answer is kept
+    in inventory until the next one.
+    """
+    from .volume import _vol_resolve
+    vol = _vol_resolve(volume)
+    if vol is None or a is None or b is None:
+        return None
+    try:
+        lo = min(-vol.depth(tuple(a)), -vol.depth(tuple(b)))
+        for i in range(1, samples):
+            t = i / float(samples)
+            p = (a[0] + (b[0] - a[0]) * t,
+                 a[1] + (b[1] - a[1]) * t,
+                 a[2] + (b[2] - a[2]) * t)
+            c = -vol.depth(p)
+            if c < lo:
+                lo = c
+    except Exception:                                    # noqa: BLE001
+        return None
+    return lo
+
+
+def _eva_set_leg(client_id, start, goal, volume):
+    """Record the leg being flown AND how much room it has."""
+    set_inventory_value(client_id, KEY_LEG, tuple(start) if start else None)
+    set_inventory_value(client_id, KEY_LEG_CLEAR,
+                        _eva_leg_clearance(volume, start, goal))
+
+
+def _eva_room(client_id, ceiling, fraction):
+    """A ceiling scaled down to what the CURRENT leg can actually afford.
+
+    Falls back to the ceiling when the leg was never measured - a route flown before a
+    web existed, or a relic built in code - so this can never make an unmeasured flight
+    worse than it was.
+    """
+    clear = get_inventory_value(client_id, KEY_LEG_CLEAR, None)
+    if clear is None:
+        return ceiling
+    return min(ceiling, max(0.0, float(clear)) * fraction)
+
+
+def _eva_rope(here, aim, leg_start, rope=RAIL_ROPE):
     """Pull the aim back toward the leg the suit is supposed to be flying.
 
     A rail leg is KNOWN clear, so it is a far stronger guarantee than "inside the volume
@@ -295,9 +364,9 @@ def _eva_rope(here, aim, leg_start):
         off, on = _vol_seg_closest(here, tuple(leg_start), tuple(aim))
     except Exception:
         return aim
-    if off <= RAIL_ROPE:
+    if off <= rope:
         return aim
-    w = min(1.0, (off - RAIL_ROPE) / max(1.0, RAIL_ROPE))
+    w = min(1.0, (off - rope) / max(1.0, rope))
     return tuple(aim[i] * (1.0 - w) + on[i] * w for i in range(3))
 
 
@@ -551,6 +620,11 @@ def eva_suits(relic_key=None):
 def eva_points(client_id, role_name=None, revealed_only=False):
     """The places this console may fly to: ``[(name, display, (x, y, z)), ...]``.
 
+    A THREE-TUPLE, and it stays one. Callers DESTRUCTURE this - `for name, label, pos in
+    places` - so growing it is not the additive change it looks like; appending two flags
+    here broke the Nav app and five tests at once. Where the crew has BEEN is asked for
+    separately, with `eva_visited` and `eva_seen`.
+
     Sorted by distance, nearest first - the list is a menu of somewhere to go next, and
     the next place is nearly always a near one.
 
@@ -620,6 +694,56 @@ def _eva_places(key, role_name, rail_nodes, relic_rails_ensure, relic_points,
                 for name, rec in rail_nodes(vol, role=role_name, listed=True)]
     return [(name, pos, relic_point_display(key, name))
             for name, pos in (relic_points(key, role_name) or {}).items()]
+
+
+# --- where the crew has been ------------------------------------------------------------
+#
+# Two different facts, and a map that shows both is worth more than one that conflates
+# them: a place you have STOOD IN is explored, a place you have only seen on sensors is a
+# lead. Kept in CLIENT INVENTORY, so it dies with the mission and needs no reset-ledger
+# entry of its own.
+
+
+def eva_visit_note(client_id, name, relic_key=None):
+    """Record that this console's suit has actually been to a place."""
+    key = relic_key or eva_my_relic(client_id)
+    if not key or not name:
+        return False
+    book = dict(get_inventory_value(client_id, KEY_VISITED, None) or {})
+    been = list(book.get(key) or [])
+    if name in been:
+        return False
+    been.append(name)
+    book[key] = been
+    set_inventory_value(client_id, KEY_VISITED, book)
+    return True
+
+
+def eva_visited(client_id, name, relic_key=None):
+    """Has this console's suit been to this place."""
+    key = relic_key or eva_my_relic(client_id)
+    book = get_inventory_value(client_id, KEY_VISITED, None) or {}
+    return name in (book.get(key) or ())
+
+
+def eva_visited_names(client_id, relic_key=None):
+    """Everywhere this console has been in a relic, in the order it got there."""
+    key = relic_key or eva_my_relic(client_id)
+    book = get_inventory_value(client_id, KEY_VISITED, None) or {}
+    return tuple(book.get(key) or ())
+
+
+def eva_seen(client_id, name, relic_key=None):
+    """Has this place's marker lit - the crew came near it, without necessarily entering.
+
+    Only true for a point that HAS a marker: `relic_point_revealed` answers True for one
+    that does not, which would make every place in an unarmed relic read as seen.
+    """
+    from .amd_relics import relic_point_has_marker, relic_point_revealed
+    key = relic_key or eva_my_relic(client_id)
+    if not key:
+        return False
+    return bool(relic_point_has_marker(key, name)) and         bool(relic_point_revealed(key, name))
 
 
 def eva_where(client_id):
@@ -706,8 +830,10 @@ def eva_goto(client_id, point_name, _replan=False):
     set_inventory_value(client_id, KEY_ROUTE, route)
     set_inventory_value(client_id, KEY_DEST, point_name)
     # The other end of the rope: where this leg began. A leg the web solved is known
-    # clear, so it is worth keeping hold of.
-    set_inventory_value(client_id, KEY_LEG, tuple(here) if here else start)
+    # clear, so it is worth keeping hold of - and HOW clear decides the rope, the drift
+    # and how early the suit may turn off it.
+    _eva_set_leg(client_id, tuple(here) if here else start,
+                 route[0] if route else None, eva_my_volume(client_id))
     set_inventory_value(client_id, KEY_STALL, 0)
     set_inventory_value(client_id, KEY_GAP, None)
     if not _replan:
@@ -719,6 +845,7 @@ def eva_goto(client_id, point_name, _replan=False):
 def eva_stop(client_id):
     """Cancel the route and hold station."""
     set_inventory_value(client_id, KEY_LEG, None)
+    set_inventory_value(client_id, KEY_LEG_CLEAR, None)
     from .helm import helm_stop
     set_inventory_value(client_id, KEY_ROUTE, None)
     set_inventory_value(client_id, KEY_DEST, None)
@@ -819,15 +946,28 @@ def eva_tick(t=None):
             eva_stop(cid)
             continue
 
-        if gap <= (DEST_RADIUS if last else ARRIVE_RADIUS):
+        # THE CORNER CUT, AND IT WAS THE WORST OF THE THREE. Counting a waypoint as
+        # reached at a flat `ARRIVE_RADIUS` means the suit starts its turn 120 units
+        # short of the node - so on a leg the router proved clear to twenty, it never
+        # flies that leg at all. It leaves early and crosses whatever is inside the
+        # corner. Scaled to the leg's own room, a passage is flown to its waypoint and an
+        # open hall still turns early and looks natural.
+        reach = DEST_RADIUS if last else max(
+            ARRIVE_MIN, _eva_room(cid, ARRIVE_RADIUS, ARRIVE_FRACTION))
+        if gap <= reach:
             reached = route.pop(0)
             set_inventory_value(cid, KEY_ROUTE, route)
-            # The waypoint just reached is where the NEXT leg starts.
-            set_inventory_value(cid, KEY_LEG, tuple(reached))
+            # The waypoint just reached is where the NEXT leg starts - and the next leg
+            # is a different width, so it is measured here rather than assumed.
+            _eva_set_leg(cid, tuple(reached), route[0] if route else None,
+                         eva_my_volume(cid))
             if not route:
                 dest = eva_dest(cid)
                 helm_stop(suit)
                 set_inventory_value(cid, KEY_DEST, None)
+                # BEEN THERE. Stamped on arrival rather than on proximity, so the NAV
+                # list can tell "we explored this" from "we flew past it".
+                eva_visit_note(cid, dest)
                 signal_emit("eva_arrived", {"EVA_CLIENT": cid, "EVA_SUIT": suit,
                                             "EVA_RELIC": eva_my_relic(cid),
                                             "EVA_POINT": dest})
@@ -859,11 +999,16 @@ def eva_tick(t=None):
         # the room actually available - so a hall gets a spread and a passage gets single
         # file. It goes before the wall bend below, which is what corrects it if the room
         # ran out between the aim point and here.
-        aim = _eva_drift(suit, here, aim, eva_my_volume(cid), room_now)
+        # `room_now` is the clearance HERE; the leg may narrow ahead of the suit, and a
+        # drift sized on the wide end carries it into the narrow one. The smaller of the
+        # two is the honest figure.
+        aim = _eva_drift(suit, here, aim, eva_my_volume(cid),
+                         min(room_now, _eva_room(cid, room_now, 1.0)))
         # AND STAY ON THE RAIL. `volume_nearest_inside` only promises "inside the ruin
         # somewhere", which is a weak promise in a chamber the size of a hangar; the leg
         # itself was solved clear, so a suit that has wandered off it is pulled back to it.
-        aim = _eva_rope(here, aim, get_inventory_value(cid, KEY_LEG, None))
+        aim = _eva_rope(here, aim, get_inventory_value(cid, KEY_LEG, None),
+                        rope=_eva_room(cid, RAIL_ROPE, ROPE_FRACTION))
         if room_now < CLEAR_MIN:
             safe = _pos(volume_nearest_inside(eva_my_volume(cid), here, CLEAR_FULL))
             if safe is not None and _dist(safe, here) > 1.0:

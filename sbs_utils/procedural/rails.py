@@ -69,6 +69,44 @@ from .volume import (_vol_dist, _vol_resolve, _vol_seg_closest, _vol_xyz,
 #: until a relic will not route.
 RAIL_MARGIN = 20.0
 
+#: The clearance a leg WANTS, as opposed to the one it must have.
+#:
+#: `RAIL_MARGIN` is a hard floor - below it a leg is refused. This is the comfortable
+#: figure, and the difference between them is the whole of "the routes cut corners".
+#:
+#: MEASURED 2026-09-17, over all seven Storm's Beacon relics and all 254 pairs of places:
+#: every route was legal and the worst clearance along every one of them was EXACTLY 20.0,
+#: the margin. The web was not grazing the rock by accident, it was riding the floor by
+#: design - a shortest-path search over legs that are all equally "legal" will always hug
+#: the inside of a corner, because that is the short way round.
+#:
+#: 20 units is also far less than the flight needs. A suit is allowed to sit `RAIL_ROPE`
+#: (140) off its leg, drifts up to `DRIFT_MAX` (90) sideways, and calls itself arrived
+#: within `ARRIVE_RADIUS` (120). So the thing being flown was up to seven times wider than
+#: the corridor anything had proved clear, and the overflow went into the rock.
+#:
+#: NOT A HARD REQUIREMENT, and that distinction is load-bearing: `false_choir`'s throat
+#: meets its concourse in a slab 50 units deep, so demanding 150 of clearance there would
+#: declare the only way in impassable and take the relic from flyable to disconnected.
+#: Legs tighter than this are KEPT and made expensive (`_rail_tightness`), so a route
+#: takes the open way when there is one and still squeezes through the throat when that is
+#: the only way.
+RAIL_LANE = 150.0
+
+#: How much a tight leg is penalised, at its worst. A leg with no clearance at all costs
+#: this multiple of its length, so a route will go this many times further round to stay
+#: in open space - but it will still take the tight leg rather than not arrive.
+RAIL_TIGHT_PENALTY = 6.0
+
+#: How many samples measure a leg's clearance at build time. The cost is paid ONCE per
+#: relic, so this can afford to be honest; an 8-sample version missed the pinch in the
+#: middle of a long diagonal, which is precisely the leg worth catching.
+RAIL_CLEAR_SAMPLES = 9
+
+#: Hill-climbing a node toward the middle of the room it is in. Six axis probes per
+#: round, halving the reach each time.
+RAIL_CENTER_ROUNDS = 4
+
 #: How far apart spine nodes sit along a room's own axes. A little under a relic
 #: passage's typical width, so a corridor gets several stations rather than one.
 RAIL_STEP = 450.0
@@ -123,17 +161,19 @@ _WEBS = {}
 class _Web:
     """One relic's rail web. Not exported - reach it through the `rail_*` functions."""
 
-    __slots__ = ("name", "volume", "margin", "step", "nodes", "order", "edges",
-                 "barriers", "_cut", "stats")
+    __slots__ = ("name", "volume", "margin", "lane", "step", "nodes", "order", "edges",
+                 "clear", "barriers", "_cut", "stats")
 
     def __init__(self, name, volume, margin, step):
         self.name = name
         self.volume = volume
         self.margin = float(margin)
+        self.lane = float(margin)
         self.step = float(step)
         self.nodes = {}        # key -> {"pos", "kind", "roles", "display", "hidden"}
         self.order = []        # keys in seed order - stable, so a dump is comparable
-        self.edges = {}        # key -> {other: cost}
+        self.edges = {}        # key -> {other: cost}  (cost is PENALISED length)
+        self.clear = {}        # (a, b) -> the tightest clearance along that leg
         self.barriers = {}     # key -> {"pos", "radius", "open", "display"}
         self._cut = None       # frozenset of severed (a, b) pairs, rebuilt lazily
         self.stats = {}
@@ -214,6 +254,93 @@ def _rail_spine(prim, step):
             for z in axes[2]:
                 out.append((x, y, z))
     return out
+
+
+def _rail_clearance(vol, pos):
+    """How far this point is from the rock. Positive inside, negative in the wall.
+
+    `Volume.depth` is signed the other way round - negative inside - and reading it
+    backwards is the kind of mistake that silently inverts a whole pass, so it is named
+    once here and never re-derived.
+    """
+    return -vol.depth(pos)
+
+
+def _rail_center(vol, pos, lane, rounds=RAIL_CENTER_ROUNDS):
+    """Walk a node toward the middle of the space it is in.
+
+    A spine seed is a point on a LATTICE through a room, and `volume_nearest_inside` only
+    guarantees it is legal - so a seed that lands in a pillar comes back pressed against
+    that pillar's surface, and a seed near a face stays near the face. Routes then run
+    through those nodes, which is half of why they hug the geometry.
+
+    A coarse hill-climb, not a medial-axis transform: six axis probes, best one wins, reach
+    halves each round. It cannot leave the volume, because a probe is only taken when it is
+    an improvement and the clearance of an outside point is negative.
+
+    STOPS AT `lane` RATHER THAN MAXIMISING. The middle of a big hall is not a better
+    station than a point comfortably clear of everything - it is just further from where
+    anyone wants to go, and pushing every node to the centroid collapses a wide room back
+    to the single crossing this web exists to avoid.
+    """
+    best = (float(pos[0]), float(pos[1]), float(pos[2]))
+    have = _rail_clearance(vol, best)
+    if have >= lane:
+        return best, have
+    reach = lane
+    for _ in range(rounds):
+        moved = False
+        for axis in range(3):
+            for sign in (1.0, -1.0):
+                cand = list(best)
+                cand[axis] += sign * reach
+                cand = (cand[0], cand[1], cand[2])
+                got = _rail_clearance(vol, cand)
+                if got > have:
+                    best, have, moved = cand, got, True
+                    if have >= lane:
+                        return best, have
+        if not moved:
+            reach *= 0.5
+    return best, have
+
+
+def _rail_leg_clearance(vol, a, b, samples=RAIL_CLEAR_SAMPLES):
+    """The TIGHTEST point along a leg. What decides whether it is a comfortable run.
+
+    Both ends are already known clear - they are nodes - so this is looking for the pinch
+    in the middle: the corner a straight line clips on its way past.
+    """
+    lo = min(_rail_clearance(vol, a), _rail_clearance(vol, b))
+    for i in range(1, samples):
+        t = i / float(samples)
+        p = (a[0] + (b[0] - a[0]) * t,
+             a[1] + (b[1] - a[1]) * t,
+             a[2] + (b[2] - a[2]) * t)
+        c = _rail_clearance(vol, p)
+        if c < lo:
+            lo = c
+    return lo
+
+
+def _rail_tightness(clear, lane):
+    """A leg's cost multiplier, from how much room it has. 1.0 when it is comfortable.
+
+    THE WHOLE ANSWER TO "THE ROUTES CUT CORNERS". Every leg used to cost exactly its
+    length, so a shortest-path search had no reason to prefer the middle of a hall over
+    the inside of a corner - and the inside of a corner is shorter, so it always won.
+    Scaling the cost by how tight a leg is makes open space genuinely cheaper, and the
+    route moves off the wall on its own.
+
+    It is a COST, never a refusal: a tight leg a relic depends on is still there, just
+    expensive, so connectivity cannot change. `false_choir`'s 50-unit throat still flies.
+    """
+    if clear >= lane:
+        return 1.0
+    if clear <= 0.0:
+        return RAIL_TIGHT_PENALTY
+    t = 1.0 - (clear / lane)
+    return 1.0 + (RAIL_TIGHT_PENALTY - 1.0) * t * t
 
 
 def _rail_seed(vol, step):
@@ -327,8 +454,15 @@ def _rail_bridge(vol, web, comps, margin, tries=40):
         if best is None:
             break
         d, a, b, i, j = best
-        web.edges[a][b] = d
-        web.edges[b][a] = d
+        # Costed like every other leg. A bridge is usually the tightest thing in the web -
+        # it is the hop nothing shorter could make - so leaving it at raw length would
+        # make the one leg most worth avoiding look like the cheapest.
+        clear = _rail_leg_clearance(vol, nodes[a]["pos"], nodes[b]["pos"])
+        cost = d * _rail_tightness(clear, web.lane)
+        web.edges[a][b] = cost
+        web.edges[b][a] = cost
+        web.clear[(a, b)] = clear
+        web.clear[(b, a)] = clear
         joined += 1
         merged = comps[i] | comps[j]
         comps = [c for n, c in enumerate(comps) if n not in (i, j)] + [merged]
@@ -338,7 +472,7 @@ def _rail_bridge(vol, web, comps, margin, tries=40):
 # --- building --------------------------------------------------------------------------
 
 
-def rail_build(volume, places=None, margin=None, step=None, name=None):
+def rail_build(volume, places=None, margin=None, step=None, name=None, lane=None):
     """Solve a volume's rail web and register it. Returns the stats dict, or None.
 
     Args:
@@ -375,6 +509,8 @@ def rail_build(volume, places=None, margin=None, step=None, name=None):
 
     web = _Web(key_name, getattr(vol, "name", key_name), margin, step)
     merge = max(1.0, step * RAIL_MERGE)
+    lane = max(margin, float(lane if lane is not None else RAIL_LANE))
+    web.lane = lane
     taken = {}
 
     def put(key, pos, kind, roles=None, display=None, hidden=False, force=False):
@@ -385,13 +521,19 @@ def rail_build(volume, places=None, margin=None, step=None, name=None):
         inside = volume_nearest_inside(vol, pos, margin)
         if inside is None:
             return None
-        p = (float(inside[0]), float(inside[1]), float(inside[2]))
+        # AND THEN OFF THE WALL. `nearest_inside` only makes a point LEGAL, and legal is
+        # `margin` - so a seed that landed in a pillar comes back pressed against it and a
+        # place authored against a bulkhead stays against the bulkhead. Measured: every
+        # node in all seven Storm's Beacon relics sat at exactly 20.0 before this.
+        p, clear = _rail_center(vol, inside, lane)
+        p = (float(p[0]), float(p[1]), float(p[2]))
         cell = _rail_cell(p, merge)
         if not force and cell in taken:
             return taken[cell]
         taken.setdefault(cell, key)
         web.nodes[key] = {"pos": p, "kind": kind, "roles": tuple(roles or ()),
-                          "display": display, "hidden": bool(hidden)}
+                          "display": display, "hidden": bool(hidden),
+                          "clear": float(clear)}
         web.order.append(key)
         return key
 
@@ -436,9 +578,19 @@ def rail_build(volume, places=None, margin=None, step=None, name=None):
             if b in edges[a]:
                 continue
             tested += 1
-            if volume_visible(vol, pa, web.nodes[b]["pos"], margin):
-                edges[a][b] = d
-                edges[b][a] = d
+            pb = web.nodes[b]["pos"]
+            if not volume_visible(vol, pa, pb, margin):
+                continue
+            # COST IS NOT LENGTH. A leg that scrapes past a corner is legal and short, and
+            # a shortest-path search takes it every time - which is exactly what "the
+            # routes cut corners" describes. Measuring the pinch once, here, lets the
+            # search prefer open space without any geometry at route time.
+            clear = _rail_leg_clearance(vol, pa, pb)
+            cost = d * _rail_tightness(clear, lane)
+            edges[a][b] = cost
+            edges[b][a] = cost
+            web.clear[(a, b)] = clear
+            web.clear[(b, a)] = clear
     web.edges = edges
     raw = sum(len(v) for v in edges.values()) // 2
     dropped = _rail_prune(edges)
@@ -461,12 +613,25 @@ def rail_build(volume, places=None, margin=None, step=None, name=None):
     comps = _rail_components(edges, web.order)
     bridged, comps = _rail_bridge(vol, web, comps, margin)
 
+    # What the web actually achieved, in the units the complaint was made in. `lane_min`
+    # is the number to watch: before the lane existed it was exactly `margin` on all seven
+    # Storm's Beacon relics, which is what "the routes cut corners" looks like as a
+    # measurement. `tight` counts the legs that could not reach the lane - they are kept
+    # deliberately (a relic's only way in is often one of them), so a non-zero count is
+    # information, not a fault.
+    legs = [c for (a, b), c in web.clear.items() if a < b]
+    node_clear = [r.get("clear", 0.0) for r in web.nodes.values()]
     web.stats = {
-        "name": key_name, "volume": web.volume, "margin": margin, "step": step,
+        "name": key_name, "volume": web.volume, "margin": margin, "lane": lane,
+        "step": step,
         "nodes": len(web.order), "edges": sum(len(v) for v in edges.values()) // 2,
         "raw_edges": raw, "pruned": dropped, "tested": tested,
         "strays": len(strays), "orphans": tuple(orphans),
         "components": len(comps), "bridged": bridged,
+        "lane_min": min(legs) if legs else 0.0,
+        "lane_avg": (sum(legs) / len(legs)) if legs else 0.0,
+        "tight": sum(1 for c in legs if c < lane),
+        "node_min": min(node_clear) if node_clear else 0.0,
         "build_ms": (time.perf_counter() - t0) * 1000.0,
     }
     _WEBS[key_name] = web
@@ -753,8 +918,40 @@ def rail_leg(name, a, b):
     return (web.nodes[a]["pos"], web.nodes[b]["pos"])
 
 
-def _rail_attach_points(vol, web, pos, margin, open_only):
-    """The nodes a route may start from: the nearest few that can actually be seen."""
+def rail_leg_clearance(name, a, b):
+    """How much room the leg between two nodes has at its tightest, or None.
+
+    Measured once at build time and cached, so the flight layer can size a rope, a drift
+    or an arrival radius against the leg it is actually on rather than against a constant
+    that assumes a wide hall. That mismatch is the whole of "it drives into walls": the
+    planner proved 20 units and the flight helped itself to 140.
+    """
+    web = _WEBS.get(name)
+    if web is None:
+        return None
+    return web.clear.get((a, b))
+
+
+def rail_lane(name):
+    """The clearance this web was built to aim for. None when there is no such web."""
+    web = _WEBS.get(name)
+    return None if web is None else web.lane
+
+
+def _rail_attach_points(vol, web, pos, margin, open_only, recover=True):
+    """The nodes a route may start from: the nearest few that can actually be seen.
+
+    ``recover`` IS WHAT MAKES A SUIT IN A WALL RESCUABLE. Visibility is measured from
+    where the ship is, and from inside solid rock nothing is visible at all - so a suit
+    that ended up in the plating attached to nothing, got an empty route, and was told
+    "no way through". That was survivable only because containment dragged it out.
+    Containment no longer watches suits (see `_vol_default_agents`), so the router has to
+    answer instead: project the position to the nearest legal point and attach from
+    there, which makes the first leg fly OUT of the rock.
+
+    Tried only after the honest attempt fails, so a normal route is unaffected and pays
+    nothing for it.
+    """
     order = sorted(web.order, key=lambda k: _vol_dist(pos, web.nodes[k]["pos"]))
     out = []
     for k in order[:RAIL_ATTACH_TRIES]:
@@ -762,7 +959,14 @@ def _rail_attach_points(vol, web, pos, margin, open_only):
             out.append(k)
             if len(out) >= RAIL_ATTACH:
                 break
-    return out
+    if out or not recover:
+        return out
+    freed = volume_nearest_inside(vol, pos, margin)
+    if freed is None:
+        return out
+    if _vol_dist(freed, pos) <= 1e-6:
+        return out                      # already legal; being unable to see is the truth
+    return _rail_attach_points(vol, web, freed, margin, open_only, recover=False)
 
 
 def _rail_crosses_shut(web, a, b):
@@ -815,8 +1019,16 @@ def rail_route(name, start, goal, open_only=True):
 
     # One clean leg, and it is worth testing first: it is the common case for anything
     # already in the same room, and it costs a single visibility walk.
-    if volume_visible(vol, s, gpos, web.margin) and \
-            not (open_only and _rail_crosses_shut(web, s, gpos)):
+    #
+    # BUT CLEAN MEANS COMFORTABLE, NOT MERELY LEGAL. This shortcut skips the web
+    # entirely, so a direct line that clears a corner by the bare margin used to be taken
+    # in preference to the routed way round - which made it the single biggest source of
+    # flying into the rock, because nothing downstream re-examines a route's one leg.
+    # Asking for lane clearance here sends the tight cases through the graph instead,
+    # where the tightness cost can weigh them against the alternatives.
+    if not (open_only and _rail_crosses_shut(web, s, gpos)) and \
+            volume_visible(vol, s, gpos, web.margin) and \
+            _rail_leg_clearance(vol, s, gpos) >= web.lane:
         return [(float(gpos[0]), float(gpos[1]), float(gpos[2]))]
 
     starts = _rail_attach_points(vol, web, s, web.margin, open_only)

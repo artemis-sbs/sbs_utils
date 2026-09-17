@@ -276,15 +276,29 @@ def xess_revision(client_id=None):
     screens. Carries the armed state so the device redraws the moment the weapon goes
     live - that visibility is a safety feature, not decoration - and the badges, so a
     tile that starts saying "2 new" is seen to say it.
+
+    BOTH BODIES' ARMED STATE. A boarder has a cell to stand in or a suit to fly, and each
+    holds its weapon somewhere different: the grid one in `boarding_armed` /
+    `boarding_setting`, the suit's verb in `eva_armed`. Only the grid pair was watched, so
+    pressing BEAM or TETHER in the suit's Fire app changed the state and moved nothing on
+    screen - the `> ` marker stayed where it was. It was not dead, it was SLOW: the only
+    other thing in this tuple a suit can shift is its badge, so the pick finally appeared
+    whenever the nearest target's name or distance bucket happened to change. Stationary
+    in front of one target, it never appeared at all.
+
+    The running job needs nothing here - `_work_badge` already reports the countdown as
+    "%ds", which changes every second and repaints on its own. Adding the seconds would
+    force a rebuild every tick for a number the badge is already carrying.
     """
     from ..boarding import boarding_seq
     from ..boarding_site import boarding_armed, boarding_setting
+    from ..eva_tools import eva_armed
     cid = _client(client_id)
     if cid is None:
         return 0
     badges = tuple((a["key"], xess_app_badge(a)) for a in xess_apps(cid))
     return (xess_opened(cid), xess_focus(cid), boarding_seq(),
-            boarding_armed(cid), boarding_setting(cid), badges)
+            boarding_armed(cid), boarding_setting(cid), eva_armed(cid), badges)
 
 
 # --- the surface ------------------------------------------------------------------------
@@ -388,11 +402,19 @@ def _auto_open(client_id):
     from ..inventory import get_inventory_value, set_inventory_value
     from ..boarding import boarding_seq, boarding_is_open, boarding_choices
     from ..boarding_site import boarding_armed
+    from ..eva_tools import eva_armed, eva_working
     seq = boarding_seq()
     if get_inventory_value(client_id, KEY_SEEN, None) == seq:
         return False
     set_inventory_value(client_id, KEY_SEEN, seq)
-    if boarding_armed(client_id):
+    # EITHER BODY'S WEAPON. A boarder has a cell to stand in or a suit to fly, and the
+    # weapon lives somewhere different in each - only the grid one was checked, so a new
+    # beat yanked a crew member off a suit holding BEAM, which is precisely the accident
+    # this rule exists to prevent. A job already running counts too: taking the screen
+    # away mid-cut loses the Stop button.
+    if boarding_armed(client_id) or eva_armed(client_id):
+        return False
+    if eva_working(client_id)[0] is not None:
         return False
     if not boarding_is_open():
         return False
@@ -1196,7 +1218,11 @@ def _nav_app(client_id):
         _nav_view_row(client_id)
         return
 
-    rows = [(name, "%s   %s" % (label, _nav_far(client_id, pos)))
+    # The row carries what the RENDERER needs, which is not what `eva_points` returns -
+    # that is a three-tuple its callers destructure, so the flags are asked for here.
+    from ..eva import eva_seen, eva_visited
+    rows = [(name, "%s   %s" % (label, _nav_far(client_id, pos)),
+             eva_visited(client_id, name), eva_seen(client_id, name))
             for name, label, pos in places]
     gui_row("row-height: 1fr; padding: 4px, 8px, 4px, 8px;")
     lb = gui_list_box(rows, "item-gap: 0.3em;", item_template=_nav_row,
@@ -1288,13 +1314,41 @@ def _nav_far(client_id, pos):
     return "--" if d is None else "%d" % int(d)
 
 
+#: What a destination's row says about itself. ASCII, because the engine draws no others,
+#: and two characters wide so the names still line up.
+NAV_MARK_VISITED = "* "     # been there
+NAV_MARK_SEEN = "- "        # its marker lit, but the suit never arrived
+NAV_MARK_NEW = "  "
+
+
+def _nav_mark(item):
+    """The prefix for one destination. Visited beats seen - arriving implies seeing.
+
+    A nav row is ``(name, label, visited, seen)``; anything shorter is a caller that
+    predates the marks and draws a blank rather than raising.
+    """
+    if len(item) > 2 and item[2]:
+        return NAV_MARK_VISITED
+    if len(item) > 3 and item[3]:
+        return NAV_MARK_SEEN
+    return NAV_MARK_NEW
+
+
 def _nav_row(item, **kwargs):
     """One destination as a list row. Returns None, so the listbox sizes it - see
-    `_choice_row` for why returning a size kills selection."""
+    `_choice_row` for why returning a size kills selection.
+
+    A RUIN IS A MAP YOU ARE DRAWING. Without a mark, every room reads the same whether
+    the crew cleared it an hour ago or have never been near it, and the only record of
+    where they had been was in their heads. Visited is dimmed: it is done, and the row
+    worth looking at is the one that is not.
+    """
     from .row import gui_row
     from .text import gui_text
+    visited = len(item) > 2 and item[2]
     gui_row("row-height: 1.6em; padding: 6px, 4px, 6px, 4px; background: %s;" % PANEL_HI)
-    gui_text("$text:%s;font:gui-2;overflow:shrink;" % _esc(str(item[1])))
+    gui_text("$text:%s;font:gui-2;overflow:shrink;color:%s;"
+             % (_esc(_nav_mark(item) + str(item[1])), DIM if visited else ACCENT))
 
 
 # --- the built-ins --------------------------------------------------------------------------
