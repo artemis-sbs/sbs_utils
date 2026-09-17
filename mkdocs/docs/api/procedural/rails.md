@@ -137,8 +137,13 @@ In a running session, over the debug channel:
 {"action": "rails", "name": "voice", "full": true}   # nodes, edges and barriers
 ```
 
-`rail_dump(name)` is the same data in-process — the editor overlay's source, and a test's
-eyes.
+`rail_dump(name)` is the same data in-process.
+
+**In the relic editor, press Rails.** The panel asks the running session for exactly
+that and draws it over the geometry: authored places stand out of the derived fill, a
+leg a shut barrier is severing is red and dashed, and a hidden node is ringed. The
+button carries the summary. Any edit clears it, because a web drawn over geometry that
+has since moved reads as the solver disagreeing with the file.
 
 ## See also
 

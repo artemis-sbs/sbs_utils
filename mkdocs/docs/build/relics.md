@@ -377,8 +377,10 @@ this relic cannot be reached" is a line number rather than something a player di
 | `relic-unreachable-node` | a named place the entrance cannot reach |
 | `relic-barrier-seals` | a barrier shuts places off and nothing can ever open it |
 
-In a running session, `{"action": "rails"}` over the debug channel prints the same
-numbers for the relic as it actually built.
+And in the editor, **Rails** draws the web a running session solved over the geometry
+you are editing — which is the loop this whole layer wants. Drag a wall, press
+Preview, press Rails, and see whether the ruin is still joined up. The same numbers
+come over the debug channel as `{"action": "rails"}`.
 
 ## What is in it
 
