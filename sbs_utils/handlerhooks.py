@@ -168,6 +168,14 @@ def reset_mission_state():
     # believing it has somebody.
     from .procedural.boarding_site import boarding_site_clear
     boarding_site_clear()
+    # The survey log, which is SHARED state and therefore survives a sim swap: a new
+    # mission would otherwise open with the last one's readings already filed.
+    from .procedural.survey_log import xess_log_clear
+    xess_log_clear()
+    # The device's app registry, so a mission that added one does not leave it on the
+    # next mission's tile sheet. Re-registers the built-ins on its way out.
+    from .procedural.gui.xess import xess_clear
+    xess_clear()
     # The ship's log (Log Panel). Per-mission by definition - last mission's traffic
     # in this one's log would be nonsense - and registered below so a forgotten clear
     # is reported by name rather than found three runs later.
@@ -453,6 +461,8 @@ register_reset_state("boarding invitation", _boarding_invite_count)
 from .procedural.boarding_site import boarding_site_count as _boarding_site_count
 from .procedural.boarding_site import boarding_figure_count as _boarding_figure_count
 register_reset_state("boarding sites", _boarding_site_count)
+from .procedural.survey_log import xess_log_count as _xess_log_count
+register_reset_state("survey log", _xess_log_count)
 register_reset_state("boarding figures", _boarding_figure_count)
 from .procedural.boarding_site import boarding_room_count as _boarding_room_count
 register_reset_state("boarding rooms", _boarding_room_count)

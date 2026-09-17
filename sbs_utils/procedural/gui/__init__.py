@@ -8,6 +8,8 @@ from .boarding_gui import (gui_boarding_screen, boarding_who, boarding_set_who, 
                        boarding_home_ship)
 from .boarding_console import (gui_boarding_console, gui_boarding_console_tick,
                                boarding_console_revision)
+from .survey_gui import (gui_survey_screen, gui_survey_screen_tick,
+                        survey_badge, survey_relevant)
 from .xess import (gui_xess, gui_xess_tick, gui_xess_head, xess_revision,
                    xess_register, xess_unregister, xess_registered, xess_clear,
                    xess_apps, xess_app_badge, xess_app_count,

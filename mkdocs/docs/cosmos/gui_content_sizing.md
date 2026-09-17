@@ -44,11 +44,51 @@ That is the difference in one line:
 Because `col-width` cascades column → row → section, putting `1fr` on a section
 makes every column in it minimum-aware without annotating any of them.
 
+## `2fr` — asking for more than an even share
+
+A flex row or column takes **one share** of the leftover space. Write `2fr` and it
+takes two, `3fr` three, `0.5fr` half — exactly what CSS grid means by the unit.
+
+```
+gui_row("row-height: 1fr;")     # the scene's prose
+gui_text_area(line)
+gui_row("row-height: 2fr;")     # the choices get twice as much
+gui_list_box(choices, ...)
+```
+
+Three rows of `1fr`, `2fr` and `3fr` divide the leftover space 1/6, 2/6, 3/6.
+**Fixed and content rows are taken out first**, as in CSS — weights only ever divide
+what is actually left over.
+
+A weight is still the `1fr` MODE, so it keeps the `min-content` floor: a `2fr` row
+asks for more, and is never squeezed below its own content.
+
+!!! note "Three small rules"
+    - **Everything weighs 1 unless it says otherwise**, so an even split is just a
+      weighted split — no existing layout changes, and you never have to annotate
+      rows you are happy with.
+    - **A weight does not cascade.** `col-width: 2fr` on a section means *that
+      section* takes two shares in its own row, not that every column inside it
+      doubles.
+    - **`0fr` is refused**, with an error. CSS gives a `0fr` item none of the
+      leftover space; here a row of no height still *draws its text*, over whatever
+      is above it — the engine does not clip. A row you do not want is `gui_blank()`
+      or is not built.
+
+!!! warning "`2fr` used to mean 2% — silently"
+    Before weights existed, `1fr` was a whole keyword rather than a number and a
+    unit. `2fr` was not an unsupported ratio, it was not a ratio at all: it fell
+    through to the numeric rule as the number **2**, and a bare number is a
+    **percentage**. So `row-height: 2fr` asked for 2% of the screen — about 15px at
+    720p — with no error and no warning. If you are reading an older script that
+    uses it, it was getting a sliver, not two shares.
+
 ## The keywords
 
 | keyword | on a **column** | on a **row** |
 |---|---|---|
 | `1fr` *(default; `auto` is an alias)* | flex, but never below `min-content` | flex, but never below its content height |
+| `2fr`, `3fr`, `0.5fr` … | the same, taking that many shares | the same, taking that many shares |
 | `content` *(`fit-content` is an alias)* | natural width, clamped to what is available | as tall as the tallest cell **at its final width**, wrapping included |
 | `min-content` | the widest unbreakable word | *alias of `content`* |
 | `max-content` | the whole line, unbroken | tallest cell measured as one unwrapped line |

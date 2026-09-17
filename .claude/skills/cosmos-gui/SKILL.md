@@ -53,6 +53,25 @@ gotchas that **bite repeatedly** — read it before building a console or panel.
   (see the for-loop trap) — it's the reliable path for per-item handlers. The
   closure/flakiness trap is the reason; `on gui_message` no longer *destroys* an
   `on_press` on the same button (LM #614), so the two can coexist.
+- **A PYTHON `on_press` IS CALLED WITH NOTHING UNLESS IT ASKS.** The house idiom is a
+  closure with BOUND DEFAULTS — `lambda _cid=client_id: go(_cid)`,
+  `def press(_mid=mid, _index=i)` — and that is still called with no arguments.
+  **Declare a REQUIRED parameter and you are given the widget's `data`**; declare two
+  and you get `(data, event)`. Required parameters are the discriminator, never the
+  parameter count, because every bound-default closure declares parameters that all
+  have defaults.
+
+  ```python
+  gui_button("Fire", on_press=lambda _c=cid: fire(_c))    # 0 required -> ()
+  gui_button("Fire", on_press=shoot, data={"cid": cid})   # def shoot(data)
+  ```
+
+  > Until 2026-09-16 a callable was ALWAYS called as `handler()`, so `data=` reached
+  > MAST task variables only and a Python handler could be given data with no way to
+  > read it. The natural `def press(event=None, sender=None, **kw)` reading
+  > `sender.data` got an empty dict and acted on `None` — **silently**. That is how
+  > the xESS shipped a FIRE app whose buttons did nothing and a Back that worked only
+  > when the ambient page happened to be the right one.
 - **A handler outlives nothing.** If the task that BUILT the widget ends, its
   `on gui_message` block and `on_press=<label>` die with it — see "A handler dies
   with the task that built it". Use `gui_message_callback` when in doubt.
@@ -568,6 +587,21 @@ Names follow CSS: this mode is CSS's `1fr`/`flex: 1`, NOT CSS's `auto` (which
 means content-driven). `auto` still works as an alias; prefer `1fr` in new work.
 `fit-content` aliases `content`; `visible` aliases `overflow: spill`. `hidden`
 is deliberately NOT an alias of `hide` -- CSS `hidden` clips, ours does not draw.
+
+**`Nfr` IS A WEIGHT, and it means what CSS grid means.** A flex row or column takes
+ONE share of the leftover space; `2fr` takes two, `0.5fr` half. Rows of `1fr`/`2fr`/
+`3fr` divide it 1/6, 2/6, 3/6. Fixed and content rows come out first, so weights only
+divide what is left. Everything weighs 1 unless it says otherwise, so an even split IS
+a weighted split. A weight does NOT cascade: `col-width: 2fr` on a section means that
+section takes two shares in its own row. **`0fr` raises** -- a zero-height row still
+DRAWS ITS TEXT over the row above, because the engine does not clip.
+
+> **`2fr` used to mean 2%, silently.** `1fr` was a whole keyword rather than a number
+> and a unit, so `2fr` fell through to the numeric rule as the number 2 -- and a bare
+> number is a PERCENTAGE, i.e. ~15px at 720p. No error, no warning. It shipped on the
+> xESS choice list, which laid out at y=99.6..103.5 (below the bottom edge) and was
+> reported as "the buttons are at the bottom and less than 20 pixels". Fixed 2026-09-16;
+> in an older script, `2fr` was getting a sliver.
 
 **No row is squeezed below its content to pay for another** (min-constrained
 water-filling), and a nested section measures its rows WRAPPED when the width

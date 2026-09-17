@@ -1359,6 +1359,30 @@ HUD — that update **without repainting the page underneath**.
   squeezed below the widest word it has to show. (`1fr` is what CSS calls an
   equal share with a minimum; the older spelling `auto` still works.)
 
+- **[`2fr` — ask for more than an even share](cosmos/gui_content_sizing.md).** A flex
+  row takes one share of the leftover space; write `2fr` and it takes two, `0.5fr`
+  half, exactly as CSS grid means it. Rows of `1fr`, `2fr` and `3fr` divide what is
+  left 1/6, 2/6, 3/6 — so a panel whose list matters more than its prose can simply
+  say so, instead of doing the percentages by hand and redoing them at every window
+  size. Everything weighs 1 unless it says otherwise, so nothing you have already
+  written changes.
+  ```
+  gui_row("row-height: 1fr;")   # the message
+  gui_text_area(line)
+  gui_row("row-height: 2fr;")   # the replies get twice as much
+  gui_list_box(choices)
+  ```
+  Worth knowing if you are reading an older script: **`2fr` used to mean 2% of the
+  screen**, silently. `1fr` was a whole keyword rather than a number and a unit, so
+  `2fr` fell through and was read as the plain number 2 — about 15 pixels. It never
+  warned. Now it means what it says.
+
+- **A Python button handler can read its `data`.** `gui_button(..., on_press=fn,
+  data={...})` used to call `fn()` with nothing, so the data reached MAST variables
+  and a Python handler had no way to see it. Declare a parameter and you are handed
+  it. Handlers that take no arguments — the usual `lambda _id=thing: go(_id)` — are
+  called exactly as before.
+
 - **[`col-width: square`](cosmos/gui_content_sizing.md#square-as-wide-as-it-is-tall).**
   A column as wide as the row is tall. The other keywords derive a width from the
   column's own content; this one derives it from the *other axis*, which is what a

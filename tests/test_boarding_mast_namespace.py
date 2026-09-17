@@ -73,6 +73,10 @@ CALLED_FROM_MAST = [
     "xess_app_badge", "xess_app_count", "xess_clear",
     # addressing one boarder by the body they are wearing
     "message_crew_token",
+    # the survey log, and the ePADD app that reads it
+    "xess_log", "xess_log_entries", "xess_log_last", "xess_log_count",
+    "xess_log_revision", "gui_survey_screen", "gui_survey_screen_tick",
+    "survey_badge", "survey_relevant",
     # THE ACCESSORS. These exist only because MAST cannot see a constant.
     "boarding_room_roles", "boarding_console_type", "boarding_figure_role",
     "boarding_site_role", "boarding_settings", "boarding_setting_text",

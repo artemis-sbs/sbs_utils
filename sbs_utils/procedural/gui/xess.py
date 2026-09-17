@@ -945,7 +945,7 @@ def _file(client_id, room):
     thing that is hard to add later.
     """
     try:
-        from ..xess_log import xess_log
+        from ..survey_log import xess_log
     except ImportError:
         return
     if room is None:

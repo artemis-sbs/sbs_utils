@@ -209,6 +209,16 @@ def gui_button(props, style=None, data=None, on_press=None, is_sub_task=None):
         on_press (label | callable | Promise, optional): What to do when the
             button is pressed. A label is jumped to; a callable is called; a
             Promise has its result set. Defaults to None.
+
+            **A callable is called with NOTHING unless it asks.** Declare a
+            REQUIRED parameter and it is handed `data`; declare two and it gets
+            `(data, event)`. Required parameters are the discriminator, never the
+            parameter count -- the house idiom is a closure with bound defaults
+            (`lambda _cid=client_id: go(_cid)`), which declares parameters that all
+            have defaults and must keep being called with nothing::
+
+                gui_button("Go", on_press=lambda _c=cid: fire(_c))   # -> ()
+                gui_button("Go", on_press=shoot, data={"cid": cid})  # def shoot(data)
         is_sub_task (bool, optional): How an ``on_press`` **label** runs.
             ``True`` runs it as a sub-task: safe to press repeatedly, and it
             should end with ``->END``. ``False`` jumps the task that built the
