@@ -168,6 +168,10 @@ def reset_mission_state():
     # believing it has somebody.
     from .procedural.boarding_site import boarding_site_clear
     boarding_site_clear()
+    # What proximity culling had parked. FORGET, don't retrieve: the sim is gone, so
+    # every id is dead and pushing/retrieving one is an engine null deref.
+    from .procedural.standby import standby_cull_reset
+    standby_cull_reset()
     # The survey log, which is SHARED state and therefore survives a sim swap: a new
     # mission would otherwise open with the last one's readings already filed.
     from .procedural.survey_log import xess_log_clear
@@ -456,6 +460,8 @@ from .procedural.boarding import boarding_team_count as _boarding_team_count
 from .procedural.boarding import boarding_scene_count as _boarding_scene_count
 register_reset_state("boarding party", _boarding_team_count)
 register_reset_state("boarding scene", _boarding_scene_count)
+from .procedural.standby import standby_cull_parked_count as _standby_parked_count
+register_reset_state("standby parked", _standby_parked_count)
 from .procedural.boarding import boarding_invite_count as _boarding_invite_count
 register_reset_state("boarding invitation", _boarding_invite_count)
 from .procedural.boarding_site import boarding_site_count as _boarding_site_count

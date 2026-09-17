@@ -1212,7 +1212,22 @@ def push_to_standby_list(space_object: space_object) -> None:
     push_to_standby_list_id(space_object.unique_ID)
 
 def push_to_standby_list_id(id: int) -> None:
-    """moves the spaceobject from normal space to the standby list."""
+    """moves the spaceobject from normal space to the standby list.
+
+    ON AN ID THE SIM DOES NOT HAVE, THE ENGINE CRASHES THE SERVER - so this raises.
+    `SuperContainer::PushToStandbyList(ID64)` does `PushToStandbyList(allMap[id])`,
+    and for an unknown id `allMap[id]` is NULL; the pointer overload's only early-out
+    is `if (standbyMapID[sco])`, which is 0 for null, so it falls through into
+    `Remove(NULL)` (measured: `SuperContainer.cpp:562`, `mov r13,[rbx+38h]` with
+    rbx=0, a CTD reached from `GSPushToStandbyListID`).
+
+    This used to pop the missing id and do nothing, which is why a caller pushing a
+    destroyed ship soaked clean here and killed a real server. Raising is the parity:
+    the call is invalid, and a dev run should stop on it instead of passing. Guard
+    with `object_exists` / `sbs.in_standby_list_id` before calling - the library's
+    `procedural.standby` does. Retrieve is NOT symmetric: a null takes the engine's
+    early-out there, so a missing id is a real no-op and stays one here.
+    """
     global sim
     if sim is not None:
         with sim._lock:
@@ -1224,6 +1239,11 @@ def push_to_standby_list_id(id: int) -> None:
                 _orphan = True
             else:
                 _orphan = False
+        if obj is None and id not in sim.standby_list:
+            raise ValueError(
+                f"push_to_standby_list_id({id}): no such space object - "
+                "this is a null dereference in the engine (server CTD), "
+                "not a no-op. Check object_exists() first.")
     if sim is not None and _orphan:
         _orphan_clients_of_ship(id)
 
