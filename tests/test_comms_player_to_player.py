@@ -49,9 +49,10 @@ class _Base(unittest.TestCase):
         SpaceObject.clear()
 
     def _record(self, contactID, playerID, otherID, faceDesc, titleText, titleColor,
-                bodyText, bodyColor, tags):
+                bodyText, bodyColor, tags, name='unset'):
         self.sent.append({"contact": contactID, "on": playerID, "other": otherID,
-                          "title": titleText, "body": bodyText, "tags": tags})
+                          "name": name, "title": titleText, "body": bodyText,
+                          "tags": tags})
 
     def on_ship(self, ship):
         return [m for m in self.sent if m["on"] == ship.id]
@@ -79,10 +80,11 @@ class TestPlayerToPlayer(_Base):
 
         out = self.on_ship(self.artemis)[0]
         inc = self.on_ship(self.hera)[0]
-        # The direction is a TAG now; the title is the plain contact name.
-        self.assertEqual(out["title"], "Hera")
+        # The direction is a TAG; the contact name rides its own `name` field,
+        # which is what the title used to be spent on.
+        self.assertEqual(out["name"], "Hera")
         self.assertEqual(out["tags"], "send")
-        self.assertEqual(inc["title"], "Artemis")
+        self.assertEqual(inc["name"], "Artemis")
         self.assertEqual(inc["tags"], "recv")
         self.assertEqual(inc["other"], self.artemis.id)
 
@@ -98,7 +100,7 @@ class TestPlayerToPlayer(_Base):
         comms_message("On our way", self.hera, self.artemis, is_receive=True)
 
         self.assertEqual(len(self.on_ship(self.artemis)), 1)
-        self.assertEqual(self.on_ship(self.artemis)[0]["title"], "Hera")
+        self.assertEqual(self.on_ship(self.artemis)[0]["name"], "Hera")
         self.assertEqual(self.on_ship(self.artemis)[0]["tags"], "recv")
         self.assertEqual(self.on_ship(self.hera), [],
                          "a receive must not echo onto the sender")
@@ -117,7 +119,7 @@ class TestPlayerToNpcUnchanged(_Base):
                       is_receive=False)
 
         self.assertEqual(len(self.on_ship(self.artemis)), 1)
-        self.assertEqual(self.on_ship(self.artemis)[0]["title"], "Phoenix")
+        self.assertEqual(self.on_ship(self.artemis)[0]["name"], "Phoenix")
         self.assertEqual(self.on_ship(self.artemis)[0]["tags"], "send")
         self.assertEqual(self.on_ship(self.station), [])
 
@@ -126,7 +128,7 @@ class TestPlayerToNpcUnchanged(_Base):
                       is_receive=True)
 
         self.assertEqual(len(self.on_ship(self.artemis)), 1)
-        self.assertEqual(self.on_ship(self.artemis)[0]["title"], "Phoenix")
+        self.assertEqual(self.on_ship(self.artemis)[0]["name"], "Phoenix")
         self.assertEqual(self.on_ship(self.artemis)[0]["tags"], "recv")
         self.assertEqual(self.on_ship(self.artemis)[0]["other"], self.station.id)
         self.assertEqual(self.on_ship(self.artemis)[0]["contact"], self.station.id)
@@ -150,7 +152,7 @@ class TestLifeformThreads(_Base):
                          "the thread is with the admiral, not with Hera")
         self.assertEqual(got[0]["other"], self.hera.id,
                          "the addressable object is still the host ship")
-        self.assertEqual(got[0]["title"], "Admiral Harkin")
+        self.assertEqual(got[0]["name"], "Admiral Harkin")
 
     def test_two_lifeforms_aboard_one_ship_are_two_threads(self):
         harkin = self.lifeform("Admiral Harkin", self.hera)
@@ -174,7 +176,7 @@ class TestLifeformThreads(_Base):
         got = self.on_ship(self.artemis)
         self.assertEqual(len(got), 1)
         self.assertEqual(got[0]["contact"], rios.id)
-        self.assertEqual(got[0]["title"], "Lt Rios")
+        self.assertEqual(got[0]["name"], "Lt Rios")
 
     def test_lifeform_to_lifeform_reaches_both_bridges_as_the_people(self):
         """The case that prompted all of this.
@@ -196,13 +198,13 @@ class TestLifeformThreads(_Base):
         self.assertEqual(out[0]["contact"], harkin.id)
         self.assertEqual(out[0]["other"], self.hera.id)
         self.assertEqual(out[0]["tags"], "send")
-        self.assertEqual(out[0]["title"], "Admiral Harkin")
+        self.assertEqual(out[0]["name"], "Admiral Harkin")
 
         self.assertEqual(inc[0]["contact"], rios.id,
                          "the admiral's crew must be told Rios called, not Artemis")
         self.assertEqual(inc[0]["other"], self.artemis.id)
         self.assertEqual(inc[0]["tags"], "recv")
-        self.assertEqual(inc[0]["title"], "Lt Rios")
+        self.assertEqual(inc[0]["name"], "Lt Rios")
 
     def test_a_transmit_is_titled_for_the_contact_it_is_filed_under(self):
         # The thread is keyed on Harkin, so the label has to say Harkin. It used to say
@@ -213,7 +215,7 @@ class TestLifeformThreads(_Base):
 
         out = self.on_ship(self.artemis)[0]
         self.assertEqual(out["contact"], harkin.id)
-        self.assertEqual(out["title"], "Admiral Harkin")
+        self.assertEqual(out["name"], "Admiral Harkin")
 
 
 class TestPerPairValues(_Base):
@@ -233,9 +235,54 @@ class TestPerPairValues(_Base):
 
         got = self.on_ship(self.artemis)
         self.assertEqual(len(got), 2)
-        self.assertEqual([m["title"] for m in got], ["Lt Rios", "Phoenix"],
+        self.assertEqual([m["name"] for m in got], ["Lt Rios", "Phoenix"],
                          "the station's line inherited the lifeform's name")
         self.assertEqual([m["contact"] for m in got], [rios.id, station.id])
+
+
+class TestNameAndTitleAreSeparate(_Base):
+    """The engine takes the speaker's name in its own field.
+
+    Before it had one, the library packed the name into the title - a message with no
+    title was titled with the name, and one with a title read "Phoenix: Docking Bay 4".
+    Both halves now travel on their own.
+    """
+
+    def setUp(self):
+        super().setUp()
+        self.station = npc_spawn(2000, 0, 0, "Phoenix", "tsn, station",
+                                 "starbase", "behav_station").py_object
+
+    def test_a_title_is_sent_whole_beside_the_name(self):
+        comms_message("Proceed to bay 4.", self.station, self.artemis,
+                      title="Docking Bay 4", is_receive=True)
+
+        got = self.on_ship(self.artemis)[0]
+        self.assertEqual(got["name"], "Phoenix")
+        self.assertEqual(got["title"], "Docking Bay 4")
+        self.assertNotIn(": ", got["title"],
+                         "the name is packed into the title again")
+
+    def test_no_title_sends_an_empty_title_not_the_name(self):
+        comms_message("Clearance granted.", self.station, self.artemis,
+                      is_receive=True)
+
+        got = self.on_ship(self.artemis)[0]
+        self.assertEqual(got["name"], "Phoenix")
+        self.assertEqual(got["title"], "",
+                         "an untitled message must not borrow the speaker's name")
+
+    def test_the_history_record_keeps_the_packed_label(self):
+        """Comms panels built before the split render `title` as the whole header."""
+        from sbs_utils.procedural.comms import comms_history_for
+
+        comms_message("Proceed to bay 4.", self.station, self.artemis,
+                      title="Docking Bay 4", is_receive=True)
+
+        rec = comms_history_for(self.artemis.id, self.station.id)[0]
+        self.assertEqual(rec["title"], "Phoenix: Docking Bay 4")
+        self.assertEqual(rec["title_text"], "Docking Bay 4")
+        self.assertEqual(rec["from_name"], "Phoenix")
 
 
 if __name__ == "__main__":

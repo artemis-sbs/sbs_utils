@@ -1126,7 +1126,7 @@ def send_comms_button_info(origin_id, color, msg, tag) -> None:
 
 
 def send_comms_message_to_player_ship(contactID, playerID, otherID, faceDesc, titleText, titleColor,
-                                      bodyText, bodyColor, tagset) -> None:
+                                      bodyText, bodyColor, tagset, name='unset') -> None:
     """A comms transmission to a player ship (comms_message / comms_transmit / comms_broadcast
     all route here). Streamed to that ship's comms_waterfall consoles as an iMessage-style
     message: sender face + colored title + body.
@@ -1135,13 +1135,15 @@ def send_comms_message_to_player_ship(contactID, playerID, otherID, faceDesc, ti
     aboard one hull are two threads rather than one. otherID is that party as an
     addressable space object, which for a lifeform is only the ship it is aboard.
     tagset carries the direction: "send" if this ship transmitted it, "recv" if it
-    received it."""
+    received it. name is who is speaking - its own field, so titleText holds only what
+    the script titled the message and is empty when it titled nothing."""
     if gui_queue is None or _base_mock.sim is None:
         return
     for cid, sid in list(_base_mock.sim.client_ships.items()):
         if sid == playerID and cid in _view_comms_wf_clients:
             _send(cid, "comms_wf", op="msg", face=faceDesc or "",
                   contact=str(contactID or 0), tags=tagset or "",
+                  name="" if name in (None, "unset") else name,
                   title=titleText or "", title_color=titleColor or "white",
                   body=bodyText or "", body_color=bodyColor or "white")
 

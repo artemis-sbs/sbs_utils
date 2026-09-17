@@ -652,8 +652,14 @@ class SpeechCardTests(unittest.TestCase):
         self.assertEqual(self.sent[0]["face"], get_face(lf.id))
         self.assertTrue(self.sent[0]["face"], "a cast character has a portrait; use it")
 
-    def test_without_a_title_the_speaker_name_heads_the_card(self):
+    def test_without_a_title_the_card_has_none(self):
+        """The name is a field of its own on the console now.
+
+        This used to default the title to the speaker's name, because the title was
+        the only place a name could go. With both fields it just says Florbin twice.
+        """
         from sbs_utils.procedural.lifeform import lifeform_spawn
         lf = lifeform_spawn("Ambassador Florbin", "terran_male", "passenger")
         U.urge_speak(lf.id, "more towels please")
-        self.assertEqual(self.sent[0]["title"], "Ambassador Florbin")
+        self.assertIsNone(self.sent[0]["title"])
+        self.assertEqual(self.sent[0]["from_name"], "Ambassador Florbin")

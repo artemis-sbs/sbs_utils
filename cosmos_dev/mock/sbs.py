@@ -1346,7 +1346,7 @@ def _require_space_object(objID, fn_name):
         raise ValueError(f"invalid space object while calling {fn_name}")
 
 
-def send_comms_message_to_player_ship(contactID: int, playerID: int, otherID: int, faceDesc: str, titleText: str, titleColor: str, bodyText: str, bodyColor: str, tagset: str) -> None:
+def send_comms_message_to_player_ship(contactID: int, playerID: int, otherID: int, faceDesc: str, titleText: str, titleColor: str, bodyText: str, bodyColor: str, tagset: str, name: str = 'unset') -> None:
     """sends a complex message to the comms console of a certain ship.
 
     contactID is the ENTITY at the other end of the conversation - a lifeform's
@@ -1356,6 +1356,10 @@ def send_comms_message_to_player_ship(contactID: int, playerID: int, otherID: in
     console holds the messages; otherID is the other party as a space object.
     tagset carries the direction: "send" if the player ship transmitted it,
     "recv" if it received it.
+
+    name is who is speaking, in its own field: titleText is now only what the
+    script titled the message, and is empty when it titled nothing. Before the
+    engine had this field the name was packed into titleText instead.
     """
     _require_space_object(playerID, "SendCommsMessageToPlayerShip")
 

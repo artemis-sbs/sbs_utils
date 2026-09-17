@@ -1986,7 +1986,10 @@ function cmdCommsWf(msg) {
     _commsWfRect = { left: msg.left, top: msg.top, right: msg.right, bottom: msg.bottom };
   } else if (msg.op === 'msg') {
     _ensureCommsWfEl();
-    const name = (msg.title || '').trim() || 'Comms';
+    // The speaker's NAME is its own field now. It used to arrive packed into the
+    // title, which is why the title was the row label; fall back to the title so an
+    // older frame still names its row.
+    const name = (msg.name || '').trim() || (msg.title || '').trim() || 'Comms';
     const key = (msg.contact || '').trim() || name;
     const tags = (msg.tags || '').split(/[\s,]+/);
     let c = _commsWfConvos.get(key);

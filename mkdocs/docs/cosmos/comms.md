@@ -69,7 +69,7 @@ feel fresh:
 
 === ":mast-icon: {{ab.m}}"
     ```
-    << [green] "Hostile Hail"
+    <<[green] "Hostile Hail"
         % Go climb a tree!
         % You can't win!
 
@@ -79,16 +79,37 @@ feel fresh:
 Other message kinds: `<all>` (broadcast), `<scan>` (science scan result), and `()`
 (a speech bubble).
 
+### Who is speaking, and what about
+
+The console draws the speaker's **name** and the message's **title** as two separate
+things. The name comes from the speaking object - a ship's `comms_id` ("Phoenix (TSN)"),
+or a lifeform's plain name - and a script never has to supply it. The quoted string
+after `<<` or `>>` is the **title**, and it is for saying what the message is ABOUT:
+
+```
+<<[green] "Docking Bay 4"
+    % Proceed to bay four, Artemis.
+```
+
+arrives named *Phoenix (TSN)*, titled *Docking Bay 4*. Leave the string off and the
+message has no title at all - which is the right thing for ordinary dialogue, where
+the name already says everything the header needs to.
+
+Do not put a name in the title. Until the engine had a name field the library packed
+one in front of the title itself, so an untitled message was titled with the name and
+a titled one read `Phoenix (TSN): Docking Bay 4`. Both halves now travel on their own,
+and a hand-packed `"Name: Title"` just prints the name twice.
+
 ## Colors
 
 `=$` declares a named color/style for dialogue titles:
 
 === ":mast-icon: {{ab.m}}"
     ```
-    =$ raider red, white
-    =$ friendly green
+    =$raider red, white
+    =$friendly green
 
-    << [$raider] "Hail"
+    <<[$raider] "Hail"
         % This sector is ours.
     ```
 

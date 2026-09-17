@@ -196,8 +196,11 @@ def comms_message(msg, from_ids_or_obj, to_ids_or_obj, title=None, face=None, co
         from_ids_or_obj: Sender agent ID(s) or object(s).
         to_ids_or_obj: Receiver agent ID(s) or object(s). Pass ``None`` to
             send the message to the sender (internal communication).
-        title (str, optional): Title bar text. Defaults to the sender's
-            comms ID.
+        title (str, optional): Header text for the message. Defaults to
+            EMPTY - the sender's name is a field of its own now, so the title
+            carries only what the script wrote. It used to default to the
+            sender's comms ID, and a title given alongside it was packed on
+            behind it as "Lt Rios (TSN): Orders".
         face (str, optional): Face asset string for the sender portrait.
             Defaults to the face registered for the sender.
         color (str, optional): Body text color. Defaults to ``"#fff"``.
@@ -207,7 +210,8 @@ def comms_message(msg, from_ids_or_obj, to_ids_or_obj, title=None, face=None, co
             (tagged ``recv``); ``False`` = the player ship TRANSMITTED it
             (tagged ``send``). Defaults to ``True``.
         from_name (str, optional): Override the display name of the sender.
-            Defaults to None (uses the sender object's ``comms_id``).
+            Defaults to None (uses the sender object's ``comms_id``). Sent to
+            the console as its own ``name`` field, beside the title.
 
     Note:
         When BOTH ends are player ships a transmit reaches both bridges: the
@@ -385,6 +389,14 @@ def comms_message(msg, from_ids_or_obj, to_ids_or_obj, title=None, face=None, co
             if from_name_now is None:
                 from_name_now = _comms_contact_name(to_object(contact_id), contact_is_life_form)
 
+            # The engine takes the NAME in its own field now, so the title carries only
+            # what the script actually wrote - empty when it wrote nothing. Before the
+            # name had a field, the title was the only place to put it, so it was packed
+            # in front of the script's own text as "Lt Rios (TSN): Orders".
+            title_now = arg_title if arg_title is not None else ""
+
+            # The packed form, kept for the HISTORY record below and nothing else: comms
+            # panels built against it (LM13's) render this one string as the whole header.
             if arg_title is None:
                 raw_title = from_name_now
             else:
@@ -397,11 +409,12 @@ def comms_message(msg, from_ids_or_obj, to_ids_or_obj, title=None, face=None, co
                 display_obj.id,
                 other_obj.id,
                 face_now,
-                raw_title,
+                title_now,
                 title_color_now,
                 msg,
                 color_now,
-                tagset
+                tagset,
+                from_name_now
                 )
 
             other_id = to_id
@@ -431,7 +444,11 @@ def comms_message(msg, from_ids_or_obj, to_ids_or_obj, title=None, face=None, co
                 "receive": is_receive,
                 "from_name": from_name_now, 
                 "face": face_now,
+                # The packed "Name: Title" label, unchanged: panels render it whole.
+                # `title_text` is the script's own title beside it, now that the name
+                # travels in its own engine field.
                 "title": raw_title,
+                "title_text": arg_title,
                 "title_color": title_color_now,
                 "message": msg,
                 "message_color": color_now,
@@ -546,8 +563,11 @@ def comms_transmit(msg, title=None, face=None, color=None, title_color=None) -> 
 
     Args:
         msg (str): The message body text. Supports ``{var}`` interpolation.
-        title (str, optional): Title bar text. Defaults to the sender's
-            comms ID.
+        title (str, optional): Header text for the message. Defaults to
+            EMPTY - the sender's name is a field of its own now, so the title
+            carries only what the script wrote. It used to default to the
+            sender's comms ID, and a title given alongside it was packed on
+            behind it as "Lt Rios (TSN): Orders".
         face (str, optional): Face asset string for the portrait. Defaults to
             the face registered for the sender.
         color (str, optional): Body text color. Defaults to ``"#fff"``.
@@ -581,8 +601,11 @@ def comms_receive(msg, title=None, face=None, color=None, title_color=None) -> N
 
     Args:
         msg (str): The message body text. Supports ``{var}`` interpolation.
-        title (str, optional): Title bar text. Defaults to the sender's
-            comms ID.
+        title (str, optional): Header text for the message. Defaults to
+            EMPTY - the sender's name is a field of its own now, so the title
+            carries only what the script wrote. It used to default to the
+            sender's comms ID, and a title given alongside it was packed on
+            behind it as "Lt Rios (TSN): Orders".
         face (str, optional): Face asset string for the portrait. Defaults to
             the face registered for the sender.
         color (str, optional): Body text color. Defaults to ``"#fff"``.

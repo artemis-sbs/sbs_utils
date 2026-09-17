@@ -446,19 +446,20 @@ def urge_speak(actor_id, line, title=None):
     # the card came up faceless for the one person in the room with a portrait.
     from sbs_utils.faces import get_face
     face = get_face(actor_id)
-    # `Title:` is the card header; the speaker's name is the sensible default, but a
-    # shipped nagger wanted "Passenger Request" and the header is the only place to say
-    # what KIND of interruption this is.
-    head = title or name
+    # `Title:` says what KIND of interruption this is - a shipped nagger wants
+    # "Passenger Request". Left as None when the urge gave none: the speaker's name is
+    # its own field on the console now, so defaulting the title to it (which is what
+    # `head = title or name` did, back when the title was the only field there was)
+    # only prints the same name twice.
     try:
         if host_id and has_role(host_id, "__player__"):
-            comms_receive_internal(line, host_id, from_name=name, title=head,
+            comms_receive_internal(line, host_id, from_name=name, title=title,
                                    face=face, title_color=color)
         elif host_id:
-            comms_message(line, host_id, role("__player__"), title=head, face=face,
+            comms_message(line, host_id, role("__player__"), title=title, face=face,
                           title_color=color, from_name=name)
         else:
-            comms_message(line, actor_id, role("__player__"), title=head, face=face,
+            comms_message(line, actor_id, role("__player__"), title=title, face=face,
                           title_color=color, from_name=name)
     except Exception as e:
         _urge_log(f"{name or actor_id} could not speak {line!r}: {e}")
