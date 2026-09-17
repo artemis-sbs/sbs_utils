@@ -1093,8 +1093,9 @@ def _work_app(client_id):
     from .button import gui_button
     from .listbox import gui_list_box
     from .message import gui_message_callback
-    from ..eva_tools import (VERB_BEAM, VERB_TETHER, eva_abort, eva_arm, eva_armed,
-                             eva_disarm, eva_reach, eva_targets, eva_use, eva_working)
+    from ..eva_tools import (VERB_BEAM, VERB_TETHER, eva_abort, eva_aim, eva_arm,
+                             eva_armed, eva_disarm, eva_reach, eva_selected_target,
+                             eva_targets, eva_use, eva_working)
 
     gui_xess_head(client_id, "Fire")
 
@@ -1117,23 +1118,38 @@ def _work_app(client_id):
         gui_button("%s%s" % ("> " if on else "", value.upper()),
                    on_press=lambda _cid=client_id, _v=value: eva_arm(_cid, _v))
 
+    # WHAT THE CREW ALREADY SELECTED WINS. A suit is a player ship, so it has the same
+    # weapons selection every other console does - and a click on the 2D view and a row in
+    # this list should be the same act rather than two competing ideas of the target.
+    aimed = eva_selected_target(client_id)
+
     rows = []
     for key, label, kind, gap, verbs in eva_targets(client_id):
-        mark = "" if held in verbs else "  (wrong tool)"
-        rows.append((key, "%s   %d%s" % (label, int(gap), mark)))
+        ok = held in verbs
+        mark = "" if ok else "  (wrong tool)"
+        on = (key == aimed)
+        rows.append((key, "%s%s   %d%s" % ("> " if on else "", label, int(gap), mark),
+                     on, ok, kind))
     if not rows:
         gui_row("row-height: 1fr;")
         gui_text("$text:%s;font:gui-2;color:%s;"
                  % (_esc("Nothing in reach. Fly closer."), DIM))
     else:
         gui_row("row-height: 1fr; padding: 4px, 8px, 4px, 8px;")
-        lb = gui_list_box(rows, "item-gap: 0.3em;", item_template=_nav_row,
+        lb = gui_list_box(rows, "item-gap: 0.3em;", item_template=_fire_row,
                           select=True, reveal=True)
 
         def _use(event, sender):
             item = lb.get_value()
-            if item is not None:
+            if item is None:
+                return
+            # SELECTING AIMS; a second press works. Locking on a thing and cutting it are
+            # two decisions, the same way choosing a verb and using it are - and a list
+            # where touching a row fires a beam is a list nobody can browse.
+            if item[0] == aimed:
                 eva_use(client_id, item[0])
+            else:
+                eva_aim(client_id, item[0])
 
         gui_message_callback(lb, _use)
 
@@ -1332,6 +1348,30 @@ def _nav_mark(item):
     if len(item) > 3 and item[3]:
         return NAV_MARK_SEEN
     return NAV_MARK_NEW
+
+
+#: A reach target's color, by what can be done to it. The 2D view colors a contact by
+#: what it IS; this colors it by what the held tool can do with it, which is the question
+#: the app exists to answer.
+FIRE_COLOR_AIMED = "#f66"      # locked on - the same red the ARMED banner uses
+FIRE_COLOR_READY = "#8cf"      # in reach, and the held verb works on it
+FIRE_COLOR_WRONG = "#9ab"      # in reach, wrong tool held
+
+
+def _fire_row(item, **kwargs):
+    """One reach target. Colored by whether the held tool can do anything with it.
+
+    Returns None so the listbox sizes it - see `_choice_row` for why returning a size
+    kills selection.
+    """
+    from .row import gui_row
+    from .text import gui_text
+    aimed = len(item) > 2 and item[2]
+    ok = len(item) > 3 and item[3]
+    color = FIRE_COLOR_AIMED if aimed else (FIRE_COLOR_READY if ok else FIRE_COLOR_WRONG)
+    gui_row("row-height: 1.6em; padding: 6px, 4px, 6px, 4px; background: %s;" % PANEL_HI)
+    gui_text("$text:%s;font:gui-2;overflow:shrink;color:%s;"
+             % (_esc(str(item[1])), color))
 
 
 def _nav_row(item, **kwargs):

@@ -735,11 +735,16 @@ def rail_attach(name, key, pos, kind=KIND_CONTENT, roles=None, display=None,
     inside = volume_nearest_inside(vol, pos, web.margin)
     if inside is None:
         return False
-    p = (float(inside[0]), float(inside[1]), float(inside[2]))
+    # CENTERED AND COSTED LIKE EVERY OTHER NODE. A late cache is a destination the crew
+    # fly to, so a node left pressed against the wall it was placed by would put the one
+    # leg that matters - the last one - back on the margin the lane exists to get off.
+    p, clear = _rail_center(vol, inside, web.lane)
+    p = (float(p[0]), float(p[1]), float(p[2]))
     if key in web.nodes:
         rail_detach(name, key)
     web.nodes[key] = {"pos": p, "kind": kind, "roles": tuple(roles or ()),
-                      "display": display, "hidden": bool(hidden)}
+                      "display": display, "hidden": bool(hidden),
+                      "clear": float(clear)}
     web.order.append(key)
     web.edges[key] = {}
     span = web.step * RAIL_EDGE_SPAN
@@ -751,8 +756,12 @@ def rail_attach(name, key, pos, kind=KIND_CONTENT, roles=None, display=None,
         if d > span or d <= 0.0:
             continue
         if volume_visible(vol, p, po, web.margin):
-            web.edges[key][other] = d
-            web.edges[other][key] = d
+            legclear = _rail_leg_clearance(vol, p, po)
+            cost = d * _rail_tightness(legclear, web.lane)
+            web.edges[key][other] = cost
+            web.edges[other][key] = cost
+            web.clear[(key, other)] = legclear
+            web.clear[(other, key)] = legclear
     if not web.edges[key]:
         # Nothing in the neighborhood could see it. Fall back to the nearest node that
         # can, at any range: one long leg beats a destination nobody can reach.
@@ -833,9 +842,44 @@ def rail_barrier(name, key, pos, radius, display=None, is_open=False):
         return False
     web.barriers[key] = {"pos": (float(p[0]), float(p[1]), float(p[2])),
                          "radius": float(radius), "open": bool(is_open),
-                         "display": display}
+                         "display": display, "object": None}
     web.dirty()
     return True
+
+
+def rail_barrier_set_object(name, key, obj_id):
+    """Bind a barrier to the SPACE OBJECT standing in for it.
+
+    A barrier is a sphere in this graph, and a sphere is not something a beam can hit -
+    which is why cutting one was scripted. Give it a real object and the engine's own
+    weapons work on it: the crew point the suit at a thing, the beam draws, and the
+    barrier opens when the thing dies.
+    """
+    web = _WEBS.get(name)
+    if web is None or key not in web.barriers:
+        return False
+    web.barriers[key]["object"] = None if obj_id is None else int(obj_id)
+    return True
+
+
+def rail_barrier_object(name, key):
+    """The space object standing in for this barrier, or None."""
+    web = _WEBS.get(name)
+    if web is None:
+        return None
+    bar = web.barriers.get(key)
+    return None if bar is None else bar.get("object")
+
+
+def rail_barrier_of_object(name, obj_id):
+    """Which barrier this object stands in for, or None. What a damage route asks."""
+    web = _WEBS.get(name)
+    if web is None or obj_id is None:
+        return None
+    for key, bar in web.barriers.items():
+        if bar.get("object") == int(obj_id):
+            return key
+    return None
 
 
 def rail_barrier_open(name, key):

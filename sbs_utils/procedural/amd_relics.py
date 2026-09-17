@@ -595,6 +595,73 @@ def relic_rails_ensure(relic_key, name=None):
     return key
 
 
+#: What a barrier object is made of. `hullpoints` is the only dial that decides how long
+#: cutting takes now - the engine's beam damage does the work, so a soft blockage and a
+#: bulkhead differ by a number rather than by a scripted timer.
+RELIC_BARRIER_HULL = 40
+RELIC_BARRIER_ROLE = "relic_barrier"
+
+
+def relic_barriers_spawn(relic_key, name=None):
+    """Give every SHUT barrier a space object, so a beam has something to hit.
+
+    A barrier is a sphere in the rail web, and nothing in the engine can shoot a sphere -
+    which is the whole reason cutting one used to be a scripted timer with no beam on
+    screen. A real object makes it an ordinary weapons problem: point at it, fire, and the
+    thing dies. `relic_barrier_destroyed` is the other end.
+
+    Idempotent per (relic, barrier): a reload replaces rather than accumulates, the same
+    identity rule the markers and contents use. Returns how many were placed.
+    """
+    from .rails import rail_barrier_set_object, rail_barriers
+    from .spawn import terrain_spawn
+    rec = _RELIC_RECORDS.get(relic_key)
+    if rec is None:
+        return 0
+    volume = relic_volume_name(rec, name)
+    placed = 0
+    for bkey, bar in rail_barriers(volume, shut_only=True):
+        akey = ("barrier_obj", relic_key, bkey)
+        if akey in _ARMED:
+            continue
+        pos = bar["pos"]
+        label = bar.get("display") or bkey
+        try:
+            obj = terrain_spawn(pos[0], pos[1], pos[2], str(label),
+                                "#," + RELIC_BARRIER_ROLE,
+                                "generic-sphere", "behav_selection")
+            # NO EXCLUSION RADIUS. Containment and the rails already keep a suit off the
+            # geometry; a prop that shoves ships would fight the route that was solved to
+            # fly right up to this thing and cut it.
+            obj.engine_object.exclusion_radius = 0
+            obj.data_set.set("hullpoints", RELIC_BARRIER_HULL, 0)
+            obj.data_set.set("hull_max", RELIC_BARRIER_HULL, 0)
+        except Exception as e:                            # noqa: BLE001
+            log(f"relic '{relic_key}': could not place barrier '{bkey}': {e}",
+                "relics", "warning")
+            continue
+        oid = getattr(obj, "id", None)
+        rail_barrier_set_object(volume, bkey, oid)
+        _ARMED[akey] = {"done": True, "id": oid, "relic": relic_key,
+                        "barrier": bkey, "volume": volume}
+        placed += 1
+    return placed
+
+
+def relic_barrier_destroyed(obj_id):
+    """A destroyed barrier object opens its barrier. What a `//damage/destroy` route calls.
+
+    Returns the barrier key it opened, or None when the object was not a barrier - so a
+    route can hand it every destruction without asking first.
+    """
+    for akey, rec in list(_ARMED.items()):
+        if akey[0] != "barrier_obj" or rec.get("id") != obj_id:
+            continue
+        relic_open_barrier(rec.get("relic"), rec.get("barrier"))
+        return rec.get("barrier")
+    return None
+
+
 def relic_open_barrier(relic_key, barrier, name=None):
     """Open one of a relic's barriers - what a cutting beam or a haul ends in.
 
@@ -609,6 +676,23 @@ def relic_open_barrier(relic_key, barrier, name=None):
     volume = relic_volume_name(rec, name)
     if not rail_barrier_open(volume, barrier):
         return False
+    # THE WAY IS CLEAR, SO THE THING IS GONE. Leaving the object behind would leave a
+    # shootable obstacle sitting in a doorway the router now happily plans through.
+    akey = ("barrier_obj", relic_key, barrier)
+    rec_obj = _ARMED.pop(akey, None)
+    if rec_obj and rec_obj.get("id") is not None:
+        from .rails import rail_barrier_set_object
+        rail_barrier_set_object(volume, barrier, None)
+        try:
+            from .space_objects import delete_object
+            # QUEUED, not immediate. `SpaceObject.delete_object` defers the real
+            # sbs.delete_object to the garbage collector at the end of the event, because
+            # deleting under a live event is a use-after-free - and this is called FROM a
+            # damage route, which is exactly that situation.
+            delete_object(rec_obj["id"])
+        except Exception as e:                            # noqa: BLE001
+            log(f"relic '{relic_key}': barrier '{barrier}' opened but its object "
+                f"could not be removed: {e}", "relics", "warning")
     signal_emit("rail_opened", {"RAIL_VOLUME": volume, "RAIL_RELIC": relic_key,
                                 "RAIL_BARRIER": barrier})
     return True
@@ -845,6 +929,9 @@ def relic_contents_arm(relic_key, radius_default=900.0,
         return 0
     _relic_place_role_markers(rec, relic_key, reveal=reveal)
     waiting = _relic_arm_barriers(rec, relic_key)
+    # A SHUT BARRIER GETS A BODY. Arming is where the ruin stops being geometry and starts
+    # being things, and a barrier with no object is a door a beam cannot touch.
+    relic_barriers_spawn(relic_key)
     for c in relic_contents(relic_key):
         key = (relic_key, c["part"])
         if key in _ARMED:

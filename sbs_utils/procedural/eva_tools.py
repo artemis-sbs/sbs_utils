@@ -141,6 +141,89 @@ def eva_targets(client_id, reach=None):
     return out
 
 
+# --- the console's own selection --------------------------------------------------------
+#
+# A suit is a player ship, so it HAS the four console selections like any other - they are
+# ordinary blob keys (`weapon_target_UID` and friends) that `query.set_weapons_selection`
+# writes. Two things follow, and both are what a bridge already expects:
+#
+#   * the WEAPONS selection is the beam lock. The engine fires a hull's beams at whatever
+#     that key names, which is how LegendaryMissions' manual-beams panel works, so setting
+#     it is how a suit's beam fires at all.
+#   * a selection the crew made elsewhere - a click on the 2D view - should BE the target,
+#     rather than the app keeping a private idea of what is aimed at.
+
+
+def eva_target_object(client_id, target):
+    """The SPACE OBJECT for a target key, or None.
+
+    A haul target is already an object id. A barrier is a key naming a sphere in the rail
+    web - and a sphere is not something a beam can hit, which is why it now carries an
+    object standing in for it.
+    """
+    from .amd_relics import relic_rails_ensure
+    from .eva import eva_my_relic, eva_my_volume
+    from .rails import rail_barrier_object
+    if target is None:
+        return None
+    key = eva_my_relic(client_id)
+    if key:
+        vol = relic_rails_ensure(key, eva_my_volume(client_id)) or eva_my_volume(client_id)
+        oid = rail_barrier_object(vol, target)
+        if oid is not None:
+            return oid
+    obj = to_object(target)
+    return None if obj is None else to_id(obj)
+
+
+def eva_aim(client_id, target):
+    """Point the suit at a target: lock its weapons and swing its 2D view to match.
+
+    THE LOCK IS THE POINT. A hull's beams fire at whatever `weapon_target_UID` names, so
+    without this the suit's beam - and `tsn_shuttle` has had one all along - never fires
+    at anything. The 2D focus is so the console agrees with the handheld rather than
+    showing a view the crew has to re-aim by hand.
+    """
+    from .eva import eva_my_suit
+    from .query import set_weapons_selection
+    suit = eva_my_suit(client_id)
+    oid = eva_target_object(client_id, target)
+    if not suit or oid is None:
+        return False
+    set_weapons_selection(suit, oid)
+    try:
+        from .science import science_set_2dview_focus
+        science_set_2dview_focus(client_id, oid)
+    except Exception:                                    # noqa: BLE001
+        pass                                             # a view is decoration; the lock is not
+    return True
+
+
+def eva_aimed(client_id):
+    """What this suit's weapons are locked on, or None."""
+    from .eva import eva_my_suit
+    from .query import get_weapons_selection
+    suit = eva_my_suit(client_id)
+    if not suit:
+        return None
+    return (get_weapons_selection(suit) or None)
+
+
+def eva_selected_target(client_id):
+    """The reach target matching the console's WEAPONS selection, or None.
+
+    What makes a click on the 2D view and a row in the app the same act: whatever the
+    crew selected, if it is something this suit can work on, is the target.
+    """
+    aimed = eva_aimed(client_id)
+    if not aimed:
+        return None
+    for key, _display, _kind, _gap, _verbs in eva_targets(client_id):
+        if eva_target_object(client_id, key) == aimed:
+            return key
+    return None
+
+
 def eva_target_verbs(client_id, target):
     """What may be done to one target, or `()` if it is not in reach."""
     for key, _display, _kind, _gap, verbs in eva_targets(client_id):
@@ -204,6 +287,10 @@ def eva_use(client_id, target, verb=None):
         return _report(client_id, target, verb, "wrong tool", display)
     if get_inventory_value(client_id, KEY_WORK, None):
         return _report(client_id, target, verb, "already working", display)
+    # LOCK FIRST. Working on a thing and having the weapons pointed at it are the same
+    # intention, and a beam that has to be aimed separately from the app that started it
+    # is two controls for one act.
+    eva_aim(client_id, target)
     if kind == "haul":
         return _eva_haul(client_id, target, display)
     return _eva_work(client_id, target, verb, display)
@@ -234,8 +321,35 @@ def _eva_haul(client_id, target, display):
         # The library refused it - out of its own range, an anchor role, moving too fast.
         # It has already emitted its own signal saying which; this says the press landed.
         return _report(client_id, target, VERB_TETHER, "refused", display)
+    # IT IS ON YOUR HOOK, SO IT IS NOT A PLACE ANY MORE. A find that joined the web when
+    # it was placed (`rail_attach`) is somewhere the crew can be SENT; once it is under
+    # tow it is coming with them, and leaving it on the destination list offers a course
+    # to a thing that is following you. The NODE goes; the object is untouched.
+    _eva_unlist(client_id, target)
     eva_tools_watch()
     return _report(client_id, target, VERB_TETHER, "ok", display)
+
+
+def _eva_unlist(client_id, target):
+    """Take a hauled find off the relic's destination list. Never raises."""
+    from .amd_relics import relic_rails_ensure
+    from .eva import eva_my_relic, eva_my_volume
+    from .rails import rail_detach
+    key = eva_my_relic(client_id)
+    if not key:
+        return False
+    try:
+        vol = relic_rails_ensure(key, eva_my_volume(client_id)) or eva_my_volume(client_id)
+        # `relic_part` IS the node key. `_relic_mark_placed` stamps it on everything a
+        # relic puts in the world, precisely so a thing can be traced back to the spot it
+        # came from - no guessing from names or positions.
+        part = get_inventory_value(to_id(target), "relic_part", None)
+        if part:
+            return bool(rail_detach(vol, part))
+    except Exception as e:                                # noqa: BLE001
+        from .execution import log
+        log(f"could not take '{target}' off the destination list: {e}", "eva", "warning")
+    return False
 
 
 def _eva_work(client_id, target, verb, display):
