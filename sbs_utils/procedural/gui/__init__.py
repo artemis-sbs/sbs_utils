@@ -7,7 +7,10 @@ from .boarding_gui import (gui_boarding_screen, boarding_who, boarding_set_who, 
                        boarding_go_down, boarding_go_up, boarding_relevant,
                        boarding_home_ship)
 from .boarding_console import (gui_boarding_console, gui_boarding_console_tick,
-                               boarding_console_revision)
+                               boarding_console_revision, boarding_panel_width)
+from .eva_console import (gui_eva_console, gui_eva_console_tick, eva_console_revision,
+                          eva_camera_mode)
+from .eva_gui import (eva_go_out, eva_go_in, eva_home_ship, eva_console_type)
 from .survey_gui import (gui_survey_screen, gui_survey_screen_tick,
                         survey_badge, survey_relevant)
 from .xess import (gui_xess, gui_xess_tick, gui_xess_head, xess_revision,

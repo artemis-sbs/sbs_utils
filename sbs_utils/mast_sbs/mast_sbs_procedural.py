@@ -104,6 +104,8 @@ MastGlobals.import_python_module('sbs_utils.procedural.amd_images')
 MastGlobals.import_python_module('sbs_utils.procedural.amd_lifeforms')
 MastGlobals.import_python_module('sbs_utils.procedural.boarding')
 MastGlobals.import_python_module('sbs_utils.procedural.boarding_site')
+# The other body model: a suit flying a relic, where there is no floor to walk.
+MastGlobals.import_python_module('sbs_utils.procedural.eva')
 # The survey log the boarding party fills in by scanning. The MODULE is survey_log and
 # the FUNCTION is xess_log - a submodule sharing a name with a function the package
 # exports is shadowed by it, which is why `hail_gui` is not called `hail_view`.

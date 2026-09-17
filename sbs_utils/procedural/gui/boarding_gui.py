@@ -101,6 +101,17 @@ def gui_boarding_screen(title="Boarding Party"):
         return
 
     mine = boarding_reserved(client_id)
+    if mine is None:
+        # DEAL THIS CONSOLE IN, HERE, if the party is the crew's and nobody has yet.
+        # `boarding_latecomers_watch` already does this on a tick, so this is belt and
+        # braces - but it is the cheap kind: it is identity, so a console that has a body
+        # gets the same one back and a mission-authored cast is left alone. Without it a
+        # console that opens the app in the couple of seconds before the tick comes round
+        # reads "The party is full", which is the exact wrong answer to the exact
+        # question, and there is nothing on screen to try again with.
+        from ..boarding import boarding_latecomers
+        boarding_latecomers()
+        mine = boarding_reserved(client_id)
     if mine is not None:
         _going_as(client_id, mine)
         return
@@ -122,14 +133,55 @@ def gui_boarding_screen(title="Boarding Party"):
 
     # The pick is the character; the button is the commitment. Choosing a row and
     # pressing are separate so nobody lands on the surface by brushing a list.
-    def _go(_cid=client_id):
+    label, _phrase, door = _go_word()
+
+    def _go(_cid=client_id, _door=door):
         chosen = lb.get_value()
         got = boarding_beam_down(_cid, chosen) if chosen is not None else boarding_beam_down(_cid)
         if got is not None:
-            boarding_go_down(_cid)
+            _door(_cid)
 
     gui_row("row-height: 2.6em; padding: 24px, 8px, 24px, 8px;")
-    gui_button("BEAM DOWN", on_press=_go)
+    gui_button(label, on_press=_go)
+
+
+def _go_word():
+    """What the button says, and which door it opens.
+
+    ONE BRANCH, in one place, because there are two kinds of place to board now. A ship's
+    interior is a floor, so you beam down onto it; a relic has no floor, so you suit up
+    and fly it. The party, the roster and the reservation are identical either way - only
+    the body differs - so the whole difference is which door the button calls.
+
+    Returns:
+        tuple: ``(label, going_to_phrase, door)``.
+    """
+    from ..eva import eva_offered
+    from .eva_gui import eva_go_out
+    if eva_offered() is not None:
+        return ("SUIT UP", "Going out to", eva_go_out)
+    return ("BEAM DOWN", "Going down to", boarding_go_down)
+
+
+def _come_back_word(client_id):
+    """The way home, and it must match the way out.
+
+    A console that suited up has a SHIP to be deleted and a different console type to be
+    put back; `boarding_go_up` knows about neither, so sending an EVA console through it
+    would leave the suit drifting in the ruin and the console on a dead 3D view.
+
+    Two spellings of the same word, because the two surfaces shout differently: the PADD
+    labels its one big commitment in caps, the device's buttons are sentence case. Doing
+    it with `.title()` at the call site gets "Beam Up", which is neither.
+
+    Returns:
+        tuple: ``(padd_label, device_label, door)``.
+    """
+    from ..eva import eva_my_suit
+    from .eva_gui import eva_go_in
+    if eva_my_suit(client_id) is not None:
+        return ("COME ABOARD", "Come aboard", eva_go_in)
+    return ("BEAM UP", "Beam up", boarding_go_up)
 
 
 def _going_as(client_id, lifeform):
@@ -146,9 +198,10 @@ def _going_as(client_id, lifeform):
     from .face import gui_face
     from ...faces import get_face
 
+    label, phrase, door = _go_word()
     name, job = boarding_label(lifeform)
     gui_row("row-height: content; padding: 24px, 14px, 24px, 6px;")
-    gui_text(f"$text:{_esc('Going down to ' + boarding_invite_title())};"
+    gui_text(f"$text:{_esc(phrase + ' ' + boarding_invite_title())};"
              f"font:gui-1;color:{ACCENT};")
 
     gui_row("row-height: content; padding: 24px, 10px, 24px, 4px;")
@@ -160,12 +213,12 @@ def _going_as(client_id, lifeform):
 
     _who_is_down()
 
-    def _go(_cid=client_id):
+    def _go(_cid=client_id, _door=door):
         if boarding_beam_down(_cid) is not None:
-            boarding_go_down(_cid)
+            _door(_cid)
 
     gui_row("row-height: 2.6em; padding: 24px, 14px, 24px, 8px;")
-    gui_button("BEAM DOWN", on_press=_go)
+    gui_button(label, on_press=_go)
 
 
 def _down_here(client_id, held):
@@ -205,8 +258,9 @@ def _down_here(client_id, held):
 
     _who_is_down()
 
+    back_label, _device_label, back_door = _come_back_word(client_id)
     gui_row("row-height: 2.6em; padding: 24px, 14px, 24px, 8px;")
-    gui_button("BEAM UP", on_press=lambda _cid=client_id: boarding_go_up(_cid))
+    gui_button(back_label, on_press=lambda _cid=client_id, _d=back_door: _d(_cid))
 
 
 def _who_is_down():
@@ -405,6 +459,9 @@ def boarding_relevant(client_id=None):
     when it builds the app list, and it is how `casino` and `brain` gate themselves.
     """
     if boarding_invitation() is not None:
+        return True
+    from ..eva import eva_relevant
+    if eva_relevant(client_id):
         return True
     if client_id is None:
         page = FrameContext.page

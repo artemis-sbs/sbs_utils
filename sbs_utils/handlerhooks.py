@@ -172,6 +172,18 @@ def reset_mission_state():
     # every id is dead and pushing/retrieving one is an engine null deref.
     from .procedural.standby import standby_cull_reset
     standby_cull_reset()
+    # The OTHER body model, for the same reason: suits are real space objects and the
+    # per-console record of who is flying one outlives a sim swap. A console would come
+    # back believing it still has a ship, and the autopilot tick would come back with it -
+    # a tick task that survives its mission is what a soak reports as brains still ticking
+    # on run 2.
+    from .procedural.eva import eva_clear
+    eva_clear()
+    # The EVA console's camera is a module-level choice, so a mission that set it to
+    # `first_person` would hand that on to the NEXT mission in the same interpreter -
+    # the reused-interpreter trap, which only shows from run 2 onward.
+    from .procedural.gui.eva_console import eva_camera_mode, CAMERA_MODE_DEFAULT
+    eva_camera_mode(CAMERA_MODE_DEFAULT)
     # The survey log, which is SHARED state and therefore survives a sim swap: a new
     # mission would otherwise open with the last one's readings already filed.
     from .procedural.survey_log import xess_log_clear
@@ -474,6 +486,10 @@ from .procedural.boarding_site import boarding_room_count as _boarding_room_coun
 register_reset_state("boarding rooms", _boarding_room_count)
 from .procedural.boarding_site import boarding_fire_count as _boarding_fire_count
 register_reset_state("boarding armed", _boarding_fire_count)
+from .procedural.eva import eva_suit_count as _eva_suit_count
+from .procedural.eva import eva_route_count as _eva_route_count
+register_reset_state("eva suits", _eva_suit_count)
+register_reset_state("eva routes", _eva_route_count)
 from .procedural.volume import volume_count as _volume_count
 from .procedural.volume import volume_watch_count as _volume_watch_count
 register_reset_state("volumes", _volume_count)

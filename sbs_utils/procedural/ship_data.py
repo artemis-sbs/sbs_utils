@@ -1629,10 +1629,22 @@ def add_extra(name, path=None, mod=None):
         if not _looks_like_hjson(text):
             why = "block YAML - the engine reads HJSON and will reject this file"
             from .execution import log
-            log(f"{filename} is block YAML. The engine parses extra ship data as HJSON "
-                f"(JSON with comments): no `- item` sequences, no whitespace in a key. "
-                f"sbs_utils reads it fine, so the ships work everywhere EXCEPT the engine "
-                f"- where spawning one fails. Write it as JSON.", "ship_data", "warning")
+            note = (f"{filename} is block YAML. The engine parses extra ship data as "
+                    f"HJSON (JSON with comments): no `- item` sequences, no whitespace "
+                    f"in a key. sbs_utils reads it fine, so the ships work everywhere "
+                    f"EXCEPT the engine - where the hull draws the `unknown` "
+                    f"placeholder and spawning one fails. Write it as JSON.")
+            log(note, "ship_data", "warning")
+            # DEBUG as well as log(), because log() HAS NO HANDLER IN THE ENGINE and
+            # this is a fault only the engine shows. The warning was already here when
+            # the EVA suit shipped as block YAML, and nobody ever saw it: the hull drew
+            # the placeholder for days while the one line that named the cause went
+            # nowhere. Same reasoning as the interior-sprite warning above.
+            try:
+                from ..mast.mast import DEBUG
+                DEBUG("[ship_data] " + note)
+            except Exception:                       # noqa: BLE001
+                pass                                # a warning never breaks a load
     else:
         # SAY SO. A missing file is not fatal - but silence here costs a whole
         # afternoon, because the failure surfaces far away and looks like something

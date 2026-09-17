@@ -82,6 +82,19 @@ def panel_left():
     return _map_width + 1
 
 
+def boarding_panel_width(map_width):
+    """Set how much of the screen the map takes, and return the device's left edge.
+
+    Public because there is more than one console now: the EVA console puts a `3dview`
+    where this one puts `ship_internal_view`, and both hand their width to the SAME two
+    area functions the device reads. Without one call that sets it, the second console
+    draws its map at one width and its device at the other's.
+    """
+    global _map_width
+    _map_width = map_width
+    return panel_left()
+
+
 def boarding_identity_area():
     """The identity bar's absolute area."""
     return ("area: %d, %dpx, %d, %dpx;"
@@ -136,6 +149,12 @@ def where_text(client_id):
                                  boarding_room_name, boarding_room_roles)
     at = boarding_where(client_id)
     if at is None:
+        # No body on a floor. A boarder in a SUIT is somewhere all the same, so ask the
+        # other body model before giving up - otherwise the bar tells somebody half a
+        # kilometre inside a ruin that they are "aboard".
+        from ..eva import eva_my_suit, eva_where
+        if eva_my_suit(client_id) is not None:
+            return eva_where(client_id)
         return "aboard"
     host = boarding_my_host(client_id)
     room = boarding_room_at(host, at[0], at[1], boarding_room_roles())
@@ -163,8 +182,7 @@ def gui_boarding_console(client_id=None, map_width=66, on_leave=None):
     from .xess import gui_xess
 
     cid = _client(client_id)
-    global _map_width
-    _map_width = map_width
+    boarding_panel_width(map_width)
 
     # THE MAP, IN ITS OWN SECTION. An engine widget draws at its own size over anything
     # MAST puts beside it, so it never shares a row - the controls do not overlap it,

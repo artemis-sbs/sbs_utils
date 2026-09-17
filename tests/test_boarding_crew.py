@@ -237,3 +237,94 @@ class TestAPartyShortOfPeople(CrewPartyBase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestAConsoleThatArrivesLate(CrewPartyBase):
+    """The window used to be a moment wide.
+
+    `boarding_invite_crew` casts from the consoles linked to the ship AT THE INSTANT IT
+    RUNS, and a mission opens its party when the WORLD says so - Storm's Beacon opens one
+    the moment a relic finishes building, which is before anybody has picked a station. So
+    the party was cast from an almost empty bridge and everyone who connected afterwards
+    was told "The party is full". Owner-reported from a bridge: "consoles that connect
+    late need to be able to. The window is way too tight for clients connecting."
+    """
+
+    def setUp(self):
+        super().setUp()
+        from sbs_utils.procedural.links import link
+        from sbs_utils.procedural.spawn import player_spawn
+        # A REAL SHIP, because this is the one crew-party test that does not hand the
+        # console list in: latecomers are found through `linked_to(ship, "consoles")`,
+        # and a link to a bare integer that is nobody is silently dropped.
+        self.link = link
+        self.ship = player_spawn(0, 0, 0, "Artemis", "tsn", "tsn_light_cruiser")
+        self.crew(HELM, "helm", "Marek")
+        link(self.ship, "consoles", HELM)
+        A.boarding_invite_crew(self.ship, title="The Outpost")
+
+    def test_the_party_opened_with_only_the_one_console(self):
+        self.assertIsNotNone(A.boarding_reserved(HELM))
+        self.assertIsNone(A.boarding_reserved(SCI))
+
+    def test_a_console_that_connects_later_gets_a_place(self):
+        self.crew(SCI, "science", "Sorel", roles="medical")
+        self.link(self.ship, "consoles", SCI)
+        A.boarding_latecomers()
+        mine = A.boarding_reserved(SCI)
+        self.assertIsNotNone(mine, "a console that arrived late must still be able to go")
+        self.assertEqual(to_object(mine).name, "Sorel")
+
+    def test_they_are_on_the_roster_too(self):
+        """Reserved but off the roster is the same dead end wearing a different hat:
+        `boarding_reserved` only answers for a body the roster still carries."""
+        self.crew(SCI, "science", "Sorel")
+        self.link(self.ship, "consoles", SCI)
+        A.boarding_latecomers()
+        self.assertIn(A.boarding_reserved(SCI), A.boarding_invitation()["roster"])
+
+    def test_it_still_works_after_somebody_has_ALREADY_gone(self):
+        """The mission-side workaround stopped the moment the first person went out,
+        which left the genuinely late console - the one this is all for - with nothing."""
+        A.boarding_beam_down(HELM)
+        self.crew(SCI, "science", "Sorel")
+        self.link(self.ship, "consoles", SCI)
+        A.boarding_latecomers()
+        self.assertIsNotNone(A.boarding_reserved(SCI))
+
+    def test_asking_twice_does_not_spawn_a_second_body(self):
+        """`_body_for` spawns a lifeform every call, so a reconcile that is not identity
+        leaks one crew member per console per pass."""
+        self.crew(SCI, "science", "Sorel")
+        self.link(self.ship, "consoles", SCI)
+        A.boarding_latecomers()
+        mine = A.boarding_reserved(SCI)
+        self.assertEqual(A.boarding_latecomers(), [])
+        self.assertEqual(A.boarding_reserved(SCI), mine)
+
+    def test_re_inviting_keeps_the_people_it_already_had(self):
+        """A mission is free to re-derive its party; doing so must not re-cast it."""
+        was = A.boarding_reserved(HELM)
+        A.boarding_invite_crew(self.ship, title="The Outpost")
+        self.assertEqual(A.boarding_reserved(HELM), was)
+
+    def test_the_main_screen_is_still_not_a_person(self):
+        GuiClient(SCREEN)
+        add_role(SCREEN, "mainscreen")
+        self.link(self.ship, "consoles", SCREEN)
+        A.boarding_latecomers()
+        self.assertIsNone(A.boarding_reserved(SCREEN))
+
+    def test_a_mission_authored_cast_never_grows(self):
+        """A party a MISSION wrote is three named people on purpose. Only a crew-derived
+        one is "whoever is here"."""
+        A.boarding_clear()
+        body = A.lifeform_spawn("Ensign Vale", "", "boarding") \
+            if hasattr(A, "lifeform_spawn") else None
+        from sbs_utils.procedural.lifeform import lifeform_spawn
+        body = body or lifeform_spawn("Ensign Vale", "", "boarding")
+        A.boarding_invite(self.ship, [body], title="The Outpost")
+        self.crew(SCI, "science", "Sorel")
+        self.link(self.ship, "consoles", SCI)
+        self.assertEqual(A.boarding_latecomers(), [])
+        self.assertIsNone(A.boarding_reserved(SCI))

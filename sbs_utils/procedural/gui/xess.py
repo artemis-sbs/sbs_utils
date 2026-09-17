@@ -58,6 +58,9 @@ APP_CREW = "crew"
 APP_ACT = "act"
 APP_SCAN = "scan"
 APP_FIRE = "fire"
+#: Flying the suit. Only ever available to a boarder wearing one, so a grid interior's
+#: device never shows it.
+APP_NAV = "nav"
 
 #: What the scene's line is allowed to take, in px, on HOME and in ACT.
 #:
@@ -853,7 +856,8 @@ def _caller_detail(client_id, item):
         # THE WAY HOME, on the ship's row and nowhere else. It used to be a button under
         # the choices on every screen, where a thumb rests.
         gui_row("row-height: 2.2em; font:gui-2;")
-        gui_button("Beam up", on_press=lambda _cid=client_id: _leave(_cid))
+        gui_button(_leave_label(client_id),
+                   on_press=lambda _cid=client_id: _leave(_cid))
 
 
 def _last_from(item):
@@ -890,9 +894,22 @@ def _say(text, to, by):
         pass
 
 
+def _leave_label(client_id):
+    """What the way home is CALLED. You do not beam up out of a suit, you fly back."""
+    from .boarding_gui import _come_back_word
+    return _come_back_word(client_id)[1]
+
+
 def _leave(client_id):
-    from .boarding_gui import boarding_go_up
-    boarding_go_up(client_id)
+    """The way home, and it has to match the way out.
+
+    A console that suited up has a SHIP to delete and a different console type to restore;
+    `boarding_go_up` knows about neither, so sending an EVA console through it would leave
+    the suit drifting in the ruin and the console on a dead 3D view. One branch, shared
+    with the PADD's button.
+    """
+    from .boarding_gui import _come_back_word
+    _come_back_word(client_id)[2](client_id)
 
 
 # --- SCAN --------------------------------------------------------------------------------
@@ -1033,6 +1050,125 @@ def _safe(client_id):
     boarding_disarm(client_id)
 
 
+# --- NAV ------------------------------------------------------------------------------
+#
+# The device flies the suit. There is no stick and there is not going to be one: a relic's
+# walls are not walls (`exclusion_radius` is zero on every prop, and containment is a
+# graded RESPONSE rather than a barrier), so the way not to fly into one is to fly a route
+# that was planned inside the volume. Picking a destination IS the flight control.
+
+def _nav_app(client_id):
+    """Where you can go in this relic, and the way to stop going there."""
+    from .row import gui_row
+    from .text import gui_text
+    from .button import gui_button
+    from .listbox import gui_list_box
+    from .message import gui_message_callback
+    from ..eva import eva_goto, eva_no_way, eva_points, eva_route, eva_stop
+
+    gui_xess_head(client_id, "Nav")
+
+    dest, legs, togo = eva_route(client_id)
+    if dest:
+        gui_row("row-height: 1.8em; padding: 4px, 8px, 2px, 8px;")
+        gui_text("$text:%s;font:gui-2;color:%s;"
+                 % (_esc("Under way: %s, %d out" % (dest, int(togo))), ACCENT))
+        gui_row("row-height: 2.2em; padding: 2px, 8px, 4px, 8px;")
+        # ZERO-ARG CLOSURE WITH THE CLIENT BOUND BY DEFAULT ARG. `MessageHandler` calls a
+        # callable handler as `self.handler()` with no arguments and `data=` never reaches
+        # it, so a handler that reads the ambient page works until the day it does not.
+        gui_button("Hold station", on_press=lambda _cid=client_id: eva_stop(_cid))
+
+    # A PLACE THE ROUTER REFUSED, said out loud. `eva_goto` will not fly a straight line
+    # through a ruin, so a destination it cannot reach does nothing when pressed - and a
+    # button that does nothing is indistinguishable from a broken screen.
+    stuck = eva_no_way(client_id)
+    if stuck and not dest:
+        gui_row("row-height: 1.8em; padding: 4px, 8px, 2px, 8px;")
+        gui_text("$text:%s;font:gui-1;color:%s;overflow:shrink;"
+                 % (_esc("No way through to %s from here." % stuck), DIM))
+
+    places = eva_points(client_id)
+    if not places:
+        gui_row("row-height: 1fr;")
+        gui_text("$text:%s;font:gui-2;color:%s;"
+                 % (_esc("Nowhere charted yet. Fly, and the ruin will draw itself."), DIM))
+        _nav_speed_row(client_id)
+        return
+
+    rows = [(name, "%s   %s" % (label, _nav_far(client_id, pos)))
+            for name, label, pos in places]
+    gui_row("row-height: 1fr; padding: 4px, 8px, 4px, 8px;")
+    lb = gui_list_box(rows, "item-gap: 0.3em;", item_template=_nav_row,
+                      select=True, reveal=True)
+
+    def _pick(event, sender):
+        item = lb.get_value()
+        if item is None:
+            return
+        # The SELECTION is the commitment, the way ACT works. A separate Go button would
+        # be a settings screen's interaction on a thing held in one hand.
+        eva_goto(client_id, item[0])
+
+    gui_message_callback(lb, _pick)
+    _nav_speed_row(client_id)
+
+
+def _nav_speed_row(client_id):
+    """How hard to fly: three named speeds, as three buttons.
+
+    NOT A SLIDER. The choice a boarder makes is "pick through this" or "get there", and a
+    continuous control invites fiddling with a number whose units mean nothing to anybody
+    on a bridge. The chosen one is marked rather than removed, so the row never moves.
+    """
+    from .row import gui_row
+    from .button import gui_button
+    from ..eva import eva_speed, eva_speeds
+
+    now = eva_speed(client_id)
+    gui_row("row-height: 2.0em; padding: 4px, 2px, 4px, 6px;")
+    for name in eva_speeds():
+        label = ("[%s]" % name) if name == now else name
+        # ZERO-ARG CLOSURE, CLIENT AND NAME BOUND BY DEFAULT ARG - `MessageHandler` calls
+        # a callable handler with no arguments, and a late-binding loop variable would
+        # give every button the last speed in the list.
+        gui_button(label, on_press=lambda _cid=client_id, _n=name: eva_speed(_cid, _n))
+
+
+def _nav_gap(client_id, pos):
+    """How far this console's suit is from a point, or None when it cannot be measured.
+
+    NONE RATHER THAN ZERO, and that is the whole of a bridge report. `helm_position` only
+    understood things with a `.x`, an authored place is a plain (x, y, z) TUPLE, so every
+    measurement answered `inf` - which this function turned into 0.0 and the app printed
+    beside every destination. "They all show 0 for the distance." A number that is wrong
+    is worse than no number: it reads as a working readout saying you have arrived.
+    (`helm_position` takes a tuple now, so this is belt and braces.)
+    """
+    from ..eva import eva_my_suit
+    from ..helm import helm_distance
+    try:
+        d = helm_distance(eva_my_suit(client_id), pos)
+    except Exception:                                    # noqa: BLE001
+        return None
+    return None if d == float("inf") else d
+
+
+def _nav_far(client_id, pos):
+    """That distance as a label. `--` when there is nothing to measure from."""
+    d = _nav_gap(client_id, pos)
+    return "--" if d is None else "%d" % int(d)
+
+
+def _nav_row(item, **kwargs):
+    """One destination as a list row. Returns None, so the listbox sizes it - see
+    `_choice_row` for why returning a size kills selection."""
+    from .row import gui_row
+    from .text import gui_text
+    gui_row("row-height: 1.6em; padding: 6px, 4px, 6px, 4px; background: %s;" % PANEL_HI)
+    gui_text("$text:%s;font:gui-2;overflow:shrink;" % _esc(str(item[1])))
+
+
 # --- the built-ins --------------------------------------------------------------------------
 
 def _act_badge():
@@ -1060,6 +1196,32 @@ def _fire_badge():
     return "ARMED" if boarding_armed(_client()) else ""
 
 
+def _nav_badge():
+    """Where you are heading, and roughly how far.
+
+    THE DISTANCE IS IN HERE ON PURPOSE. `gui_xess_tick` only rebuilds when
+    `xess_revision` changes, and a suit crossing a chamber changes nothing else in that
+    tuple - so without a badge that moves, the Nav screen would freeze the moment you
+    pressed a destination and never show you arriving. Coarse, so it is a repaint every
+    hundred units rather than every tick.
+    """
+    from ..eva import eva_route
+    try:
+        dest, _legs, togo = eva_route(_client())
+    except Exception:                                    # noqa: BLE001
+        return ""
+    return "" if not dest else "%s %d" % (dest, int(togo) // 100)
+
+
+def _in_a_suit(client_id):
+    """NAV needs a suit to fly. On a grid interior there is nothing for it to do."""
+    from ..eva import eva_my_suit
+    try:
+        return eva_my_suit(client_id) is not None
+    except Exception:                                    # noqa: BLE001
+        return False
+
+
 def _standing_somewhere(client_id):
     """SCAN and FIRE need a body on a floor. A tile that cannot do anything is worse than
     no tile - it is a promise the device does not keep."""
@@ -1080,6 +1242,9 @@ def _register_builtins():
     xess_register(APP_FIRE, title="Fire", icon="epadd.damage", sort=40,
                   blurb="Arm, then click the map",
                   draw=_fire_app, badge=_fire_badge, available=_standing_somewhere)
+    xess_register(APP_NAV, title="Nav", icon="epadd.helm", sort=25,
+                  blurb="Where you can go, and going there",
+                  draw=_nav_app, badge=_nav_badge, available=_in_a_suit)
 
 
 _register_builtins()

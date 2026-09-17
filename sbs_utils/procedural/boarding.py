@@ -583,6 +583,7 @@ def boarding_clear():
     _SCENE.clear()
     _FACTS.clear()
     boarding_invite_clear()
+    boarding_latecomers_unwatch()
     boarding_metric_uninstall()
 
 
@@ -757,7 +758,18 @@ BOARDING_CONSOLE = "boarding_crew"
 
 
 def _crew_bodies(ship_id, consoles=None, assign_missing=True):
-    """[(client_id, lifeform)] - one body per console, from that console's crew post."""
+    """[(client_id, lifeform)] - one body per console, from that console's crew post.
+
+    A console that ALREADY HAS A BODY KEEPS IT. `_body_for` spawns a new lifeform every
+    time it is called, so without this a mission that re-derives its party - to deal in a
+    console that connected late, which is the ordinary reason - spawns a fresh crew on
+    every pass and abandons the last one. Storm's Beacon re-invited every three seconds
+    and so leaked one lifeform per console per tick, and a console that had already gone
+    down found the body it was playing was no longer on the roster.
+
+    So this is IDENTITY, the same rule `player_ensure` follows: ask for the party again
+    and you get the same people back.
+    """
     from .links import linked_to
     from .crew import crew_post_of
     from .roles import has_role
@@ -769,6 +781,10 @@ def _crew_bodies(ship_id, consoles=None, assign_missing=True):
         # The main screen is the whole room's view, not a person. It takes no body.
         if has_role(client_id, "mainscreen"):
             continue
+        already = _body_already(client_id)
+        if already is not None:
+            out.append((client_id, already))
+            continue
         post = crew_post_of(client_id)
         if post is None and assign_missing:
             post = _assign_a_crew_member(ship_id, client_id)
@@ -778,6 +794,24 @@ def _crew_bodies(ship_id, consoles=None, assign_missing=True):
         if body is not None:
             out.append((client_id, body))
     return out
+
+
+def _body_already(client_id):
+    """The body this console is already playing or holding a place for, if it still is.
+
+    Held first, reserved second: a console that has gone down is playing that character
+    now, and its reservation is only the promise that got it there.
+    """
+    from .query import to_object
+    for lf in list(boarding_held(client_id) or []):
+        if to_object(lf) is not None:
+            return lf
+    invite = Agent.SHARED.get_inventory_value(INVITE_KEY, None)
+    if isinstance(invite, dict):
+        lf = (invite.get("reserved") or {}).get(client_id)
+        if lf is not None and to_object(lf) is not None:
+            return lf
+    return None
 
 
 def boarding_crew_roster(ship, consoles=None, assign_missing=True):
@@ -891,10 +925,19 @@ def boarding_invite_crew(ship, title=None, consoles=None, assign_missing=True,
     beaming down is a confirmation, not a casting call, and the crew console shows the
     character instead of a roster.
     """
-    pairs = _crew_bodies(to_id(ship), consoles, assign_missing)
+    ship_id = to_id(ship)
+    pairs = _crew_bodies(ship_id, consoles, assign_missing)
     invite = boarding_invite(ship, [body for _cid, body in pairs], title, site=site)
+    # CREW-DERIVED, recorded on the invitation. A party cast by a MISSION is deliberate -
+    # three named people and no more - and must never grow a fourth because somebody sat
+    # down. A party cast from the bridge is the opposite: it is "whoever is here", so
+    # whoever arrives later belongs in it. Only this kind takes latecomers.
+    invite["crew"] = True
+    Agent.SHARED.set_inventory_value(INVITE_KEY, invite)
     for client_id, body in pairs:
         boarding_reserve(client_id, body)
+    # And KEEP taking them, for as long as the invitation is open.
+    boarding_latecomers_watch()
     # A crew party is whoever was on the bridge, so a missing job is an accident of
     # seating rather than the mission saying something. See `boarding_forwarding`. Only
     # when there IS one: a ship with no crew assigned at all falls back to whatever
@@ -902,6 +945,102 @@ def boarding_invite_crew(ship, title=None, consoles=None, assign_missing=True,
     if pairs:
         boarding_forwarding(True)
     return invite
+
+
+# --- consoles that arrive after the party opened --------------------------------------
+#
+# THE WINDOW WAS A MOMENT WIDE, and that is the bug. `boarding_invite_crew` casts from the
+# consoles linked to the ship AT THE INSTANT IT RUNS. A mission opens its party when the
+# world says so - Storm's Beacon opens one the moment a relic finishes building, which is
+# usually before anybody has finished picking a station - so the party was cast from an
+# almost empty bridge, every body was reserved to one of those consoles, and everyone who
+# connected afterwards was told "The party is full". Owner-reported twice: "consoles that
+# connect late need to be able to", "the window is way too tight for clients connecting."
+#
+# Re-inviting on a loop was the mission-side workaround and it was worse than it looked:
+# it stopped the moment somebody went out (so a truly late console still got nothing), and
+# it re-spawned the whole cast every pass. The fix belongs here, where the invitation is.
+
+_LATE_KEY = "__BOARDING_LATE_TASK__"
+
+
+def boarding_latecomers():
+    """Deal in every console that has appeared since the party opened.
+
+    Safe to call as often as you like: a console with a body already keeps it, so this
+    only ever spawns somebody for a console that has nobody.
+
+    Returns:
+        list: the (client_id, lifeform) pairs added this pass.
+    """
+    from .links import linked_to
+    from .roles import has_role
+    invite = boarding_invitation()
+    if invite is None or not invite.get("crew"):
+        return []
+    ship_id = invite.get("ship")
+    if ship_id is None:
+        return []
+    known = set((invite.get("reserved") or {}).keys())
+    fresh = [cid for cid in sorted(linked_to(ship_id, "consoles"))
+             if cid not in known and not has_role(cid, "mainscreen")
+             and not boarding_held(cid)]
+    if not fresh:
+        return []
+    added = []
+    for client_id, body in _crew_bodies(ship_id, fresh, True):
+        lf = to_id(body)
+        if lf is None:
+            continue
+        roster = invite.setdefault("roster", [])
+        if lf not in roster:
+            roster.append(lf)
+        added.append((client_id, body))
+    if not added:
+        return []
+    Agent.SHARED.set_inventory_value(INVITE_KEY, invite)
+    for client_id, body in added:
+        boarding_reserve(client_id, body)
+    return added
+
+
+def boarding_latecomers_watch(seconds=2.0):
+    """Keep dealing latecomers in while an invitation is open. Idempotent.
+
+    A TICK RATHER THAN A HOOK ON THE SCREEN, because the Boarding Party app is not the
+    only way a console learns there is a party - the xESS asks, a comms route can ask, a
+    mission can ask - and a body that only exists once somebody opens the right app is a
+    place that is there or not depending on where you were looking.
+
+    Returns:
+        The tick task, so a mission can hold it.
+    """
+    from ..tickdispatcher import TickDispatcher
+    task = Agent.SHARED.get_inventory_value(_LATE_KEY, None)
+    if task is not None:
+        return task
+    task = TickDispatcher.do_interval(_boarding_latecomers_tick, seconds)
+    Agent.SHARED.set_inventory_value(_LATE_KEY, task)
+    return task
+
+
+def boarding_latecomers_unwatch():
+    """Stop dealing people in. The party is what it is."""
+    task = Agent.SHARED.get_inventory_value(_LATE_KEY, None)
+    if task is not None:
+        try:
+            task.stop()
+        except Exception:                                # noqa: BLE001
+            pass            # already dropped by a reset or the end of the mission
+    Agent.SHARED.set_inventory_value(_LATE_KEY, None)
+
+
+def _boarding_latecomers_tick(t=None):
+    """One pass, and it STOPS ITSELF once the invitation closes."""
+    if boarding_invitation() is None:
+        boarding_latecomers_unwatch()
+        return
+    boarding_latecomers()
 
 
 # --- a place held for one console ----------------------------------------------------

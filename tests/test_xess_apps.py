@@ -89,17 +89,28 @@ class TheBuiltInsAreAllApps(_XessBase):
     def test_and_so_is_leaving_the_surface(self):
         self.assertIn(X.APP_CREW, X.xess_registered())
 
-    def test_beam_up_lives_in_the_CREW_app_and_nowhere_else(self):
+    def test_the_way_home_lives_in_the_CREW_app_and_nowhere_else(self):
         """It used to be a button under the choices on every screen, where a thumb
-        rests. The ship is what beams you up, so it belongs on the ship's row."""
+        rests. The ship is what brings you home, so it belongs on the ship's row.
+
+        ASSERTS THE PLACE, NOT THE WORD. This used to look for the literal
+        `gui_button("Beam up"` - which stopped being true when a second body model
+        arrived: you do not beam up out of a suit, you fly back, so the label is chosen
+        from what the console is wearing. The claim was never about the word.
+        """
         import inspect
-        self.assertIn('gui_button("Beam up"', inspect.getsource(X._caller_detail))
-        for other in (X._act_app, X._scan_app, X._fire_app, X._home):
-            self.assertNotIn("Beam up", inspect.getsource(other))
+        self.assertIn("_leave_label(client_id)", inspect.getsource(X._caller_detail))
+        self.assertIn("_leave(_cid)", inspect.getsource(X._caller_detail))
+        for other in (X._act_app, X._scan_app, X._fire_app, X._nav_app, X._home):
+            src = inspect.getsource(other)
+            self.assertNotIn("Beam up", src)
+            self.assertNotIn("_leave", src)
 
     def test_all_four_apps_are_offered_to_a_console_on_the_surface(self):
         """The guard on every sweep in this class: they walk `xess_apps(CID)`, so an
         empty list passes them all without measuring anything."""
+        # NAV is not here: it is offered only to a console wearing a suit, and this
+        # fixture is standing on a floor. `test_eva_console` covers the other case.
         self.assertEqual({X.APP_CREW, X.APP_ACT, X.APP_SCAN, X.APP_FIRE},
                          {a["key"] for a in X.xess_apps(CID)})
 

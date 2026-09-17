@@ -238,7 +238,7 @@ class Volume:
     `solids` are SUBTRACTED - the pillar in the middle of the room.
     """
 
-    __slots__ = ("name", "chambers", "passages", "boxes", "solids", "_bound")
+    __slots__ = ("name", "chambers", "passages", "boxes", "solids", "_bound", "_graph")
 
     def __init__(self, name):
         self.name = name
@@ -247,6 +247,7 @@ class Volume:
         self.boxes = {}        # name -> ((x, y, z), (hx, hy, hz))
         self.solids = []       # primitives subtracted from the navigable space
         self._bound = None     # ((x, y, z), radius) - whole-volume bounding sphere
+        self._graph = None     # the navmesh over ALL primitives; see volume_route
 
     # -- construction ------------------------------------------------------------
 
@@ -258,6 +259,7 @@ class Volume:
                 f"a chamber must have a positive radius or it encloses nothing")
         self.chambers[name] = (float(x), float(y), float(z), r)
         self._bound = None
+        self._graph = None
         return self
 
     def _endpoint(self, e):
@@ -290,6 +292,7 @@ class Volume:
         b_xyz = self._endpoint(b)
         self.passages.append((a_xyz, b_xyz, r, a_name, b_name))
         self._bound = None
+        self._graph = None
         return self
 
     # -- geometry ----------------------------------------------------------------
@@ -310,6 +313,7 @@ class Volume:
         self.boxes[name] = ((float(x), float(y), float(z)),
                             (float(hx), float(hy), float(hz)))
         self._bound = None
+        self._graph = None
         return self
 
     def add_solid(self, prim):
@@ -321,6 +325,7 @@ class Volume:
         """
         self.solids.append(prim)
         self._bound = None
+        self._graph = None
         return self
 
     def primitives(self):
@@ -712,6 +717,339 @@ def volume_path(volume, start, goal):
     """Chamber names from start to goal inclusive, or [] if unreachable."""
     vol = _vol_resolve(volume)
     return [] if vol is None else vol.path(start, goal)
+
+
+# ---------------------------------------------------------------------------
+# Routing
+#
+# A VISIBILITY GRAPH OVER PLACES, not a navmesh built from geometry. Two earlier attempts
+# built the graph out of the primitives - first the authored chamber graph, then every
+# primitive joined at measured doorways - and both were beaten by the ruins they had to
+# fly. Storm's Beacon's relics are long thin boxes, vertical shafts and subtracted masses;
+# of seven, the geometric router flew two.
+#
+# The insight that fixed it: THE RELICS ALREADY CARRY THE ROUTE. Every one of them names
+# its rooms with `Point:` - `voice.amd` has eight, the mouth and the concourse and the
+# shaft head and the cradle - because the story needs somewhere to send you. Those are
+# places a person who knows the ruin chose, one to a room. So the router does not have to
+# understand the geometry at all: join two places when the straight line between them
+# stays inside, and walk that graph.
+#
+# What that buys, beyond working: every leg ends somewhere a human named, so a route is
+# explicable ("the shaft head, then the bay floor"), and an author who dislikes a route
+# fixes it by moving a point rather than by arguing with a solver.
+# ---------------------------------------------------------------------------
+
+# --- doorways ------------------------------------------------------------------------
+#
+# A visibility graph over the relic's authored PLACES is not connected on its own, and the
+# measurement that settles it is worth keeping: `voice.amd` has eight named rooms and its
+# places see each other exactly ONCE, because neighbouring rooms meet in a slab a hundred
+# units deep and the line from one room's centre to the next clips the corner between
+# them. `heart.amd` comes out as two disconnected halves.
+#
+# So the graph needs both. A PLACE is somewhere a person wants to go; a DOORWAY is the
+# only spot from which the next room is in view. Feed both to `volume_route` and every leg
+# is short and straight - room to its door, door to the next room.
+
+def _vol_centre(prim):
+    """A primitive's middle, whatever kind it is."""
+    if prim[0] == "capsule":
+        a, b = prim[1], prim[2]
+        return ((a[0] + b[0]) * 0.5, (a[1] + b[1]) * 0.5, (a[2] + b[2]) * 0.5)
+    return prim[1]
+
+
+def _vol_box_overlap(a, b):
+    """The centre of the region two boxes share, or None. EXACT - no sampling.
+
+    Boxes need the exact answer because relic doorways are THIN: `voice.amd`'s throat and
+    concourse share a slab 100 units deep across a 2600-unit gap between their centres, so
+    any sampled walk of that segment steps straight over it.
+    """
+    ca, ha = a[1], a[2]
+    cb, hb = b[1], b[2]
+    mid = []
+    for i in range(3):
+        lo = max(ca[i] - ha[i], cb[i] - hb[i])
+        hi = min(ca[i] + ha[i], cb[i] + hb[i])
+        if lo > hi:
+            return None
+        mid.append((lo + hi) * 0.5)
+    return (mid[0], mid[1], mid[2])
+
+
+def _vol_core_project(prim, p):
+    """The point of a primitive's CORE nearest to p - a sphere's centre, a capsule's
+    segment, a box itself."""
+    kind = prim[0]
+    if kind == "sphere":
+        return prim[1]
+    if kind == "capsule":
+        return _vol_seg_closest(p, prim[1], prim[2])[1]
+    c, h = prim[1], prim[2]
+    return (min(max(p[0], c[0] - h[0]), c[0] + h[0]),
+            min(max(p[1], c[1] - h[1]), c[1] + h[1]),
+            min(max(p[2], c[2] - h[2]), c[2] + h[2]))
+
+
+def _vol_core_pair(a, b):
+    """Closest pair of points on two primitives' cores, by alternating projection.
+
+    Both cores are convex, so bouncing a point between them converges in a few steps.
+    Needed because two shapes do not always meet on the line joining their centres.
+    """
+    pa = _vol_centre(a)
+    pb = _vol_core_project(b, pa)
+    for _ in range(8):
+        pa = _vol_core_project(a, pb)
+        pb = _vol_core_project(b, pa)
+    return pa, pb
+
+
+def _vol_both(vol, a, b, p):
+    if max(_vol_sdf(a, p), _vol_sdf(b, p)) >= 0.0:
+        return False
+    return not any(_vol_sdf(sol, p) < 0.0 for sol in vol.solids)
+
+
+def _vol_doorway(vol, a, b):
+    """A point inside both primitives and inside nothing subtracted, or None."""
+    if a[0] == "box" and b[0] == "box":
+        p = _vol_box_overlap(a, b)
+        return p if (p is not None and
+                     not any(_vol_sdf(sol, p) < 0.0 for sol in vol.solids)) else None
+    pa, pb = _vol_core_pair(a, b)
+    n = 32
+
+    def at(t):
+        return (pa[0] + (pb[0] - pa[0]) * t,
+                pa[1] + (pb[1] - pa[1]) * t,
+                pa[2] + (pb[2] - pa[2]) * t)
+
+    best, best_score = None, 0.0
+    for i in range(n + 1):
+        p = at(i / float(n))
+        score = max(_vol_sdf(a, p), _vol_sdf(b, p))
+        if score < best_score and _vol_both(vol, a, b, p):
+            best, best_score = p, score
+    return best
+
+
+def volume_doorways(volume):
+    """Every point where two navigable primitives meet - the openings between rooms.
+
+    Waypoint material for :func:`volume_route`, not a route in itself.
+    """
+    vol = _vol_resolve(volume)
+    if vol is None:
+        return []
+    prims = vol.primitives()
+    out = []
+    for i in range(len(prims)):
+        for j in range(i + 1, len(prims)):
+            p = _vol_doorway(vol, prims[i], prims[j])
+            if p is not None:
+                out.append(p)
+    return out
+
+
+#: How finely a straight leg is checked for walls. A step longer than the narrowest
+#: passage can hop straight over it and call a wall clear.
+_VOL_SIGHT_STEP = 30.0
+
+
+def volume_visible(volume, a, b, margin=0.0, step=_VOL_SIGHT_STEP):
+    """Whether the straight line from a to b stays inside the volume.
+
+    Samples along the segment, so a passage narrower than `step` can be missed - the
+    default is well under the tightest thing the shipped relics are built from.
+    """
+    vol = _vol_resolve(volume)
+    pa, pb = _vol_xyz(a), _vol_xyz(b)
+    if vol is None or pa is None or pb is None:
+        return False
+    span = _vol_dist(pa, pb)
+    n = max(2, int(span / max(1.0, step)) + 1)
+    for i in range(n + 1):
+        t = i / float(n)
+        p = (pa[0] + (pb[0] - pa[0]) * t,
+             pa[1] + (pb[1] - pa[1]) * t,
+             pa[2] + (pb[2] - pa[2]) * t)
+        if vol.depth(p) > -margin:
+            return False
+    return True
+
+
+def _vol_sight_graph(vol, points, margin):
+    """`{i: [j, ...]}` over `points`, cached on the volume. The static half of a route."""
+    key = (tuple(tuple(p) for p in points), margin)
+    cached = vol._graph
+    if cached is not None and cached[0] == key:
+        return cached[1]
+    edges = {i: [] for i in range(len(points))}
+    for i in range(len(points)):
+        for j in range(i + 1, len(points)):
+            if volume_visible(vol, points[i], points[j], margin):
+                edges[i].append(j)
+                edges[j].append(i)
+    vol._graph = (key, edges)
+    return edges
+
+
+def volume_skirts(volume, per_solid=14, clearance=None):
+    """Points that let a route get AROUND each subtracted mass.
+
+    Doorways connect one room to the next; nothing connects one side of a pillar to the
+    other. `voice.amd`'s transmitter bay holds a subtracted cradle, and with doorways
+    alone the bay's own places could see nothing at all - the route into the deepest room
+    of the relic simply did not exist, and the router fell back to a straight line through
+    the ruin.
+
+    Each solid gets a ring of candidates just clear of its surface, kept only where they
+    are really navigable. They are waypoint material for :func:`volume_route`; a solid a
+    route never needs to pass contributes nodes nobody visits, which costs one visibility
+    test each.
+    """
+    vol = _vol_resolve(volume)
+    if vol is None or not vol.solids:
+        return []
+    out = []
+    for solid in vol.solids:
+        c = _vol_centre(solid)
+        # How big the mass is, measured rather than assumed: walk out until we are clear.
+        reach = 1.0
+        for _ in range(40):
+            if _vol_sdf(solid, (c[0] + reach, c[1], c[2])) > 0.0:
+                break
+            reach *= 1.5
+        gap = clearance if clearance is not None else max(60.0, reach * 0.35)
+        for d in _vol_even_sphere(per_solid):
+            p = (c[0] + d[0] * (reach + gap),
+                 c[1] + d[1] * (reach + gap),
+                 c[2] + d[2] * (reach + gap))
+            if vol.depth(p) < -_VOL_SIGHT_STEP:
+                out.append(p)
+    return out
+
+
+def volume_route(volume, start, goal, waypoints=None, margin=0.0, strict=False):
+    """Waypoints from `start` to `goal` that stay inside the volume.
+
+    Args:
+        waypoints: the places worth routing through - a relic's authored `Point:` list.
+            Defaults to the centre of every primitive, which is a poor substitute and
+            only there so a caller with no places still gets something.
+        margin: how far inside the wall a leg has to stay.
+        strict (bool, optional): answer `[]` when there is no route, instead of the
+            straight line. **Use this whenever flying the answer can hurt.**
+
+    Returns `[goal]` when the way is already clear, and `[]` when the volume is unknown.
+
+    THE STRAIGHT-LINE FALLBACK IS A TRAP FOR A FLYER, which is why `strict` exists. There
+    are four ways to fail here - no waypoints, nothing in sight of the start, nothing in
+    sight of the goal, no chain between them - and every one of them used to answer with
+    the same `[goal]` a genuinely clear run gives. So a caller could not tell "one clean
+    leg" from "I could not find a way", and a relic has no engine collision at all: the
+    suit flew the straight line THROUGH THE ROCK, which is the one thing this whole mode
+    exists to prevent. Owner-reported from a bridge 2026-09-17: "it seems like it flies
+    directly toward it which can take it through walls."
+
+    The default is unchanged, because a caller that only wants a heading is better served
+    by a guess than by nothing - but anything that will actually FLY the result should
+    ask for `strict` and refuse the trip.
+    """
+    vol = _vol_resolve(volume)
+    s, g = _vol_xyz(start), _vol_xyz(goal)
+    if vol is None or s is None or g is None:
+        return []
+    if volume_visible(vol, s, g, margin):
+        return [g]
+    fail = [] if strict else [g]
+
+    pts = [tuple(p) for p in (waypoints if waypoints is not None
+                              else [_vol_centre(pr) for pr in vol.primitives()])]
+    if not pts:
+        return fail
+    edges = _vol_sight_graph(vol, pts, margin)
+
+    # Dijkstra by real distance: fewest hops would happily pick a long zigzag over a
+    # short pair of legs, and a suit pays for every unit it flies.
+    reach_s = [i for i, p in enumerate(pts) if volume_visible(vol, s, p, margin)]
+    reach_g = {i for i, p in enumerate(pts) if volume_visible(vol, p, g, margin)}
+    if not reach_s or not reach_g:
+        return fail
+    best = {i: _vol_dist(s, pts[i]) for i in reach_s}
+    prev = {i: None for i in reach_s}
+    todo = set(best)
+    done = set()
+    while todo:
+        i = min(todo, key=lambda k: best[k])
+        todo.discard(i)
+        done.add(i)
+        for j in edges.get(i, ()):
+            if j in done:
+                continue
+            cost = best[i] + _vol_dist(pts[i], pts[j])
+            if j not in best or cost < best[j]:
+                best[j], prev[j] = cost, i
+                todo.add(j)
+    ends = [i for i in reach_g if i in best]
+    if not ends:
+        return fail
+    last = min(ends, key=lambda i: best[i] + _vol_dist(pts[i], g))
+    chain = []
+    while last is not None:
+        chain.append(pts[last])
+        last = prev[last]
+    chain.reverse()
+    chain.append(g)
+    return chain
+
+
+def volume_sight_count(volume, waypoints, margin=0.0):
+    """How many legs the visibility graph found. Zero on a relic whose places cannot see
+    one another means every route through it will be a straight line."""
+    vol = _vol_resolve(volume)
+    if vol is None:
+        return 0
+    pts = [tuple(p) for p in waypoints]
+    return sum(len(v) for v in _vol_sight_graph(vol, pts, margin).values()) // 2
+
+
+def volume_chamber_pos(volume, name):
+    """The centre of a named chamber, or None.
+
+    The navmesh answers in NAMES - `volume_path` returns a route of them - and anything
+    steering along that route needs somewhere to aim. Reading `vol.chambers` for it would
+    put the storage shape in every caller.
+    """
+    vol = _vol_resolve(volume)
+    if vol is None:
+        return None
+    entry = vol.chambers.get(name)
+    return None if entry is None else entry[:3]
+
+
+def volume_chamber_at(volume, pos):
+    """The name of the chamber containing `pos`, else the nearest chamber's, else None.
+
+    The other half of `volume_path`, which needs two chamber names and is handed two
+    positions. NEAREST rather than strictly-containing on purpose: a relic's navigable
+    space is chambers, passages AND boxes, so a ship can legitimately be inside the volume
+    while inside no chamber at all - standing in a passage, or in a box that no chamber
+    covers. Answering None there would refuse to route from a perfectly ordinary place.
+    """
+    vol = _vol_resolve(volume)
+    p = _vol_xyz(pos)
+    if vol is None or p is None or not vol.chambers:
+        return None
+    best_name, best_d = None, float("inf")
+    for name, (x, y, z, r) in vol.chambers.items():
+        d = _vol_dist(p, (x, y, z)) - r
+        if d < best_d:
+            best_name, best_d = name, d
+    return best_name
 
 
 # ---------------------------------------------------------------------------
@@ -1183,7 +1521,13 @@ def _vol_default_agents():
     are excluded so a carrier's own bay is not a hazard.
     """
     from .roles import any_role, role
-    return any_role("__player__,cockpit") - role("standby")
+    # `eva_suit` IS in the default set, and leaving it out was a real hole. A boarding
+    # suit is a player hull with `__player__` deliberately REMOVED - that is what keeps
+    # six boarders out of NPC targeting, the scoring and the end-game checks - and the
+    # side effect was that containment stopped watching the one kind of craft most likely
+    # to be inside a relic. Measured: the authored `Containment:` on all seven Storm's
+    # Beacon relics had no effect on a suit whatsoever.
+    return any_role("__player__,cockpit,eva_suit") - role("standby")
 
 
 def _vol_resolve_agents(agents):

@@ -104,3 +104,51 @@ class _IconSize:
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class NoPathYetIsNotACrash(unittest.TestCase):
+    """`$INFO_PATH` is absent until a panel is SHOWN and claims the shared name.
+
+    Engine-measured on 1.3.11, from Storm's Beacon: a console reached that state and the
+    info panel's TICK raised `'NoneType' object has no attribute 'upper'` EVERY FRAME,
+    filling mast.runtime.log with one repeated traceback. Every reader of the variable did
+    `path.upper()` on it unguarded; the writer already defaulted, which is why it was only
+    ever seen from the tick.
+    """
+
+    def _task(self):
+        """A GUI task whose variables are empty - exactly the pre-first-panel state."""
+        class _T:
+            def __init__(self):
+                self.vars = {}
+                self.main = None
+            def get_variable(self, name, default=None):
+                return self.vars.get(name, default)
+            def set_variable(self, name, value):
+                self.vars[name] = value
+        return _T()
+
+    def test_the_tick_returns_instead_of_raising(self):
+        from sbs_utils.procedural.gui import tabbed_panel as TP
+
+        class _Panel:
+            client_id = 1
+        task = self._task()
+        real = TP.gui_task_for_client
+        TP.gui_task_for_client = lambda cid: task
+        try:
+            self.assertEqual(0, TP.gui_panel_console_message_tick(_Panel()))
+        finally:
+            TP.gui_task_for_client = real
+
+    def test_the_readers_return_instead_of_raising(self):
+        from sbs_utils.procedural.gui import tabbed_panel as TP
+        task = self._task()
+        real = TP.gui_task_for_client
+        TP.gui_task_for_client = lambda cid: task
+        try:
+            # None of these may raise with no path set.
+            TP.gui_panel_console_message(1, 0, 0, 10, 10)
+            TP.gui_panel_console_message_list(1, 0, 0, 10, 10)
+        finally:
+            TP.gui_task_for_client = real

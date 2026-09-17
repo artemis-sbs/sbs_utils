@@ -440,6 +440,31 @@ def relic_point_roles(relic_key, name):
     return list(pt[3]) if pt else []
 
 
+def relic_point_display(relic_key, name):
+    """What a point is CALLED - the authored label, else its key.
+
+    The same string `_relic_place_role_markers` names the marker with, so a list of places
+    to go and the label that lights up on the radar cannot disagree.
+    """
+    rec = _RELIC_RECORDS.get(relic_key)
+    pt = (rec.get("points") or {}).get(name) if rec is not None else None
+    if not pt:
+        return name
+    return pt[4] if len(pt) > 4 and pt[4] else name
+
+
+def relic_point_revealed(relic_key, name):
+    """Whether the crew has been close enough to light this point's marker.
+
+    TRUE WHEN THERE IS NO MARKER, which is the case that matters: a point without
+    `Roles:` is never armed, and a relic whose contents were never armed has no markers at
+    all. Answering False for those would hide every destination in a relic that simply
+    does not use the reveal mechanism.
+    """
+    rec = _ARMED.get(("marker", relic_key, name))
+    return True if rec is None else bool(rec.get("shown"))
+
+
 def relic_volume(record, name=None):
     """Build the navigable volume for a record and return it.
 
@@ -702,13 +727,19 @@ def _relic_reveal_tick():
     the whole value of it in a structure where every room looks like the last one.
     """
     from .query import to_object_list, to_object
-    from .roles import role
+    from .roles import any_role, role
     posts = [(k, v) for k, v in _ARMED.items()
              if len(k) == 3 and not v.get("shown") and v.get("pos") is not None
              and (v.get("reveal") or 0) > 0]
     if not posts:
         return
-    players = to_object_list(role("__player__"))
+    # EVA SUITS REVEAL TOO, and leaving them out gutted the feature they exist for. A
+    # suit is a player hull with `__player__` deliberately REMOVED - that is what keeps
+    # six boarders out of NPC targeting and the end-game checks - so a party could fly a
+    # ruin from end to end and light up nothing at all. The crew's Nav list stayed at the
+    # one marker their SHIP had passed on the way in, which reads as the relic having only
+    # one place in it.
+    players = to_object_list(any_role("__player__,eva_suit"))
     if not players:
         return
     for key, rec in posts:
@@ -981,11 +1012,13 @@ def _relic_reached(rec, args):
     """The same test quest_tick_reach runs: any player within radius of any object
     holding the role."""
     from .query import to_object_list
-    from .roles import role
+    from .roles import any_role, role
     want = args.get("role")
     if not want:
         return False
-    players = to_object_list(role("__player__"))
+    # A SUIT COUNTS AS ARRIVING. A boarding party reaching the core IS the beat, and a
+    # suit carries `eva_suit` precisely because `__player__` was taken off it.
+    players = to_object_list(any_role("__player__,eva_suit"))
     if not players:
         return False
     targets = to_object_list(role(str(want)))

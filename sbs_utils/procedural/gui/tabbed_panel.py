@@ -345,7 +345,15 @@ def gui_panel_console_message_tick(info_panel):
     if task is None:
         return 0
 
+    # NO PATH YET IS AN ORDINARY STATE, not a bug to crash on. `$INFO_PATH` is set by a
+    # tabbed panel when it is SHOWN and only by the page's own info panel, so between a
+    # console opening and its first panel claiming the name the variable is simply absent -
+    # and every reader here did `path.upper()` on it unguarded. Engine-measured on 1.3.11:
+    # once a console reached that state the tick raised EVERY FRAME, filling
+    # mast.runtime.log with the same traceback.
     path = task.get_variable("$INFO_PATH")
+    if path is None:
+        return 0
     var = f"${path.upper()}"
     message_obj_list = task.get_variable(var)
     if message_obj_list is None:
@@ -372,8 +380,10 @@ def gui_panel_console_message(cid, left, top, width, height):
         return
 
     path = task.get_variable("$INFO_PATH")
+    if path is None:
+        return                      # nothing shown yet - see the tick, above
     var = f"${path.upper()}"
-    
+
     message_obj_list = task.get_variable(var)
     if message_obj_list is None:
         return
@@ -591,6 +601,8 @@ def gui_panel_console_message_list(cid, left, top, width, height):
         return
 
     path = task.get_variable("$INFO_PATH")
+    if path is None:
+        return                      # nothing shown yet - see the tick, above
     var = f"${path.upper()}"
     messages_objs = task.get_variable(var)
     if messages_objs is None:
@@ -709,8 +721,7 @@ def gui_panel_upgrade_list(cid, left, top, width, height):
         return
 
     path = task.get_variable("$INFO_PATH")
-    var = f"${path.upper()}"
-    messages_objs = task.get_variable(var)
+    messages_objs = None if path is None else task.get_variable(f"${path.upper()}")
     if messages_objs is None:
         messages_objs = [{"title": "Carapaction Coil", "message":"5 min 300% shield recharge boost", "title_color": "yellow"}]
         messages_objs.append({"title": "Infusion P-Coils", "message":"5 min Impulse and Maneuver Speed boost", "title_color": "yellow"})

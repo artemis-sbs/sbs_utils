@@ -75,45 +75,64 @@ Driftwake/
 
 The engine learns your ships from **your own file**, in the media pack:
 
-```yaml title="media/dw_ships.yaml"
-# Driftwake hulls. YAML, so it can have comments like this one.
-'#ship-list':
-- key: dw_scrapper
-  name: Scrapper
-  side: Driftwake              # what it IS - how a prefab finds "a Driftwake ship"
-  origin: Driftwake            # what science and the hangar display show
-  artfileroot: longbow         # borrowed engine art, for now
-  meshscale: 0.0656711384654045
-  radarscale: 1.0
-  exclusionradius: 50.0
-  meshrotate: 0
-  long_desc: Driftwake Scrapper^A salvage tug with a cutting beam.
-  roles: ship,warship,light,patrol
-  shields: [80, 80]
-  hullpoints: 2
-  tubecount: 1
-  torpedostart: [{Homing: 4}, {Nuke: 0}, {EMP: 0}, {Mine: 0}]
-  internalmapscale: 1.0
-  internalmapw: 9
-  internalmaph: 12
-  internalsymmetry: 1
-  turn_rate: 1.2
-  speed_coeff: 1.1
-  scan_strength_coeff: 1
-  ship_energy_cost: 1
-  warp_energy_cost: 1
-  jump_energy_cost: 2
-  hull_port_sets:
-    beam Primary Beams:
-    - position: [0.0, 0.0, 60.0]
-      color: green
-      arccolor: '#090'
-      cycle_time: 6
-      damage_coeff: 1
-      range: 1000
-      arcwidth: 144
-      barrel_angle: 0
+```json title="media/dw_ships.yaml"
+# Driftwake hulls. HJSON, so it can have comments like this one.
+{
+  "#ship-list": [
+    {
+      "key": "dw_scrapper",
+      "name": "Scrapper",
+      "side": "Driftwake",
+      "origin": "Driftwake",
+      "artfileroot": "longbow",
+      "meshscale": 0.0656711384654045,
+      "radarscale": 1.0,
+      "exclusionradius": 50.0,
+      "meshrotate": 0,
+      "long_desc": "Driftwake Scrapper^A salvage tug with a cutting beam.",
+      "roles": "ship,warship,light,patrol",
+      "shields": [80, 80],
+      "hullpoints": 2,
+      "tubecount": 1,
+      "torpedostart": [{"Homing": 4}, {"Nuke": 0}, {"EMP": 0}, {"Mine": 0}],
+      "internalmapscale": 1.0,
+      "internalmapw": 9,
+      "internalmaph": 12,
+      "internalsymmetry": 1,
+      "turn_rate": 1.2,
+      "speed_coeff": 1.1,
+      "scan_strength_coeff": 1,
+      "ship_energy_cost": 1,
+      "warp_energy_cost": 1,
+      "jump_energy_cost": 2,
+      "hull_port_sets": {
+        "beam Primary Beams": [
+          {
+            "position": [0.0, 0.0, 60.0],
+            "color": "green",
+            "arccolor": "#090",
+            "cycle_time": 6,
+            "damage_coeff": 1,
+            "range": 1000,
+            "arcwidth": 144,
+            "barrel_angle": 0
+          }
+        ]
+      }
+    }
+  ]
+}
 ```
+
+!!! danger "It is HJSON, whatever the extension says"
+    The engine parses extra ship data as **HJSON** - JSON with comments - not as YAML.
+    A block sequence (`- key: dw_scrapper`) or a key with a space in it
+    (`beam Primary Beams:` as a block mapping) is a **parse error**, and one reported to
+    nobody: `add_extra_ship_data` raises, sbs\_utils still merges the file with PyYAML,
+    and your hulls then exist everywhere **except the engine** - where they spawn with no
+    stats, draw the `unknown` placeholder, and never fire. Keep the file JSON-shaped and
+    end it with a **newline**; the engine's reader is line-oriented and rejects a file
+    whose last line is unterminated.
 
 !!! danger "Completeness is load-bearing"
     Copy a **whole** entry from `data/shipData.yaml` and change what you need. An entry

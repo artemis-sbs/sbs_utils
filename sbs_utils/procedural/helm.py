@@ -298,10 +298,23 @@ def helm_speed_for(ship, throttle):
 # --- geometry -----------------------------------------------------------------------
 
 def helm_position(thing):
-    """Position of a ship, an object, or a point-like value. None when there is none."""
+    """Position of a ship, an object, or a point-like value. None when there is none.
+
+    A PLAIN (x, y, z) COUNTS, and leaving it out was a real bug rather than a nicety.
+    Everything geometric in the library hands positions round as TUPLES - `volume_route`
+    returns them, `relic_points` stores them, `eva_points` lists them - so
+    `helm_distance(suit, place)` against any of those answered `inf` for want of a `.x`.
+    The EVA Nav app showed every destination at distance 0.
+    """
     pos = getattr(thing, "x", None)
     if pos is not None and getattr(thing, "z", None) is not None:
         return thing
+    if isinstance(thing, (tuple, list)) and len(thing) >= 3:
+        from ..vec import Vec3
+        try:
+            return Vec3(float(thing[0]), float(thing[1]), float(thing[2]))
+        except (TypeError, ValueError):
+            return None
     so = to_object(thing)
     return getattr(so, "pos", None) if so is not None else None
 
