@@ -589,7 +589,15 @@ SHOT = CUTSCENE     # one schema; "shot" and "cutscene" are two words for it
 URGE = {
     "actor": ref("node", hint="ds1  (a landmark key or a role)"),
     "whenever": text(hint="quest ds1_resupply active"),
-    "every": duration(hint="5m, or 3-5m to jitter"),
+    # TEXT, not duration, and deliberately so. `duration` collapses a value to seconds
+    # via amd_duration_seconds, which (a) cannot read a RANGE and returned None for
+    # "3-5m" - the exact form this hint advertises - so every jittered urge silently
+    # fell back to the 60s default, and (b) handed _every an already-converted number,
+    # which amd_duration_seconds then read as MINUTES again: "Every: 5m" became 18000
+    # seconds, five hours, so the urge never fired at all. _every does its own parsing
+    # (and reads the unit off the whole string, so "3-5m" is three-to-five MINUTES), so
+    # it wants what the author actually wrote.
+    "every": text(hint="5m, or 3-5m to jitter"),
     "until": text(hint="quest passenger_vell active  (retires it for good)"),
     "weight": integer(hint="20  (which of THIS actor's urges wins; 90+ is urgent)"),
     # Open: the vocabulary is a registry, so a mission can add a mode. The linter still

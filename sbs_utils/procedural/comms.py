@@ -790,6 +790,56 @@ def comms_info(name, face=None, color=None) -> None:
 
 from ..consoledispatcher import ConsoleDispatcher
 from .gui import ButtonPromise
+#: Installed by the addon that knows what is worth adding to a selection title.
+#: None - the default - means the title is EXACTLY what it has always been, byte for
+#: byte, for every mission that does not opt in.
+_SELECTION_ANNOTATOR = [None]
+
+
+def comms_selection_annotator(fn):
+    """Add something to the comms selection title.
+
+    ``fn(origin_id, selected_id, title) -> title``. The comms panel already shows who you
+    have selected; this lets an addon say something about them that the crew would
+    otherwise have to hail to discover - "DS 1 - 2 jobs", say.
+
+    Two rules the annotator must obey, both the engine's:
+
+    * **ASCII, and no ``:`` or ``;``.** A selection title is a style-property string to
+      the engine, so those two characters are PARSED rather than drawn - the same reason
+      ``hail_answer_label`` refuses them.
+    * **Keep it short, and truncate your own suffix rather than the name.** The name is
+      how the crew know who they clicked on.
+
+    Pass None to remove it.
+    """
+    _SELECTION_ANNOTATOR[0] = fn
+    return True
+
+
+def comms_selection_annotator_clear():
+    """Drop the annotator (called by reset_mission_state)."""
+    _SELECTION_ANNOTATOR[0] = None
+
+
+def _comms_annotate_title(origin_id, selected_id, title):
+    """Run the installed annotator, or return `title` untouched.
+
+    Never raises: a decoration that throws must not cost the crew the comms panel.
+    """
+    fn = _SELECTION_ANNOTATOR[0]
+    if fn is None:
+        return title
+    try:
+        out = fn(origin_id, selected_id, title)
+    except Exception as e:      # noqa: BLE001
+        from .execution import log
+        log(f"comms selection annotator raised {type(e).__name__}: {e}",
+            "comms", "warning")
+        return title
+    return title if out is None else str(out)
+
+
 class CommsPromise(ButtonPromise):
 
     def __init__(self, path, task, timeout=None) -> None:
@@ -1060,6 +1110,11 @@ class CommsPromise(ButtonPromise):
         title = f"{self.comms_id}"
         if len(self.path)>6:
             title = f"{self.comms_id} {self.path[6:]}"
+        # One seam, here, because this is the only place a selection title is built - and
+        # it is built once for four different sends. The `unknown` branch below does NOT
+        # pass through it: it sends the literal "unknown" and returns, and a stranger you
+        # have not scanned must not leak the fact that they have work for you.
+        title = _comms_annotate_title(origin_id, selected_id, title)
         if self.is_grid_comms:
             FrameContext.context.sbs.send_grid_selection_info(origin_id, self.face, self.color, title)
         elif origin_id == selected_id:

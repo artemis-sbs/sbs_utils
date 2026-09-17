@@ -73,6 +73,24 @@ def _quest_touch():
     _QUEST_GEN[0] += 1
 
 
+def _quest_emit_offered(agent_id, quest_id, quest=None):
+    """Announce that a job is on the board and nobody has taken it.
+
+    The sibling of ``quest_activated`` / ``quest_completed`` / ``quest_failed``, and the
+    one that was missing: until this existed, availability was silent by construction -
+    ``quest_add`` emitted nothing at all, so no mission could react to a job appearing
+    without polling for it.
+
+    This is for a mission that wants to say something. The badge and the Offers board do
+    NOT listen to it; they poll ``offer_generation()``, because a signal does not wake
+    ``await gui()``.
+    """
+    if quest is None:
+        quest = quest_get(agent_id, quest_id)
+    signal_emit("quest_offered", {"AGENT_ID": to_id(agent_id), "QUEST_ID": quest_id,
+                                  "QUEST": quest})
+
+
 def quest_transfer(from_agent_id, to_agent_id, quest_id):
     """Move a quest from one agent to another.
 
@@ -329,6 +347,12 @@ def quest_add(agents, quest_id, display_text, description, state=QuestState.IDLE
             quests["children"] = children
         children[child_id] =  quest
         _quest_touch()
+        # A job created already on the board is an OFFER the moment it exists. An
+        # ACTIVE grant is not - OU's side jobs and the hangar board both call
+        # quest_add(state=ACTIVE) at the moment of acceptance, and announcing those
+        # would be announcing work the crew just took.
+        if int(state) == int(QuestState.IDLE):
+            _quest_emit_offered(agent_id, quest_id, quest)
 
 
 def quest_activate(agents, quest_id):
@@ -585,9 +609,18 @@ def quest_set_key(agent, quest_id, key, value):
     quest = quest_get(agent, quest_id)
     if quest is None:
         return
+    # Read BEFORE the write, so a transition can be told from a re-assertion. Only for
+    # "state": every other key is written far too often to pay for a read.
+    was = quest.get("state", QuestState.IDLE) if key == "state" else None
     setattr(quest, key, value)
     # The one that matters: every state write in quest_driver comes through here.
     _quest_touch()
+    # ...which also makes this the one place that sees a quest BECOME available. A
+    # `Starts when: revealed` job sits at SECRET until something opens the gate, and it
+    # lands on the board through this call, not through quest_add.
+    if key == "state" and int(value or 0) == int(QuestState.IDLE) \
+            and int(was or 0) != int(QuestState.IDLE):
+        _quest_emit_offered(to_id(agent), quest_id, quest)
 
 def quest_add_yaml(agents, yaml_text):
     """Parse a YAML string and add all quests defined in it to one or more agents.

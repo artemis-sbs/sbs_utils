@@ -3,6 +3,7 @@ from .console_tab import gui_tab_get_list
 from .console_tab import gui_tab_back_while_boarded, gui_tab_boarded_back_tab
 from .messages_gui import gui_messages_screen, gui_messages_tick
 from .status_gui import gui_status_screen, status_rows
+from .offers_gui import gui_offers_screen, offer_rows
 from .boarding_gui import (gui_boarding_screen, boarding_who, boarding_set_who, boarding_label,
                        boarding_go_down, boarding_go_up, boarding_relevant,
                        boarding_home_ship)

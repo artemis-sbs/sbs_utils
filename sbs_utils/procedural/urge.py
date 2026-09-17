@@ -159,10 +159,58 @@ def _cond_has_role(actor_id, operand):
     return has_role(actor_id, operand)
 
 
+#: Lessons the crew have demonstrably learned. A "lesson" is an AFFORDANCE - a thing the
+#: interface can do that nobody told them about - and the point of the ledger is that a
+#: character who keeps explaining it after they have used it is a character nobody
+#: listens to. Mission-global: two crews on two ships are the same people at consoles,
+#: and this is knowledge of an interface, not a fact about a ship.
+_TAUGHT = set()
+
+
+def urge_teach_note(lesson):
+    """Record that the crew have shown they know this. Stamped at the moment of USE -
+    the route they opened, the order they gave - never when something merely told them."""
+    key = _norm(lesson)
+    if key:
+        _TAUGHT.add(key)
+    return key
+
+
+def urge_taught(lesson):
+    """Have they."""
+    return _norm(lesson) in _TAUGHT
+
+
+def urge_taught_all():
+    """Every lesson learned so far, sorted. For tests and the reset audit."""
+    return sorted(_TAUGHT)
+
+
+def urge_teach_reset():
+    """Drop the lesson ledger (called by urge_reset)."""
+    _TAUGHT.clear()
+
+
+def _cond_taught(actor_id, operand):
+    """`taught <lesson>` - the crew have used this affordance at least once.
+
+    NOT expressible as `has role`: that is evaluated against the ACTOR
+    (``has_role(actor_id, operand)``), so it can say what the speaker is, never what the
+    crew know. Every mission would otherwise invent its own bearer agent to hang the
+    flag on, and each one differently.
+
+    Reads best negated, which is the whole point - `Whenever: not taught ultra_beam`
+    says "keep mentioning this until they try it", and `Until: taught hail_storm` retires
+    the character permanently once they have.
+    """
+    return urge_taught(operand)
+
+
 def _install_conditions():
     urge_register_condition("always", _cond_always, operand="none", domain="core")
     urge_register_condition("quest", _cond_quest, domain="core")
     urge_register_condition("has role", _cond_has_role, domain="core")
+    urge_register_condition("taught", _cond_taught, domain="core")
 
 
 _install_conditions()
@@ -491,6 +539,7 @@ def urge_reset():
     __urge_tick_task = None
     _urge_slicer.__init__()
     urge_budget_reset()
+    urge_teach_reset()
     # NOTE the announce traffic clock is reset by reset_mission_state directly, NOT from
     # here. Importing announce (and through it gui.overlay + comms) from inside the reset
     # path adds an import chain to a function that runs while the world is half torn

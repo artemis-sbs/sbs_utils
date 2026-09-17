@@ -67,11 +67,18 @@ def _urge_pool(desc):
     return pool, (stages if len(stages) > 1 else None)
 
 
-def urges_from_section(section):
+def urges_from_section(section, require_marker=False):
     """Urge records from a section node's children (empty list if None).
 
     A heading with no body is skipped and logged - an urge with nothing to say would
     burn its turn every pass and never be noticed.
+
+    ``require_marker`` takes ONLY the children that declared the bare ``Urge`` marker
+    (which lands as ``__kind__: urge``). Off by default, because every existing caller
+    hands in a section whose children are all urges by construction. A caller that hands
+    in a CAST record - where a future nested heading might be anything - passes True, or
+    the first person to add a note under a character silently gives them a nagging urge
+    that says whatever that note's body happens to be.
     """
     out = []
     if section is None:
@@ -79,6 +86,8 @@ def urges_from_section(section):
     for n in section.get("children", []):
         data = {str(k).lower().replace(" ", "_"): v
                 for k, v in (n.get("data") or {}).items()}
+        if require_marker and str(data.get("__kind__") or "").lower() != "urge":
+            continue
         pool, stages = _urge_pool(n.get("description") or "")
         key = n.get("key")
         if not pool and not data.get("action"):
@@ -113,6 +122,11 @@ def _every(value):
     """
     if value is None or str(value).strip() == "":
         return None
+    # A NUMBER IS ALREADY SECONDS. amd_duration_seconds reads a bare number as minutes,
+    # so anything that reached us pre-converted (an older schema, a programmatic caller,
+    # a mission passing an int) would be multiplied by 60 a second time.
+    if isinstance(value, (int, float)) and not isinstance(value, bool):
+        return float(value)
     text = str(value).strip()
     if "-" in text:
         low, _, high = text.partition("-")
@@ -161,7 +175,7 @@ def _int(value, default):
         return default
 
 
-def urges_install_on(agents, section, key=None):
+def urges_install_on(agents, section, key=None, require_marker=False):
     """Install the urges authored under a record onto agents you ALREADY have.
 
     The identity path, next to ``urges_install``'s name-resolution path. A mission that
@@ -183,7 +197,7 @@ def urges_install_on(agents, section, key=None):
         if node is None:
             _urge_log(f"no record {key!r} to take urges from")
             return 0
-    recs = urges_from_section(node)
+    recs = urges_from_section(node, require_marker=require_marker)
     for rec in recs:
         urge_add(agents, rec)
     return len(recs)

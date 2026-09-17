@@ -89,6 +89,12 @@ MastGlobals.import_python_module('sbs_utils.procedural.amd_relics')
 MastGlobals.import_python_module('sbs_utils.procedural.prefab')
 MastGlobals.import_python_module('sbs_utils.procedural.quest')
 MastGlobals.import_python_module('sbs_utils.procedural.quest_driver')
+MastGlobals.import_python_module('sbs_utils.procedural.offer')
+# Urges: an actor's own voice. The library called these only from PYTHON (OU installs a
+# passenger's urges from universe_lifeforms.py), so nothing noticed they were unreachable
+# from MAST - a .mast calling urge_teach_note or urges_install_on got a bare NameError.
+MastGlobals.import_python_module('sbs_utils.procedural.urge')
+MastGlobals.import_python_module('sbs_utils.procedural.amd_urge')
 MastGlobals.import_python_module('sbs_utils.procedural.amd')
 MastGlobals.import_python_module('sbs_utils.procedural.amd_quest')
 MastGlobals.import_python_module('sbs_utils.procedural.amd_science')

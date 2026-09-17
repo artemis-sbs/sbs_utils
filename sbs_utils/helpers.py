@@ -40,7 +40,13 @@ class FrameContextMeta(type):
         if self._page is None:
             gui = Agent.get(self.client_id)
             if gui is not None:
-                return gui.page
+                # getattr, because not every agent at a client id is a GuiClient. The
+                # SERVER (client_id 0) is registered as a plain Agent so that roles can
+                # be put on it at all - see has_role/add_role(0, "mainscreen") - and a
+                # plain Agent has no `page`. Before this, ANY signal_emit reached from a
+                # server context died here with "'Agent' object has no attribute 'page'",
+                # because signal_emit asks for FrameContext.task, which asks for the page.
+                return getattr(gui, "page", None)
         return self._page
     
     @property

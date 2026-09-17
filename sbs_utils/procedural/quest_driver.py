@@ -1380,3 +1380,103 @@ def _install_dialogue_outcomes():
 
 
 _install_dialogue_outcomes()
+
+
+# --- Offers ------------------------------------------------------------------
+# An IDLE quest is work nobody has taken, which is exactly an OFFER. This provider is
+# how the Offers board, the PADD badge and the digest learn about quests, and it is
+# registered as a `core` provider so `offer_clear()` reinstalls it after a reset.
+#
+# It deliberately goes through quest_log_build_items rather than walking the trees
+# itself. That builder already skips SECRET and already honors `Show: never` /
+# `when done` / `with children` (_quest_log_rows), so reusing it means ONE visibility
+# rule: a quest the log hides can never leak onto the board. Walking the tree here
+# would be a second implementation of that policy, and the two would drift.
+def _quest_offer_row(item):
+    """The quest row behind a list item, or None if it is not a quest.
+
+    A parent job with visible steps is emitted as a collapsible HEADER carrying the
+    quest's own row data (_quest_log_rows), so unwrapping `.data` is what keeps a
+    multi-step job on the board. The Quests tab does not do this - it treats every
+    header as a non-quest - but that is a limitation of its Accept button, not a
+    visibility rule, and an offer is only ever read.
+    """
+    if item is None:
+        return None
+    if gui_list_box_is_header(item):
+        item = getattr(item, "data", None)
+        if item is None:
+            return None
+    get = getattr(item, "get", None)
+    if get is None:
+        return None
+    if get("key") is None or get("state") is None:
+        return None                     # a section header ({"section": ...}), not a quest
+    return item
+
+
+def quest_offer_rows(client_id, ship_id):
+    """IDLE and POSTING quests across the three sources the Quests tab shows.
+
+    POSTING rows come back with `pending=True`: they are listed so the crew can see the
+    work exists, but they are never counted, because something else has to offer them
+    (that is what POSTING means - a board you take by answering a call).
+    """
+    # Both imported locally: procedural.offer imports THIS module to install the
+    # provider, and execution pulls in most of the package.
+    from sbs_utils.procedural.offer import offer_record
+    from sbs_utils.procedural.execution import get_shared_variable
+    sources = [("Game", Agent.SHARED_ID)]
+    if client_id and client_id != 0:
+        sources.append(("You", client_id))
+    if ship_id and ship_id != 0:
+        sources.append(("Ship", ship_id))
+
+    out = []
+    for item in quest_log_build_items(sources):
+        row = _quest_offer_row(item)
+        if row is None:
+            continue
+        state = int(row.get("state") or 0)
+        if state not in (int(QuestState.IDLE), int(QuestState.POSTING)):
+            continue
+        agent_id = row.get("agent_id")
+        key = row.get("key")
+        # The mission default is a MAST shared variable (the .mast passes it into
+        # quest_tab_controls_gate); read it the same way rather than hard-coding a
+        # default that would disagree with the tab's buttons.
+        consoles = _quest_effective_consoles(
+            row, "accept_consoles",
+            get_shared_variable("QUEST_ACCEPT_CONSOLES", "comms,admiral"))
+        # The detail line the log already computes for an untaken job - the reward if it
+        # names one, else what it wants. Same text, so the board and the log agree.
+        detail = row.get("reward") or row.get("need") or ""
+        out.append(offer_record(
+            key=f"quest:{agent_id}:{key}",
+            title=row.get("title") or str(key),
+            detail=detail,
+            kind=str(row.get("kind") or "job"),
+            source=row.get("group"),
+            # A quest is held by an agent, which is a SHIP or the shared story agent -
+            # not the thing that offers it. Only a real space object can be selected on
+            # comms or scanned, so anything else is left unattributed rather than
+            # claiming the shared agent has work sitting on it.
+            agent_id=agent_id if is_space_object_id(agent_id) else None,
+            where=f"{_quest_console_names(consoles)} - Quests tab",
+            app="quest",
+            consoles=consoles,
+            pending=(state == int(QuestState.POSTING)),
+            sort=10,
+            data={"quest_id": key, "quest_agent_id": agent_id},
+        ))
+    return out
+
+
+def quest_offer_provider(ctx):
+    """The `quest` offer provider. Registered core by procedural.offer."""
+    # Quests are held by a crew, not by an object, so a per-object question has no quest
+    # answer. Returning [] rather than every quest is what stops a comms selection title
+    # claiming that whatever you clicked is offering the whole board.
+    if ctx.get("object_id") is not None:
+        return []
+    return quest_offer_rows(ctx.get("client_id"), ctx.get("ship_id"))

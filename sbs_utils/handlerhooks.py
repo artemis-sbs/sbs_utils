@@ -133,6 +133,11 @@ def reset_mission_state():
     _BADGE_REPORTED.clear()
     # And which apps have been reported as having no //gui/app route.
     _MISSING_ROUTE_REPORTED.clear()
+    # Offer providers. The CORE ones are reinstalled by offer_clear(); anything a
+    # mission registered is dropped, or the next mission inherits an addon's provider
+    # and computes offers against a world that no longer exists.
+    from .procedural.offer import offer_clear
+    offer_clear()
     # Navigation routes (//comms, //science, //gui/...) register their LABEL OBJECTS
     # here as they compile, and nothing emptied it - so a second compile in one
     # interpreter left the map holding two generations of the same routes. Navigating
@@ -279,6 +284,10 @@ def reset_mission_state():
                         # conversation and the replay log are ship inventory
     comms_history_clear()   # who said what to whom. Per-mission by definition, and the
                             # keys are object ids that the next mission RECYCLES
+    from .procedural.comms import comms_selection_annotator_clear
+    comms_selection_annotator_clear()   # the selection-title decoration: one installed
+                            # by the last mission would run on every comms selection of
+                            # the next, against a world that no longer exists
     overlay_live_clear()  # live overlays awaiting late joiners; the catch-up ticker
                           # is dropped by TickDispatcher.clear() above, and a record
                           # left behind would re-deliver last mission's card
@@ -455,6 +464,13 @@ register_reset_state("mod face registry", _face_mod_size)
 # this should always report 0 - registered so a future move off SHARED cannot go unnoticed.
 from .procedural.gui.epadd import _apps_count as _epadd_apps_count
 register_reset_state("ePADD apps", _epadd_apps_count)
+# Offer providers a MISSION registered. offer_clear() reinstalls the core ones, so this
+# probes the non-core set only and must report 0 - a leak here means the next mission is
+# answering "what is there for us?" with the last mission's addons.
+from .procedural.offer import offer_mission_providers as _offer_mission_providers
+from .procedural.offer import _OFFER_REPORTED
+register_reset_state("offer providers", lambda: len(_offer_mission_providers()))
+register_reset_state("offer reports", lambda: len(_OFFER_REPORTED))
 # Both live on Agent.SHARED, which clear_shared() rebuilds - registered so a future
 # move off SHARED cannot leave a party's mail in the next mission.
 from .procedural.messages import messages_count as _messages_count
@@ -554,8 +570,17 @@ from .procedural.hail import _SPEAKER_RESOLVER as _HAIL_SPEAKER, hail_reset
 # by the LAST mission resolves speaker keys against cast that no longer exists.
 register_reset_state("hail speaker resolver",
                      lambda: 1 if _HAIL_SPEAKER[0] is not None else 0)
+# The closing-echo dial, for the same reason: a mission that turned it on would leave
+# the next one filing lines it never asked for.
+register_reset_state("hail echo",
+                     lambda: 1 if __import__("sbs_utils.procedural.hail", fromlist=["x"]).hail_echo_settings()[0] else 0)
 from .procedural.comms import comms_history_clear, comms_history_size
 register_reset_state("comms history",     comms_history_size)
+# The selection-title annotator, a LATCH: one installed by the last mission would run
+# against a world that no longer exists, on every comms selection.
+from .procedural.comms import _SELECTION_ANNOTATOR as _COMMS_ANNOTATOR
+register_reset_state("comms selection annotator",
+                     lambda: 1 if _COMMS_ANNOTATOR[0] is not None else 0)
 from .procedural.gui.overlay import _LIVE as _OVERLAY_LIVE, overlay_live_clear
 register_reset_state("overlays live",     lambda: len(_OVERLAY_LIVE))
 from .procedural.amd_cutscene import (CUTSCENE_AMD, RUNDOWN_AMD, CUTSCENE_CAST,
@@ -685,6 +710,11 @@ register_reset_state("urge.ticks_stale",
 # actors for the first 45 seconds of it, for no reason anyone could see.
 register_reset_state("urge.speech clocks",
                      lambda: len(__import__("sbs_utils.procedural.urge", fromlist=["x"])._last_actor_spoke))
+# And the lesson ledger. An affordance the LAST crew learned is not one this crew has,
+# so carrying it over would silence the character who exists to teach it - the teaching
+# simply never happens again, with nothing to show for it.
+register_reset_state("urge.lessons",
+                     lambda: len(__import__("sbs_utils.procedural.urge", fromlist=["x"]).urge_taught_all()))
 # Source text for every compiled MAST expression, kept so a runtime error can quote the
 # line that failed. Grows with each compile, so it belongs in the ledger like any other
 # per-mission container.

@@ -267,6 +267,7 @@ def hail_reset():
     a LATCH in the reset ledger rather than a container.
     """
     hail_speaker_resolver_clear()
+    hail_echo_reset()   # a mission that opted in must not opt the NEXT one in
 
 
 # --- the queue --------------------------------------------------------------
@@ -944,8 +945,89 @@ def hail_close(ship, declined=False):
     set_inventory_value(ship_id, KEY_LOG, log[:HAIL_LOG_CAP])
 
     _hail_viewer_release(ship_id)
+    _hail_echo(ship_id, rec, declined)
     _hail_emit(ship_id, "declined" if declined else "closed", rec)
     return True
+
+
+# --- the echo -----------------------------------------------------------------
+# A hail is TRANSIENT. The strip entry disappears on close, the portrait goes, and the
+# only trace left is a history tab that nobody opens. So a crew who were told something
+# important four minutes ago have no way back to it, and a crew who never picked up have
+# no way to find out they missed anything at all.
+#
+# The echo files one durable line in the ship's log saying the conversation happened.
+# It does NOT interrupt: log_notify's raise is gated on RAISE_ON, which is empty, so
+# this writes to the log and refreshes the ambient strip and stops there. No overlay, no
+# announce level, no panel grab.
+#
+# OFF BY DEFAULT. Turning on an unconditional message at every hail close in every
+# shipped mission is a behavior change nobody asked for; LM opts in.
+HAIL_ECHO_DEFAULT = False
+
+#: [on, echo declined too]
+_ECHO = [HAIL_ECHO_DEFAULT, True]
+
+
+def hail_echo_enable(on=True, declined=True):
+    """File a durable line when a conversation ends.
+
+    Args:
+        on (bool): whether to echo at all.
+        declined (bool): echo a hail the crew never picked up. ON by default, and it is
+            the more important case - an answered hail at least left a conversation
+            behind, while an unanswered one otherwise vanishes without trace.
+    """
+    _ECHO[0] = bool(on)
+    _ECHO[1] = bool(declined)
+    return True
+
+
+def hail_echo_settings():
+    """``(on, declined)`` - what the echo is currently set to."""
+    return (_ECHO[0], _ECHO[1])
+
+
+def hail_echo_reset():
+    """Back to the shipped default (called by reset_mission_state)."""
+    _ECHO[0] = HAIL_ECHO_DEFAULT
+    _ECHO[1] = True
+
+
+def hail_echo_text(record, declined=False):
+    """The line the echo files. ASCII, and no ``:`` or ``;``.
+
+    Reuses hail_answer_label for the who-and-what-about half rather than writing a
+    second summarizer that would drift from the strip's wording.
+    """
+    label = hail_answer_label(record)
+    if declined:
+        return f"{label} - not answered"
+    taken = (record or {}).get("taken") or []
+    choice = str((taken[-1] or {}).get("label") or "").strip() if taken else ""
+    # Strip the two characters the engine parses out of a style-property string, for the
+    # same reason hail_answer_label refuses them - a choice label is authored text.
+    choice = choice.replace(":", "").replace(";", "")
+    return f"{label} - answered ({choice})" if choice else f"{label} - answered"
+
+
+def _hail_echo(ship_id, rec, declined):
+    """File the closing line. Never raises - an echo must not cost a hail its close."""
+    if not _ECHO[0]:
+        return False
+    if declined and not _ECHO[1]:
+        return False
+    try:
+        from sbs_utils.procedural.gui.log_panel_gui import log_notify
+        from sbs_utils.procedural.log_panel import TAB_MISSION
+        # SHIP scope, not the answering client: a hail is addressed to the ship, and
+        # whoever needs to recall it later is whoever is at a console then. (The offers
+        # digest is client-scoped for the opposite reason - it names what YOU can act on.)
+        log_notify(ship_id, hail_echo_text(rec, declined),
+                   category=TAB_MISSION, severity="")
+        return True
+    except Exception:
+        return False
 
 
 def _hail_viewer_release(ship_id):
