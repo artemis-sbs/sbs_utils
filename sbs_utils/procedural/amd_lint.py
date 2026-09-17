@@ -1144,6 +1144,22 @@ def _lint_relic_web(doc):
                     ln, "warning", "relic-unreachable-node",
                     "'%s' is in '%s' but nothing can see it - no route will ever end "
                     "there" % (oname, key)))
+            # A SECRET NOBODY CAN EVER FIND. `Hidden:` takes a place off the crew's list
+            # until they have been near it, and "been near it" is measured against the
+            # role MARKER the point gets - so a hidden point carrying no `Roles:` gets no
+            # marker, is never revealed, and is a destination that does not exist.
+            #
+            # It fails in complete silence: the relic builds, the place is on the web, a
+            # route will even pass through it, and it is simply never offered. Measured
+            # 2026-09-17 - with `Roles:` the place appears the moment a suit comes within
+            # 1200 units; without, it never appears at all.
+            for pname, pv in rec["points"].items():
+                if pv[5] and not pv[3]:
+                    findings.append(AmdFinding(
+                        ln, "warning", "relic-hidden-unreachable",
+                        "'%s' is `Hidden:` but carries no `Roles:` - nothing marks it, so "
+                        "nothing can ever reveal it and the crew will never be offered it"
+                        % pname))
             entrance = _relic_entrance(rec)
             if entrance is None or entrance not in dict(rail_nodes(name)):
                 continue

@@ -21,6 +21,7 @@ from sbs_utils.procedural import rails as RL
 from sbs_utils.procedural import volume as V
 from sbs_utils.procedural.lifeform import lifeform_spawn
 from sbs_utils.procedural.query import to_object
+from sbs_utils.vec import Vec3
 from sbs_utils.spaceobject import SpaceObject
 
 CONSOLES = [61, 62, 63, 64]
@@ -231,6 +232,87 @@ class WhatTheNavListOffers(_Base):
         here = (-2300.0, 0.0, 0.0)
         gaps = [_dist(here, row[2]) for row in rows]
         self.assertEqual(gaps, sorted(gaps))
+
+
+class ASecretShowsUpWhenYouGetNearIt(_Base):
+    """The other half of `Hidden:`, and the half nothing tested: does flying up to one
+    actually put it on the list?
+
+    It does, and it rides the relic's role MARKERS to do it - `relic_contents_arm` places
+    an invisible post on every point carrying `Roles:`, and the shared tick lights the ones
+    a suit has come within `RELIC_REVEAL_RANGE` (1200) of. So a hidden point with no
+    `Roles:` gets no post and is never revealed at all, which is silent and is why
+    `sbs lint` now reports it as `relic-hidden-unreachable`.
+    """
+
+    def arm(self, points):
+        """Rebuild the fixture with these points, armed the way a mission arms one."""
+        V.volume_clear()
+        RL.rail_clear()
+        R._ARMED.clear()
+        V.volume_define(RELIC, boxes=dict(self.BOXES))
+        R._RELIC_RECORDS[RELIC]["points"] = points
+        R.relic_rails_ensure(RELIC)
+        R.relic_contents_arm(RELIC)
+
+    #: [x, y, z, roles, display, hidden]
+    MOUTH = [-2300, 0, 0, ["entrance"], "The West End", False]
+
+    def listed(self, cid=CONSOLES[0]):
+        return sorted(name for name, _display, _pos in E.eva_points(cid))
+
+    def test_flying_up_to_a_secret_puts_it_on_the_list(self):
+        self.arm({"west end": list(self.MOUTH),
+                  "cache": [2300, 0, 0, ["treasure"], "A Sealed Locker", True]})
+        suit = self.suit_up(CONSOLES[0])
+        self.assertNotIn("cache", self.listed(), "it was offered before anybody found it")
+
+        # Close enough to light it (1200), far enough that it is not "where you already
+        # are" (DEST_RADIUS, 60) - `eva_points` drops that, correctly, and parking a test
+        # suit exactly on the thing is how this reads as broken when it is not.
+        to_object(suit).pos = Vec3(1400, 0, 0)
+        R._relic_reveal_tick()
+        self.assertIn("cache", self.listed(), "flying up to it did not reveal it")
+
+    def test_a_secret_stays_revealed_once_found(self):
+        """It is a record of where the crew has BEEN, which is the whole value of it in a
+        structure where every room looks like the last one."""
+        self.arm({"west end": list(self.MOUTH),
+                  "cache": [2300, 0, 0, ["treasure"], "A Sealed Locker", True]})
+        suit = self.suit_up(CONSOLES[0])
+        to_object(suit).pos = Vec3(1400, 0, 0)
+        R._relic_reveal_tick()
+        to_object(suit).pos = Vec3(-2300, 0, 0)     # all the way back out
+        R._relic_reveal_tick()
+        self.assertIn("cache", self.listed())
+
+    def test_keeping_your_distance_leaves_it_hidden(self):
+        self.arm({"west end": list(self.MOUTH),
+                  "cache": [2300, 0, 0, ["treasure"], "A Sealed Locker", True]})
+        suit = self.suit_up(CONSOLES[0])
+        to_object(suit).pos = Vec3(-2300, 0, 0)
+        for _ in range(5):
+            R._relic_reveal_tick()
+        self.assertNotIn("cache", self.listed())
+
+    def test_a_secret_with_no_roles_is_never_revealed(self):
+        """The silent failure, pinned. No `Roles:` means no marker, and no marker means
+        nothing to measure against - so it is a destination that does not exist."""
+        self.arm({"west end": list(self.MOUTH),
+                  "cache": [2300, 0, 0, [], "A Sealed Locker", True]})
+        suit = self.suit_up(CONSOLES[0])
+        to_object(suit).pos = Vec3(1400, 0, 0)
+        for _ in range(5):
+            R._relic_reveal_tick()
+        self.assertNotIn("cache", self.listed())
+        self.assertTrue(RL.rail_is_hidden(RELIC, "cache"))
+
+    def test_a_route_still_passes_through_one(self):
+        """Hidden is a property of the LIST, never of the graph."""
+        self.arm({"west end": list(self.MOUTH),
+                  "cache": [2300, 0, 0, ["treasure"], "A Sealed Locker", True]})
+        self.suit_up(CONSOLES[0])
+        self.assertTrue(E.eva_goto(CONSOLES[0], "cache"))
 
 
 class TheWebIsSolvedOnceNotPerTrip(_Base):

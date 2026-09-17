@@ -137,6 +137,37 @@ class ABarrierWithNoWayThrough(unittest.TestCase):
         self.assertEqual(_by_code(amd_lint(content=doc), "relic-barrier-seals"), [])
 
 
+class ASecretNobodyCanFind(unittest.TestCase):
+    """`Hidden:` is measured against the role MARKER a point gets, so a hidden point with
+    no `Roles:` is never revealed - and it fails in complete silence: the relic builds, the
+    place is on the web, a route passes through it, and it is simply never offered.
+
+    Measured 2026-09-17: with `Roles:` the place appears the moment a suit comes within
+    1200 units of it; without, it never appears at all.
+    """
+
+    HALL = ("hall", "Box: 0, 0, 0, 1600, 300, 300\n")
+    MOUTH = ("mouth", "Point: -1500, 0, 0\nRoles: entrance\n")
+
+    def test_hidden_with_no_roles_is_reported(self):
+        doc = relic([self.HALL, self.MOUTH,
+                     ("cache", "Point: 1200, 0, 0\nHidden: yes\n")])
+        got = _by_code(amd_lint(content=doc), "relic-hidden-unreachable")
+        self.assertEqual(len(got), 1, "a secret nobody can ever find linted clean")
+        self.assertIn("cache", got[0].message)
+
+    def test_hidden_WITH_roles_is_fine(self):
+        doc = relic([self.HALL, self.MOUTH,
+                     ("cache", "Point: 1200, 0, 0\nRoles: treasure\nHidden: yes\n")])
+        self.assertEqual(_by_code(amd_lint(content=doc), "relic-hidden-unreachable"), [])
+
+    def test_an_ordinary_point_with_no_roles_is_fine(self):
+        """Only a HIDDEN point needs a marker. A visible place is on the list from the
+        start and has nothing to be revealed."""
+        doc = relic([self.HALL, self.MOUTH, ("corner", "Point: 1200, 0, 0\n")])
+        self.assertEqual(_by_code(amd_lint(content=doc), "relic-hidden-unreachable"), [])
+
+
 class TheRulesDoNotBreakTheRestOfTheLinter(unittest.TestCase):
     def test_a_relic_with_no_geometry_is_skipped_quietly(self):
         """The structural rules already report an unbuildable relic; a second complaint
