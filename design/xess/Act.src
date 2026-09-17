@@ -1,0 +1,52 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <style>
+@@STYLE@@
+  </style>
+</helmet>
+<!-- ACT, as it arrives: a new beat OPENS this app by itself on every console at the
+     site. Nobody has to notice a badge to be in the scene. The one exception is a
+     console holding an armed weapon, which is never yanked off its own screen. -->
+<div class="dev">
+
+  <div class="who">
+    <span class="name">Ume Mbeki</span>
+    <span class="job">comms</span>
+    <span class="at">Sample Lab</span>
+  </div>
+
+  <div class="app">
+    <div class="app-head">
+      <h2>Act</h2>
+      <div class="rule"></div>
+      <button class="back">BACK</button>
+    </div>
+
+    <div class="beat">
+      <p>Containment on bench three has failed. The gel is cold and the seal was
+      opened from the inside.</p>
+      <p>Chief Ruiz is two rooms away and cannot see any of this.</p>
+    </div>
+
+    <div class="picks">
+      <button class="pick">Examine the containment gel</button>
+      <button class="pick">Read the sample manifest</button>
+      <button class="pick">
+        Force the manifest lock
+        <span class="for">(covering for Chief Ruiz)</span>
+      </button>
+      <button class="pick">Go down to the reactor gallery</button>
+    </div>
+  </div>
+
+</div>
+</x-dc>
+</body>
+</html>

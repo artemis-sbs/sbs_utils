@@ -1,0 +1,66 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <style>
+@@STYLE@@
+  </style>
+</helmet>
+<!-- ARMED IS LOUD, and it reaches the IDENTITY BAR - the one band on screen in every
+     state, home sheet included. The whole safety argument is that nobody should
+     discover they were armed by hitting a colleague, and an app you have navigated
+     away from cannot tell you anything. -->
+<div class="dev live">
+
+  <div class="who">
+    <span class="name">Ume Mbeki</span>
+    <span class="job">comms</span>
+    <span class="at">ARMED &mdash; FULL</span>
+  </div>
+
+  <div class="app">
+    <div class="app-head">
+      <h2>Fire</h2>
+      <div class="rule"></div>
+      <button class="back">BACK</button>
+    </div>
+
+    <div class="arm">
+      <div class="state live">ARMED &mdash; FULL</div>
+
+      <div class="setting">
+        <button>STUN</button>
+        <button>CUT</button>
+        <button class="full on">FULL</button>
+      </div>
+
+      <p class="effect">Destroys what it hits, whatever that is. <b>The only setting
+      that is a weapon and nothing else.</b></p>
+
+      <div class="read">
+        <div class="line"><span class="k">Range</span><span class="v">6 cells</span></div>
+        <div class="line"><span class="k">In reach</span><span class="v">hatch mechanism</span></div>
+        <div class="line"><span class="k">Also in reach</span><span class="v hurt">Marek Sol</span></div>
+      </div>
+    </div>
+
+    <p class="warnline">The next click on the map is a shot. One shot, then safe.</p>
+
+    <div class="say">
+      <p class="quiet">Stun will not cut a bulkhead. Cut will not stop a person
+      politely. Full will not leave you anything to examine afterwards.</p>
+    </div>
+
+    <div class="spacer"></div>
+    <button class="go">MAKE SAFE</button>
+  </div>
+
+</div>
+</x-dc>
+</body>
+</html>

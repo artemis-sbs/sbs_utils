@@ -1,0 +1,175 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <style>
+@@STYLE@@
+    body { width: 900px; height: 1080px; }
+    .spec { position: absolute; inset: 0; padding: 36px 44px; display: flex;
+            flex-direction: column; gap: 24px; overflow: auto; }
+    .spec h1 { margin: 0; font-family: var(--display); font-weight: 700; font-size: 36px;
+               letter-spacing: .04em; }
+    .spec h1 em { font-style: normal; color: var(--accent); }
+    .spec .sub { margin: 0; font-size: 22px; color: var(--dim); max-width: 64ch;
+                 line-height: 1.35; }
+    .sec { display: flex; flex-direction: column; gap: 12px; }
+    .sec h2 { margin: 0; font-family: var(--display); font-weight: 700; font-size: 24px;
+              letter-spacing: .18em; color: var(--accent); text-transform: uppercase; }
+    table { border-collapse: collapse; width: 100%; font-size: 22px; }
+    th, td { text-align: left; padding: 7px 10px; border-bottom: 1px solid var(--hair);
+             vertical-align: top; }
+    th { color: var(--dim); font-weight: 500; letter-spacing: .04em; }
+    td.n { font-family: var(--display); white-space: nowrap; }
+    .swatches { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+    .sw { border: 1px solid var(--hair); }
+    .sw .chip { height: 42px; }
+    .sw .cap { padding: 6px 8px; font-size: 22px; }
+    .sw .cap b { display: block; font-family: var(--display); font-weight: 400; }
+    .sw .cap span { color: var(--dim); }
+    .band { display: flex; flex-direction: column; border: 1px solid var(--hair); }
+    .band div { padding: 9px 12px; font-size: 22px; border-bottom: 1px solid var(--hair); }
+    .band div:last-child { border-bottom: 0; }
+    .band .b1 { background: var(--panel-head); }
+    .band .b2 { background: var(--panel); }
+    .band em { font-style: normal; color: var(--dim); float: right; }
+    .note { font-size: 22px; color: var(--dim); line-height: 1.4; max-width: 72ch;
+            margin: 0; }
+    .note b { color: var(--text); font-weight: 500; }
+    .gone { text-decoration: line-through; color: #667; }
+  </style>
+</helmet>
+<div class="spec">
+
+  <div>
+    <h1>x<em>ESS</em> &mdash; build sheet</h1>
+    <p class="sub">The handheld beside the interior map. Same vocabulary as the ePADD,
+    one third of the width: 640 &times; 1080 at a 1920 console, the map taking the rest.</p>
+  </div>
+
+  <div class="sec">
+    <h2>Two bands, not three</h2>
+    <div class="band">
+      <div class="b1">Identity bar &mdash; name, job, where you are, ARMED <em>56px, fixed</em></div>
+      <div class="b2">App area &mdash; the home tiles, or one app using the lot <em>the rest. ONE region</em></div>
+    </div>
+    <p class="note">The previous sheet had a third band pinned to the bottom holding
+    the scene's choices and Beam up. It is gone. <b>Every surface is an app</b>, so the
+    device has one region that changes shape instead of two that have to agree with a
+    reserve row &mdash; and there is no arithmetic left to get wrong.</p>
+    <p class="note gone">ACTIONS_BAND_PX 230 &middot; XESS_BODY_PX 190 &middot;
+    boarding_reserve_px 420 &middot; LEAVE_ROW_PX 46 &middot; the mode strip</p>
+  </div>
+
+  <div class="sec">
+    <h2>The five apps</h2>
+    <table>
+      <tr><th>App</th><th>What it is</th><th>Built on</th></tr>
+      <tr><td class="n">CREW</td><td>everyone you can reach - the ship included - what each last said, where each is standing, and BEAM UP on the ship's row</td><td>boarding_team, boarding_where, boarding_go_up, message_inbox grouped by <code>from</code>, message_unread, message_send</td></tr>
+      <tr><td class="n">ACT</td><td>the beat, then one button per choice</td><td>boarding_line, boarding_choices, boarding_answer</td></tr>
+      <tr><td class="n">SCAN</td><td>this room now, and file it</td><td>grid_node_state / wear, xess_log</td></tr>
+      <tr><td class="n">FIRE</td><td>arm, pick a setting, click the map</td><td>boarding_arm / boarding_click</td></tr>
+    </table>
+    <p class="note"><b>HAIL and PARTY were one app.</b> One held three abstract audience
+    tokens and the other held the actual people. Merged, the roster IS the inbox, grouped
+    by who said it &mdash; and the ship is a row like anyone else, carrying BEAM UP,
+    because the ship is what beams you up.</p>
+    <p class="note"><b>Calling one person by name is NEW.</b> <code>message_send</code>
+    addresses a CONSOLE, and every boarded console reports the same one, so two boarders
+    are indistinguishable as addressees today. It needs a <code>crew:&lt;lifeform&gt;</code>
+    audience &mdash; one branch in <code>_audience_matches</code>, which already takes
+    <code>client_id</code>, plus <code>boarding_client_of</code> to invert it. Without it
+    the roster lists people you cannot reach, which is worse than not listing them.</p>
+    <p class="note">A tile is icon, name, blurb and a <b>text badge</b> &mdash; "3 here",
+    "2 new", not a dot, because a dot cannot say how many. One column: 640px split four
+    ways is 160px a tile, narrower than the words on it.</p>
+    <p class="note"><b>One entry and a count, never a thread.</b> HAIL shows the newest
+    message and says how many more are on the ePADD; SCAN shows this room and files the
+    rest. That is what keeps the device off a scrollbar, and it is the same rule in both
+    directions: <b>the xESS acts, the ePADD reads</b>.</p>
+  </div>
+
+  <div class="sec">
+    <h2>Every scrolling band is a listbox</h2>
+    <table>
+      <tr><th>Band</th><th>Container</th><th>Why</th></tr>
+      <tr><td>CREW callers</td><td class="n">gui_list_box</td><td>item_template builds the whole caller panel</td></tr>
+      <tr><td>ACT choices</td><td class="n">gui_list_box</td><td>item_template builds ONE BUTTON per row</td></tr>
+      <tr><td>Scene prose</td><td class="n">gui_text_area</td><td>a Control - clears and scrolls its own region</td></tr>
+      <tr><td>SCAN readout</td><td class="n">gui_list_box</td><td>a node list is a repeating list</td></tr>
+      <tr><td>Home tiles</td><td class="n">gui_grid</td><td>four tiles, cannot overflow</td></tr>
+    </table>
+    <p class="note">Never a stack of <code>gui_row</code>s. <b>A fixed row is never
+    scaled down</b>, so past what fits it spills out over the map &mdash; which is the
+    bug the old choices band shipped with. The house container already handles wrapping,
+    measurement and the scrollbar; assembling a substitute gets a worse version of one
+    and hides the gap.</p>
+  </div>
+
+  <div class="sec">
+    <h2>Three settings, a ladder</h2>
+    <table>
+      <tr><th>Setting</th><th>A person</th><th>A door, panel or reactor</th><th>Bare floor</th></tr>
+      <tr><td class="n">STUN</td><td>stopped, not hurt</td><td>nothing at all</td><td>nothing</td></tr>
+      <tr><td class="n">CUT</td><td>lethal - a cutting beam is</td><td>opened, and its work order promoted</td><td>a scorch</td></tr>
+      <tr><td class="n">FULL</td><td>lethal</td><td>destroyed</td><td>a scorch</td></tr>
+    </table>
+    <p class="note">FULL is <b>CUT's effect table with the damage figure raised</b>, not a
+    fourth mechanic. It earns its row by making lethality a NAMED CHOICE rather than
+    something that falls out of pointing a cutting tool at a colleague &mdash; the same
+    argument that puts the setting ahead of the target.</p>
+    <p class="note"><b>CUT and FULL only differ once something reads the setting.</b>
+    The library fires the shot and reports it; <code>signal_emit("xess_fired", ...)</code>
+    already carries the setting, so a mission that wants "you needed that reactor intact"
+    can say so. Until one does, the honest difference is the HP figure and the word in
+    the identity bar.</p>
+  </div>
+
+  <div class="sec">
+    <h2>Type and colour</h2>
+    <table>
+      <tr><th>Use</th><th>Family</th><th>Size</th></tr>
+      <tr><td>Tile name</td><td>Goldman 700</td><td class="n">28</td></tr>
+      <tr><td>Bar, app heading, buttons, choices</td><td>Goldman 700 / Barlow</td><td class="n">24</td></tr>
+      <tr><td>Blurbs, badges, keys, notes</td><td>Barlow Semi Condensed</td><td class="n">22</td></tr>
+    </table>
+    <div class="swatches">
+      <div class="sw"><div class="chip" style="background: rgba(17,85,119,.53);"></div><div class="cap"><b>#1578</b><span>bar</span></div></div>
+      <div class="sw"><div class="chip" style="background: rgba(17,85,119,.13);"></div><div class="cap"><b>#1572</b><span>tiles</span></div></div>
+      <div class="sw"><div class="chip" style="background: rgba(17,85,119,.33);"></div><div class="cap"><b>#1575</b><span>choices</span></div></div>
+      <div class="sw"><div class="chip" style="background: #8cf;"></div><div class="cap"><b>#8cf</b><span>accent, badge</span></div></div>
+      <div class="sw"><div class="chip" style="background: #8f8;"></div><div class="cap"><b>#8f8</b><span>nominal</span></div></div>
+      <div class="sw"><div class="chip" style="background: #ffd76a;"></div><div class="cap"><b>#ffd76a</b><span>worn</span></div></div>
+      <div class="sw"><div class="chip" style="background: #f55;"></div><div class="cap"><b>#f55</b><span>damaged, ARMED</span></div></div>
+      <div class="sw"><div class="chip" style="background: #0a1420;"></div><div class="cap"><b>#0a1420</b><span>ground</span></div></div>
+    </div>
+    <p class="note">Engine sizes only: gui-1..6 are <b>22 / 24 / 28 / 32 / 36 / 52</b>.
+    Nothing here goes above 28 &mdash; a 640px column has no room for a headline, and the
+    map is the thing being looked at.</p>
+  </div>
+
+  <div class="sec">
+    <h2>Four things the code has to get right</h2>
+    <p class="note"><b>A choice button carries its seq.</b> <code>boarding_answer</code>
+    re-derives the choice list and indexes into it, so an index captured when the button
+    was built is only valid for that beat. Pass <code>seq</code> and <code>agent</code> in
+    the button's <code>data</code>: a button from a superseded beat then answers nothing
+    instead of answering the wrong thing.</p>
+    <p class="note"><b>A new beat opens ACT by itself</b>, on every console at the site.
+    Record the seq even when it does not open, or a beat somebody dismissed pops back on
+    the next tick.</p>
+    <p class="note"><b>Except while armed.</b> Yanking a crew member off an armed weapon
+    screen is the exact accident the safety rules exist to prevent. Badge the tile
+    instead.</p>
+    <p class="note"><b>Armed reaches the bar.</b> The identity bar is the only thing on
+    screen in every state, so it is where ARMED has to show.</p>
+  </div>
+
+</div>
+</x-dc>
+</body>
+</html>

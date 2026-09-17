@@ -1,0 +1,540 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Goldman:wght@400;700&family=Barlow+Semi+Condensed:wght@400;500;600&display=swap');
+    /* The SAME Cosmos console vocabulary as design/epadd/_style.inc - the xESS is the
+       ePADD's small sibling, not a second look. Values lifted from the engine + LM
+       sources: gui-1..6 = 22/24/28/32/36/52, panels #1572, headers #1578.
+       Goldman is the same family on Google Fonts; Barlow Semi Condensed stands in for
+       GoldmanSansCd_Rg, which is not published there.
+
+       WHAT DIFFERS FROM THE PADD, and it is only ever size: this is a 640px column
+       beside a map, not a 1920px sheet. So the tile grid is one column rather than
+       four, and the chrome is one 56px bar rather than a 64px bar under a 35px strip.
+
+       TWO BANDS, NOT THREE. An earlier version of this file kept a permanent choices
+       band pinned to the bottom. It was wrong: three of the device's functions were
+       apps behind tiles and two - answering the scene, and leaving the surface - were
+       loose chrome stapled under them. Everything is an app now. */
+    :root {
+      --ground:      #0a1420;
+      --panel:       rgba(17, 85, 119, 0.13);   /* #1572 */
+      --panel-hi:    rgba(17, 85, 119, 0.33);   /* #1575 */
+      --panel-head:  rgba(17, 85, 119, 0.53);   /* #1578 */
+      --hair:        rgba(136, 204, 255, 0.16);
+      --text:        #ffffff;
+      --dim:         #9ab;
+      --accent:      #8cf;
+      --good:        #8f8;
+      --warn:        #ffd76a;
+      --alert:       #f55;
+      --display: 'Goldman', 'Goldman-Bold', system-ui, sans-serif;
+      --body: 'Barlow Semi Condensed', 'GoldmanSansCd_Rg', system-ui, sans-serif;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; width: 640px; height: 1080px; overflow: hidden;
+      background-color: var(--ground);
+      background-image:
+        repeating-linear-gradient(90deg, rgba(255,255,255,.018) 0 1px, transparent 1px 160px),
+        repeating-linear-gradient(0deg,  rgba(255,255,255,.018) 0 1px, transparent 1px 160px),
+        radial-gradient(120% 60% at 30% 4%, rgba(30,72,110,.30), transparent 62%);
+      color: var(--text);
+      font-family: var(--body);
+      font-size: 24px;
+      -webkit-font-smoothing: antialiased;
+    }
+    a { color: var(--accent); text-decoration: none; }
+
+    /* --- the column ------------------------------------------------------- */
+    .dev { position: absolute; inset: 0; display: flex; flex-direction: column; }
+
+    /* THE IDENTITY BAR. One row, 56px. Everything the old panel spent a face and four
+       rows saying, on one line - because none of it changes and all of it is reference.
+       It is also the one thing on screen in EVERY state, which is why ARMED lands here. */
+    .who { flex: 0 0 56px; display: flex; align-items: center; gap: 16px;
+           padding: 0 20px; background: var(--panel-head);
+           border-bottom: 1px solid var(--hair); }
+    .who .name { font-family: var(--display); font-weight: 700; font-size: 24px;
+                 letter-spacing: .02em; white-space: nowrap; }
+    .who .job  { font-size: 22px; color: var(--accent); letter-spacing: .04em; }
+    .who .at   { margin-left: auto; font-size: 22px; color: var(--dim);
+                 letter-spacing: .04em; white-space: nowrap; }
+    .dev.live .who { background: rgba(255,85,85,.22); border-bottom-color: var(--alert); }
+    .dev.live .who .at { color: #fff; font-family: var(--display); }
+
+    /* THE APP AREA. Everything under the bar belongs to whatever is open - the home
+       sheet, or one app using the lot. Nothing is pinned below it. */
+    .app { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column;
+           padding: 22px 20px 24px 20px; gap: 18px; overflow: hidden; }
+
+    .app-head { display: flex; align-items: center; gap: 14px; }
+    .app-head h2 { margin: 0; font-family: var(--display); font-weight: 700;
+                   font-size: 24px; letter-spacing: .18em; color: var(--accent);
+                   text-transform: uppercase; }
+    .app-head .rule { flex: 1 1 auto; height: 1px; background: var(--hair); }
+    .app-head .back { font-family: var(--display); font-size: 22px; letter-spacing: .10em;
+                      color: var(--dim); background: none; border: 1px solid var(--hair);
+                      padding: 6px 14px; cursor: pointer; }
+    .app-head .back:hover { color: var(--text); border-color: var(--accent); }
+
+    /* --- the home sheet ---------------------------------------------------- */
+    /* The scene's own line, on HOME as well as inside ACT: the device always has
+       something to say when you glance at it. Prose, so it gets a scroll of its own. */
+    .say { flex: 0 1 auto; min-height: 0; overflow: auto; font-size: 24px;
+           line-height: 1.35; color: var(--text); }
+    .say .quiet { color: var(--dim); }
+    .say p { margin: 0 0 12px 0; }
+    .say p:last-child { margin-bottom: 0; }
+
+    /* ONE COLUMN of tiles, not four. A 640px column divided four ways is 160px a tile,
+       which is narrower than the words on it. */
+    .tiles { display: grid; grid-template-columns: minmax(0, 1fr); gap: 14px; }
+    .tile { width: 100%; display: flex; align-items: center; gap: 18px;
+            padding: 18px 20px; background: var(--panel);
+            border: 1px solid var(--hair); cursor: pointer; text-align: left;
+            color: inherit; font: inherit;
+            transition: background .12s, border-color .12s; }
+    .tile:hover { background: var(--panel-hi); border-color: rgba(136,204,255,.42); }
+    .tile .ico { flex: 0 0 auto; width: 40px; height: 40px; display: block; }
+    .tile .lbl { min-width: 0; flex: 1 1 auto; }
+    .tile h3 { margin: 0 0 2px 0; font-family: var(--display); font-weight: 700;
+               font-size: 28px; line-height: 1.05; color: var(--text); }
+    .tile p  { margin: 0; font-size: 22px; line-height: 1.2; color: var(--dim); }
+    /* The badge is TEXT, like the PADD's - not a dot and not a count widget, because
+       "3 here" says what a dot cannot. It is how a beat announces itself without
+       taking the screen. */
+    .tile .badge { flex: 0 0 auto; font-size: 22px; color: var(--accent);
+                   letter-spacing: .04em; white-space: nowrap; }
+    .tile .badge.hot { color: var(--alert); }
+
+    /* --- ACT: the beat, then one button per choice -------------------------- */
+    .beat { font-size: 24px; line-height: 1.35; max-height: 280px; overflow: auto; }
+    .beat p { margin: 0 0 12px 0; }
+    .beat p:last-child { margin-bottom: 0; }
+    .picks { display: flex; flex-direction: column; gap: 12px; overflow: auto; }
+    /* A BUTTON, pressed once. The old panel made you select a row of text and then
+       press ACT - a settings-screen interaction on a thing held in one hand. */
+    .pick { width: 100%; text-align: left; padding: 16px 18px; font: inherit;
+            font-size: 24px; line-height: 1.25; color: var(--text);
+            background: var(--panel-hi); border: 1px solid var(--hair);
+            cursor: pointer; transition: border-color .12s, background .12s; }
+    .pick:hover { border-color: var(--accent); background: rgba(17,85,119,.45); }
+    .pick .for { display: block; margin-top: 4px; font-size: 22px; color: var(--dim); }
+
+    /* --- CREW: who you can reach, what they last said, and the way home ------ */
+    /* HAIL AND PARTY WERE THE SAME APP. One held three abstract audience tokens
+       (SHIP / PARTY / ALL) and the other held the actual people; merging them turns
+       an audience picker into a list of who is out here. The roster IS the inbox,
+       grouped by who said it - messages already carry `from`, so this costs nothing
+       to render and answers "did the ship call?" and "where is Marek?" at once.
+
+       THE SHIP IS A ROW, and it is the row that carries BEAM UP - the ship is what
+       beams you up, so leaving lives with the thing that does it rather than under
+       every screen. */
+    .callers { display: flex; flex-direction: column; gap: 14px; overflow: auto;
+               flex: 1 1 auto; min-height: 0; }
+    .caller { padding: 14px 16px; background: var(--panel);
+              border: 1px solid var(--hair); border-left: 3px solid var(--hair); }
+    .caller.ship { border-left-color: var(--accent); }
+    .caller.you  { border-left-color: var(--good); }
+    .caller .top { display: flex; align-items: baseline; gap: 12px; }
+    .caller .n   { font-family: var(--display); font-size: 24px; }
+    .caller .j   { font-size: 22px; color: var(--accent); letter-spacing: .04em; }
+    .caller .cnt { margin-left: auto; font-size: 22px; color: var(--accent);
+                   white-space: nowrap; }
+    .caller .cnt.me { color: var(--dim); }
+    .caller .r    { margin-top: 3px; font-size: 22px; color: var(--dim); }
+    .caller .said { margin: 8px 0 0 0; font-size: 24px; line-height: 1.3; }
+    .caller .said .ago { color: var(--dim); font-size: 22px; }
+    .caller .said.quiet { color: var(--dim); }
+    .acts2 { display: flex; gap: 10px; margin-top: 10px; }
+    .acts2 button { flex: 1 1 auto; padding: 10px 0; font-family: var(--display);
+                    font-size: 22px; letter-spacing: .06em; color: var(--text);
+                    background: var(--panel-hi); border: 1px solid var(--hair);
+                    cursor: pointer; }
+    .acts2 button:hover { border-color: var(--accent); }
+    .acts2 button.home { color: var(--warn); }
+    .site { font-family: var(--display); font-size: 24px; letter-spacing: .04em; }
+    .count, .more { font-size: 22px; color: var(--dim); letter-spacing: .04em; }
+
+    /* --- readouts (SCAN, HAIL, FIRE) ---------------------------------------- */
+    .read { display: flex; flex-direction: column; gap: 10px; }
+    .read .line { display: flex; align-items: baseline; gap: 14px; font-size: 24px; }
+    .read .line .k { color: var(--dim); letter-spacing: .04em; }
+    .read .line .v { margin-left: auto; font-family: var(--display); }
+    .v.ok    { color: var(--good); }
+    .v.worn  { color: var(--warn); }
+    .v.hurt  { color: var(--alert); }
+
+    /* --- the weapon --------------------------------------------------------- */
+    .arm { display: flex; flex-direction: column; gap: 14px; }
+    .arm .state { padding: 14px 18px; font-family: var(--display); font-size: 28px;
+                  letter-spacing: .10em; text-align: center;
+                  border: 1px solid var(--hair); color: var(--dim); }
+    .arm .state.live { color: #fff; background: rgba(255,85,85,.18);
+                       border-color: var(--alert); }
+    /* THREE SETTINGS, and they are a ladder: stop a person, open a thing, destroy it.
+       The point of the third is that lethality is CHOSEN and named, rather than falling
+       out of pointing a cutting tool at somebody - which is the same argument that
+       keeps the setting ahead of the target. */
+    .setting { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+    .setting button { padding: 12px 0; background: var(--panel);
+                      border: 1px solid var(--hair); color: var(--dim);
+                      font-family: var(--display); font-size: 24px; letter-spacing: .06em;
+                      cursor: pointer; }
+    .setting button.on { color: var(--text); border-color: var(--accent);
+                         background: var(--panel-hi); }
+    /* FULL is the one that reads differently even before it is armed. */
+    .setting button.full.on { border-color: var(--alert); color: #fff;
+                              background: rgba(255,85,85,.20); }
+    .effect { font-size: 22px; color: var(--dim); line-height: 1.35; margin: 0; }
+    .effect b { color: var(--text); font-weight: 500; }
+    .warnline { font-size: 22px; color: var(--alert); letter-spacing: .04em; margin: 0; }
+    .spacer { flex: 1 1 auto; min-height: 0; }
+
+  </style>
+</helmet>
+<div class="dev {{ armedClass }}">
+
+  <div class="who">
+    <span class="name">Ume Mbeki</span>
+    <span class="job">comms</span>
+    <span class="at">{{ at }}</span>
+  </div>
+
+  <div class="app">
+
+    <!-- HOME: what is happening, then the tools. Nothing is pinned below it. -->
+    <sc-if value="{{ home }}" hint-placeholder-val="{{ true }}">
+      <div class="app-head">
+        <h2>xESS</h2>
+        <div class="rule"></div>
+      </div>
+
+      <div class="say">
+        <p>{{ line }}</p>
+      </div>
+
+      <div class="tiles">
+        <sc-for list="{{ tiles }}" as="t" hint-placeholder-count="5">
+          <button class="tile" onClick="{{ t.open }}">
+            <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="{{ t.tint }}" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+              <path d="{{ t.path }}"></path>
+            </svg>
+            <span class="lbl">
+              <h3>{{ t.name }}</h3>
+              <p>{{ t.blurb }}</p>
+            </span>
+            <span class="badge {{ t.hot }}">{{ t.badge }}</span>
+          </button>
+        </sc-for>
+      </div>
+    </sc-if>
+
+    <!-- ACT: the beat, then ONE BUTTON PER CHOICE. Pressed once, no selection step. -->
+    <sc-if value="{{ isAct }}" hint-placeholder-val="{{ false }}">
+      <div class="app-head">
+        <h2>Act</h2>
+        <div class="rule"></div>
+        <button class="back" onClick="{{ close }}">BACK</button>
+      </div>
+      <div class="beat">
+        <p>{{ line }}</p>
+      </div>
+      <div class="picks">
+        <sc-for list="{{ picks }}" as="p" hint-placeholder-count="3">
+          <button class="pick" onClick="{{ p.take }}">
+            {{ p.label }}
+            <span class="for">{{ p.note }}</span>
+          </button>
+        </sc-for>
+      </div>
+    </sc-if>
+
+    <!-- CREW: everyone you can reach, what each last said, and the way home.
+         HAIL and PARTY merged - an audience picker and a roster were the same list. -->
+    <sc-if value="{{ isCrew }}" hint-placeholder-val="{{ false }}">
+      <div class="app-head">
+        <h2>Crew</h2>
+        <div class="rule"></div>
+        <button class="back" onClick="{{ close }}">BACK</button>
+      </div>
+      <div class="site">{{ siteLine }}</div>
+      <div class="callers">
+        <sc-for list="{{ callers }}" as="c" hint-placeholder-count="4">
+          <div class="caller {{ c.kind }}">
+            <div class="top">
+              <span class="n">{{ c.name }}</span>
+              <span class="j">{{ c.job }}</span>
+              <span class="cnt {{ c.mine }}">{{ c.count }}</span>
+            </div>
+            <div class="r">{{ c.room }}</div>
+            <p class="said {{ c.quiet }}">{{ c.said }} <span class="ago">{{ c.ago }}</span></p>
+            <div class="acts2">
+              <sc-for list="{{ c.acts }}" as="a" hint-placeholder-count="2">
+                <button class="{{ a.kind }}" onClick="{{ a.go }}">{{ a.label }}</button>
+              </sc-for>
+            </div>
+          </div>
+        </sc-for>
+      </div>
+      <div class="more">{{ moreText }}</div>
+    </sc-if>
+
+    <!-- SCAN: a handful of lines and a sentence. Length lives on the ePADD. -->
+    <sc-if value="{{ isSheet }}" hint-placeholder-val="{{ false }}">
+      <div class="app-head">
+        <h2>{{ sheetName }}</h2>
+        <div class="rule"></div>
+        <button class="back" onClick="{{ close }}">BACK</button>
+      </div>
+      <div class="read">
+        <sc-for list="{{ readout }}" as="r" hint-placeholder-count="4">
+          <div class="line"><span class="k">{{ r.k }}</span><span class="v {{ r.tone }}">{{ r.v }}</span></div>
+        </sc-for>
+      </div>
+      <div class="say">
+        <p class="quiet">{{ sheetNote }}</p>
+      </div>
+    </sc-if>
+
+    <!-- FIRE: arm, pick a setting, then click the map. Armed reaches the bar above. -->
+    <sc-if value="{{ isFire }}" hint-placeholder-val="{{ false }}">
+      <div class="app-head">
+        <h2>Fire</h2>
+        <div class="rule"></div>
+        <button class="back" onClick="{{ close }}">BACK</button>
+      </div>
+      <div class="arm">
+        <div class="state {{ armedClass }}">{{ armedText }}</div>
+        <div class="setting">
+          <sc-for list="{{ settings }}" as="s" hint-placeholder-count="3">
+            <button class="{{ s.cls }}" onClick="{{ s.go }}">{{ s.name }}</button>
+          </sc-for>
+        </div>
+        <p class="effect">{{ effect }}</p>
+        <div class="read">
+          <div class="line"><span class="k">Range</span><span class="v">6 cells</span></div>
+          <div class="line"><span class="k">In reach</span><span class="v">hatch mechanism</span></div>
+          <div class="line"><span class="k">Also in reach</span><span class="v hurt">Marek Sol</span></div>
+        </div>
+      </div>
+      <p class="warnline">{{ warn }}</p>
+      <div class="spacer"></div>
+      <button class="go" onClick="{{ toggleArm }}">{{ armButton }}</button>
+    </sc-if>
+
+  </div>
+</div>
+</x-dc>
+<script data-dc-script data-props='{"$preview":{"width":640,"height":1080}}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    // `open` is which app is up; null is the tile sheet. A real beat OPENS act by
+    // itself - that is modelled here by starting on the tiles with the badge lit,
+    // so both halves of the decision are visible on one artboard.
+    // `sent` is how many lines this console has sent back. It is here so pressing a
+    // send button visibly becomes the newest thing in HAIL - the app reads the inbox,
+    // it does not keep a separate outbox.
+    this.state = { open: null, beat: 'hatch', armed: false, setting: 'stun',
+                   sent: 0, readAt: 0 };
+  }
+
+  // Newest first, the way `message_inbox(console)` returns it.
+  inbox() {
+    const base = [
+      { from: 'Artemis', subject: 'Ultra-Beam', when: '40 s ago',
+        text: 'We have you at two. Say again on the hatch - was it forced?' },
+      { from: 'Marek Sol', subject: 'Party', when: '3 min ago',
+        text: 'Reactor gallery is warm. Warmer than the corridor by twenty degrees.' },
+      { from: 'Artemis', subject: 'Ultra-Beam', when: '6 min ago',
+        text: 'Transporter lock is good. Four seats, three of you down.' },
+    ];
+    const mine = [];
+    for (let i = 0; i < this.state.sent; i += 1) {
+      mine.push({ from: 'You', subject: 'Sent', when: 'just now',
+                  text: 'Standing by. Nothing has changed down here.' });
+    }
+    return mine.concat(base);
+  }
+
+  beats() {
+    return {
+      hatch: {
+        at: 'Entry Corridor',
+        line: 'Your breath is visible. A body lies half through the inner hatch, and the hatch was opened from the inside.',
+        picks: [
+          { label: 'Kneel by the body at the hatch', note: '', go: 'body' },
+          { label: 'Read the corridor thermals', note: 'covering for Chief Ruiz', go: 'cold' },
+          { label: 'Move further in', note: '', go: 'lab' },
+        ],
+      },
+      body: {
+        at: 'Entry Corridor',
+        line: 'Station coveralls, no insignia, and no sign of a struggle. Whoever this was, they were leaving.',
+        picks: [
+          { label: 'Take a scan for the survey log', note: '', go: 'cold' },
+          { label: 'Leave them and move further in', note: '', go: 'lab' },
+        ],
+      },
+      cold: {
+        at: 'Entry Corridor',
+        line: 'The corridor has been at four degrees for eleven days. Nothing here died of the cold.',
+        picks: [
+          { label: 'Move further in', note: '', go: 'lab' },
+        ],
+      },
+      lab: {
+        at: 'Sample Lab',
+        line: 'Containment on bench three has failed. The gel is cold and the seal was opened from the inside.',
+        picks: [
+          { label: 'Examine the containment gel', note: '', go: 'lab' },
+          { label: 'Read the sample manifest', note: '', go: 'lab' },
+          { label: 'Go down to the reactor gallery', note: '', go: 'hatch' },
+        ],
+      },
+    };
+  }
+
+  renderVals() {
+    const beats = this.beats();
+    const beat = beats[this.state.beat] || beats.hatch;
+    const open = this.state.open;
+    const armed = this.state.armed;
+
+    const mk = (id, name, blurb, path, badge, hot) => ({
+      id, name, blurb, path, badge: badge || '', hot: hot ? 'hot' : '',
+      tint: id === 'fire' ? '#9ab' : '#8cf',
+      // Opening CREW marks the inbox read, the way `message_mark_read` does - so the
+      // badge is cleared by the act of looking, not by a second gesture.
+      open: () => this.setState(
+        id === 'crew' ? { open: id, readAt: this.inbox().length } : { open: id }),
+    });
+
+    const mail = this.inbox();
+    // Unread is the tile's badge, exactly as `message_unread(console)` feeds the
+    // PADD's.
+    const unread = Math.max(0, mail.length - this.state.readAt);
+
+    const tiles = [
+      mk('crew', 'CREW', 'Artemis, and 2 down here',
+         'M9 11a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM3 20a6 6 0 0 1 12 0M17 11a3 3 0 1 0 0-6M16 20h5a5 5 0 0 0-4-4.9',
+         unread ? unread + ' new' : ''),
+      mk('scan', 'SCAN', 'Read the room you are in',
+         'M12 3v3M12 18v3M3 12h3M18 12h3M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8z', ''),
+      mk('act', 'ACT', 'What you can do here',
+         'M5 12l5 5L19 7', beat.picks.length + ' here', true),
+      mk('fire', 'FIRE', 'Arm, then click the map',
+         'M5 14h9l5-4-5-4H5zM5 14v6', armed ? 'ARMED' : '', armed),
+    ];
+
+    const sheets = {
+      scan: {
+        name: 'Scan',
+        note: 'Filed to the survey log. The ePADD holds every reading the party has taken.',
+        rows: [
+          { k: 'Room', v: beat.at, tone: '' },
+          { k: 'Condition', v: 'damaged', tone: 'hurt' },
+          { k: 'Temperature', v: '4 C', tone: 'hurt' },
+          { k: 'Atmosphere', v: 'breathable', tone: 'ok' },
+          { k: 'Lifesigns', v: '1 - you', tone: '' },
+        ],
+      },
+    };
+    const sheet = sheets[open] || null;
+
+    // The roster IS the inbox, grouped by who said it. Each row's last line is simply
+    // the newest message whose `from` is that name - free, because every message
+    // already carries one.
+    const say = () => this.setState({ sent: this.state.sent + 1,
+                                      readAt: this.inbox().length + 1 });
+    const newestFrom = (name) => mail.find((m) => m.from === name) || null;
+    const seenAfter = mail.length - unread;
+    const row = (name, job, room, kind, acts) => {
+      const m = newestFrom(name);
+      const fresh = m ? mail.indexOf(m) < unread : false;
+      return {
+        name, job, room: room || '', kind: kind || '',
+        said: m ? m.text : 'Nothing said yet.',
+        quiet: m ? '' : 'quiet',
+        ago: m ? m.when.replace(' ago', '') : '',
+        count: kind === 'you' ? '(you)' : (fresh ? 'new' : ''),
+        mine: kind === 'you' ? 'me' : '',
+        acts: acts || [],
+      };
+    };
+
+    const callers = [
+      // THE SHIP IS A ROW, and it is the row that carries BEAM UP.
+      row('Artemis', 'ship', '', 'ship', [
+        { label: 'REPORT IN', kind: '', go: say },
+        { label: 'BEAM UP', kind: 'home', go: () => {} },
+      ]),
+      row('Ume Mbeki', 'comms', beat.at, 'you', []),
+      row('Marek Sol', 'engineer', 'Reactor Gallery', '', [
+        { label: 'CALL MAREK', kind: '', go: say },
+      ]),
+      row('Ana Ruiz', 'chief', 'Entry Corridor', '', [
+        { label: 'CALL ANA', kind: '', go: say },
+      ]),
+      row('Everyone', 'all channels', '', '', [
+        { label: 'CALL FOR HELP', kind: '', go: say },
+      ]),
+    ];
+
+    return {
+      at: armed ? 'ARMED - ' + this.state.setting.toUpperCase() : beat.at,
+      line: beat.line,
+      tiles,
+      home: !open,
+      isAct: open === 'act',
+      isCrew: open === 'crew',
+      isSheet: !!sheet,
+      isFire: open === 'fire',
+      picks: beat.picks.map((p) => ({
+        label: p.label,
+        note: p.note ? '(' + p.note + ')' : '',
+        take: () => this.setState({ beat: p.go, open: null }),
+      })),
+      siteLine: 'Erebus Outpost - 3 of 4 down',
+      callers,
+      moreText: seenAfter > 1 ? (seenAfter - 1) + ' older on the ePADD'
+                              : 'Nothing older waiting',
+      sheetName: sheet ? sheet.name : '',
+      sheetNote: sheet ? sheet.note : '',
+      readout: sheet ? sheet.rows : [],
+      armedClass: armed ? 'live' : '',
+      armedText: armed ? 'ARMED - ' + this.state.setting.toUpperCase() : 'SAFE',
+      armButton: armed ? 'MAKE SAFE' : 'ARM',
+      warn: armed ? 'The next click on the map is a shot. One shot, then safe.' : '',
+      settings: [
+        { key: 'stun', name: 'STUN' },
+        { key: 'cut', name: 'CUT' },
+        { key: 'full', name: 'FULL' },
+      ].map((s) => ({
+        name: s.name,
+        cls: (s.key === 'full' ? 'full ' : '') + (this.state.setting === s.key ? 'on' : ''),
+        go: () => this.setState({ setting: s.key }),
+      })),
+      effect: {
+        stun: 'Stops a person. Does nothing at all to a door, a panel or a bulkhead.',
+        cut: 'Opens a thing - a hatch, a weld, a lock. Lethal to a person, because a cutting beam is.',
+        full: 'Destroys what it hits, whatever that is. The only setting that is a weapon and nothing else.',
+      }[this.state.setting],
+      toggleArm: () => this.setState({ armed: !armed }),
+      close: () => this.setState({ open: null }),
+    };
+  }
+}
+</script>
+</body>
+</html>

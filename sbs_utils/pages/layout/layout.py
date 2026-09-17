@@ -1,7 +1,8 @@
 from ...gui import get_client_aspect_ratio
 from ...helpers import FrameContext
 from ...message_chain import invoke_message_cb
-from ...mast.parsers import LayoutAreaParser, ContentSize, MIN_CONTENT, AUTO
+from ...mast.parsers import (LayoutAreaParser, ContentSize, MIN_CONTENT, AUTO,
+                             flex_weight)
 
 from enum import IntEnum
 from .bounds import Bounds, is_out_of_bounds
@@ -117,6 +118,30 @@ def resolved_size(value):
     a subtraction.
     """
     return None if value.__class__ is ContentSize else value
+
+
+def _row_weight(row):
+    """How many shares of the leftover height this row asks for.
+
+    1 for every row that does not say `Nfr`, which is what makes weighted flex
+    free: an even split IS a weighted split when every weight is 1, so no
+    existing layout moves by a pixel.
+    """
+    h = getattr(row, "default_height", None)
+    return flex_weight(h) if h.__class__ is ContentSize else 1.0
+
+
+def _col_weight(col, row):
+    """The column twin of :func:`_row_weight`.
+
+    Reads the column's OWN `col-width` only. A weight must not cascade the way a
+    plain `col-width` does: a section saying `col-width: 2fr` means "I take two
+    shares in MY row", and giving that to every column inside it would multiply
+    every child by two - which, since they all share one row, is the same layout
+    and a slower one.
+    """
+    w = getattr(col, "default_width", None)
+    return flex_weight(w) if w.__class__ is ContentSize else 1.0
 
 
 def cascade_attribute(name, col, row, sec):
@@ -621,6 +646,7 @@ class Layout(Clickable):
         squares = 0
         assigned_space = 0
         assigned_cols = 0
+        flex_weight_total = 0.0   # shares asked for by the columns still in the pool
         # Allocated only if a content column is actually seen. calc runs on
         # every repaint, so a layout using no content keywords should not pay
         # two list allocations per row for the privilege of the feature
@@ -714,6 +740,12 @@ class Layout(Clickable):
             if default_width is not None:
                 assigned_space += default_width
                 assigned_cols += 1
+            else:
+                # Still flex: bank its shares. A plain flex column weighs 1, so
+                # `flex_weight_total` equals the flex column COUNT for every
+                # layout that does not use `Nfr` - which is how this stays a
+                # no-op for all of them.
+                flex_weight_total += 0.0 if col.square else _col_weight(col, row)
             actual_cols.append(col)
             fixed_widths.append(default_width)
 
@@ -759,7 +791,11 @@ class Layout(Clickable):
             square_height = (actual_width/aspect_ratio.y) * 100
 
         if len(actual_cols) != squares:
-            need_assigned = max(len(actual_cols)-squares-assigned_cols,1)
+            # IN SHARES, not in columns. `flex_weight_total` is the column count
+            # for any row that does not use `Nfr`, so this is the same
+            # expression it has always been for every existing layout - and
+            # `rect_col_width` becomes the width of ONE SHARE.
+            need_assigned = max(flex_weight_total, 1.0)
             rect_col_width = (row_bounds_area.width-assigned_space-(squares*square_width))/need_assigned
             if square_width> rect_col_width:
                 # Squares would be wider than a flex column, so shrink them to
@@ -789,7 +825,10 @@ class Layout(Clickable):
         # Fill the flex slots in place rather than building a second list.
         for i, w in enumerate(fixed_widths):
             if w is None:
-                fixed_widths[i] = rect_col_width
+                col = actual_cols[i]
+                # A square is sized from the row height, never from a share.
+                fixed_widths[i] = (rect_col_width if col.square
+                                   else rect_col_width * _col_weight(col, row))
 
         if auto_floor:
             self._raise_flex_to_floors(actual_cols, fixed_widths, auto_floor,
@@ -987,7 +1026,17 @@ class Layout(Clickable):
                 layout_row_height = section_height
             else:
                 layout_row_height = bounds_area.height
-                flex_rows = len(rows)
+                # THE FLEX POOL IS MEASURED IN SHARES, NOT IN ROWS. Every row
+                # weighs 1 unless it says `Nfr`, so a section of plain flex rows
+                # divides exactly as it always did - an even split IS a weighted
+                # split when every weight is 1. `layout_row_height` below is
+                # therefore the height of ONE SHARE, and a row takes its weight
+                # of them.
+                flex_rows = 0.0
+                row_weights = {}
+                for row in rows:
+                    row_weights[id(row)] = _row_weight(row)
+                    flex_rows += row_weights[id(row)]
                 fixed_total = 0.0
                 for row in rows:
                     row_font = self.default_font
@@ -1025,7 +1074,8 @@ class Layout(Clickable):
                     if value is not None:
                         layout_row_height -= value
                         fixed_total += value
-                        flex_rows -= 1
+                        # It left the pool, so its shares leave with it.
+                        flex_rows -= row_weights[id(row)]
 
                 #
                 # Content rows are requests, not reservations. If they and the
@@ -1083,6 +1133,7 @@ class Layout(Clickable):
                                 if id(r) not in content_heights
                                 and (r.default_height is None
                                      or r.default_height.__class__ is ContentSize)]
+                    w_by_id = {id(r): _row_weight(r) for r in rows}
                     floors = {k: auto_row_floor.get(k, 0.0) for k in flex_ids}
                     total_floor = sum(floors.values())
 
@@ -1100,19 +1151,28 @@ class Layout(Clickable):
                             content_heights[k] = floors[k] * scale
                         layout_row_height = 0.0
                     else:
+                        # WATER-FILLING BY SHARES. `share` is the height of ONE
+                        # share, so a row's own space is `share * its weight` -
+                        # which is what its floor has to be tested against, or a
+                        # 2fr row would be frozen at its floor while still
+                        # entitled to twice a 1fr row's space.
                         frozen = {}
                         pool = list(flex_ids)
+                        weights = {k: w_by_id.get(k, 1.0) for k in flex_ids}
                         space = avail
                         while pool:
-                            share = space / len(pool)
-                            over = [k for k in pool if floors[k] > share]
+                            total_w = sum(weights[k] for k in pool) or 1.0
+                            share = space / total_w
+                            over = [k for k in pool
+                                    if floors[k] > share * weights[k]]
                             if not over:
                                 break
                             for k in over:
                                 frozen[k] = floors[k]
                                 space -= floors[k]
                                 pool.remove(k)
-                        share = (space / len(pool)) if pool else 0.0
+                        total_w = sum(weights[k] for k in pool)
+                        share = (space / total_w) if total_w > 0 else 0.0
                         for k in frozen:
                             content_heights[k] = frozen[k]
                         layout_row_height = share
@@ -1141,7 +1201,10 @@ class Layout(Clickable):
                 if row_height is None and row.default_height is not None:
                     row_height = resolved_size(calc_float_attribute("default_height", None, row, None,  aspect_ratio.y, row_font_height))
                 if row_height is None:
-                    row_height = layout_row_height
+                    # ONE SHARE TIMES ITS WEIGHT. `layout_row_height` is the
+                    # height of a single share, so a plain flex row (weight 1)
+                    # gets exactly what it always got.
+                    row_height = layout_row_height * _row_weight(row)
 
                 row_bounds_area = Bounds(bounds_area)
                 # row_bounds_area.height = row_height

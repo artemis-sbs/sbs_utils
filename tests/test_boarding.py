@@ -18,6 +18,7 @@ from sbs_utils.spaceobject import SpaceObject
 from sbs_utils.procedural.lifeform import lifeform_spawn
 from sbs_utils.procedural import amd_dialogue as D
 from sbs_utils.procedural import boarding as A
+from sbs_utils.procedural.roles import add_role, has_role
 
 
 # One scene, four choices: three role-gated, one open to anybody.
@@ -127,6 +128,98 @@ class AwayJobTests(_AwayBase):
         blank = lifeform_spawn("Nobody", "terran", "boarding")
         self.assertEqual(A.boarding_job_text(blank), "")
         self.assertEqual(A.boarding_job_text(blank, default="watching"), "watching")
+
+
+class TheRankIsNotSaidTwice(_AwayBase):
+    """A roster carries `rank` and `name` as separate fields, and a mission is free to
+    put a short rank in the name as well - "Lt Mira Okonkwo" reads correctly on a bridge
+    and is exactly what a person would type. Prefixing the long rank onto it produced
+    "Lieutenant Lt Mira Okonkwo" on the crew console."""
+
+    def test_a_short_rank_already_in_the_name_is_not_doubled(self):
+        self.assertEqual("Lt Mira Okonkwo",
+                         A.boarding_full_name("Lt Mira Okonkwo", "Lieutenant"))
+
+    def test_nor_is_the_rank_written_out_in_full(self):
+        self.assertEqual("Lieutenant Mira Okonkwo",
+                         A.boarding_full_name("Lieutenant Mira Okonkwo", "Lieutenant"))
+
+    def test_a_rank_that_is_NOT_in_the_name_is_still_added(self):
+        self.assertEqual("Lieutenant Mira Okonkwo",
+                         A.boarding_full_name("Mira Okonkwo", "Lieutenant"))
+
+    def test_it_copes_with_a_full_stop(self):
+        self.assertEqual("Lt. Mira", A.boarding_full_name("Lt. Mira", "Lieutenant"))
+
+    def test_other_abbreviations_too(self):
+        for short, long in (("Cmdr", "Commander"), ("Capt", "Captain"),
+                            ("Ens", "Ensign")):
+            self.assertEqual("%s Vale" % short,
+                             A.boarding_full_name("%s Vale" % short, long))
+
+    def test_a_name_that_merely_starts_with_another_word_is_left_alone(self):
+        """An unrelated first word must not suppress the rank."""
+        self.assertEqual("Lieutenant Mira Lt", A.boarding_full_name("Mira Lt",
+                                                                   "Lieutenant"))
+
+    def test_the_abbreviation_is_a_SUBSEQUENCE_not_a_prefix(self):
+        """The first rule tried was a prefix test, and it matched nothing that
+        matters: naval abbreviations drop internal letters, so "Lt" is not a prefix of
+        "Lieutenant". This is the case that told me."""
+        self.assertEqual("Lt Mira", A.boarding_full_name("Lt Mira", "Lieutenant"))
+        self.assertFalse("Lieutenant".lower().startswith("lt"))
+
+    def test_a_multi_word_rank(self):
+        self.assertEqual("Lt. Cmdr Sorel",
+                         A.boarding_full_name("Lt. Cmdr Sorel", "Lt. Commander"))
+
+    def test_THE_KNOWN_LIMIT_is_a_missing_rank_not_a_doubled_one(self):
+        """Stated rather than hidden: a given name that happens to abbreviate the rank
+        collides - "Lena" is a subsequence of "Lieutenant". The rule cannot tell them
+        apart without a table of ranks, and there cannot be one, because `rank` is free
+        text a mission writes. Pinned so the tradeoff is a decision somebody made and
+        not a surprise."""
+        self.assertEqual("Lena Okonkwo",
+                         A.boarding_full_name("Lena Okonkwo", "Lieutenant"))
+
+    def test_no_rank_is_just_the_name(self):
+        self.assertEqual("Mira", A.boarding_full_name("Mira", ""))
+
+
+class AJobIsWhatYouWereCastAs(_AwayBase):
+    """A mission adds roles to an away body to carry STATE a scene guards on -
+    LandingParty does `add_role(lp_body, "briefed")` so its AMD can ask
+    `if briefed >= 1`. Those are guard words, not jobs, and printed as jobs they read
+    as nonsense: the crew console said "briefed, helm" under a crew member's name."""
+
+    def _cast(self, *roles):
+        from sbs_utils.procedural.inventory import set_inventory_value
+        who = lifeform_spawn("Mira", "terran_female", ",".join(("boarding",) + roles))
+        set_inventory_value(who, A.JOBS_KEY, list(roles))
+        return who
+
+    def test_a_role_added_LATER_is_not_a_job(self):
+        who = self._cast("science")
+        add_role(who, "briefed")
+        self.assertEqual(["science"], A.boarding_jobs(who))
+
+    def test_what_it_was_cast_with_still_is(self):
+        who = self._cast("science", "medical")
+        add_role(who, "briefed")
+        self.assertEqual(["medical", "science"], A.boarding_jobs(who))
+
+    def test_the_GUARD_still_sees_the_added_role(self):
+        """The whole point of the split. Jobs are for READING; guards read ROLES, and
+        a mission's state role has to keep working or its endings break."""
+        who = self._cast("science")
+        add_role(who, "briefed")
+        self.assertTrue(has_role(who, "briefed"))
+
+    def test_a_body_with_no_record_falls_back_to_its_roles(self):
+        """Nothing a mission spawns by hand has to change, and nothing that worked
+        stops working."""
+        who = lifeform_spawn("Vale", "terran_male", "boarding,security")
+        self.assertEqual(["security"], A.boarding_jobs(who))
 
 
 class AwayChoiceFilteringTests(_AwayBase):

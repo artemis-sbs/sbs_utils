@@ -95,10 +95,69 @@ def gui_tab_enable(tab_name: str):
         tabs[tab_name] = True
     set_inventory_value(client_id, "console_tabs", tabs)
     
+# --- where Back goes for somebody who is not on their ship ----------------------------
+#
+# A boarded console's Back used to walk the crew member to Helm, with their character
+# still standing on a planet. Fixing it at the CALL SITES means four `gui_tab_back` calls
+# in LM's `consoles/epadd.mast` and ten more across the rest of it, and "the guard existed
+# in the page and had been applied in one place only" is a mistake this codebase has
+# already made and written down (`epadd.py:_console_identity`). So it is fixed HERE, at
+# the one choke point that writes `__back_tab__`, the same argument `gui_tab_activate`
+# makes for ending the PADD in one place: doing it here means nothing has to remember to.
+#
+# INSTALLED, NOT ASSUMED. The library cannot declare a `//gui/tab` - routes are MAST - so
+# the substitution is armed by whichever addon owns the crew console, naming the tab it
+# declared. Nothing installed means no substitution and the old behaviour, which matters:
+# substituting unconditionally would send Back to a tab with no route behind it, and a
+# dead Back is no better than one that goes to the wrong place.
+_BOARDING_BACK_TAB = None
+
+
+def gui_tab_back_while_boarded(tab_name=None):
+    """Name the tab a BOARDED console's Back should go to, or clear it with ``None``.
+
+    Called once by the addon that declares that tab::
+
+        gui_tab_back_while_boarded("boarding_crew")
+
+        //gui/tab/boarding_crew
+            jump boarding_crew_console
+
+    Returns:
+        str | None: the name now installed.
+    """
+    global _BOARDING_BACK_TAB
+    name = tab_name.strip().lower() if isinstance(tab_name, str) and tab_name.strip() \
+        else None
+    _BOARDING_BACK_TAB = name
+    return _BOARDING_BACK_TAB
+
+
+def gui_tab_boarded_back_tab():
+    """The tab a boarded console's Back goes to, or None when nothing installed one."""
+    return _BOARDING_BACK_TAB
+
+
+def _back_tab_for(client_id, tab_name):
+    """Substitute the crew console for whatever a boarded console was asked for."""
+    if _BOARDING_BACK_TAB is None:
+        return tab_name
+    if tab_name.strip().lower() == _BOARDING_BACK_TAB:
+        return tab_name                     # already there; do not recurse into itself
+    try:
+        from ..boarding import boarding_clients
+    except Exception:                       # noqa: BLE001 - a mission with no boarding
+        return tab_name
+    return _BOARDING_BACK_TAB if client_id in boarding_clients() else tab_name
+
+
 def gui_tab_back(tab_name: str):
     """Sets the back tab (left most) tab for the console tabs.
     The back tag is set by //gui/tab and //console labels
     This allows overriding
+
+    A console that is currently BOARDED goes back to the crew console instead, whatever
+    the caller asked for - see the comment above. Nothing to do at the call sites.
 
     Args:
         tab_name (str): The path of a //gui/tab
@@ -106,6 +165,7 @@ def gui_tab_back(tab_name: str):
     client_id = _tab_client_id()
     if not isinstance(tab_name, str) or not tab_name.strip():
         return                      # see gui_tab_enable: an unset variable, not a crash
+    tab_name = _back_tab_for(client_id, tab_name)
     gui_tab_enable(tab_name)
     set_inventory_value(client_id, "__back_tab__", tab_name)
 

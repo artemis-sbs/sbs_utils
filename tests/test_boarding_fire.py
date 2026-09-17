@@ -151,10 +151,12 @@ class WhatAShotHits(_FireBase):
         B.boarding_take(B_CID, fig, self.site)
         return who, fig
 
-    def test_a_person_loses_a_hit_point(self):
+    def test_cut_costs_a_person_a_hit_point(self):
+        """CUT is lethal because a cutting beam is - one point at a time. ARMED WITH CUT
+        EXPLICITLY: the default is STUN, which by design costs nothing."""
         from sbs_utils.procedural.internal_damage import grid_get_max_hp
         who, fig = self._victim()
-        B.boarding_arm(A_CID)
+        B.boarding_arm(A_CID, B.SETTING_CUT)
         self.assertTrue(B.boarding_fire(A_CID, self.x + 1, self.y))
         self.assertEqual(grid_get_max_hp() - 1, get_inventory_value(fig, "HP", None))
 
@@ -164,7 +166,7 @@ class WhatAShotHits(_FireBase):
         from sbs_utils.procedural.internal_damage import grid_set_hp
         who, fig = self._victim()
         grid_set_hp(self.site.id, to_id(fig), 1)
-        B.boarding_arm(A_CID)
+        B.boarding_arm(A_CID, B.SETTING_CUT)
         B.boarding_fire(A_CID, self.x + 1, self.y)
         self.assertIn("life_form_died", [n for n, _ in self.fired])
         self.assertIsNone(to_object(fig))
@@ -184,6 +186,86 @@ class WhatAShotHits(_FireBase):
         B.boarding_arm(A_CID, B.SETTING_STUN)
         B.boarding_fire(A_CID, int(at[0]), int(at[1]))
         self.assertFalse(has_role(node, "__damaged__"))
+
+
+class TheSettingsAreALadder(_FireBase):
+    """Stop a person, open a thing, destroy it.
+
+    The third setting exists so that killing somebody is a NAMED CHOICE rather than
+    something that falls out of pointing a cutting tool at them. These tests are what
+    stop the three collapsing back into "more damage" - each one asserts a difference a
+    crew member can see.
+    """
+
+    def _victim(self):
+        who = lifeform_spawn("Ensign Vale", "terran_male", "boarding,science")
+        fig = B.boarding_figure_spawn(self.site, who, self.x + 1, self.y)
+        B.boarding_take(B_CID, fig, self.site)
+        return who, fig
+
+    def _node(self):
+        node = next(iter(grid_objects(self.site.id) & any_role(B.boarding_room_roles())))
+        at = grid_pos_data(node)
+        return node, int(at[0]), int(at[1])
+
+    def test_stun_takes_NO_hit_points(self):
+        """There is no stun model anywhere in the game - no duration, no recovery. So a
+        stun REPORTS and changes nothing, and what being stunned means is the mission's.
+        Quietly taking a point instead would be inventing a combat system nobody asked
+        for, in the one setting that is supposed to be safe."""
+        from sbs_utils.procedural.internal_damage import grid_get_max_hp
+        who, fig = self._victim()
+        B.boarding_arm(A_CID, B.SETTING_STUN)
+        self.assertTrue(B.boarding_fire(A_CID, self.x + 1, self.y))
+        # Read with the same default `_hurt` uses: HP is not written at all until
+        # something takes one, so this asserts nothing was written.
+        self.assertEqual(grid_get_max_hp(),
+                         get_inventory_value(fig, "HP", grid_get_max_hp()))
+        self.assertIsNotNone(to_object(fig), "a stun killed somebody")
+
+    def test_full_takes_them_all_at_once(self):
+        """The difference between CUT and FULL is the FIGURE, and that is the whole
+        claim FULL makes. A full-power shot does not whittle."""
+        who, fig = self._victim()
+        B.boarding_arm(A_CID, B.SETTING_FULL)
+        B.boarding_fire(A_CID, self.x + 1, self.y)
+        self.assertIn("life_form_died", [n for n, _ in self.fired])
+        self.assertIsNone(to_object(fig))
+
+    def test_full_damages_a_node_that_cut_would_only_open(self):
+        node, nx, ny = self._node()
+        B.boarding_arm(A_CID, B.SETTING_FULL)
+        B.boarding_fire(A_CID, nx, ny)
+        self.assertTrue(has_role(node, "__damaged__"))
+
+    def test_full_says_DESTROYED_so_a_mission_can_act(self):
+        """CUT and FULL only differ once something reads the setting, so the signal says
+        it outright rather than making every mission re-derive it."""
+        who, fig = self._victim()
+        B.boarding_arm(A_CID, B.SETTING_FULL)
+        B.boarding_fire(A_CID, self.x + 1, self.y)
+        flags = [d.get("XESS_DESTROYED") for n, d in self.fired if n == "xess_fired"]
+        self.assertIn(True, flags)
+
+    def test_cut_does_NOT_say_destroyed(self):
+        who, fig = self._victim()
+        B.boarding_arm(A_CID, B.SETTING_CUT)
+        B.boarding_fire(A_CID, self.x + 1, self.y)
+        flags = [d.get("XESS_DESTROYED") for n, d in self.fired if n == "xess_fired"]
+        self.assertNotIn(True, flags)
+
+    def test_a_REFUSED_full_shot_destroys_nothing(self):
+        """`XESS_DESTROYED` is about what was hit, not about what was intended."""
+        B.boarding_arm(A_CID, B.SETTING_FULL)
+        B.boarding_fire(A_CID, self.x + B.FIRE_RANGE + 1, self.y)
+        flags = [d.get("XESS_DESTROYED") for n, d in self.fired if n == "xess_fired"]
+        self.assertNotIn(True, flags)
+
+    def test_every_setting_has_words_for_what_it_does(self):
+        """The device shows these BEFORE arming - a setting whose effect you have to
+        guess is the same problem as inferring it from the target."""
+        for setting in B.boarding_settings():
+            self.assertTrue(B.boarding_setting_text(setting).strip(), setting)
 
 
 class TwoConsolesArmIndependently(_FireBase):

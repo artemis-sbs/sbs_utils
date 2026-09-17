@@ -6,16 +6,17 @@ the page across the network to that console, and a watcher does it forever. It i
 how a screen gets caught mid-build - reported from play as "it repaints empty" and "there
 are two list boxes".
 
-These tests cover the parts that can be driven without a live page: the per-console
-revision, the fallbacks for a console with no character, and - as SOURCE assertions - the
-two structural rules that are invisible until a real console draws. `gui_layout_widget`
-in a row with MAST controls does not overlap them, it makes them vanish; and drawing any
-of the three selection-following grid widgets would make each person's portrait follow
-whoever clicked last.
+TWO BANDS NOW, NOT THREE. The column is an identity bar and one app area, because every
+one of the device's functions is an app - answering the scene and leaving the surface
+included. The three-band version needed a reserve row whose height had to equal two
+pinned regions added together, and most of the geometry tests in this file used to guard
+that arithmetic. They are gone with the arithmetic: what is left is the one property that
+still matters, which is that the two bands are ADJACENT and share an edge by
+construction.
 
 WHAT IS NOT COVERED HERE, and should be said rather than implied: nothing in this file
 builds the screen for real, so "the tick updates instead of repainting" is asserted by
-construction (the `on change` calls a function, `gui_rebuild` touches only the actions
+construction (the `on change` calls a function; `gui_rebuild` touches only the app
 region) rather than measured. Counting `page.pending_layouts` either side of a tick would
 measure it, and needs a driven page - `reference_drive_a_mast_panel_headless` is the
 recipe. Until then the browser pass is what proves the layout.
@@ -40,6 +41,7 @@ from sbs_utils.procedural.query import to_id, to_object
 from sbs_utils.procedural.spawn import npc_spawn, player_spawn
 
 CID = 0x8000000000000001
+OTHER = 0x8000000000000002
 
 
 class _ConsoleBase(unittest.TestCase):
@@ -62,15 +64,15 @@ class _ConsoleBase(unittest.TestCase):
 
     def tearDown(self):
         B.boarding_site_clear()
+        X.xess_clear()
 
 
 class ItBuilds(_ConsoleBase):
     def test_the_revision_is_per_console_not_global(self):
         """One crew member answering must not repaint the other five screens."""
-        other = 0x8000000000000002
-        GuiClient(other)
+        GuiClient(OTHER)
         self.assertNotEqual(C.boarding_console_revision(CID),
-                            C.boarding_console_revision(other))
+                            C.boarding_console_revision(OTHER))
 
     def test_the_revision_moves_when_the_character_moves(self):
         before = C.boarding_console_revision(CID)
@@ -80,19 +82,19 @@ class ItBuilds(_ConsoleBase):
         self.assertNotEqual(before, C.boarding_console_revision(CID))
 
     def test_it_says_where_you_are_standing(self):
-        where = C._where_text(CID)
+        where = C.where_text(CID)
         self.assertTrue(where)
         self.assertNotEqual("aboard", where, "a figure on the interior has a place")
 
     def test_a_console_with_no_body_still_answers(self):
-        """The panel must draw for an observer, not raise. A console watching without a
+        """The column must draw for an observer, not raise. A console watching without a
         character is an ordinary state - it is what the main screen is."""
-        self.assertEqual("aboard", C._where_text(0x8000000000000009))
+        self.assertEqual("aboard", C.where_text(0x8000000000000009))
 
-    def test_who_falls_back_rather_than_raising(self):
-        who, name, job = C._who(0x8000000000000009)
-        self.assertIsNone(who)
+    def test_the_identity_falls_back_rather_than_raising(self):
+        name, job, at = X._identity(0x8000000000000009)
         self.assertEqual("Observer", name)
+        self.assertEqual("aboard", at)
 
 
 class ItUpdatesInPlace(_ConsoleBase):
@@ -110,14 +112,16 @@ class ItUpdatesInPlace(_ConsoleBase):
         """A handler can outlive the page that registered it. That must not raise."""
         FrameContext.page = None
         self.assertFalse(C.gui_boarding_console_tick())
+        self.assertFalse(X.gui_xess_tick())
 
     def test_the_tick_is_idempotent_when_nothing_changed(self):
         """Called every frame by an `on change`, so an unchanged revision must be free
         rather than doing the work again."""
         class _Page:
-            pass
+            client_id = CID
         page = _Page()
         setattr(page, C.VIEW, {"cid": CID, "rev": C.boarding_console_revision(CID)})
+        setattr(page, X.VIEW, {"cid": CID, "rev": X.xess_revision(CID)})
         FrameContext.page = page
         self.assertTrue(C.gui_boarding_console_tick())
 
@@ -146,276 +150,89 @@ class TheMapIsNeverInARowWithControls(unittest.TestCase):
                              "over it" % drawn)
 
 
-class TheFlowAndTheActionsNeverShareAPixel(unittest.TestCase):
+class TheTwoBandsShareAnEdge(unittest.TestCase):
     """The bug Doug reported as "text overlaps", pinned as geometry.
 
-    The first version ran the flow section to y=97 with the prose row declared `1fr` - so
-    it expanded to the bottom - and then pinned the choices region at y=60..97 ON TOP of
-    it. A region is positioned on an ABSOLUTE screen area, the engine does not clip, and a
-    TextArea clears only its own sub-region, so prose and buttons were painted into the
-    same pixels.
+    The first version ran the flow to the bottom of the screen and then pinned regions ON
+    TOP of it. A region is positioned on an ABSOLUTE screen area, the engine does not
+    clip, and a TextArea clears only its own sub-region, so two things were painted into
+    the same pixels.
 
-    The fix is the idiom `messages_gui` already proves: the flow's last row RESERVES the
-    band and the region is pinned to the SAME band, both stated once as one constant.
-    These tests assert they agree by construction rather than by coincidence.
+    With one region the whole class of bug reduces to one property: the bar ENDS exactly
+    where the app area BEGINS. These assert it holds by construction - both edges are
+    `APP_TOP_PX`, so they cannot drift - rather than by two numbers happening to match.
     """
 
-    def test_the_choices_region_is_pinned_to_its_own_band(self):
-        self.assertIn("100-%dpx" % C.ACTIONS_BAND_PX, C.boarding_actions_area(66))
+    def _edges(self, area):
+        """The four coordinates of an area string, as written."""
+        return [e.strip().rstrip(";")
+                for e in area.split(":", 1)[1].split(",")]
 
-    def test_the_reserve_keeps_the_flow_above_EVERY_region(self):
-        """Not just the choices - the device's readout is pinned below the flow too, so
-        reserving only the choices band would let the prose run under the device."""
-        self.assertIn("%dpx" % C.boarding_reserve_px(), C.boarding_actions_reserve())
-        self.assertGreater(C.boarding_reserve_px(), C.ACTIONS_BAND_PX)
+    def test_the_bar_ends_where_the_app_area_begins(self):
+        bar = self._edges(C.boarding_identity_area())
+        app = self._edges(C.boarding_app_area())
+        self.assertEqual(bar[3], app[1], "the bands do not share an edge")
 
-    def test_the_region_is_pinned_to_the_BOTTOM_not_a_guessed_percent(self):
-        """A percentage would only line up with the flow at one screen height."""
-        area = C.boarding_actions_area(66)
-        self.assertIn("100;", area, "the band must end at the bottom of the screen")
-        self.assertNotIn(",60,", area.replace(" ", ""))
+    def test_and_that_edge_is_the_ONE_constant(self):
+        """Two numbers that merely happen to be equal drift the first time one is
+        changed. They have to be the same symbol."""
+        self.assertIn("%dpx" % C.APP_TOP_PX, C.boarding_identity_area())
+        self.assertIn("%dpx" % C.APP_TOP_PX, C.boarding_app_area())
+        self.assertEqual(C.PANEL_TOP_PX + C.IDENTITY_PX, C.APP_TOP_PX)
 
-    def test_the_region_starts_where_the_map_ends(self):
+    def test_the_bands_are_measured_in_PX_not_percent(self):
+        """A percentage bar would be a different number of lines tall at every screen
+        height, and the text in it does not scale with the screen."""
+        bar = self._edges(C.boarding_identity_area())
+        self.assertTrue(bar[1].endswith("px"))
+        self.assertTrue(bar[3].endswith("px"))
+
+    def test_the_app_area_runs_to_the_BOTTOM(self):
+        self.assertTrue(C.boarding_app_area().rstrip(";").endswith("100"))
+
+    def test_both_bands_start_where_the_map_ends(self):
         for width in (50, 66, 80):
-            self.assertIn("area: %d," % (width + 1), C.boarding_actions_area(width))
+            C.gui_boarding_console.__globals__["_map_width"] = width
+            for area in (C.boarding_identity_area(), C.boarding_app_area()):
+                self.assertIn("area: %d," % (width + 1), area)
+        C.gui_boarding_console.__globals__["_map_width"] = C.MAP_WIDTH_DEFAULT
 
-    def test_the_builder_reserves_the_band_BEFORE_opening_the_region(self):
-        """Order matters: the row has to be in the flow, and the flow is done once the
-        region is opened."""
-        import inspect
-        src = inspect.getsource(C.gui_boarding_console)
-        reserve = src.index("boarding_actions_reserve()")
-        region = src.index("boarding_actions_area(")
-        self.assertLess(reserve, region)
-
-    def test_the_flow_section_runs_to_the_bottom(self):
-        """It must NOT stop short at a percentage - the reserved row is what keeps the
-        prose out, and a section that stops early just leaves a gap the region covers."""
-        import inspect
-        src = inspect.getsource(C.gui_boarding_console)
-        self.assertIn("PANEL_TOP, PANEL_RIGHT", src)
-        self.assertNotIn("99,97", src.replace(" ", ""))
-
-
-class TheThreeBandsTileExactly(unittest.TestCase):
-    """Flow, then the device's readout, then the choices - three bands, no overlap and no
-    gap, all measured from the BOTTOM in px so they agree at any screen height.
-
-    This is the strongest form of the overlap test: rather than checking two rectangles
-    are merely different, it checks the whole column adds up. A band that moved without
-    its neighbour moving would be caught here even if each looked right alone.
-    """
-
-    def _px(self, area, which):
-        """Pull the px offset out of one edge of an area string.
-
-        `100-230px` is 230 off the bottom; a bare `100` is the bottom itself, which is 0.
-        No regex - the escaping is not worth getting wrong in a test whose whole job is
-        to be trusted.
+    def test_there_is_exactly_ONE_region_in_the_column(self):
+        """The whole simplification. A second region would need something to keep the
+        first one's content out of it, which is the reserve-row arithmetic this replaced.
         """
-        edge = area.split(":", 1)[1].split(",")[which].strip().rstrip(";")
-        if "-" not in edge:
-            return 0
-        return int(edge.split("-", 1)[1].replace("px", ""))
-
-    def test_the_device_body_ends_where_the_choices_begin(self):
-        body_bottom = self._px(X.xess_body_area(), 3)
-        actions_top = self._px(C.boarding_actions_area(66), 1)
-        self.assertEqual(body_bottom, actions_top)
-        self.assertEqual(C.ACTIONS_BAND_PX, actions_top)
-
-    def test_the_flow_stops_where_the_device_body_begins(self):
-        reserved = C.boarding_reserve_px()
-        body_top = self._px(X.xess_body_area(), 1)
-        self.assertEqual(reserved, body_top)
-
-    def test_the_reserve_covers_BOTH_regions(self):
-        """One row, not two: a second reserve row would sit inside the band the first was
-        keeping clear."""
-        self.assertEqual(C.XESS_BODY_PX + C.ACTIONS_BAND_PX, C.boarding_reserve_px())
-        self.assertIn("%dpx" % C.boarding_reserve_px(), C.boarding_actions_reserve())
-
-    def test_every_band_starts_at_the_same_left_edge(self):
-        for area in (X.xess_body_area(), C.boarding_actions_area(C._map_width)):
-            self.assertIn("area: %d," % C.panel_left(), area)
+        import inspect
+        src = inspect.getsource(X.gui_xess)
+        self.assertEqual(1, src.count("gui_region("))
 
 
-class PressingAToolDoesSomething(_ConsoleBase):
-    """Reported as "the SCAN and FIRE tabs do nothing", and it was two bugs at once.
+class ThePartsOfTheBarAllUpdate(_ConsoleBase):
+    """A bar that is right about the room and stale about the name describes the previous
+    person, which is worse than a blank one. The TNG face builder found this by poking
+    only its face widget and leaving the description under it describing the last pick."""
 
-    The state changed and nothing repainted, because `boarding_console_revision` - the
-    value the screen's `on change` watches - did not include the device. And the strip was
-    not clickable at all, because the click properties were written as STYLE KEYS rather
-    than set as attributes on the widget, which is silently ignored.
+    def test_the_tick_updates_every_part(self):
+        import inspect
+        src = inspect.getsource(X.gui_xess_tick)
+        for part in ("name", "job", "at"):
+            self.assertIn('view["%s"].update(' % part, src)
 
-    Both are invisible without a console, and both are cheap to pin here.
-    """
+    def test_the_bar_shows_ARMED_instead_of_the_room(self):
+        """The bar is the only band on screen in EVERY state, the tile sheet included, so
+        it is the only place an armed weapon can be seen from everywhere."""
+        plain = X._at_style(CID, "Sample Lab")
+        B.boarding_arm(CID, B.SETTING_CUT)
+        armed = X._at_style(CID, "Sample Lab")
+        self.assertNotEqual(plain, armed)
+        self.assertIn("ARMED", armed)
+        self.assertIn(X.ARMED, armed)
 
-    def test_switching_tool_moves_the_consoles_revision(self):
-        """Without this the device changes and the screen never hears about it."""
-        before = C.boarding_console_revision(CID)
-        X.xess_set_mode(CID, X.MODE_FIRE)
-        self.assertNotEqual(before, C.boarding_console_revision(CID))
-
-    def test_arming_moves_it_too(self):
-        """Armed has to be visible the instant it is true - that is a safety feature."""
-        X.xess_set_mode(CID, X.MODE_FIRE)
+    def test_the_revision_moves_the_instant_the_weapon_is_live(self):
+        """Armed has to be visible the instant it is true - that is a safety feature, so
+        the screen has to hear about it."""
         before = C.boarding_console_revision(CID)
         B.boarding_arm(CID)
         self.assertNotEqual(before, C.boarding_console_revision(CID))
-
-    def test_the_mode_is_per_console(self):
-        other = 0x8000000000000002
-        GuiClient(other)
-        X.xess_set_mode(CID, X.MODE_FIRE)
-        self.assertEqual(X.MODE_FIRE, X.xess_mode(CID))
-        self.assertNotEqual(X.MODE_FIRE, X.xess_mode(other))
-
-    def test_leaving_FIRE_disarms(self):
-        """Switching to the scanner with a live weapon is the same accident the
-        disarm-on-shot rule prevents, one step earlier."""
-        X.xess_set_mode(CID, X.MODE_FIRE)
-        B.boarding_arm(CID)
-        X.xess_set_mode(CID, X.MODE_SCAN)
-        self.assertFalse(B.boarding_armed(CID))
-
-    def test_the_strip_sets_click_properties_as_ATTRIBUTES(self):
-        """Written into the style string they are ignored and the widget never becomes
-        clickable - it just draws. `epadd._app_link` is the proven shape."""
-        import inspect
-        src = inspect.getsource(X._mode_strip)
-        self.assertIn("w.click_tag", src)
-        self.assertNotIn("click_tag:", src, "click_tag in a style string does nothing")
-
-    def test_the_handler_is_filtered_by_its_own_tag(self):
-        """`Layout.on_message` hands every event to every callback, so an unfiltered one
-        fires on somebody else's click."""
-        import inspect
-        src = inspect.getsource(X._bind_mode)
-        self.assertIn("sub_tag", src)
-
-
-class TheFlowFinishesBeforeAnyRegionOpens(unittest.TestCase):
-    """The rule a screenshot taught: **opening a region ENDS the flow.**
-
-    The first version drew the mode strip and opened the device's region in one call, then
-    emitted the reserve row afterwards. The reserve never took effect, so the strip fell to
-    the bottom of the section and was drawn straight over the "Beam up" button - reported
-    as "tabs overlap buttons".
-
-    So the builder has an ORDER, and it is not cosmetic: every flow row, then the reserve,
-    then every region. These assert that order rather than the symptom, because the
-    symptom is only visible on a real console.
-    """
-
-    def _positions(self):
-        import inspect
-        src = inspect.getsource(C.gui_boarding_console)
-        return src, {
-            "strip": src.index("gui_xess_strip("),
-            "reserve": src.index("boarding_actions_reserve()"),
-            "xess_region": src.index("gui_xess_body("),
-            "actions_region": src.index("gui_region(boarding_actions_area("),
-        }
-
-    def test_the_strip_is_drawn_before_the_reserve(self):
-        _, at = self._positions()
-        self.assertLess(at["strip"], at["reserve"])
-
-    def test_and_the_reserve_before_EVERY_region(self):
-        _, at = self._positions()
-        self.assertLess(at["reserve"], at["xess_region"])
-        self.assertLess(at["reserve"], at["actions_region"])
-
-    def test_no_flow_row_is_emitted_after_a_region_opens(self):
-        """The actual trap. A `gui_row` after the first region is a row nothing reserved,
-        so it lands wherever the section has space - which is on top of the regions."""
-        src, at = self._positions()
-        first_region = min(at["xess_region"], at["actions_region"])
-        tail = src[first_region:]
-        # `with` blocks fill the regions, so rows inside them are fine; what must not
-        # appear is a row at the builder's own indentation.
-        stray = [ln for ln in tail.splitlines()
-                 if ln.startswith("    gui_row(") or ln.startswith("    gui_blank(")]
-        self.assertEqual([], stray, "a flow row after a region: %s" % stray)
-
-    def test_the_strip_function_opens_no_region(self):
-        """`gui_xess_strip` must stay a row. If it ever opens a region again the reserve
-        below it stops working and the symptom comes back."""
-        import inspect
-        src = inspect.getsource(X.gui_xess_strip)
-        self.assertNotIn("gui_region", src)
-
-
-class TheFaceRowIsNotFlex(unittest.TestCase):
-    """`gui_face` builds a SQUARE with no `measure()`, and `_measure_row_height` excludes
-    squares by construction - "a row of nothing but squares therefore has no natural
-    height at all and returns None, falling back to flex". So `row-height: content` on the
-    face was a SECOND flex row competing with the prose row for the same space, which is
-    invisible until something else is also flexing."""
-
-    def test_it_declares_a_fixed_height(self):
-        import inspect
-        src = inspect.getsource(C.gui_boarding_console)
-        face_at = src.index("gui_face(face)")
-        row = src.rindex("gui_row(", 0, face_at)
-        decl = src[row:face_at]
-        self.assertNotIn("content", decl,
-                         "a square cannot be measured, so `content` here means flex")
-        self.assertIn("em", decl)
-
-
-class TheChoicesAreAList(unittest.TestCase):
-    """A stack of fixed rows in a fixed-height region spills: fixed rows are never scaled
-    down, so past what fits the buttons draw over the map. A listbox scrolls, and it is
-    the house pattern for anything repeating."""
-
-    def test_the_choices_go_through_a_listbox(self):
-        import inspect
-        src = inspect.getsource(C._draw_actions)
-        self.assertIn("gui_list_box(", src)
-
-    def test_no_button_is_built_in_a_loop(self):
-        """The for-loop handler trap: a handler registered in a loop captures the loop
-        variable at its LAST value, so every button would answer with the last choice."""
-        import inspect
-        src = inspect.getsource(C._draw_actions)
-        self.assertNotIn("for ", src.split("gui_list_box(")[0].split("choices = []")[-1])
-
-    def test_the_item_template_returns_None(self):
-        """The listbox only calls `resize_to_content()` when a template returns None; a
-        returned size leaves the item section degenerate, which kills selection.
-
-        Parsed rather than grepped - the first version of this test matched the word
-        "returns" in the function's own docstring and failed on prose.
-        """
-        import ast
-        import inspect
-        import textwrap
-        tree = ast.parse(textwrap.dedent(inspect.getsource(C._choice_row)))
-        returns = [n for n in ast.walk(tree)
-                   if isinstance(n, ast.Return) and n.value is not None]
-        self.assertEqual([], returns, "an item template must return None")
-
-    def test_a_covering_choice_says_so(self):
-        class _Ch:
-            label = "Read the panel"
-            covering = "Dr Sorel"
-        self.assertIn("covering for Dr Sorel", C._choice_text(_Ch()))
-
-    def test_an_ordinary_choice_is_just_its_label(self):
-        class _Ch:
-            label = "Read the panel"
-            covering = None
-        self.assertEqual("Read the panel", C._choice_text(_Ch()))
-
-    def test_the_way_home_is_always_drawn(self):
-        """Even with no scene open and no choices - otherwise there is no way off the
-        ship, and a region that draws nothing keeps its previous content on screen."""
-        import inspect
-        src = inspect.getsource(C._draw_actions)
-        beam = src.index('gui_button("Beam up"')
-        self.assertNotIn("if choices", src[src.index("gui_row(\"row-height: %dpx"):beam])
 
 
 class TheSelectionFollowingWidgetsAreNotDrawn(unittest.TestCase):
@@ -426,9 +243,10 @@ class TheSelectionFollowingWidgetsAreNotDrawn(unittest.TestCase):
 
     def test_none_of_them_appear_in_the_builder(self):
         import inspect
-        src = inspect.getsource(C)
-        for widget in ("grid_object_list", "grid_face", "grid_control"):
-            self.assertNotIn('gui_layout_widget("%s")' % widget, src)
+        for module in (C, X):
+            src = inspect.getsource(module)
+            for widget in ("grid_object_list", "grid_face", "grid_control"):
+                self.assertNotIn('gui_layout_widget("%s")' % widget, src)
 
 
 if __name__ == "__main__":

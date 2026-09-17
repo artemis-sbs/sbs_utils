@@ -179,6 +179,31 @@ def _last_console(client_id):
 # not whoever was down there when it was written.
 LIVE_AUDIENCES = ("boarding", "ship")
 
+#: One PERSON, rather than one console.
+#:
+#: Everything else in this file addresses a CONSOLE, which is right on a bridge - "To:
+#: science" reaches whoever is sitting there. It falls apart on a boarding party: every
+#: boarded console reports the same name (`_here()` -> CONSOLE_TYPE -> BOARDING_CONSOLE),
+#: so two crew members standing in different rooms are the same addressee and there is no
+#: way to say "Marek, not Ana".
+#:
+#: So a message may be addressed to the BODY somebody is wearing. Resolved at READ time
+#: like the other live tokens, which is what makes it survive a console swapping who it
+#: holds - the letter follows the person, not the seat.
+CREW_PREFIX = "crew:"
+
+
+def message_crew_token(lifeform):
+    """The audience token addressing one boarder by the body they are wearing.
+
+        message_send("Watch the gallery.", to=message_crew_token(marek))
+
+    Built in one place so nothing has to remember the spelling, and so a caller that
+    passes an Agent gets the same token as one that passes an id.
+    """
+    from .query import to_id
+    return "%s%s" % (CREW_PREFIX, to_id(lifeform))
+
 
 def _audience(to):
     """`to` as a set of console names, or None meaning everyone.
@@ -196,7 +221,14 @@ def _audience(to):
         t = t.strip()
         if not t:
             continue
-        out.add(t.lower() if t.strip().lower() in LIVE_AUDIENCES else _console_name(t))
+        low = t.lower()
+        # A crew token is kept VERBATIM. Running it through `_console_name` would map
+        # "crew:1074" onto a console name that does not exist, and the message would then
+        # match nobody - silently, which is the worst shape a delivery bug can take.
+        if low in LIVE_AUDIENCES or low.startswith(CREW_PREFIX):
+            out.add(low)
+        else:
+            out.add(_console_name(t))
     return out
 
 
@@ -219,11 +251,36 @@ def _is_boarding(console, client_id=None):
     return client_id is not None and client_id in boarding_clients()
 
 
+def _wears_any(want, client_id=None):
+    """Whether this reader is wearing a body one of the `crew:` tokens names.
+
+    HELD, not just primary: a console can hold more than one character
+    (`boarding_held`), and a letter to somebody you are carrying is a letter to you.
+    """
+    crew = {w for w in want if isinstance(w, str) and w.startswith(CREW_PREFIX)}
+    if not crew:
+        return False
+    if client_id is None:
+        page = FrameContext.page
+        client_id = getattr(page, "client_id", None) if page is not None else None
+    if client_id is None:
+        return False
+    try:
+        from .boarding import boarding_held
+        from .query import to_id
+    except Exception:
+        return False
+    mine = {"%s%s" % (CREW_PREFIX, to_id(b)) for b in (boarding_held(client_id) or [])}
+    return bool(mine & crew)
+
+
 def _audience_matches(want, console, client_id=None):
     """Does this reader fall inside the message's audience?"""
     if want is None:
         return True
     if console and console in want:
+        return True
+    if _wears_any(want, client_id):
         return True
     if "boarding" in want and _is_boarding(console, client_id):
         return True
@@ -295,13 +352,40 @@ def _cover_console():
                               or BOARDING_CONSOLE)
 
 
+def _unworn_crew(want):
+    """The `crew:` tokens in `want` that nobody on the surface is wearing.
+
+    The person-shaped twin of an empty chair: a letter to Marek when Marek is not down
+    there is exactly the case forwarding exists for, and it is the only case in which a
+    direct call should reach anyone else.
+    """
+    crew = {w for w in want if isinstance(w, str) and w.startswith(CREW_PREFIX)}
+    if not crew:
+        return set()
+    try:
+        from .boarding import boarding_team
+        from .query import to_id
+    except Exception:
+        return set()
+    worn = {"%s%s" % (CREW_PREFIX, to_id(b)) for b in (boarding_team() or set())}
+    return crew - worn
+
+
 def _forwarded_here(want, console, client_id=None):
     """Whether this reader is covering for the post this message was sent to."""
     if not FORWARD_UNSTAFFED or not want:
         return False
     # A live token addresses whoever is there by definition, so it can never be
     # orphaned - and forwarding one would deliver every away broadcast twice.
-    posts = {w for w in want if w not in LIVE_AUDIENCES}
+    #
+    # A `crew:` token is live in the same sense and has to be excluded here too, but for
+    # a sharper reason: it is never in `_staffed()`, which holds CONSOLE_TYPE names, so
+    # leaving it in `posts` would mark EVERY direct call orphaned and copy it to the duty
+    # console - the double delivery this comment already warns about, with nothing to
+    # show it was happening. It is orphaned only when nobody is wearing that body.
+    posts = {w for w in want
+             if w not in LIVE_AUDIENCES and not str(w).startswith(CREW_PREFIX)}
+    posts |= _unworn_crew(want)
     if not posts or posts & _staffed():
         return False
     cover_id, cover_console = _cover_console()
@@ -330,8 +414,28 @@ def message_forwarded_from(msg, console=None, client_id=None):
         return None
     if not _forwarded_here(want, console, client_id):
         return None
-    posts = sorted(w for w in want if w not in LIVE_AUDIENCES)
+    posts = sorted(w for w in want
+                   if w not in LIVE_AUDIENCES and not str(w).startswith(CREW_PREFIX))
+    # A person, by NAME. "covering for crew:1074" tells a crew member nothing; the whole
+    # point of the label is that they can see whose work they picked up.
+    posts += sorted(_crew_names(_unworn_crew(want)))
     return ", ".join(posts) if posts else None
+
+
+def _crew_names(tokens):
+    """`crew:` tokens as the names of the people they address, ids as a last resort."""
+    out = []
+    for token in tokens:
+        raw = token[len(CREW_PREFIX):]
+        name = None
+        try:
+            from .query import to_object
+            who = to_object(int(raw))
+            name = getattr(who, "name", None) if who is not None else None
+        except Exception:
+            name = None
+        out.append(name or raw)
+    return out
 
 
 def message_send(text, to="*", sender=None, subject=None, kind="crew",

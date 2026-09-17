@@ -4,6 +4,75 @@ from ...futures import Promise
 from .message import gui_host_task, host_handler_sub_task, warn_dead_handler
 
 
+# --- how a Python on_press handler is called -----------------------------------------
+#
+# It used to be `handler()`, flatly, and `data=` reached MAST task variables only - so a
+# Python handler could be given data and had no way to read it. Writing the obvious
+# `def press(event=None, sender=None, **kw)` and reading `sender.data` got an empty dict
+# and every value in it None, SILENTLY, which is how the xESS shipped a FIRE app whose
+# buttons did nothing.
+#
+# THE DISCRIMINATOR IS REQUIRED PARAMETERS, NEVER PARAMETER COUNT. The house idiom for
+# these handlers is a closure with BOUND DEFAULTS - `lambda _cid=client_id: ...`,
+# `def press(_mid=mid, _index=i, _seq=s)` - because a no-argument call cannot tell one
+# press from another. Those declare one, three, however many parameters, and every one of
+# them has a default. Counting parameters would call them with an event and clobber the
+# very values they were binding. Counting REQUIRED ones answers 0 for all of them, so
+# they keep being called exactly as they always were.
+#
+# So: ask for nothing and you are called with nothing. Ask for arguments and you are
+# given them.
+#
+#     gui_button("Fire", on_press=lambda _c=cid: fire(_c))       # 0 required -> ()
+#     gui_button("Fire", on_press=shoot, data={"cid": cid})      # def shoot(data)
+#     gui_button("Fire", on_press=shoot2, data={"cid": cid})     # def shoot2(data, event)
+#
+def press_handler_arity(handler):
+    """How many arguments to hand this handler: 0, 1 or 2.
+
+    NOT CACHED, and that is deliberate. The first version memoised this on `id(handler)`,
+    which is wrong for the exact objects it is asked about: a handler is usually a
+    lambda built during a GUI build, and once one is freed CPython REUSES ITS ADDRESS -
+    so the next lambda at that address inherited the previous one's arity. It showed up
+    immediately as bound-default closures being handed an event. A press happens at
+    human speed; `inspect.signature` costs microseconds and no cache is worth that
+    class of bug.
+
+    Anything unintrospectable - a C callable, an odd `functools.partial` - answers 0,
+    which is the behaviour every caller had before this existed. A handler that cannot
+    be read is never a reason to change how it is called.
+    """
+    import inspect
+    try:
+        params = inspect.signature(handler).parameters.values()
+    except (TypeError, ValueError):
+        return 0
+    required = 0
+    star = False
+    for p in params:
+        if p.kind is inspect.Parameter.VAR_POSITIONAL:
+            star = True
+        elif p.kind is inspect.Parameter.VAR_KEYWORD:
+            continue
+        elif (p.default is inspect.Parameter.empty
+              and p.kind in (inspect.Parameter.POSITIONAL_ONLY,
+                             inspect.Parameter.POSITIONAL_OR_KEYWORD)):
+            required += 1
+    # `*args` means "give me what you have", which is both.
+    return 2 if star else min(required, 2)
+
+
+def call_press_handler(handler, layout_item, event):
+    """Call a Python `on_press`, giving it the widget's data when it asks for it."""
+    arity = press_handler_arity(handler)
+    if arity == 0:
+        return handler()
+    data = getattr(layout_item, "data", None)
+    if arity == 1:
+        return handler(data)
+    return handler(data, event)
+
+
 class ButtonResult:
     def __init__(self, layout_item, client_id):
         self.layout_item = layout_item
@@ -87,7 +156,7 @@ class MessageHandler:
             if isinstance(self.handler, Promise):
                 self.handler.set_result(ButtonResult(self.layout_item, event.client_id))
             elif callable(self.handler):
-                self.handler()
+                call_press_handler(self.handler, self.layout_item, event)
             elif not is_sub_task and self.handler is not None:
                 if was_dead and not self.task.revive_for_handler(
                         gui_host_task(self.task)):

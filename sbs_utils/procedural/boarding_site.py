@@ -265,8 +265,35 @@ KEY_SETTING = "BOARDING_SETTING"   # which verb the next shot is
 #: where you are STANDING, and a weapon that reaches the whole deck removes it.
 FIRE_RANGE = 6
 
+#: The three settings, and they are a LADDER: stop a person, open a thing, destroy it.
+#:
+#: The third one exists to make lethality a NAMED CHOICE. Without it, killing somebody is
+#: something that falls out of pointing a cutting tool at them - which is the same
+#: mistake as inferring the setting from the target, one step along. A crew member who
+#: kills someone on this device has said the word FULL first.
 SETTING_STUN = "stun"
 SETTING_CUT = "cut"
+SETTING_FULL = "full"
+
+SETTINGS = (SETTING_STUN, SETTING_CUT, SETTING_FULL)
+
+
+def boarding_settings():
+    """The settings a device may offer, weakest first. An accessor because MAST cannot
+    see a module-level tuple - only functions are registered as globals."""
+    return list(SETTINGS)
+
+
+def boarding_setting_text(setting):
+    """What a setting does, in words, for the device to show BEFORE it is armed."""
+    return {
+        SETTING_STUN: ("Stops a person. Does nothing at all to a door, a panel "
+                       "or a bulkhead."),
+        SETTING_CUT: ("Opens a thing - a hatch, a weld, a lock. Lethal to a person, "
+                      "because a cutting beam is."),
+        SETTING_FULL: ("Destroys what it hits, whatever that is. The only setting "
+                       "that is a weapon and nothing else."),
+    }.get(setting, "")
 
 
 def boarding_arm(client_id, setting=SETTING_STUN):
@@ -321,6 +348,10 @@ def boarding_fire(client_id, x, y):
             "XESS_CLIENT": client_id, "XESS_SITE": host, "XESS_SETTING": setting,
             "XESS_X": int(x), "XESS_Y": int(y), "XESS_HIT": what,
             "XESS_REASON": reason,
+            # CUT and FULL only DIFFER once something reads the setting, so say it
+            # plainly here rather than making every mission re-derive it. This is the
+            # seam "you needed that reactor intact" is written against.
+            "XESS_DESTROYED": bool(hit and setting == SETTING_FULL),
         })
         return hit
 
@@ -352,17 +383,30 @@ def boarding_fire(client_id, x, y):
 
 
 def _hurt(host, target, setting):
-    """One hit point off somebody, and gone at zero.
+    """What a shot does to somebody, by setting.
 
     Mirrors what internal damage already does to a damcon, rather than inventing a second
-    death path: the engine's own route drops HP, emits `life_form_died` and deletes the
-    object, and anything watching for a death is watching for that signal.
+    death path: HP drops, and at zero the engine's own shape applies - `life_form_died`
+    then delete, which is what anything watching for a death is already watching for.
+
+    **STUN takes no hit points.** There is no stun model anywhere in the game - no
+    duration, no recovery, no "stunned" state - and inventing one here before a mission
+    asks is how a library grows a combat system nobody uses. So a stun shot REPORTS
+    (through `xess_fired`, carrying the setting) and changes nothing, and what being
+    stunned means is the mission's to write. That is the same line the rest of this
+    module holds.
     """
     from .internal_damage import grid_set_hp, grid_get_max_hp
     from .grid import grid_delete_object
     from .signal import signal_emit
-    hp = get_inventory_value(target, "HP", grid_get_max_hp())
-    hp = int(hp) - 1
+    if setting == SETTING_STUN:
+        return
+    max_hp = grid_get_max_hp()
+    hp = int(get_inventory_value(target, "HP", max_hp))
+    # CUT is lethal because a cutting beam is - one point at a time. FULL is a weapon and
+    # nothing else, so it takes the lot: the difference between the two is the FIGURE,
+    # which is the whole claim FULL makes.
+    hp = 0 if setting == SETTING_FULL else hp - 1
     grid_set_hp(to_id(host), to_id(target), max(0, hp))
     if hp <= 0:
         signal_emit("life_form_died", {"SHIP_ID": to_id(host),
@@ -372,11 +416,18 @@ def _hurt(host, target, setting):
 
 def _break(host, node, setting):
     """Damage a node. STUN does not - a stun setting on a bulkhead should say nothing
-    happened rather than quietly cutting through it."""
-    if setting != SETTING_CUT:
+    happened rather than quietly cutting through it.
+
+    **FULL marks it red and says so; it does not DELETE it.** Deleting a structural node
+    out from under an interior is the mission's call, not the library's - a hole where a
+    reactor was is a thing a story decides, and the signal carries `XESS_DESTROYED` so it
+    can. The colour is the icon's, so red-versus-yellow is what a crew member sees.
+    """
+    if setting == SETTING_STUN:
         return
     from .internal_damage import grid_damage_grid_object
-    grid_damage_grid_object(to_id(host), to_id(node), "yellow")
+    grid_damage_grid_object(to_id(host), to_id(node),
+                            "red" if setting == SETTING_FULL else "yellow")
 
 
 def boarding_fire_count():

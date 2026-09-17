@@ -49,6 +49,7 @@ from ..agent import Agent
 from .query import to_id
 from .roles import has_role, get_role_list
 from .signal import signal_emit
+from .inventory import get_inventory_value, set_inventory_value
 
 
 # --- The team ---------------------------------------------------------------
@@ -133,6 +134,10 @@ def boarding_clients():
 # character; both look exactly like a job when a screen prints the role list raw.
 _NOT_A_JOB = ("boarding", "lifeform", "ultra_beam", "__player__", "__npc__")
 
+#: On the BODY. The roles it was cast with, so a role added later can be told apart
+#: from one it has always had.
+JOBS_KEY = "BOARDING_JOBS"
+
 
 def boarding_jobs(lifeform):
     """What this character is FOR, as a sorted list of role words.
@@ -147,7 +152,24 @@ def boarding_jobs(lifeform):
       ``medical, ultra_beam, amd_lifeform:sorel``.
     * Roles are a **set**, so the unsorted order is not stable - the same character reads
       differently on each repaint, which looks like a bug in the mission.
+
+    **A JOB IS WHAT YOU WERE CAST AS. A ROLE ADDED LATER IS SOMETHING THAT HAPPENED.**
+    A mission adds roles to an away body to carry state a scene guards on -
+    LandingParty does `add_role(lp_body, "briefed")` so its AMD can ask
+    `if briefed >= 1`. Those are guard words, not jobs, and printed as jobs they read
+    as nonsense: the crew console said "briefed, helm" under a crew member's name.
+
+    So when the body recorded what it was cast with (`_body_for` does), that is the
+    answer and later additions are ignored. A body spawned some other way has no such
+    record and falls back to the filtered role list, exactly as before - no mission
+    has to do anything, and nothing that worked stops working.
+
+    Guards are UNAFFECTED: `dialogue_guard_ok` reads ROLES, never this.
     """
+    cast = get_inventory_value(to_id(lifeform), JOBS_KEY, None)
+    if cast:
+        return sorted({str(w).strip() for w in cast
+                       if str(w).strip() and str(w).strip() not in _NOT_A_JOB})
     out = []
     for role_name in get_role_list(to_id(lifeform)) or ():
         name = str(role_name).strip()
@@ -805,9 +827,59 @@ def _body_for(post, client_id):
         # added as a role rather than handled as a second rule at guard time, which
         # keeps `dialogue_guard_ok` one thing.
         roles = get_inventory_value(client_id, "CONSOLE_TYPE", "") or ""
-    full = f"{rank} {name}".strip() if rank else name
+    full = boarding_full_name(name, rank)
     words = [CREW_ROLE] + [w.strip() for w in str(roles).split(",")]
-    return lifeform_spawn(full, face, ", ".join([w for w in words if w]))
+    body = lifeform_spawn(full, face, ", ".join([w for w in words if w]))
+    # WHAT THEY WERE CAST AS, recorded at spawn. See `boarding_jobs`: roles added
+    # later are things that HAPPENED to this person, not what they are for.
+    set_inventory_value(body, JOBS_KEY,
+                        [w for w in words if w and w != CREW_ROLE])
+    return body
+
+
+def boarding_full_name(name, rank):
+    """A crew member's name with their rank, WITHOUT saying the rank twice.
+
+    A roster carries `rank` and `name` as separate fields, and a mission is free to
+    put a short rank in the name as well - "Lt Mira Okonkwo" reads correctly on a
+    bridge and is exactly what a person would type. Prefixing the long rank onto it
+    gave "Lieutenant Lt Mira Okonkwo".
+
+    NO TABLE OF RANKS, because there cannot be one: `rank` is free text a mission
+    writes (`amd_schema`: "Captain, Lt. Commander - display only"), so a mod may use
+    any rank in any service. The rule is a SUBSEQUENCE test - the name's first word
+    abbreviates the rank when its letters appear in the rank, in order, starting from
+    the same letter. "Lt" in "Lieutenant", "Cmdr" in "Commander", "Capt" in "Captain",
+    "Ens" in "Ensign", and the rank written out in full.
+
+    A PREFIX TEST DOES NOT WORK and was the first thing tried: naval abbreviations
+    drop internal letters, so "Lt" is not a prefix of "Lieutenant" and nothing matched.
+
+    **The known limit, stated rather than hidden:** a given name that happens to
+    abbreviate the rank collides - "Lena" is a subsequence of "Lieutenant", so
+    Lieutenant Lena would display without her rank. The failure is a MISSING rank
+    rather than a doubled one, which is the quieter of the two, and a mission that
+    minds can leave `rank` empty and write the name it wants.
+    """
+    name = (name or "").strip()
+    rank = (rank or "").strip()
+    if not rank:
+        return name
+    if not name:
+        return rank
+    if _abbreviates(name.split()[0], rank):
+        return name
+    return "%s %s" % (rank, name)
+
+
+def _abbreviates(word, rank):
+    """Whether `word` is `rank` with letters dropped - same first letter, in order."""
+    word = "".join(c for c in word.lower() if c.isalnum())
+    rank = "".join(c for c in rank.lower() if c.isalnum())
+    if not word or not rank or word[0] != rank[0] or len(word) > len(rank):
+        return False
+    it = iter(rank)
+    return all(c in it for c in word)
 
 
 def boarding_invite_crew(ship, title=None, consoles=None, assign_missing=True,

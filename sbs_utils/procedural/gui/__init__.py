@@ -1,5 +1,6 @@
 from .console_tab import gui_tab_enable,gui_tab_back,gui_tab_add_top,gui_tab_enable_top,gui_tab_activate, gui_tab_get_active, gui_app_activate, gui_app_get_active, gui_tab_clear_top, gui_tab_remove_top, gui_tab_is_top
 from .console_tab import gui_tab_get_list
+from .console_tab import gui_tab_back_while_boarded, gui_tab_boarded_back_tab
 from .messages_gui import gui_messages_screen, gui_messages_tick
 from .status_gui import gui_status_screen, status_rows
 from .boarding_gui import (gui_boarding_screen, boarding_who, boarding_set_who, boarding_label,
@@ -7,8 +8,10 @@ from .boarding_gui import (gui_boarding_screen, boarding_who, boarding_set_who, 
                        boarding_home_ship)
 from .boarding_console import (gui_boarding_console, gui_boarding_console_tick,
                                boarding_console_revision)
-from .xess import (gui_xess_strip, gui_xess_body, gui_xess_tick, xess_revision,
-                   xess_mode, xess_set_mode)
+from .xess import (gui_xess, gui_xess_tick, gui_xess_head, xess_revision,
+                   xess_register, xess_unregister, xess_registered, xess_clear,
+                   xess_apps, xess_app_badge, xess_app_count,
+                   xess_open, xess_opened, xess_focus, xess_set_focus)
 from .epadd import (gui_app_subnav,
                     gui_app_register, gui_app_unregister, gui_app_is_registered,
                     gui_app_get_registered, gui_app_list, gui_app_groups,

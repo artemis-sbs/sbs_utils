@@ -66,11 +66,16 @@ CALLED_FROM_MAST = [
     "gui_boarding_console", "gui_boarding_console_tick",
     "boarding_console_revision",
     # the device
-    "gui_xess_strip", "gui_xess_body", "gui_xess_tick", "xess_revision",
-    "xess_mode", "xess_set_mode",
+    "gui_xess", "gui_xess_tick", "gui_xess_head", "xess_revision",
+    "xess_open", "xess_opened", "xess_focus", "xess_set_focus",
+    # a mission adding an app of its own
+    "xess_register", "xess_unregister", "xess_registered", "xess_apps",
+    "xess_app_badge", "xess_app_count", "xess_clear",
+    # addressing one boarder by the body they are wearing
+    "message_crew_token",
     # THE ACCESSORS. These exist only because MAST cannot see a constant.
     "boarding_room_roles", "boarding_console_type", "boarding_figure_role",
-    "boarding_site_role",
+    "boarding_site_role", "boarding_settings", "boarding_setting_text",
 ]
 
 # Names that are CONSTANTS in the library and therefore must NOT be written in a .mast

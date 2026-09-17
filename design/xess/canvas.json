@@ -1,0 +1,14 @@
+{
+  "artboards": [
+    { "file": "Main.dc.html",      "x": 0,    "y": 0, "w": 640, "h": 1080, "title": "Home (click a tile)", "is_interactive": true },
+    { "file": "Act.dc.html",       "x": 760,  "y": 0, "w": 640, "h": 1080, "title": "ACT - a beat arrives" },
+    { "file": "Crew.dc.html",      "x": 1520, "y": 0, "w": 640, "h": 1080, "title": "CREW - who to talk to" },
+    { "file": "FireArmed.dc.html", "x": 2280, "y": 0, "w": 640, "h": 1080, "title": "FIRE - armed on FULL" },
+    { "file": "Spec.dc.html",      "x": 3040, "y": 0, "w": 900, "h": 1200, "title": "Build sheet" }
+  ],
+  "annotations": [
+    { "id": "brief", "x": 0, "y": -190, "w": 640,
+      "text": "The xESS - the handheld beside the interior map.\n\nTWO bands: a one-line identity bar, and the app area. Nothing is pinned below them.\n\nFOUR apps. CREW is everyone you can reach - the ship included, carrying BEAM UP on its row - with what each last said under their name. ACT is the beat and one button per choice. SCAN reads the room. FIRE arms.\n\nEvery scrolling band is a gui_list_box, never a stack of rows." }
+  ],
+  "launch": { "view": "canvas" }
+}

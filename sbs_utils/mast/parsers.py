@@ -49,12 +49,32 @@ class ContentSize:
     row min-content (height when wrapped as narrow as possible) is expensive to
     compute and not useful here.
     """
-    __slots__ = ("mode",)
+    __slots__ = ("mode", "weight")
 
     MODES = ("content", "min-content", "max-content", "1fr")
 
-    def __init__(self, mode="content"):
+    def __init__(self, mode="content", weight=1.0):
         self.mode = mode
+        #
+        # WEIGHTED FLEX, and it means what CSS grid means: `2fr` is two shares
+        # of the leftover space where `1fr` is one, so a 2fr row beside a 1fr
+        # row is twice as tall. Only the `1fr` mode carries a weight; on every
+        # other mode it is 1 and unused.
+        #
+        # `1fr` used to be a whole KEYWORD rather than a number and a unit -- the
+        # lexer matched the literal three characters. So `2fr` was not an
+        # unsupported ratio, it was not a ratio at all: it fell through to the
+        # numeric rule as the number 2 with a dangling `fr` token, and a bare
+        # number is a PERCENTAGE. `row-height: 2fr` therefore asked for 2% of
+        # the screen, about 15px at 720p, with no error and no warning. That
+        # shipped on the xESS choice list and was reported as "the buttons are
+        # at the bottom and less than 20 pixels", which is what 2% looks like.
+        #
+        # Borrowing CSS's spelling for the name (see the class docstring) is
+        # what invited it: `2fr` is the first thing a CSS reader reaches for.
+        # Honouring it is cheaper than explaining it.
+        #
+        self.weight = float(weight)
 
     @property
     def is_min(self):
@@ -74,13 +94,33 @@ class ContentSize:
         return self.mode == "1fr"
 
     def __repr__(self):
+        if self.mode == "1fr" and self.weight != 1.0:
+            return f"ContentSize({_fr_text(self.weight)})"
         return f"ContentSize({self.mode})"
 
     def __eq__(self, other):
-        return isinstance(other, ContentSize) and other.mode == self.mode
+        return (isinstance(other, ContentSize) and other.mode == self.mode
+                and other.weight == self.weight)
 
     def __hash__(self):
-        return hash(("ContentSize", self.mode))
+        return hash(("ContentSize", self.mode, self.weight))
+
+
+def _fr_text(weight):
+    """`2.0` as `2fr`, `1.5` as `1.5fr` - how the author would have written it."""
+    return ("%g" % weight) + "fr"
+
+
+def flex_weight(size):
+    """How many shares of the leftover space this size asks for.
+
+    1 for everything that is not a weighted `Nfr`, which keeps every existing
+    layout exactly where it was: an even split IS a weighted split when every
+    weight is 1.
+    """
+    if size.__class__ is ContentSize and size.mode == "1fr":
+        return size.weight
+    return 1.0
 
 
 # Interned, since these are compared by identity in the hot path.
@@ -104,6 +144,35 @@ _CONTENT_BY_NAME = {c.mode: c
 _CONTENT_BY_NAME["auto"] = AUTO
 _CONTENT_BY_NAME["fit-content"] = CONTENT
 
+#: `2fr`, `0.5fr`, `10fr` - a weighted share of the leftover space.
+_FR_RE = re.compile(r"^(\d+(?:\.\d+)?)fr$")
+
+
+def _weighted_fr(name):
+    """`Nfr` as a weighted flex size, or None when this is not one.
+
+    `1fr` never reaches here - it is in `_CONTENT_BY_NAME` and comes back as the
+    interned AUTO, so the identity comparisons in the layout hot path are
+    untouched by this feature existing.
+
+    **A weight of zero is refused**, and loudly. CSS gives a `0fr` item none of
+    the leftover space, which here would be a row of no height that still DRAWS
+    its text - the engine does not clip, so it would land on the row above. That
+    is the exact shape of LM issue 672, and it is not worth reintroducing for a
+    spelling nobody needs: a row that should not be seen is `gui_blank()` or is
+    not built.
+    """
+    m = _FR_RE.match(name)
+    if m is None:
+        return None
+    weight = float(m.group(1))
+    if weight <= 0:
+        raise Exception(
+            "%s is not a size: a flex weight must be greater than zero. A row "
+            "with no height still draws its text, over whatever is above it."
+            % name)
+    return ContentSize("1fr", weight)
+
 # based on https://github.com/gnebehay/parser/blob/master/parser.py
 class LayoutAreaParser:
     rules = {
@@ -122,7 +191,12 @@ class LayoutAreaParser:
         # elsewhere (inside area:, or mid-expression), where they evaluate to 1,
         # identical to the long-standing fallback for an unknown identifier.
         #
-        "content": r"(fit-content|(min-|max-)?content|auto|1fr)\b",
+        # `\d+(\.\d+)?fr`, not the literal `1fr`: a weight is a number and a
+        # unit, so the lexer has to take the whole thing. Matched here, ahead of
+        # "digits", for the reason above -- otherwise the number is consumed and
+        # the `fr` is left behind as a bare identifier, which is exactly the
+        # silent 2%-tall row this feature exists to end.
+        "content": r"(fit-content|(min-|max-)?content|auto|\d+(\.\d+)?fr)\b",
         "pixels": r"\d+px",
         "ems": r"\d+(\.\d+)?em",
         "digits": r"\d+(\.\d+)?",
@@ -367,7 +441,13 @@ class StyleDefinition:
     def _content_size(value):
         if value is None:
             return None
-        return _CONTENT_BY_NAME.get(value.strip().lower())
+        name = value.strip().lower()
+        known = _CONTENT_BY_NAME.get(name)
+        if known is not None:
+            # `1fr` and `auto` keep returning the INTERNED AUTO instance, which
+            # the layout hot path compares by identity.
+            return known
+        return _weighted_fr(name)
 
     #
     # parse_e, NOT parse_e2. parse_e2 handles only * and /, so a `+` or `-` term
