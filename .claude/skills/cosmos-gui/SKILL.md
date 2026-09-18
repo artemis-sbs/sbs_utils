@@ -36,17 +36,18 @@ gotchas that **bite repeatedly** — read it before building a console or panel.
   `await gui()`. Run live watchers as **sub-tasks** (`gui_sub_task_schedule`) that
   auto-cancel when a new page is presented — don't spin your own loops on the main
   GUI task.
-- **Watch/repaint for live panels.** The standard live-panel shape: a watcher
-  sub-task polls state and calls `gui_task_jump("repaint")` when it changes; the
-  `repaint` label rebuilds that section. (Lighter alternative: update a widget
-  handle from an `on change` — see the dirty system.)
+- **Live panels update their widgets, not the page.** The shape: an `on change`
+  (or a watcher sub-task) sets `.value` / `.update()` / `lb.items` on widgets held
+  from the build. A `gui_task_jump("repaint")` that rebuilds is only for a change of
+  SHAPE - see "Never repaint the page to update a control". (This bullet used to
+  recommend the repaint as the standard shape, contradicting that section.)
 - **Every repeating list is a `gui_list_box` + a detail panel** (see Listboxes),
   titled with `title_template` — not a stack of buttons, not a text-label row.
 - **Feedback must land on a surface that's actually shown.** A console with no info
   panel will silently drop `comms_info_card` / info-panel messages — put
   confirmations in a **visible status line**, or add the panel. Route
-  chatter/notifications to the **info panel** (`comms_info_card`), not the text
-  waterfall; keep the waterfall for pure mechanical status.
+  chatter/notifications to the **info panel** (`comms_info_card`); pure mechanical
+  status goes to the log panel (`log_notify`) - the text waterfall is retired.
 - **Legible over pretty.** Generous `row-height`, real contrast, `$text:` first.
   Ugly-but-readable beats clever-but-cramped (the first Admiral-console review note).
 - **Prefer `on_press=` / `data=` on buttons** over loop-registered `on gui_message`
@@ -230,7 +231,8 @@ content overflows its bounds. Reach for it for multi-line / formatted blocks (he
 briefings, logs, comms transcripts); keep plain `gui_text` for a single styled line.
 Authoritative parser + built-in styles: `pages/layout/text_area.py`.
 
-- **Line syntax (leading token):** `#`/`##`/`###` → h1/h2/h3 headings (auto-numbered);
+- **Line syntax (leading token):** `#`/`##`/`###` → h1/h2/h3 headings (NOT numbered, like
+  markdown; `$nh1`..`$nh3` are the auto-numbered variants);
   `-` → bullet; `1.`/digit-led → ordered list (auto-numbered); **blank line** resets
   style + restarts list numbering; `^` → newline (the setter maps `^`→`\n`), a line of
   `<br>`/`<br/>` also breaks; `{var}` interpolation works.
@@ -710,10 +712,11 @@ but tied to a comms interaction.
 
 ## Console and client gotchas (engine-confirmed)
 
-- **`has_role(0, ...)` is ALWAYS False** for the server client. `to_object()` has an
-  explicit `elif other == 0: return None`, so it resolves no agent and `has_role` returns
-  False without looking — even when the role IS set. Check with `role()` set membership
-  instead. This shows up as an assertion that passes while measuring nothing.
+- **The server console (client 0) CAN hold roles and inventory** (since 2026-08-25).
+  `to_object(0)` is still None - 0 means "no object" for a space object - so role and
+  inventory calls fall back to `to_client_object` (`to_agent_list` for writes). Before
+  that, `add_role(0, ...)` was a silent no-op and `has_role(0, ...)` always False; on an
+  OLDER sbslib, check with `role()` set membership instead.
 - **Turning a console off does not unregister it.** `HELM_CONSOLE_ENABLED = False` only
   removes it from the selection screen; `gui_console("helm")` still works. Set those flags
   with a **plain assignment, not `default`** — LM's addon declares them `default … = True`
