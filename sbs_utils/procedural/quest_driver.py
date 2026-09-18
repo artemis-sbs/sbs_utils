@@ -23,7 +23,8 @@ from sbs_utils.procedural.quest import (
     quest_log_build_items, quest_run_action)
 from sbs_utils.procedural.roles import has_role, role
 from sbs_utils.procedural.query import (
-    to_object, to_object_list, to_id, to_id_list, to_set, is_space_object_id)
+    to_object, to_object_list, to_id, to_id_list, to_set, is_space_object_id,
+    is_client_id)
 from sbs_utils.procedural.gui.overlay import overlay_kind, consoles_of
 from sbs_utils.procedural.amd_overlay import overlay_amd, _PRIMARY
 from sbs_utils.procedural.inventory import get_inventory_value, set_inventory_value
@@ -37,6 +38,7 @@ from sbs_utils.procedural.gui import gui_list_box_is_header
 from sbs_utils.procedural.amd_schema import amd_kind_defaults
 from sbs_utils.procedural.amd import KIND_KEY, amd_signal_name
 from sbs_utils.agent import Agent
+from sbs_utils.helpers import FrameContext
 
 
 def _quest_audience(agent_id):
@@ -174,15 +176,50 @@ def _quest_grant_reputation(agent_id, block):
     reputation_apply(agent_id, rep)
 
 
+def quest_payee(agent_id):
+    """Who a quest's reward is actually PAID to: a console is paid through its ship.
+
+    A quest can be held by a CLIENT - that is the "You" section of the quest log, a job
+    belonging to the person rather than to the hull. A reward, though, has to land where
+    the game READS it, and every consumer reads a ship:
+
+    - credits go to a SIDE, and a console has no ``.side`` at all;
+    - reputation is read per ship - ``fleet.truced_ships`` walks ``role("__player__")``
+      and OU's dialogue guards ask the comms origin - and ``_quest_rep_holder`` answers
+      False for a console, so the line was dropped;
+    - items are cargo, and OU's ``carrying`` guard reads the ship's inventory.
+
+    So a client-held quest paid nothing but items nobody could see. Paying the console's
+    ship is not a compromise - it is the only place the payment means anything.
+
+    This is the OPPOSITE direction to ``quest_credit_ids``: that spreads an event from a
+    ship out to its crew, this collects a crew member's payment back to the ship they are
+    flying. Anything that is not a console is paid as itself, so ship-held and SHARED-held
+    rewards are untouched.
+    """
+    if agent_id is None or not is_client_id(agent_id):
+        return agent_id
+    try:
+        ship_id = FrameContext.context.sbs.get_ship_of_client(to_id(agent_id))
+    except Exception:                                    # noqa: BLE001
+        return agent_id
+    # 0 is the engine's "no ship": a console at the picker, or one whose ship is gone.
+    # Pay the console itself rather than agent 0, so nothing lands on the wrong holder.
+    return ship_id if ship_id else agent_id
+
+
 def quest_grant_reward(agent_id, reward):
     """Grant a quest reward: credits to the agent's side, items to the agent, and
-    reputation to the agent (player/SHARED holders only - see ``_quest_rep_holder``)."""
+    reputation to the agent (player/SHARED holders only - see ``_quest_rep_holder``).
+
+    A client-held quest is paid through its ship - see ``quest_payee``."""
     if not isinstance(reward, dict):
         return
+    agent_id = quest_payee(agent_id)
     credits = reward.get("credits", 0)
     if credits:
         ship = to_object(agent_id)
-        side = getattr(ship, "side", None)   # SHARED / console agents have no .side
+        side = getattr(ship, "side", None)   # SHARED agents have no .side
         if side:
             sid = to_side_id(side)
             set_inventory_value(sid, "credits", get_inventory_value(sid, "credits", 0) + credits)
@@ -195,13 +232,18 @@ def quest_grant_penalty(agent_id, penalty):
     """Apply a quest penalty (mirror of quest_grant_reward): deduct credits from
     the agent's side, remove items from the agent, and apply any reputation block
     (player/SHARED holders only). Credits and items never go below zero; reputation
-    applies as authored, so a penalty's ``earns`` carries its own sign."""
+    applies as authored, so a penalty's ``earns`` carries its own sign.
+
+    Mirrors the reward in WHO PAYS too: a client-held quest is charged through its ship
+    (``quest_payee``). Without that a job taken by the person and failed cost nothing at
+    all, which would make a client-held job strictly safer than the same job on a hull."""
     if not isinstance(penalty, dict):
         return
+    agent_id = quest_payee(agent_id)
     credits = penalty.get("credits", 0)
     if credits:
         ship = to_object(agent_id)
-        side = getattr(ship, "side", None)   # SHARED / console agents have no .side
+        side = getattr(ship, "side", None)   # SHARED agents have no .side
         if side:
             sid = to_side_id(side)
             set_inventory_value(sid, "credits", max(0, get_inventory_value(sid, "credits", 0) - credits))

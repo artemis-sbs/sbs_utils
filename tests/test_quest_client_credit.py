@@ -29,9 +29,16 @@ from sbs_utils.procedural.links import link, unlink
 from sbs_utils.procedural.query import to_id
 from sbs_utils.procedural.quest import quest_add, quest_get_state, QuestState
 from sbs_utils.procedural import quest_driver as QD
+from sbs_utils.procedural.spawn import player_spawn
+from sbs_utils.procedural.sides import side_ensure, to_side_id
+from sbs_utils.procedural.inventory import get_inventory_value
+from sbs_utils.procedural.reputation import reputation_get
 
-CID = 77
-OTHER = 78
+#: REAL client ids, bit and all. A plain small int is not a console: `is_client_id`
+#: tests the 0x8000... console bit, so a fixture using 77 exercises `quest_payee`'s
+#: "not a console" branch while looking like it is testing the console one.
+CID = 0x8000000000000001
+OTHER = 0x8000000000000002
 
 
 class CreditIdsTests(unittest.TestCase):
@@ -179,6 +186,94 @@ class OtherTriggersTests(_KillBase):
         link(self.a, "consoles", CID)
         QD.quest_on_collect(self.a, "ore")
         self.assertEqual(self._state(CID, "haul"), int(QuestState.COMPLETE))
+
+
+class AClientHeldRewardIsPaidTests(unittest.TestCase):
+    """Advancing a client-held job was half the problem; PAYING one was the other half.
+
+    Every consumer of a reward reads a SHIP - credits go to a side, reputation is read per
+    player ship (`fleet.truced_ships`, OU's dialogue guards), items are cargo. A console
+    has no side and is not `__player__`, so a client-held job used to pay nothing but
+    items nobody could read. `quest_payee` routes the payment to the console's ship.
+    """
+
+    def setUp(self):
+        reset_mock(sbs)
+        GuiClient(CID)
+        side_ensure("tsn")
+        self.sid = to_side_id("tsn")
+        self.ship = to_id(player_spawn(0, 0, 0, "Artemis", "tsn", "tsn_light_cruiser"))
+        # BOTH HALVES, because production sets both together (`player_roster_rebind`):
+        # the "consoles" link is what `quest_credit_ids` reads going ship -> crew, and the
+        # engine assignment is what `quest_payee` reads going crew -> ship. A fixture with
+        # only the link is a console the engine says is flying nothing.
+        sbs.assign_client_to_ship(CID, self.ship)
+        link(self.ship, "consoles", CID)
+        self.reward = {"credits": 500, "items": {"ore": 3},
+                       "reputation": {"tsn": {"honest": 10}}}
+
+    def _credits(self):
+        return get_inventory_value(self.sid, "credits", 0)
+
+    def test_a_client_held_reward_pays_credits_to_the_side(self):
+        QD.quest_grant_reward(CID, self.reward)
+        self.assertEqual(self._credits(), 500)
+
+    def test_a_client_held_reward_lands_reputation_on_the_ship(self):
+        """On the SHIP, because that is the only place anything reads it."""
+        QD.quest_grant_reward(CID, self.reward)
+        self.assertEqual(reputation_get(self.ship, "tsn", "honest"), 10)
+
+    def test_a_client_held_reward_lands_items_on_the_ship(self):
+        QD.quest_grant_reward(CID, self.reward)
+        self.assertEqual(get_inventory_value(self.ship, "ore", 0), 3)
+
+    def test_a_client_held_penalty_charges_the_ship(self):
+        """Or taking a job as yourself would be a way to fail one for free."""
+        QD.quest_grant_reward(CID, self.reward)
+        QD.quest_grant_penalty(CID, {"credits": 200, "items": {"ore": 1}})
+        self.assertEqual(self._credits(), 300)
+        self.assertEqual(get_inventory_value(self.ship, "ore", 0), 2)
+
+    def test_a_ship_held_reward_is_unchanged(self):
+        QD.quest_grant_reward(self.ship, self.reward)
+        self.assertEqual(self._credits(), 500)
+        self.assertEqual(get_inventory_value(self.ship, "ore", 0), 3)
+        self.assertEqual(reputation_get(self.ship, "tsn", "honest"), 10)
+
+    def test_the_payee_of_a_ship_is_the_ship(self):
+        self.assertEqual(QD.quest_payee(self.ship), self.ship)
+
+    def test_the_payee_of_shared_is_shared(self):
+        self.assertEqual(QD.quest_payee(Agent.SHARED_ID), Agent.SHARED_ID)
+
+
+class AConsoleWithNoShipAtAllTests(unittest.TestCase):
+    """The one case the engine cannot answer, and it must not answer 0.
+
+    A console with no assignment does NOT normally end up shipless: the engine grabs a
+    player ship for it, and the mock mirrors that (`_grab_player_ship`). The genuinely
+    shipless case is a sim with no player ship in it - the map picker, or before the
+    crew is seated. `quest_payee` has to hand back the console rather than agent 0,
+    which is a real agent id and would be paid somebody else's reward.
+    """
+
+    def setUp(self):
+        reset_mock(sbs)
+        GuiClient(CID)
+        side_ensure("tsn")
+
+    def test_the_payee_is_the_console_itself(self):
+        self.assertEqual(QD.quest_payee(CID), CID)
+
+    def test_nothing_is_paid_to_agent_zero(self):
+        self.assertNotEqual(QD.quest_payee(CID), 0)
+
+    def test_items_still_land_somewhere_readable_later(self):
+        """Paid to the console, which is where a client-held quest's tree lives - so it
+        is at least recoverable, rather than written onto agent 0."""
+        QD.quest_grant_reward(CID, {"items": {"ore": 2}})
+        self.assertEqual(get_inventory_value(CID, "ore", 0), 2)
 
 
 if __name__ == "__main__":
