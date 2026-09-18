@@ -116,7 +116,8 @@ def gui_console(console, is_jump=False):
             widgets = "ship_internal_view^ship_data"
         case "comms":
             console =  "normal_comm"
-            widgets = "comms_2d_view^radar_zoom_ctrl^comms_waterfall^comms_control^comms_face^comms_sorted_list^ship_data^red_alert"
+            widgets = "comms_2d_view^comms_waterfall^comms_face^ship_data^red_alert"
+            #widgets = "comms_2d_view^radar_zoom_ctrl^comms_waterfall^comms_control^comms_face^comms_sorted_list^ship_data^red_alert"
             #widgets = "2dview^comms_waterfall^comms_control^comms_face^comms_sorted_list^red_alert"
         case "cinematic":
             console =  "cinematic"
