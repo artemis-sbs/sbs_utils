@@ -2,7 +2,7 @@
 
 @MAST_CLAUDE.md
 
-Two references load ON DEMAND as skills rather than every session - invoke them
+Five references load ON DEMAND as skills rather than every session - invoke them
 when the work is theirs:
 
 - **`writing-a-mission`** - writing a mission, an addon (`.mastlib`), or a `@map`
@@ -11,6 +11,16 @@ when the work is theirs:
 - **`cosmos-gui`** - any `gui_*` code, console or panel: the dirty system, style
   strings, `gui_text_area` markdown, listboxes, the for-loop handler trap, layout
   and content sizing.
+- **`headless-testing`** - `mission_runner` (`--test`, `--exercise`, `--runs`),
+  unit-test harnesses on the mock, driving real MAST panels/consoles/comms
+  headless, soaks, and what a green run does and does not prove.
+- **`engine-debugging`** - running the real engine from the command line, getting
+  values out of it, engine-vs-mock divergences, the crash ledger and dump method,
+  object lifetime / ids / standby.
+- **`packaging-and-release`** - `sbs.pyz lib` local builds, `__lib__.json` /
+  `story.json`, .sbslib/.mastlib/media packs, per-repo branches, commit/push and
+  `sbs.pyz release -u` rereleases. **An edit is invisible to the engine until
+  `sbs.pyz lib` rebuilds it.**
 
 ## Environment
 
