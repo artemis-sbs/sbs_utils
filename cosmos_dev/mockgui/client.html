@@ -850,8 +850,11 @@ function cmdLog(msg) {
 const _radarCanvas = document.getElementById('radar-canvas');
 const _radarCtx    = _radarCanvas ? _radarCanvas.getContext('2d') : null;
 
-// widget_name → { left, top, right, bottom (0-100 %), ts: performance.now() }
+// widget_name → { widget, left, top, right, bottom (0-100 %), ts: performance.now() }
 const _widgetRects = new Map();
+// The ship's comms_map_filter: a Set of the ids its comms 2D map shows, or null for
+// everything. Only the comms_2d_view honors it; other 2D views draw all.
+let _commsMapFilter = null;
 const _RECT_STALE_MS = 2000;   // hide a view after 2 s of no send_client_widget_rects calls
 
 function _syncRadarCanvasSize() {
@@ -1014,7 +1017,10 @@ function _radarSelectAt(px, py, button) {
   const { cx, cz, halfSpan, box } = _pickState;
   const proj = _radarProj(box, cx, cz, halfSpan);
   let bestId = 0, bestD = _PICK_PX_THRESHOLD;
+  // A filtered comms map cannot select what it does not draw.
+  const shown = views[0].widget === 'comms_2d_view' ? _commsMapFilter : null;
   const consider = (id, wx, wz) => {
+    if (shown && !shown.has(id)) return;
     const d = Math.hypot(proj.toX(wx) - px, proj.toY(wz) - py);
     if (d < bestD) { bestD = d; bestId = id; }
   };
@@ -1189,7 +1195,7 @@ function cmdWidgetRect(msg) {
   }
   log(`widget_rect OK cid=${msg.clientID} widget=${msg.widget} (${msg.left},${msg.top})→(${msg.right},${msg.bottom})`, 'dbg');
   const r = _resolve2dViewRect(msg.left, msg.top, msg.right, msg.bottom);
-  _widgetRects.set(msg.widget, { left: r.left, top: r.top, right: r.right, bottom: r.bottom, ts: performance.now() });
+  _widgetRects.set(msg.widget, { widget: msg.widget, left: r.left, top: r.top, right: r.right, bottom: r.bottom, ts: performance.now() });
 }
 
 // ── Three.js GPU radar renderer ───────────────────────────────────────────────
@@ -1420,6 +1426,7 @@ function cmdWorldReset(msg) {
   // also stops re-registering them via _push_2dview_rects); the next mission's
   // console re-establishes its 2dview when it loads.
   _widgetRects.clear();
+  _commsMapFilter = null;
   // Reset our tracked ship so the next mission rediscovers it.
   _myShipId = null;
   // Drop the HUD overlays + any rect overrides so the next mission starts fresh
@@ -2747,6 +2754,11 @@ function cmdRadar(msg) {
     return;
   }
 
+  if (msg.comms_filter !== undefined) {
+    _commsMapFilter = msg.comms_filter.length ? new Set(msg.comms_filter) : null;
+    _requestRadarRender();
+  }
+
   if (_dynamicPoints) {
     const removed = msg.removed || [];
     const changed  = msg.changed  || [];
@@ -3083,6 +3095,8 @@ function _drawRadarChrome(ctx, W, H, rect, cx, cz, halfSpan, isCorner, ax, az) {
 }
 
 function _drawRadarOverlay(ctx, W, H, rect, cx, cz, halfSpan, isCorner) {
+  // comms_map_filter: the comms map shows only the listed ids (null = everything).
+  const shown = rect.widget === 'comms_2d_view' ? _commsMapFilter : null;
   const { x0, y0, x1, y1 } = _rectPx(W, H, rect);
   const rw = x1 - x0, rh = y1 - y0;
   if (rw < 4 || rh < 4) return;
@@ -3141,6 +3155,7 @@ function _drawRadarOverlay(ctx, W, H, rect, cx, cz, halfSpan, isCorner) {
   // a wide overview zoom-out where labels would overlap into clutter.
   const showNames  = halfSpan < 50000;
   for (const [id, meta] of _dynamicMeta) {
+    if (shown && !shown.has(id)) continue;
     const idx = _dynamicMap.get(id);
     if (idx === undefined || idx >= _dynamicCount) continue;
     const base = idx * 3;
@@ -3194,6 +3209,15 @@ function _drawRadarOverlay(ctx, W, H, rect, cx, cz, halfSpan, isCorner) {
   const _iconSheetImg = _iconSheet.img;              // synchronous once loaded
   if (!_iconSheetImg) _getIconSheet(() => _requestRadarRender());   // load once, redraw when ready
   for (const [id, meta] of _terrainMeta) {
+    if (shown && !shown.has(id)) continue;
+    if (shown && !meta.tint && meta.icon_index == null) {
+      // Plain terrain the filter keeps: its GPU dot was dropped for this view.
+      const ti = _terrainMap.get(id);
+      if (ti === undefined || ti >= _terrainCount) continue;
+      ctx.fillStyle = '#9fb3c8';
+      ctx.fillRect(toX(_terrainPosBuf[ti * 3]) - 1.5, toY(_terrainPosBuf[ti * 3 + 1]) - 1.5, 3, 3);
+      continue;
+    }
     if (!meta.tint && meta.icon_index == null) continue;
     const idx = _terrainMap.get(id);
     if (idx === undefined || idx >= _terrainCount) continue;
@@ -3216,6 +3240,7 @@ function _drawRadarOverlay(ctx, W, H, rect, cx, cz, halfSpan, isCorner) {
     ctx.font = `${Math.max(8, fontSize)}px monospace`;
     ctx.textAlign = 'center'; ctx.textBaseline = 'bottom';
     for (const [id, meta] of _terrainMeta) {
+      if (shown && !shown.has(id)) continue;
       if (!meta.name) continue;
       const idx = _terrainMap.get(id);
       if (idx === undefined || idx >= _terrainCount) continue;
@@ -3342,8 +3367,11 @@ function _renderRadar() {
       _radarRenderer3d.setViewport(bx0, vy, bw, bh);
       _radarRenderer3d.setScissor(bx0, vy, bw, bh);
       _radarRenderer3d.setScissorTest(true);
+      // A filtered comms map drops the GPU terrain dots; the overlay draws the listed ones.
+      if (_terrainPoints) _terrainPoints.visible = !(rect.widget === 'comms_2d_view' && _commsMapFilter);
       _radarRenderer3d.render(_radarScene3d, _radarCamera3d);
     }
+    if (_terrainPoints) _terrainPoints.visible = true;
     _radarCtx.drawImage(_radarCanvas3d, 0, 0);
   }
 
@@ -4247,7 +4275,7 @@ function cmdWidget(msg) {
   // their position so the radar overlay canvas can draw the tactical map in that slot.
   if (_2D_VIEW_WIDGET_TYPES.has(cmd)) {
     const r = _resolve2dViewRect(left, top, right, bottom);
-    _widgetRects.set(cmd, { left: r.left, top: r.top, right: r.right, bottom: r.bottom, ts: performance.now() });
+    _widgetRects.set(cmd, { widget: cmd, left: r.left, top: r.top, right: r.right, bottom: r.bottom, ts: performance.now() });
     log(`  [radar] 2dview rect registered for ${cmd} (${pct(r.left)},${pct(r.top)})→(${pct(r.right)},${pct(r.bottom)})`, 'dbg');
   }
   region.back.appendChild(el);

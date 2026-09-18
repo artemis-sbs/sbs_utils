@@ -1698,7 +1698,70 @@ def comms_set_2dview_focus(client_id, focus_id=0, EVENT=None):
     if previous != set_id:
         FrameContext.context.sbs.assign_client_to_alt_ship(client_id, set_id)
         set_inventory_value(client_id, "2dview_alt_ship_prev", set_id)
-    
+
+
+# The comms map filter is an ENGINE data set on the player ship: the ids the comms 2D map
+# shows. Empty shows everything, so "show nothing else" is written as the ship's own id.
+# Every comms console on the ship shares it.
+_MAP_FILTER = "comms_map_filter"
+_MAP_FILTER_LAST = "comms_map_filter_last"
+
+
+def comms_map_filter_set(ship_id, ids):
+    """Show only `ids` on this ship's comms map.
+
+    Only ids the engine knows are written - live space objects. A lifeform, grid object,
+    fleet or dead id is dropped. An empty result would read as "no filter" to the engine,
+    so it is written as the ship's own id instead. Skips the write when the set has not
+    changed since the last one, since every write goes over the network.
+
+    Args:
+        ship_id (Agent | int): The player ship whose comms map is filtered.
+        ids (iterable): Agent ids or objects to show.
+
+    Returns:
+        list: The ids written (or already in place), sorted.
+    """
+    from .query import to_id, to_data_set, object_exists, is_space_object_id
+    ship_id = to_id(ship_id)
+    keep = set()
+    for i in ids or ():
+        i = to_id(i)
+        if i and is_space_object_id(i) and object_exists(i):
+            keep.add(i)
+    if not keep:
+        keep = {ship_id}
+    keep = sorted(keep)
+    if get_inventory_value(ship_id, _MAP_FILTER_LAST, None) == keep:
+        return keep
+    data_set = to_data_set(ship_id)
+    if data_set is None:
+        return keep
+    data_set.clear_data(_MAP_FILTER)
+    for index, i in enumerate(keep):
+        data_set.set(_MAP_FILTER, i, index)
+    set_inventory_value(ship_id, _MAP_FILTER_LAST, keep)
+    return keep
+
+
+def comms_map_filter_clear(ship_id):
+    """Remove the comms map filter from this ship: the map shows everything again."""
+    from .query import to_id, to_data_set
+    ship_id = to_id(ship_id)
+    if get_inventory_value(ship_id, _MAP_FILTER_LAST, None) == []:
+        return
+    data_set = to_data_set(ship_id)
+    if data_set is None:
+        return
+    data_set.clear_data(_MAP_FILTER)
+    set_inventory_value(ship_id, _MAP_FILTER_LAST, [])
+
+
+def comms_map_filter_get(ship_id):
+    """The ids this ship's comms map is filtered to, or [] when it shows everything."""
+    from .query import to_id
+    return list(get_inventory_value(to_id(ship_id), _MAP_FILTER_LAST, None) or [])
+
 
 class CommsChoiceButtonPromise(Promise):
     def __init__(self, buttons, path, nav_button):

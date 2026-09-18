@@ -121,23 +121,78 @@ def gui_icon_name_button(name, color=None, style=None, props=None, data=None,
     """
     from .icon_sheet import icon_resolve
     index, atlas_key = icon_resolve(name)
-    if index is None:
-        # An atlas-backed name resolves to an Image, which has no click path - so
-        # this cannot honor a re-skin yet. Saying so beats drawing something inert
-        # that looks like a button and is not.
+    if index is None and atlas_key is None:
         from ..execution import log
-        if atlas_key is not None:
-            log(f"icon {name!r} is atlas art, which cannot be a button yet - nothing drawn",
-                "gui", "warning")
-        else:
-            log(f"no icon named {name!r} - nothing drawn", "gui", "warning")
+        log(f"no icon named {name!r} - nothing drawn", "gui", "warning")
         return None
+    if index is None:
+        return _gui_atlas_icon_button(atlas_key, color, style, data, on_press, is_sub_task)
     parts = [f"icon_index:{index}"]
     if color:
         parts.append(f"color:{color}")
     if props:
         parts.append(props.strip().strip(";"))
     return gui_icon_button(";".join(parts) + ";", style, data, on_press, is_sub_task)
+
+
+def _gui_atlas_icon_button(atlas_key, color, style, data, on_press, is_sub_task):
+    """An atlas icon made clickable: an Image with a click region laid over it.
+
+    The engine has no image-button command, but every layout column can carry a click
+    region, and `gui_message` / `on_press` match its click tag. `gui_image_button` does
+    the work; this lays it out like the icon it stands in for - a square column sized
+    by the row height."""
+    from .image import gui_image_button, IMAGE_KEEP_ASPECT_CENTER
+    widget = gui_image_button(atlas_key, style, data, on_press, is_sub_task,
+                              IMAGE_KEEP_ASPECT_CENTER, color)
+    if widget is not None:
+        widget.square = True
+    return widget
+
+
+def gui_icon_rename(widget, name, color=None):
+    """Show a different NAMED icon in a widget already on screen - a toggle's two
+    states, say - whatever kind of widget `gui_icon_name` / `gui_icon_name_button`
+    gave back. Same tag, so only that one glyph is re-sent.
+
+    Both names must be the same kind: two built-in glyphs, or two atlas cells. A
+    built-in icon cannot become an image in place (they are different engine
+    widgets); that is refused with a warning rather than drawn wrong.
+
+    Args:
+        widget: the layout item (None is a no-op).
+        name (str): the icon name to show now.
+        color (str, optional): a new tint; None keeps the current one.
+
+    Returns:
+        bool: whether the widget was changed.
+    """
+    from .icon_sheet import icon_resolve
+    from ...pages.layout.image import Image
+    if widget is None:
+        return False
+    index, atlas_key = icon_resolve(name)
+    if isinstance(widget, Image):
+        if atlas_key is None:
+            from ..execution import log
+            log(f"icon {name!r} is not atlas art - cannot replace an image with it",
+                "gui", "warning")
+            return False
+        if color:
+            widget.color = str(color)
+        widget.update(atlas_key)
+        return True
+    if index is None:
+        from ..execution import log
+        log(f"icon {name!r} is not a built-in glyph - cannot replace an icon with it",
+            "gui", "warning")
+        return False
+    props = split_props(widget.props, "icon_index")
+    props["icon_index"] = str(index)
+    if color:
+        props["color"] = str(color)
+    widget.update(merge_props(props))
+    return True
 
 
 def gui_icon_recolor(widget, color):

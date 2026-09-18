@@ -135,7 +135,11 @@ class MessageHandler:
         return self.handler is None
 
     def on_message(self, event):
-        if event.sub_tag == self.layout_item.tag:
+        # Its own tag, or its click region's: an Image made clickable (an atlas icon
+        # button) is only ever clicked through the region laid over it.
+        click_tag = getattr(self.layout_item, "click_tag", None)
+        if event.sub_tag == self.layout_item.tag or (click_tag is not None
+                                                     and event.sub_tag == click_tag):
             # Whether the owning task was already finished BEFORE this click.
             # A label handler is a jump on that task, so a dead one needs waking
             # -- and a task we just woke has to be ticked here, because nothing

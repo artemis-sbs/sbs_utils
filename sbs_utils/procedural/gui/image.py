@@ -119,6 +119,63 @@ def gui_image(props, style=None, fit=0, color=None):
     page.add_content(layout_item, None)
     return layout_item
 
+
+def gui_image_button(props, style=None, data=None, on_press=None, is_sub_task=None,
+                     fit=3, color=None):
+    """Add a clickable image - a portrait, a card, a map tile, a custom icon.
+
+    The engine has no image-button command, so this is an image with a transparent
+    click region laid over it. It behaves like ``gui_button``: ``data`` and
+    ``on_press`` work the same way, and ``on gui_message(widget)`` fires on a click.
+    Change the picture in place with ``widget.update(props)`` (or ``gui_icon_rename``
+    for a named icon) - same tag, so only that image is re-sent.
+
+    Args:
+        props (str): Image filename (without extension), atlas key, or image
+            property string, exactly as ``gui_image`` takes it.
+        style (str, optional): Layout style. A ``click_background`` in it
+            overrides the transparent default. Defaults to None.
+        data (object, optional): Carried by the widget; a dict is unpacked into
+            the handler's variables. Defaults to None.
+        on_press (label | callable | Promise, optional): What a click does, as
+            on ``gui_button``. Defaults to None.
+        is_sub_task (bool, optional): How an ``on_press`` LABEL runs. See
+            ``gui_button``. Defaults to None.
+        fit (int, optional): Scaling mode, as ``gui_image``. Defaults to 3,
+            keep aspect ratio, centered.
+        color (str, optional): Tint for this use. Defaults to None.
+
+    Returns:
+        Image: The layout item created.
+
+    Example:
+        card = gui_image_button("card_ter_hearts_7", on_press=play_card, data={"card": 7})
+    """
+    from ...pages.layout.image import Image
+    page = FrameContext.page
+    task = FrameContext.task
+    if page is None:
+        return None
+    props = task.compile_and_format_string(props)
+    layout_item = Image(page.get_tag(), props, fit, color)
+    layout_item.data = data
+    apply_control_styles(".image", style, layout_item, task)
+    # Transparent unless the style says otherwise - the region's own default fill
+    # is WHITE.
+    if layout_item.click_background is None:
+        layout_item.click_background = "#0000"
+    # The region is emitted only for a widget with a click TAG (or click text) -
+    # click_background alone draws nothing. Set before add_content, which maps the
+    # click tag to this widget so its handlers match the region's clicks.
+    if layout_item.click_tag is None:
+        layout_item.click_tag = f"__click:{layout_item.tag}"
+    runtime_item = None
+    if on_press is not None:
+        from .button import MessageHandler
+        runtime_item = MessageHandler(layout_item, task, on_press, is_sub_task)
+    page.add_content(layout_item, runtime_item)
+    return layout_item
+
 def gui_image_add_atlas_grid(image, cols, rows=None, names=None, cell=None,
                              color=None, domain=None, start=0):
     """Register a whole sheet of evenly spaced cells in one call.

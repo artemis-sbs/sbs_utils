@@ -2171,7 +2171,11 @@ class object_data_set(object): ### from pybind
 
     def clear_data(self, name: str) -> None:
         """deletes all elements in this blob value"""
-        self.values.pop(name, None)
+        removed = self.values.pop(name, None)
+        # A clear is a change: mark every index it removed, as `set` marks one.
+        for index in (removed or {}):
+            self._gen += 1
+            self._key_gen[(name, index)] = self._gen
 
     def get(self, name, index=0):
         values = self.values.get(name, {})

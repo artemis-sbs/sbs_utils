@@ -494,6 +494,7 @@ def _register_gui_reset_probes() -> None:
     register_reset_state("mockgui.last_per_ship",
                          lambda: sum(len(v) for v in _last_per_ship.values()))
     register_reset_state("mockgui.last_terrain_snapshot", lambda: len(_last_terrain_snapshot))
+    register_reset_state("mockgui.last_comms_filter",     lambda: len(_last_comms_filter))
     register_reset_state("mockgui.hud_cache",            lambda: len(_hud_cache))
     register_reset_state("mockgui.view2d_widget_clients", lambda: len(_view2d_widget_clients))
     register_reset_state("mockgui.view3d_widget_clients", lambda: len(_view3d_widget_clients))
@@ -1944,6 +1945,7 @@ def _force_terrain_push() -> None:
     global _last_terrain_snapshot, _last_per_ship, _last_skybox_sent, _last_colors_sent
     _last_terrain_snapshot = frozenset()
     _last_per_ship = {}
+    _last_comms_filter.clear()   # re-send each ship's comms map filter too
     _last_skybox_sent = "\0"   # force the skybox to re-broadcast to the new client
     _last_colors_sent = None   # force the colour config to re-broadcast to the new client
     _reticle_sent.clear()      # ditto the selection reticle (also sent on change only)
@@ -2062,6 +2064,18 @@ def _push_skybox() -> None:
         gui_queue.put_nowait({"clientID": 0, "cmd": "skybox", "name": name})
     except Exception:
         pass
+
+
+# ship id (str) -> the comms_map_filter last streamed for it
+_last_comms_filter: dict = {}
+
+
+def _comms_map_filter_of(ship_obj) -> list:
+    """The ship's comms_map_filter ids as strings, in index order; [] = no filter."""
+    if ship_obj is None:
+        return []
+    values = ship_obj.data_set.values.get("comms_map_filter") or {}
+    return [str(values[k]) for k in sorted(values)]
 
 
 def _push_radar() -> None:
@@ -2310,7 +2324,13 @@ def _push_radar() -> None:
             return
         _last_per_ship[sid_str] = new_snap
 
-        if removed or changed or navpts or navareas or client_focus:
+        # The ship's comms_map_filter (engine data set): the ids its comms 2D map shows,
+        # [] = everything. Sent with every radar message for the ship; a change forces one.
+        cfilter = _comms_map_filter_of(ship_obj)
+        filter_changed = _last_comms_filter.get(sid_str) != cfilter
+        _last_comms_filter[sid_str] = cfilter
+
+        if removed or changed or navpts or navareas or client_focus or filter_changed:
             try:
                 gui_queue.put_nowait({
                     "clientID":     0,
@@ -2321,6 +2341,7 @@ def _push_radar() -> None:
                     "navpoints":    navpts,
                     "navareas":     navareas,
                     "client_focus": client_focus,
+                    "comms_filter": cfilter,
                 })
             except Exception:
                 pass

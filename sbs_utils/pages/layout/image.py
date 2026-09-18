@@ -12,19 +12,27 @@ class Image(Column):
         super().__init__()
         self.tag = tag
         self.atlas = None
-        self.update(file)
+        self._set_file(file)
         self.mode = mode
         # Per-USE tint, overriding the atlas's own. One registered cell can then serve
         # every state (a state pip recolored per state) instead of needing a key each.
         self.color = color
         
 
-    def update(self, file):
+    def _set_file(self, file):
         from ...procedural.gui.image import gui_image_get_atlas
         self.file = file
         self.atlas = gui_image_get_atlas(file)
-        
-        
+
+    def update(self, file):
+        """Show a different image (a file, atlas key or props string) in place.
+
+        Marks the widget dirty, as `Icon.update` does - without that the new image
+        waits for a rebuild that may never come."""
+        self._set_file(file)
+        if not self.is_hidden_by_script:
+            self.mark_value_dirty()
+
     def measure(self, client_id, mode, avail_px, font, ar):
         # An image's natural size is its actual pixel size -- the one widget
         # whose content is measurable without asking the text engine.

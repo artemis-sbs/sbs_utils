@@ -72,6 +72,9 @@ def extra_scan_sources_run_all(tick_task:TickTask):
         set_inventory_value(scanner_id, "scan_source_crc", crc)
         data_set = to_data_set(scanner_id)
         side = scanner.side
+        # Clear first: writing indices 0..n-1 over a longer earlier list left its tail
+        # entries behind in the blob.
+        data_set.clear_data("extra_scan_source")
         num_ids = 0
         for friend in friends:
             # Remove if friend is no more

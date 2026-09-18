@@ -365,6 +365,25 @@ the old text no longer describes anything. **The template stays the source of tr
 `click_tag:` is NOT a script-side name -- it is a real engine tag, matched against
 `event.sub_tag` by `gui_click`. Leave it alone.
 
+## Image buttons
+
+The engine has no image-button command and `send_gui_button` cannot carry an image, so
+**do not add images to `gui_button`**. Use `gui_image_button(image, style, data,
+on_press)`: an image with a transparent click region over it, handled exactly like a
+button (`on_press`, `data`, `on gui_message`). Swap the picture in place with
+`widget.update(image)`. A NAMED icon from a mission's own sheet goes through
+`gui_icon_name_button(name)`, which uses it, and `gui_icon_rename(widget, name, color)`
+flips it between two looks (LM's Favorites star: `lm.star` / `lm.star_outline`).
+
+Two traps under it, both fixed in the library (2026-09-18) but worth knowing if you
+build one by hand:
+
+- **A click region is emitted only for a widget with a `click_tag`** (or click text).
+  `click_background` alone draws nothing - and with no `click_background` the region
+  fills WHITE.
+- `MessageHandler` (`on_press`) used to match only the widget's own tag, so a press
+  through a click region never reached it.
+
 ## Handlers: gui_message / gui_click / change
 
 - `on gui_message(widget):` — fires when the widget's **value changes** (button,
