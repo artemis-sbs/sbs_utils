@@ -166,5 +166,55 @@ class TestPropertiesFirstBuild(unittest.TestCase):
         self.assertEqual([], default.items, "only the named panel is written")
 
 
+class TestHideWhenEmpty(unittest.TestCase):
+    """A panel that is empty most of the time (comms Options) gives its row to
+    the rows below it, and takes it back when a route fills it."""
+    setUp = TestPropertiesFirstBuild.setUp
+    tearDown = TestPropertiesFirstBuild.tearDown
+    _panel = TestPropertiesFirstBuild._panel
+
+    def _row_panel(self):
+        from sbs_utils.pages.layout.row import Row
+        lb = self._panel()
+        lb.props_hide_row = Row()
+        return lb, lb.props_hide_row
+
+    def test_filling_shows_the_row_and_clearing_hides_it(self):
+        lb, row = self._row_panel()
+        gui_properties_set(PROPS)
+        self.assertTrue(row._show)
+        lb.client_id = CID
+        FrameContext.context.event = FakeEvent(client_id=CID, tag="gui_message")
+        gui_properties_set(None)
+        self.assertFalse(row._show, "an emptied panel must give its row up")
+        gui_properties_set(PROPS)
+        self.assertTrue(row._show)
+
+    def test_a_panel_without_the_flag_never_hides(self):
+        lb = self._panel()
+        lb.client_id = CID
+        FrameContext.context.event = FakeEvent(client_id=CID, tag="gui_message")
+        gui_properties_set(None)
+        self.assertFalse(hasattr(lb, "props_hide_row"))
+
+    def test_created_empty_it_starts_hidden(self):
+        from sbs_utils.procedural.gui.property_listbox import gui_property_list_box
+        from sbs_utils.pages.layout.row import Row
+        row = Row()
+
+        class Page:
+            def get_pending_row(self):
+                return row
+        FrameContext.page = Page()
+        from sbs_utils.procedural.gui import property_listbox as pl
+        orig = pl.gui_list_box
+        pl.gui_list_box = lambda *a, **k: LayoutListbox(0, 0, "lb", [], item_template=lambda i: None)
+        try:
+            gui_property_list_box("Options", hide_when_empty=True)
+        finally:
+            pl.gui_list_box = orig
+        self.assertFalse(row._show)
+
+
 if __name__ == "__main__":
     unittest.main()

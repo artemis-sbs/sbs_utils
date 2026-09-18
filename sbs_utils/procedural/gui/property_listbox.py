@@ -123,6 +123,7 @@ def gui_properties_set(p=None, tag=None):
             return
         first_build = props_lb.client_id is None
         props_lb.items = _gui_properties_items(p)
+        _props_show_if_filled(props_lb)
         # Clear the on changes
         #
         # NOT on the build that creates the panel. gui_represent re-presents the
@@ -140,6 +141,17 @@ def gui_properties_set(p=None, tag=None):
         if not first_build:
             gui_represent(props_lb)
         
+
+
+def _props_show_if_filled(props_lb):
+    """A `hide_when_empty` panel gives its row up while it has nothing to show.
+
+    The ROW, not the listbox: layout drops script-hidden rows, but a hidden column
+    leaves its row standing at full height - an empty band where the panel was.
+    """
+    row = getattr(props_lb, "props_hide_row", None)
+    if row is not None:
+        row.show(len(props_lb.items) > 0)
 
 
 def _property_lb_item_template_one_line(item):
@@ -213,7 +225,7 @@ def gui_property_list_box_stacked(name=None, tag=None):
 
     return props_lb
 
-def gui_property_list_box(name=None, tag=None, temp=_property_lb_item_template_one_line):
+def gui_property_list_box(name=None, tag=None, temp=_property_lb_item_template_one_line, hide_when_empty=False):
     """Create a property list box with single-line label/control layout.
 
     Each property is rendered as a label on the left and its control widget
@@ -228,6 +240,10 @@ def gui_property_list_box(name=None, tag=None, temp=_property_lb_item_template_o
             the list box widget. Defaults to ``"__PROPS_LB__"``.
         temp (callable, optional): Item template function used to render each
             row. Defaults to the built-in one-line template.
+        hide_when_empty (bool, optional): Hide the ROW the panel sits in while it
+            has no properties, so the rows below it take the space. Give the panel
+            a row of its own (``gui_row`` just before this call) - anything sharing
+            the row hides with it. Defaults to False.
 
     Returns:
         LayoutListBox: The list box widget.
@@ -246,6 +262,9 @@ def gui_property_list_box(name=None, tag=None, temp=_property_lb_item_template_o
                 item_template=temp, title_template=name, collapsible=True)
     
     props_lb.title_section_style += "background:#1578;"
+    if hide_when_empty and FrameContext.page is not None:
+        props_lb.props_hide_row = FrameContext.page.get_pending_row()
+        _props_show_if_filled(props_lb)
     gui_task.set_inventory_value(tag, props_lb)
     gui_reset_variables_add(gui_task, tag)
 
