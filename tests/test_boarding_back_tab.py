@@ -185,6 +185,81 @@ class TestWhenNothingHasDeclaredATab(AwayBase):
         self.assertIsNone(T.gui_tab_boarded_back_tab())
 
 
+class TestTwoCrewConsolesCoexist(AwayBase):
+    """TWO addons install a substitution, and neither may silently take the other's.
+
+    There are two crew consoles: the GRID one (a deck you walk) and the EVA one (a suit
+    you fly). Each is declared by its own addon file and each calls
+    `gui_tab_back_while_boarded` at its top level. While the library kept ONE name the
+    last file loaded simply won - so adding `boarding/eva_console.mast` sent a GRID
+    boarder's Back to the EVA console, in every mission that loads the boarding addon and
+    has no relics in it at all. Load order is not deterministic, so which one was broken
+    was not either.
+
+    This is the whole class of defect the caller is complaining about: a global that two
+    installers write, with nothing that notices.
+    """
+
+    EVA_TAB = "eva_crew"
+
+    def setUp(self):
+        super().setUp()
+        T.gui_tab_boarded_back_clear()
+        self.addCleanup(T.gui_tab_boarded_back_clear)
+        # Both addons load, in the order the boarding addon's __init__.mast imports them.
+        T.gui_tab_back_while_boarded(CREW_TAB)
+        T.gui_tab_back_while_boarded(self.EVA_TAB, kind="eva")
+
+    def back_tab(self, asked="console_select"):
+        T.gui_tab_back(asked)
+        return get_inventory_value(CID, "__back_tab__", None)
+
+    def suit_up(self):
+        """Give this console a suit, which is what makes it an EVA console."""
+        from sbs_utils.procedural.eva import KEY_SUIT
+        from sbs_utils.procedural.inventory import set_inventory_value
+        suit = SpaceObject()
+        suit.id = 424242
+        set_inventory_value(CID, KEY_SUIT, suit.id)
+        return suit.id
+
+    def test_both_installs_survive_each_other(self):
+        self.assertEqual(CREW_TAB, T.gui_tab_boarded_back_tab())
+        self.assertEqual(self.EVA_TAB, T.gui_tab_boarded_back_tab("eva"))
+
+    def test_A_GRID_BOARDER_GOES_TO_THE_GRID_CONSOLE(self):
+        """The regression. Loading the EVA file must not move this."""
+        self.send_down()
+        self.assertEqual(CREW_TAB, self.back_tab())
+
+    def test_a_suited_console_goes_to_the_EVA_console(self):
+        self.suit_up()
+        self.assertEqual(self.EVA_TAB, self.back_tab())
+
+    def test_a_console_that_is_neither_is_still_untouched(self):
+        self.assertEqual("helm", self.back_tab("helm"))
+
+    def test_the_eva_install_alone_leaves_a_grid_boarder_alone(self):
+        """A mission that loads ONLY the EVA console has no grid crew console to send
+        anybody to, so the old no-substitution behaviour is the right answer - not the
+        EVA tab, whose route would draw a view of a suit that does not exist."""
+        T.gui_tab_boarded_back_clear()
+        T.gui_tab_back_while_boarded(self.EVA_TAB, kind="eva")
+        self.send_down()
+        self.assertEqual("console_select", self.back_tab())
+
+    def test_clearing_one_kind_leaves_the_other(self):
+        T.gui_tab_back_while_boarded(None, kind="eva")
+        self.assertIsNone(T.gui_tab_boarded_back_tab("eva"))
+        self.assertEqual(CREW_TAB, T.gui_tab_boarded_back_tab())
+
+    def test_a_mission_reset_drops_BOTH(self):
+        """A latch, not a container: one left behind points the next mission's Back at a
+        //gui/tab whose route no longer exists."""
+        T.gui_tab_boarded_back_clear()
+        self.assertEqual({}, T.gui_tab_boarded_back_tabs())
+
+
 class TestWhyTheTabWasWrong(AwayBase):
     def test_A_CONSOLE_JUMP_LEAVES_THE_CHARACTER_HELD(self):
         """What Back actually did. The console arrives at Helm still playing somebody."""

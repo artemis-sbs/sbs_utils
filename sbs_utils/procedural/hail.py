@@ -840,11 +840,24 @@ def hail_answer(ship, index, client_id=None, seq=None):
         {"scene": rec.get("scene"), "label": choice.get("label")})
     rec.setdefault("transcript", []).append(
         {"kind": "choice", "name": "", "text": choice.get("label") or ""})
-    # Release an awaiting story on the answer itself, not on the close: a branch that
-    # walks on to another scene has still ANSWERED, and a linear story wants to move.
-    _hail_settle(rec, choice.get("label"), choice.get("target"), answered=True)
+    # A BRANCH IS NOT AN ENDING. A choice that walks the conversation on to another
+    # scene used to settle the awaiting story anyway - so a story doing
+    # `answer = await hail_ask(...)` was handed "Clean it up and play it again", fell
+    # through its own `if`, and ENDED. The crew then read the second scene, pressed the
+    # answer the whole mission turns on, and nobody was listening any more: the promise
+    # was already done, so the second `_hail_settle` did nothing at all.
+    #
+    # Nothing raised and nothing logged - the hail even echoed "answered" - and in
+    # LandingParty it surfaced three screens away as "the ePADD has no Boarding Party
+    # app", because no party was ever offered. So `await hail_ask` now resolves with the
+    # answer that ENDS the conversation, which is the one a linear story is waiting for.
+    # Every other ending still settles it (declined, closed, cancelled), so nothing can
+    # hang; a story that wants the intermediate steps watches the hail events instead.
     target = choice.get("target")
-    if target and target in _hail_scenes(rec):
+    branching = bool(target) and target in _hail_scenes(rec)
+    if not branching:
+        _hail_settle(rec, choice.get("label"), target, answered=True)
+    if branching:
         rec["scene"] = target
         rec["resolved"] = False
         _hail_apply_scene_fields(rec)

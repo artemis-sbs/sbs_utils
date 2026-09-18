@@ -110,45 +110,105 @@ def gui_tab_enable(tab_name: str):
 # declared. Nothing installed means no substitution and the old behaviour, which matters:
 # substituting unconditionally would send Back to a tab with no route behind it, and a
 # dead Back is no better than one that goes to the wrong place.
-_BOARDING_BACK_TAB = None
+#
+# ONE ENTRY PER BODY MODEL, not one global. There are two crew consoles now - the grid
+# one (a deck you walk) and the EVA one (a suit you fly) - and each is declared by its own
+# addon file, both of which call this at their top level. While this was a single global
+# the LAST file loaded simply won: adding `boarding/eva_console.mast` sent the ePADD's
+# Back to the EVA console for every GRID boarder, in every mission that loads the boarding
+# addon and has no relics in it at all. Keyed, it is order-independent, and a mission that
+# loads only one of the two is unchanged.
+BOARDED_KIND_GRID = "grid"
+BOARDED_KIND_EVA = "eva"
+
+_BOARDING_BACK_TABS = {}
 
 
-def gui_tab_back_while_boarded(tab_name=None):
+def gui_tab_back_while_boarded(tab_name=None, kind=BOARDED_KIND_GRID):
     """Name the tab a BOARDED console's Back should go to, or clear it with ``None``.
 
     Called once by the addon that declares that tab::
 
         gui_tab_back_while_boarded("boarding_crew")
+        gui_tab_back_while_boarded("eva_crew", kind="eva")
 
         //gui/tab/boarding_crew
             jump boarding_crew_console
 
+    Args:
+        tab_name (str, optional): the `//gui/tab` to substitute. ``None`` clears it.
+        kind (str, optional): which kind of boarded console this tab is for - ``"grid"``
+            (a deck, the default and what every existing caller means) or ``"eva"`` (a
+            suit). A console flying a suit takes the ``eva`` tab; anything else boarded
+            takes the ``grid`` one.
+
     Returns:
-        str | None: the name now installed.
+        str | None: the name now installed for that kind.
     """
-    global _BOARDING_BACK_TAB
+    key = str(kind or BOARDED_KIND_GRID).strip().lower() or BOARDED_KIND_GRID
     name = tab_name.strip().lower() if isinstance(tab_name, str) and tab_name.strip() \
         else None
-    _BOARDING_BACK_TAB = name
-    return _BOARDING_BACK_TAB
+    if name is None:
+        _BOARDING_BACK_TABS.pop(key, None)
+    else:
+        _BOARDING_BACK_TABS[key] = name
+    return name
 
 
-def gui_tab_boarded_back_tab():
+def gui_tab_boarded_back_tab(kind=BOARDED_KIND_GRID):
     """The tab a boarded console's Back goes to, or None when nothing installed one."""
-    return _BOARDING_BACK_TAB
+    return _BOARDING_BACK_TABS.get(str(kind or BOARDED_KIND_GRID).strip().lower())
+
+
+def gui_tab_boarded_back_tabs():
+    """Every installed substitution, as ``{kind: tab}``. For tools and the reset ledger."""
+    return dict(_BOARDING_BACK_TABS)
+
+
+def gui_tab_boarded_back_clear():
+    """Drop every substitution (called by `reset_mission_state`).
+
+    A LATCH, not a container: an addon installs it at its top level, so one left behind
+    would point the next mission's Back at a tab whose route no longer exists.
+    """
+    _BOARDING_BACK_TABS.clear()
+
+
+def _boarded_back_tab(client_id):
+    """Which substitution applies to THIS console, or None if it is not boarded.
+
+    A suit first: a console flying one is out in a relic, where the grid crew console has
+    nothing to draw. Asked in that order rather than by CONSOLE_TYPE because the suit is
+    the thing the client is actually assigned to.
+    """
+    if not _BOARDING_BACK_TABS:
+        return None
+    eva = _BOARDING_BACK_TABS.get(BOARDED_KIND_EVA)
+    if eva is not None:
+        try:
+            from ..eva import eva_my_suit
+            if eva_my_suit(client_id) is not None:
+                return eva
+        except Exception:                   # noqa: BLE001 - a mission with no EVA
+            pass
+    grid = _BOARDING_BACK_TABS.get(BOARDED_KIND_GRID)
+    if grid is None:
+        return None
+    try:
+        from ..boarding import boarding_clients
+    except Exception:                       # noqa: BLE001 - a mission with no boarding
+        return None
+    return grid if client_id in boarding_clients() else None
 
 
 def _back_tab_for(client_id, tab_name):
     """Substitute the crew console for whatever a boarded console was asked for."""
-    if _BOARDING_BACK_TAB is None:
+    crew_tab = _boarded_back_tab(client_id)
+    if crew_tab is None:
         return tab_name
-    if tab_name.strip().lower() == _BOARDING_BACK_TAB:
+    if tab_name.strip().lower() == crew_tab:
         return tab_name                     # already there; do not recurse into itself
-    try:
-        from ..boarding import boarding_clients
-    except Exception:                       # noqa: BLE001 - a mission with no boarding
-        return tab_name
-    return _BOARDING_BACK_TAB if client_id in boarding_clients() else tab_name
+    return crew_tab
 
 
 def gui_tab_back(tab_name: str):

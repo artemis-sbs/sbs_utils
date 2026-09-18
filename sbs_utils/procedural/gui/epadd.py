@@ -59,6 +59,23 @@ SHELL_APP = "epadd"
 #: `reset_mission_state`, which is also what stops the same line every build.
 _MISSING_ROUTE_REPORTED = set()
 
+
+def _say(message):
+    """Report an ePADD problem where somebody will actually see it.
+
+    `log(msg, "epadd", "warning")` alone goes NOWHERE: a named category is a bare
+    `logging.getLogger("epadd")`, and unless the mission happened to call
+    `logger(name="epadd", file=...)` it has no handler at all. Every "the tile is simply
+    not there" report so far has had a clean `mast.runtime.log` beside it for exactly
+    that reason. So the named logger is kept - a mission that DOES attach one still gets
+    its own file - and the same line also goes to `mast.runtime`, which is the log
+    everybody reads.
+    """
+    from ..execution import log
+    log(message, "epadd", "warning")
+    import logging
+    logging.getLogger("mast.runtime").warning("ePADD: " + message)
+
 # `normal_engi` is what the engine calls the console; `engineering` is what everything
 # a script writes calls it. This table lived, unused, inside gui_queue_console_tabs -
 # it computed the translation and then never applied it. Scoping needs it, so it moves
@@ -245,9 +262,8 @@ def gui_app_list(console=None, client_id=None):
             # unmigrated route. Once per name per mission.
             if tab not in _MISSING_ROUTE_REPORTED:
                 _MISSING_ROUTE_REPORTED.add(tab)
-                from ..execution import log
-                log(f"app {tab!r} has no //gui/app/{tab} route - it cannot be opened, "
-                    f"so it is left off the PADD", "epadd", "warning")
+                _say(f"app {tab!r} has no //gui/app/{tab} route - it cannot be opened, "
+                     f"so it is left off the PADD")
             return None
         if task is not None and isinstance(label, GuiAppDecoratorLabel):
             if not label.test(task):
@@ -285,6 +301,60 @@ def _scoped_here(app, console):
     if wanted is None:
         return True
     return console is None or console in wanted
+
+
+def gui_app_why(tab, console=None, client_id=None):
+    """Why a tile is, or is not, on this console's PADD. One line, in plain words.
+
+    A missing tile has four causes and three of them are SILENT by design - the whole
+    point of a route condition is that it hides things quietly - so "the app is just not
+    there" has been costing a full archaeology session each time it is reported. Ask
+    this instead, from a debug console or a comms route::
+
+        log(gui_app_why("boarding_party"))
+
+    Args:
+        tab (str): the app, as `gui_app_register` was given it.
+        console (str, optional): the console to ask about. Defaults to this client's.
+        client_id (optional): the console's client. Defaults to the page's own.
+
+    Returns:
+        str: the reason, naming the thing to go and look at.
+    """
+    from ...mast_sbs.story_nodes.gui_app_decorator_label import GuiAppDecoratorLabel
+    tab = str(tab).strip().lower()
+    if console is None:
+        console = _console_identity(client_id)
+    console = epadd_console_name(console)
+    app = _apps().get(tab)
+    if app is None:
+        return (f"{tab!r} is not registered - nothing called gui_app_register({tab!r}). "
+                f"Registered: {sorted(_apps())}")
+    if tab == SHELL_APP:
+        return f"{tab!r} is the PADD itself, so it is never a tile on its own home screen"
+    if not _scoped_here(app, console):
+        wanted = app.get("consoles")
+        where = "every ship console" if wanted is None else sorted(wanted)
+        if console == BOARDING_CONSOLE and not app.get("boarding"):
+            return (f"{tab!r} is not offered on the crew console - it needs "
+                    f"boarding=True, because '*' deliberately does not include it")
+        return f"{tab!r} is scoped to {where}, and this console is {console!r}"
+    label = GuiAppDecoratorLabel.all.get(tab)
+    if label is None:
+        return (f"{tab!r} has no //gui/app/{tab} route - check the .mast declares it and "
+                f"that the mastlib was rebuilt (a route that is still //gui/tab counts "
+                f"as missing)")
+    if getattr(label, "if_exp", None):
+        task = FrameContext.task
+        if task is None:
+            return (f"{tab!r} is available - its condition `{label.if_exp}` was not "
+                    f"tested, because there is no task in context here")
+        value = label.test(task)
+        if not value:
+            return (f"{tab!r} is withheld by its own route condition: "
+                    f"`{label.if_exp}` answered {value!r} for console {console!r}")
+        return f"{tab!r} is offered - `{label.if_exp}` answered {value!r}"
+    return f"{tab!r} is offered - it is registered, in scope, and its route exists"
 
 
 def _group_rank(group):
@@ -460,9 +530,8 @@ def gui_app_open(tab):
         # app table beside a mastlib still declaring `//gui/tab`, so rebuild BOTH.
         if tab not in _MISSING_ROUTE_REPORTED:
             _MISSING_ROUTE_REPORTED.add(tab)
-            from ..execution import log
-            log(f"no //gui/app/{tab} route - opening it can do nothing. If it used to "
-                f"be a //gui/tab, rebuild the mastlib too", "epadd", "warning")
+            _say(f"no //gui/app/{tab} route - opening it can do nothing. If it used to "
+                 f"be a //gui/tab, rebuild the mastlib too")
         return False
     page = FrameContext.page
     task = getattr(page, "gui_task", None) if page is not None else None

@@ -1,6 +1,7 @@
 from .console_tab import gui_tab_enable,gui_tab_back,gui_tab_add_top,gui_tab_enable_top,gui_tab_activate, gui_tab_get_active, gui_app_activate, gui_app_get_active, gui_tab_clear_top, gui_tab_remove_top, gui_tab_is_top
 from .console_tab import gui_tab_get_list
-from .console_tab import gui_tab_back_while_boarded, gui_tab_boarded_back_tab
+from .console_tab import (gui_tab_back_while_boarded, gui_tab_boarded_back_tab,
+                          gui_tab_boarded_back_tabs, gui_tab_boarded_back_clear)
 from .messages_gui import gui_messages_screen, gui_messages_tick
 from .status_gui import gui_status_screen, status_rows
 from .offers_gui import gui_offers_screen, offer_rows
@@ -27,7 +28,7 @@ from .epadd import (gui_app_subnav,
                     gui_app_get_registered, gui_app_list, gui_app_groups,
                     epadd_console_name,
                     gui_app_home, gui_app_home_tick, gui_app_open, gui_app_chrome,
-                    gui_app_badge, gui_app_revision)
+                    gui_app_badge, gui_app_revision, gui_app_why)
 from .console_types import gui_add_console_type, gui_get_console_type, gui_get_console_type_list, gui_get_console_types, gui_remove_console_type
 
 

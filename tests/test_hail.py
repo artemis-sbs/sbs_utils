@@ -773,27 +773,77 @@ class AwaitableHailTests(HailTestCase):
     that hears the wrong answer.
     """
 
+    #: A conversation that BRANCHES and then asks the real question - the shape
+    #: LandingParty's orbit call has, and the one that used to lose its own answer.
+    BRANCHING = {
+        "open": {
+            "data": {"speaker": "ashfang", "when": "hail"},
+            "description": NL.join([
+                "@Ashfang", "% You are a long way from friends.", "",
+                "- [Play it again](again)",
+                "- [Say nothing](nowhere)",
+            ]),
+        },
+        "again": {
+            "data": {"speaker": "ashfang"},
+            "description": NL.join([
+                "@Ashfang", "% Then listen.", "",
+                "- [Assemble a boarding party](nowhere)",
+                "- [Hold position](nowhere)",
+            ]),
+        },
+    }
+
+    def _read(self):
+        H.hail_accept(self.ship)
+        while H.hail_advance(self.ship):
+            pass
+
     def test_it_resolves_with_the_chosen_label(self):
         prom = H.hail_ask(self.ship, scenes=SCENES, scene="open", speaker="ashfang")
         self.assertFalse(prom.done())
-        H.hail_accept(self.ship)
-        while H.hail_advance(self.ship):
-            pass
-        H.hail_answer(self.ship, 0)
+        self._read()
+        H.hail_answer(self.ship, 2)                  # "Say nothing" - ends it
         self.assertTrue(prom.done())
-        self.assertEqual(prom.result().value, "Stand down")
+        self.assertEqual(prom.result().value, "Say nothing")
         self.assertTrue(prom.result().answered)
 
-    def test_a_branch_still_releases_the_story(self):
-        # Answering navigated to another scene. The crew ANSWERED, so a linear story
-        # moves on even though the conversation carries on.
-        prom = H.hail_ask(self.ship, scenes=SCENES, scene="open", speaker="ashfang")
-        H.hail_accept(self.ship)
+    def test_A_BRANCH_IS_NOT_AN_ENDING(self):
+        """THE BUG. A choice that walks on to another scene used to settle the story,
+        which then fell through its own `if` and ENDED - so the answer the mission
+        actually turns on, pressed one screen later, reached nobody. It cost LandingParty
+        its whole away half, and surfaced three screens away as "the ePADD has no
+        Boarding Party app", with nothing raised and nothing logged."""
+        prom = H.hail_ask(self.ship, scenes=self.BRANCHING, scene="open",
+                          speaker="ashfang")
+        self._read()
+        H.hail_answer(self.ship, 0)                  # "Play it again" -> scene `again`
+        self.assertTrue(H.hail_is_active(self.ship), "the conversation walked on")
+        self.assertFalse(prom.done(),
+                         "the story was released on a step, not on an answer")
+
+    def test_and_the_story_gets_the_answer_that_ENDS_it(self):
+        prom = H.hail_ask(self.ship, scenes=self.BRANCHING, scene="open",
+                          speaker="ashfang")
+        self._read()
+        H.hail_answer(self.ship, 0)                  # branch
         while H.hail_advance(self.ship):
             pass
-        H.hail_answer(self.ship, 0)
-        self.assertTrue(H.hail_is_active(self.ship))
+        H.hail_answer(self.ship, 0)                  # the real answer
         self.assertTrue(prom.done())
+        self.assertEqual(prom.result().value, "Assemble a boarding party")
+        self.assertTrue(prom.result().answered)
+
+    def test_a_branch_that_is_then_CLOSED_still_settles(self):
+        """Nothing may hang. A story blocked forever is worse than a wrong answer, so
+        every other ending still releases it - with value None."""
+        prom = H.hail_ask(self.ship, scenes=self.BRANCHING, scene="open",
+                          speaker="ashfang")
+        self._read()
+        H.hail_answer(self.ship, 0)
+        H.hail_close(self.ship)
+        self.assertTrue(prom.done())
+        self.assertIsNone(prom.result().value)
 
     def test_closing_without_answering_still_settles(self):
         prom = H.hail_ask(self.ship, scenes=SCENES, scene="open", speaker="ashfang")

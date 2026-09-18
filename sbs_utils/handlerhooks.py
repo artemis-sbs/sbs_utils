@@ -133,6 +133,11 @@ def reset_mission_state():
     _BADGE_REPORTED.clear()
     # And which apps have been reported as having no //gui/app route.
     _MISSING_ROUTE_REPORTED.clear()
+    # Where a BOARDED console's Back goes. Installed by whichever addon declares the crew
+    # console tab, so it is a latch: one left behind points the next mission's Back at a
+    # //gui/tab whose route no longer exists.
+    from .procedural.gui.console_tab import gui_tab_boarded_back_clear
+    gui_tab_boarded_back_clear()
     # Offer providers. The CORE ones are reinstalled by offer_clear(); anything a
     # mission registered is dropped, or the next mission inherits an addon's provider
     # and computes offers against a world that no longer exists.
@@ -464,6 +469,10 @@ register_reset_state("mod face registry", _face_mod_size)
 # this should always report 0 - registered so a future move off SHARED cannot go unnoticed.
 from .procedural.gui.epadd import _apps_count as _epadd_apps_count
 register_reset_state("ePADD apps", _epadd_apps_count)
+# Where a boarded console's Back goes, one entry per body model. A latch, per the note in
+# reset_mission_state.
+from .procedural.gui.console_tab import gui_tab_boarded_back_tabs as _boarded_back_tabs
+register_reset_state("boarded back tab", lambda: len(_boarded_back_tabs()))
 # Offer providers a MISSION registered. offer_clear() reinstalls the core ones, so this
 # probes the non-core set only and must report 0 - a leak here means the next mission is
 # answering "what is there for us?" with the last mission's addons.
