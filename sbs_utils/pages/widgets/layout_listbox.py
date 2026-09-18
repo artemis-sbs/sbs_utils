@@ -670,7 +670,14 @@ class LayoutListbox(layout.Column):
             # Where the visible window starts -- packing depends on it.
             cur_start = self.cur if self.cur and self.cur > 0 else 0
         
-            max_item_width += item_width
+            if self.horizontal and item_width:
+                # HORIZONTAL: `col-width` IS the item's width and pitch. The measured
+                # width is useless here - an item is measured in a 100-wide box and a
+                # row spans its section, so every item measured 100 and a horizontal
+                # list fitted no slots at all (at most one, off screen).
+                max_item_width = item_width
+            else:
+                max_item_width += item_width
             max_item_height += item_gap
             avg_item_height += item_gap
         
@@ -882,6 +889,10 @@ class LayoutListbox(layout.Column):
 
                 if self.horizontal:
                     this_bottom = bottom
+                    if item_width:
+                        # Give the item its pitch, so a flex row in the template fills
+                        # the chip rather than resolving against a zero-width section.
+                        this_right = left + item_indent + item_width
                 else:
                     this_right = right
                     if self.carousel:
@@ -968,7 +979,9 @@ class LayoutListbox(layout.Column):
                 if size is None:
                     sec.resize_to_content()
                     if self.horizontal:
-                        size = sec.bounds.width + item_width
+                        # The declared pitch when there is one; the section already
+                        # spans it, so adding it again would double the step.
+                        size = item_width if item_width else sec.bounds.width
                     else:
                         size = sec.bounds.height + item_gap
                 #
@@ -976,8 +989,21 @@ class LayoutListbox(layout.Column):
                 #
                 if (self.select or self.multi) and not self.carousel and item in self.selected:
                     props = "image:smallWhite; color:white;draw_layer:1000;" # sub_rect: 0,0,etc"
-                    SBS.send_gui_image(event.client_id, self.local_region_tag,
-                        "__selbg:"+self.tag, props,left+item_indent, top, left+item_indent+sel_width, top+sec.bounds.height)
+                    # One tag PER SLOT. It was the listbox's own tag for every item, so in a
+                    # multi-select each tick replaced the last and at most one ever showed.
+                    if self.horizontal:
+                        # A strip across the TOP of the item. On the left it sits against
+                        # the previous item and reads as a divider; underneath, it would
+                        # sit on the scroll slider a horizontal list draws there.
+                        # Stopped short of the right edge, so two neighboring selected
+                        # items read as two bars rather than one long one.
+                        sel_height = 100.0*(5/aspect_ratio.y)
+                        sel_gap = 100.0*(6/aspect_ratio.x)
+                        SBS.send_gui_image(event.client_id, self.local_region_tag,
+                            "__selbg:"+tag, props, sec.bounds.left, top, sec.bounds.right-sel_gap, top+sel_height)
+                    else:
+                        SBS.send_gui_image(event.client_id, self.local_region_tag,
+                            "__selbg:"+tag, props,left+item_indent, top, left+item_indent+sel_width, top+sec.bounds.height)
             
                 if self.horizontal:
                     left+= size
