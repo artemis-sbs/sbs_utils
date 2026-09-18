@@ -247,28 +247,22 @@ Routes a compile registers (`//focus/comms`, `//drag/comms`, ...) live in
 that compiles MAST:
 
 ```python
-from sbs_utils.consoledispatcher import ConsoleDispatcher
 from sbs_utils.delete_queue import DeleteQueue
-import sbs_utils.procedural.comms, sbs_utils.procedural.science, sbs_utils.procedural.popup
-
-def _library_defaults(table):
-    # plain functions registered at import; bound Handle* methods are per-story routes
-    return {k: [cb for cb in v if not hasattr(cb, "__self__")]
-            for k, v in table.items() if k[0] == 0 and isinstance(v, list)}
-
-_SELECT_DEFAULTS  = _library_defaults(ConsoleDispatcher._dispatch_select)
-_MESSAGE_DEFAULTS = _library_defaults(ConsoleDispatcher._dispatch_messages)
 
 def setUp(self):
     from sbs_utils.handlerhooks import reset_mission_state
-    reset_mission_state()
-    # reset drops the library's import-time comms/science/popup handlers too - put them back
-    for k, v in _SELECT_DEFAULTS.items():  ConsoleDispatcher._dispatch_select[k] = list(v)
-    for k, v in _MESSAGE_DEFAULTS.items(): ConsoleDispatcher._dispatch_messages[k] = list(v)
+    reset_mission_state()          # drops story routes; the library's own handlers survive
     mock_sbs.create_new_sim(); mock_sbs.resume_sim()
     DeleteQueue.clear()
     ...
 ```
+
+The library's import-time handlers (comms/science/popup selection, task purge on destroy,
+mount/orbit cleanup, grid move-role) are registered with `<Dispatcher>.add_library(...)`,
+and `clear()` replays them - so a reset keeps them (fixed 2026-09-18,
+`tests/test_reset_keeps_library_handlers.py`). A NEW import-time registration must use
+`add_library` too, or the dev runner's in-process reload loses it from run 2 on. On an
+older sbslib a harness had to snapshot and re-add the ConsoleDispatcher defaults by hand.
 
 Why `DeleteQueue.clear()`: it drains only at the end of `cosmos_event_handler`, which a
 unit test rarely calls, and `create_new_sim()` recycles space-object ids - so a leftover

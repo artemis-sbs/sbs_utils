@@ -14,13 +14,42 @@ class GridDispatcher:
     _dispatch_any_point = set()
     _dispatch_any_object = set()
 
+    # The LIBRARY's own handlers, registered once at module import. `clear()` runs on
+    # every mission reset, but a module is imported once per process, so a handler it
+    # registered at import was never put back: in the dev runner's in-process reload
+    # run 2 had no comms/science selection and leaked tasks for every destroyed object.
+    # `add_library` records the call so `clear()` can replay it; mission routes, which
+    # re-register when their story recompiles, are still dropped.
+    _library_calls = []
+
+    @classmethod
+    def add_library(cls, method, *args):
+        """Register a LIBRARY handler that must survive `clear()`.
+
+        Args:
+            method (str): The name of this class's `add_*` method to call.
+            *args: Its arguments.
+        """
+        call = (method, args)
+        if call not in cls._library_calls:
+            cls._library_calls.append(call)
+        getattr(cls, method)(*args)
+
+    @classmethod
+    def _replay_library(cls):
+        for method, args in cls._library_calls:
+            getattr(cls, method)(*args)
+
     @classmethod
     def clear(cls):
-        """Drop all registered grid routes (fresh mission / in-process recompile)."""
+        """Drop all registered grid routes (fresh mission / in-process recompile).
+
+        The library's own handlers (`add_library`) are put back."""
         cls._dispatch_object = {}
         cls._dispatch_point = {}
         cls._dispatch_any_point = set()
         cls._dispatch_any_object = set()
+        cls._replay_library()
 
     def add_object(id: int, cb: typing.Callable):
         """Register a callback for a specific grid object.

@@ -853,4 +853,4 @@ def _orbit_on_destroy(destroyed, damage_event=None):
             orbit_release(ship_id)
 
 
-LifetimeDispatcher.add_destroy(_orbit_on_destroy)
+LifetimeDispatcher.add_library("add_destroy", _orbit_on_destroy)

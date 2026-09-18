@@ -15,7 +15,7 @@ def handle_purge_tasks(so, event=None):
     """
     MastAsyncTask.stop_for_dependency(so.id)
 
-LifetimeDispatcher.add_destroy(handle_purge_tasks)
+LifetimeDispatcher.add_library("add_destroy", handle_purge_tasks)
 
 
 from ..helpers import FrameContext

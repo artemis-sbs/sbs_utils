@@ -303,9 +303,9 @@ def start_popup_selected(event):
     return promise
     
     
-ConsoleDispatcher.add_default_select("science_popup", start_popup_selected)
-ConsoleDispatcher.add_default_select("comms_popup", start_popup_selected)
-ConsoleDispatcher.add_default_select("comms2d_popup", start_popup_selected)
-ConsoleDispatcher.add_default_select("weapons_popup", start_popup_selected)
+ConsoleDispatcher.add_library("add_default_select", "science_popup", start_popup_selected)
+ConsoleDispatcher.add_library("add_default_select", "comms_popup", start_popup_selected)
+ConsoleDispatcher.add_library("add_default_select", "comms2d_popup", start_popup_selected)
+ConsoleDispatcher.add_library("add_default_select", "weapons_popup", start_popup_selected)
 
 

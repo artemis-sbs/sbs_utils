@@ -1448,16 +1448,16 @@ def start_comms_common_selected(event, is_grid):
 def start_comms_selected(event):
     return start_comms_common_selected(event, False)
     
-ConsoleDispatcher.add_default_select("comms_target_UID", start_comms_selected)
-ConsoleDispatcher.add_default_message("comms_target_UID", start_comms_selected)
+ConsoleDispatcher.add_library("add_default_select", "comms_target_UID", start_comms_selected)
+ConsoleDispatcher.add_library("add_default_message", "comms_target_UID", start_comms_selected)
 
 
 def start_grid_comms_selected(event):
     return start_comms_common_selected(event, True)
 
 
-ConsoleDispatcher.add_default_select("grid_selected_UID", start_grid_comms_selected)
-ConsoleDispatcher.add_default_message("grid_selected_UID", start_grid_comms_selected)
+ConsoleDispatcher.add_library("add_default_select", "grid_selected_UID", start_grid_comms_selected)
+ConsoleDispatcher.add_library("add_default_message", "grid_selected_UID", start_grid_comms_selected)
 
 
 

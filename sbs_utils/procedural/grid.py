@@ -1005,7 +1005,7 @@ def grid_remove_move_role(event):
         remove_role(event.origin_id, "_moving_")
     
 
-GridDispatcher.add_any_object(grid_remove_move_role)
+GridDispatcher.add_library("add_any_object", grid_remove_move_role)
 
 def grid_merge_ascii(content, mod=None, ship_key=None):
     """Merge one ASCII floor plan (see :mod:`grid_ascii`) into the grid data.

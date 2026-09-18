@@ -54,6 +54,62 @@ class TestNamespaceLint(unittest.TestCase):
         self.assertEqual(codes(f), ["ns-mast-var-collision"])
         self.assertEqual(f[0][1].line, 2)
 
+    def test_HARD_ASSIGN_TO_A_LIBRARY_GLOBAL(self):
+        """The case lint used to miss: the name comes from the LIBRARY, not an addon.
+        `boarding_home_ship = ...` compiled to 0 labels while lint reported 0 errors."""
+        py = [("maps/m.py", "def maps_helper():\n    return 1\n")]
+        mast = [("maps/m.mast", "== main ==\n    boarding_home_ship = 7\n")]
+        f = namespace_lint_project(py, mast, mast_globals={"boarding_home_ship"})
+        self.assertEqual(codes(f), ["ns-mast-var-collision"])
+        self.assertIn("library", f[0][1].message)
+
+    def test_a_library_global_default_is_still_exempt(self):
+        py = [("maps/m.py", "def maps_helper():\n    return 1\n")]
+        mast = [("maps/m.mast", "== main ==\n    default boarding_home_ship = 7\n")]
+        self.assertEqual(codes(namespace_lint_project(py, mast, mast_globals={"boarding_home_ship"})), [])
+
+    def test_a_library_collision_can_be_allowed(self):
+        py = [("maps/m.py", "def maps_helper():\n    return 1\n")]
+        mast = [("maps/m.mast", "== main ==\n    sim = 1  # lint: allow ns-mast-var-collision\n")]
+        self.assertEqual(codes(namespace_lint_project(py, mast, mast_globals={"sim"})), [])
+
+    def test_the_real_mast_globals_table_catches_a_procedural_name(self):
+        """End to end against the table the compiler itself reads."""
+        import sys
+        import cosmos_dev.mock.sbs as mock
+        sys.modules.setdefault("sbs", mock)
+        from sbs_utils.mast_sbs import mast_sbs_procedural  # noqa: F401 - registers the library
+        from sbs_utils.mast.mast_globals import MastGlobals
+        self.assertIn("gui_list_box", MastGlobals.globals)
+        py = [("maps/m.py", "def maps_helper():\n    return 1\n")]
+        mast = [("maps/m.mast", "== main ==\n    gui_list_box = None\n")]
+        f = namespace_lint_project(py, mast, mast_globals=set(MastGlobals.globals))
+        self.assertEqual(codes(f), ["ns-mast-var-collision"])
+
+    def test_a_KEYWORD_ARGUMENT_on_a_continuation_line_is_not_an_assignment(self):
+        """LM prefabs/torpedo_prefabs.mast: `gui_text=gui_name,` inside a multi-line
+        `~~ torpedo_type(...) ~~` call was reported as assigning gui_text."""
+        py = [("prefabs/p.py", "def prefabs_helper():\n    return 1\n")]
+        mast = [("prefabs/p.mast",
+                 "== main ==\n"
+                 "    ~~ torpedo_type(key=key, \n"
+                 "        gui_text=gui_name, \n"
+                 "        speed=speed) ~~\n"
+                 "    x = foo(\n"
+                 "        gui_text=1)\n")]
+        self.assertEqual(codes(namespace_lint_project(py, mast, mast_globals={"gui_text"})), [])
+
+    def test_a_statement_after_the_block_is_still_checked(self):
+        py = [("prefabs/p.py", "def prefabs_helper():\n    return 1\n")]
+        mast = [("prefabs/p.mast",
+                 "== main ==\n"
+                 "    ~~ torpedo_type(key=key,\n"
+                 "        speed=speed) ~~\n"
+                 "    gui_text = 5\n")]
+        f = namespace_lint_project(py, mast, mast_globals={"gui_text"})
+        self.assertEqual(codes(f), ["ns-mast-var-collision"])
+        self.assertEqual(f[0][1].line, 4)
+
     def test_default_assign_is_exempt(self):
         """assign.py deliberately allows `default x = ...` onto an existing global."""
         py = [("fleets/e.py", "def elite_get_all_abilities():\n    return []\n")]

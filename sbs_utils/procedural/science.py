@@ -798,8 +798,8 @@ def start_science_message(event):
         })
         
     
-ConsoleDispatcher.add_default_select("science_target_UID", start_science_selected)
-ConsoleDispatcher.add_default_message("science_target_UID", start_science_message)
+ConsoleDispatcher.add_library("add_default_select", "science_target_UID", start_science_selected)
+ConsoleDispatcher.add_library("add_default_message", "science_target_UID", start_science_message)
 
 def science_ensure_scan(ids_or_objs, target_ids_or_objs, tabs="scan"):
     """Force a completed scan result onto all (scanner, target) pairs.

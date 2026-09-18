@@ -399,4 +399,4 @@ def _mount_on_destroy(destroyed, damage_event=None):
         unlink(host, MOUNT_LINK, hid)
 
 
-LifetimeDispatcher.add_destroy(_mount_on_destroy)
+LifetimeDispatcher.add_library("add_destroy", _mount_on_destroy)

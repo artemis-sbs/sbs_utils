@@ -157,14 +157,47 @@ def _def_sites(content):
     return out
 
 
-def _hard_assigns(content):
-    """[(name, line)] for .mast assignments that are NOT `default` (which is exempt)."""
-    out = []
-    for i, ln in enumerate(content.splitlines(), 1):
-        m = _MAST_ASSIGN.match(ln)
-        if not m or (m.group("kw") or "").startswith("default"):
+def _bracket_delta(line):
+    """Net open brackets on one line, ignoring quoted text and a trailing # comment."""
+    depth = 0
+    quote = None
+    for ch in line:
+        if quote:
+            if ch == quote:
+                quote = None
             continue
-        out.append((m.group("name"), i))
+        if ch in "\"'`":
+            quote = ch
+        elif ch == "#":
+            break
+        elif ch in "([{":
+            depth += 1
+        elif ch in ")]}":
+            depth -= 1
+    return depth
+
+
+def _hard_assigns(content):
+    """[(name, line)] for .mast assignments that are NOT `default` (which is exempt).
+
+    Only STATEMENT lines count. A line inside an open bracket or a `~~ ... ~~` block is a
+    continuation - `gui_text=gui_name,` in a multi-line `~~ torpedo_type(...) ~~` call is a
+    keyword argument, not an assignment - and reading it as one was a false error once the
+    check covered the whole library table.
+    """
+    out = []
+    depth = 0
+    in_py = False
+    for i, ln in enumerate(content.splitlines(), 1):
+        at_statement = depth <= 0 and not in_py
+        if at_statement:
+            m = _MAST_ASSIGN.match(ln)
+            if m and not (m.group("kw") or "").startswith("default"):
+                out.append((m.group("name"), i))
+        # `~~` opens and closes an inline-Python block; an odd count toggles it.
+        if ln.count("~~") % 2:
+            in_py = not in_py
+        depth = max(0, depth + _bracket_delta(ln))
     return out
 
 
@@ -185,7 +218,7 @@ def _label_sites(content):
     return out
 
 
-def namespace_lint_project(py_sources, mast_sources=(), lib_globals=()):
+def namespace_lint_project(py_sources, mast_sources=(), lib_globals=(), mast_globals=()):
     """Whole-mission namespace collisions - no single file can see these.
 
     Args:
@@ -194,6 +227,11 @@ def namespace_lint_project(py_sources, mast_sources=(), lib_globals=()):
         mast_sources: iterable of ``(path, content)`` for the mission's `.mast`.
         lib_globals: iterable of `sbs_utils.procedural` function names (MAST globals).
             Pass the live set when available; empty disables the shadow check.
+        mast_globals: iterable of EVERY name in `MastGlobals.globals` once the library is
+            registered - the exact table `core_nodes/assign.py` refuses a hard assignment
+            to. Without it only addon-defined names are checked, and a `.mast` local named
+            after a LIBRARY accessor (`boarding_home_ship = ...`) compiled to 0 labels
+            while lint reported 0 errors.
 
     Returns:
         list: ``(path, AmdFinding)`` pairs, anchored at each defining site.
@@ -222,14 +260,24 @@ def namespace_lint_project(py_sources, mast_sources=(), lib_globals=()):
     findings = []
 
     # --- a .mast hard-assigns a function name -> compile error, story desyncs ---
+    # ONLY the table the compiler reads - not `lib`. `lib` is every public function
+    # defined in sbs_utils.procedural, which is wider than what gets registered: `color`,
+    # `face` and `text` are in it, and LM assigns all three and compiles fine.
+    keywords = set(mast_globals or ())
     for path, content in mast_sources:
         for name, line in _hard_assigns(content):
-            if name not in defs:
+            if name in defs:
+                where = ", ".join(p + ":" + str(ln) for p, ln in defs[name])
+                what = "a function (" + where + ")"
+            elif name in keywords:
+                what = "a MAST global the library registers"
+            else:
                 continue
-            where = ", ".join(p + ":" + str(ln) for p, ln in defs[name])
+            if _allowed(_mast_line(path, line), "ns-mast-var-collision"):
+                continue
             findings.append((path, AmdFinding(
                 line, ERROR, "ns-mast-var-collision",
-                "\"" + name + "\" is a function (" + where + "), so assigning it here is "
+                "\"" + name + "\" is " + what + ", so assigning it here is "
                 "the compile error \"Variable assignment to a keyword " + name + "\" - it "
                 "desyncs the whole story (labels 0/N, still reporting PASS). Rename the "
                 "variable, or use `default " + name + " = ...` if this is a "
