@@ -479,8 +479,13 @@ docstring banks what works and where it stops):
   client sits in `client_main` forever (its `gui_request_client_string` round trips never
   resolve).
 - Connect: the runner's own path is `sbs.register_client(cid)` +
-  `cosmos_event_handler(sim, FakeEvent(client_id=cid, tag="client_connect"))`, which
-  dispatches to `Gui.add_client`.
+  `cosmos_event_handler(sim, FakeEvent(client_id=cid, tag="client_connect"))`. **Under
+  the picker bootstrap that path gives no page at all** (measured 2026-09-18); call
+  `Gui.add_client(FakeEvent(client_id=cid, tag="client_connect"))` directly, as
+  `drive_picker.py` does. The harness is still BLOCKED: the page appears but never builds
+  a layout, and the `exe_dir` fix did not change that.
+- Count widgets ON the page, not the page: the page carries a tag of its own, and
+  counting it turned an empty picker into "painted 1 widget".
 - `Gui.clients` maps id -> **GuiClient**, not page; the live page is the top of its
   `page_stack`.
 - Do not trust `active_label`: labels fall through, so a task can run the picker while
