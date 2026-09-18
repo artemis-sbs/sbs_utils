@@ -196,5 +196,48 @@ class OfferRecordTests(unittest.TestCase):
         self.assertEqual(r.get("where"), "")
 
 
+class SelectingIsNotTakingTests(unittest.TestCase):
+    """The board SELECTS. A button takes.
+
+    Touching a row used to invoke the offer's `take` - no confirmation, no way to read
+    one before deciding, and nothing on screen changed to say it had happened. The same
+    argument the FIRE app already makes about its own list: one you cannot browse is not
+    a list.
+
+    Pinned at the source rather than through a rendered screen, because what matters is
+    that the ONLY caller of `take` is the button's handler.
+    """
+
+    def test_the_board_does_not_take_on_selection(self):
+        import inspect
+        from sbs_utils.procedural.gui import offers_gui
+        src = inspect.getsource(offers_gui.gui_offers_screen)
+        # The selection callback repaints the detail band and nothing else.
+        self.assertIn("def _select(", src)
+        select = src[src.index("def _select("):]
+        self.assertNotIn("take", select.split("gui_message_callback")[0],
+                         "selecting a row still invokes the offer's take")
+
+    def test_taking_goes_through_the_button(self):
+        import inspect
+        from sbs_utils.procedural.gui import offers_gui
+        src = inspect.getsource(offers_gui.gui_offers_screen)
+        self.assertIn('gui_button("Take"', src)
+
+    def test_a_take_is_only_offered_when_the_console_may_act(self):
+        import inspect
+        from sbs_utils.procedural.gui import offers_gui
+        src = inspect.getsource(offers_gui.gui_offers_screen)
+        self.assertIn('item.get("can_take")', src)
+
+    def test_the_record_carries_take(self):
+        r = offer_record("k", "T", take=lambda cid, rec: True)
+        self.assertTrue(callable(r.get("take")))
+
+    def test_take_defaults_to_none(self):
+        """Most offers are accepted somewhere else - the Quests tab owns that policy."""
+        self.assertIsNone(offer_record("k", "T").get("take"))
+
+
 if __name__ == "__main__":
     unittest.main()

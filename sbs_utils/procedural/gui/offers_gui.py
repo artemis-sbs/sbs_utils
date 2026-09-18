@@ -102,11 +102,13 @@ def _row_template(item):
 
 def gui_offers_screen(title="Offers"):
     """Draw the Offers board for this console."""
-    from .section import gui_section
+    from .section import gui_section, gui_sub_section
     from .row import gui_row
     from .text import gui_text
+    from .button import gui_button
     from .listbox import gui_list_box
     from .message import gui_message_callback
+    from .update import gui_rebuild
 
     rows = offer_rows()
 
@@ -121,35 +123,63 @@ def gui_offers_screen(title="Offers"):
                  f"font:gui-1;color:{DIM};")
         return None
 
-    gui_row("padding: 24px, 12px, 24px, 12px;")
+    # THE LIST SELECTS. IT DOES NOT COMMIT. Touching a row used to take the job - no
+    # confirmation, no way to read one before deciding, and nothing on screen changed to
+    # say it had happened. A list you cannot browse is not a list.
+    gui_row("padding: 24px, 12px, 12px, 12px;")
     lb = gui_list_box(rows, "item-gap: 0.25em;", item_template=_row_template,
                       select=True, reveal=True)
 
-    def _open(event, sender):
-        item = lb.get_value()
-        if item is None:
-            return
-        # TAKE IT HERE IF IT CAN BE. An offer that nothing else can accept carries its
-        # own means of acceptance - a sortie is not a quest until it is assigned, so
-        # sending a pilot to the Quests app to take one shows them the empty list that
-        # does not yet contain the thing they just clicked.
-        take = item.get("take")
-        if callable(take) and item.get("can_take"):
-            cid, _ship = offer_context_here()
-            try:
-                take(cid, item)
-            except Exception as e:                        # noqa: BLE001
-                from ..execution import log
-                log(f"could not take offer {item.get('key')!r}: "
-                    f"{type(e).__name__}: {e}", "offer", "warning")
-            return
-        # Otherwise go to where the work IS taken - the reason you read a board is to go
-        # and do something about it. An offer with neither (a station job taken by
-        # hailing) has nowhere to send you, so the row's `where` line is the answer and
-        # the click does nothing rather than opening something unrelated.
-        app = item.get("app")
-        if app:
-            gui_app_open(app)
+    # ...AND A BAND UNDERNEATH SAYS WHAT IS SELECTED AND OFFERS THE ONE ACTION. The
+    # listbox-plus-detail shape the rest of the library already uses, and the reason it
+    # is the right one here: the decision and the thing decided about are on screen
+    # together.
+    detail = gui_sub_section()
 
-    gui_message_callback(lb, _open)
+    def _paint(item):
+        with detail:
+            if item is None:
+                gui_row("row-height: 2.0em; padding: 24px, 6px, 24px, 0;")
+                gui_text(f"$text:Select something to see what it is.;"
+                         f"font:gui-1;color:{DIM};")
+                return
+            gui_row("row-height: 1.8em; padding: 24px, 6px, 24px, 0;")
+            gui_text(f"$text:{_esc(str(item.get('title') or ''))};font:gui-3;"
+                     f"color:{ACCENT};overflow:shrink;")
+            line = item.get("detail") or ""
+            if item.get("source"):
+                line = f"{item['source']}   {line}".strip()
+            if line:
+                gui_row("row-height: 1.5em; padding: 24px, 2px, 24px, 0;")
+                gui_text(f"$text:{_esc(str(line))};font:gui-1;color:{DIM};"
+                         f"overflow:ellipsis;")
+            # ONE BUTTON, and only when this console can actually do it. An offer that is
+            # taken somewhere else says WHERE instead - a dead Take is worse than none,
+            # because it reads as the screen being broken.
+            if callable(item.get("take")) and item.get("can_take"):
+                gui_row("row-height: 2.2em; padding: 24px, 6px, 24px, 6px;")
+                gui_button("Take", on_press=lambda _i=item: _take(_i))
+            elif item.get("where"):
+                gui_row("row-height: 1.5em; padding: 24px, 6px, 24px, 0;")
+                gui_text(f"$text:{_esc(str(item['where']))};font:gui-1;color:{DIM};"
+                         f"overflow:ellipsis;")
+
+    def _take(item):
+        cid, _ship = offer_context_here()
+        try:
+            item["take"](cid, item)
+        except Exception as e:                            # noqa: BLE001
+            from ..execution import log
+            log(f"could not take offer {item.get('key')!r}: "
+                f"{type(e).__name__}: {e}", "offer", "warning")
+        # NO REPAINT FROM HERE. Taking a job moves `offer_generation()`, and the route's
+        # own `on change` is what rebuilds - one repaint path rather than two that can
+        # disagree about what the board currently says.
+
+    def _select(event, sender):
+        gui_rebuild(detail)
+        _paint(lb.get_value())
+
+    gui_message_callback(lb, _select)
+    _paint(lb.get_value())
     return lb
