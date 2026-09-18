@@ -4,6 +4,7 @@ from .consoledispatcher import ConsoleDispatcher
 from .tickdispatcher import TickDispatcher
 from .lifetimedispatcher import LifetimeDispatcher
 from .launchdispatcher import LaunchDispatcher
+from .dragdispatcher import DragDispatcher
 from .garbagecollector import GarbageCollector
 from .delete_queue import DeleteQueue
 from .extra_dispatcher import HotkeyDispatcher, ClientStringDispatcher
@@ -99,7 +100,7 @@ def reset_mission_audit() -> dict:
 def reset_mission_state():
     """Reset all per-mission runtime state for a fresh mission / in-process recompile."""
     for d in (GridDispatcher, DamageDispatcher, CollisionDispatcher, ConsoleDispatcher,
-              TickDispatcher, LifetimeDispatcher, LaunchDispatcher, GarbageCollector,
+              TickDispatcher, LifetimeDispatcher, LaunchDispatcher, DragDispatcher, GarbageCollector,
               DeleteQueue, HotkeyDispatcher, ClientStringDispatcher):
         d.clear()
     # Decorator-label registries that accumulate at compile time (lazy import - these
@@ -560,6 +561,7 @@ register_reset_state("orbit carriers",     orbit_count)
 register_reset_state("ButtonPromise.navigation_map",
                      lambda: sum(len(v) for v in _button_promise().navigation_map.values()))
 register_reset_state("TickDispatcher",    lambda: len(TickDispatcher._dispatch_tick))
+register_reset_state("DragDispatcher",    lambda: len(DragDispatcher._dispatch_comms))
 # Registered HERE rather than from camera.py, whose own import of this module is
 # circular - and a swallowed ImportError would have left the container invisible to
 # the audit, which is exactly the leak the ledger exists to catch.
@@ -1081,6 +1083,11 @@ def _cosmos_event_handler(sim, event):
                 ConsoleDispatcher.dispatch_message(event, "comms_target_UID")
                 tick_the_rest(event)
 
+            case "comms_drag_event":
+                # origin = dragged object, selected = drop target, parent = player ship
+                DragDispatcher.dispatch_comms(event)
+                tick_the_rest(event)
+
             case "client_string":
                 # print_event(event)
                 ClientStringDispatcher.dispatch(event)
@@ -1253,4 +1260,4 @@ def cosmos_event_handler(sim, event):
         _EVENT_STACK.pop()
 
 
-GridDispatcher, DamageDispatcher, CollisionDispatcher,ConsoleDispatcher, TickDispatcher, LifetimeDispatcher, LaunchDispatcher
+GridDispatcher, DamageDispatcher, CollisionDispatcher,ConsoleDispatcher, TickDispatcher, LifetimeDispatcher, LaunchDispatcher, DragDispatcher

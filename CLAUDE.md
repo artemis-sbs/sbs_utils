@@ -101,6 +101,7 @@ await delay_sim(seconds=5)
 //collision/passive  /interactive
 //dock/hangar
 //launch/missile  /drone
+//drag/comms
 //focus/comms  /science  /weapons  /normal  /grid
 //select/...  //point/...
 //console/change  //object/grid

@@ -3,6 +3,7 @@ from ..griddispatcher import GridDispatcher
 from ..lifetimedispatcher import LifetimeDispatcher
 from ..damagedispatcher import DamageDispatcher, CollisionDispatcher
 from ..launchdispatcher import LaunchDispatcher
+from ..dragdispatcher import DragDispatcher
 from .query import to_id, to_object
 from .inventory import get_inventory_value
 
@@ -772,6 +773,58 @@ def route_launch_drone(label):
     return HandleLaunch(LaunchDispatcher.DRONE, label)
 
 
+class HandleDrag:
+    just_once = set()
+
+    def __init__(self, console, label) -> None:
+        #
+        # Also avoid adding twice, e.g. each client can added the route
+        #
+        self.label = label
+        self.console = console
+        if not label in HandleDrag.just_once:
+            HandleDrag.just_once.add(label)
+            DragDispatcher.add_drag(console, self.selected)
+
+    def selected(self, event):
+        # Run on the server task, like the other engine-event routes
+        task = FrameContext.server_task
+        # origin is the DRAGGED object, not the player ship (that is the parent),
+        # so this deliberately does not set COMMS_ORIGIN_ID.
+        # The route runs on the server task, so the MAST `client_id` is the server;
+        # the dragging console is DRAG_CLIENT_ID.
+        t = task.start_task(self.label, {
+                "DRAG_SOURCE_ID": event.origin_id,
+                "DRAG_SOURCE": to_object(event.origin_id) if event.origin_id else None,
+                "DRAG_TARGET_ID": event.selected_id,
+                "DRAG_TARGET": to_object(event.selected_id) if event.selected_id else None,
+                "DRAG_SHIP_ID": event.parent_id,
+                "DRAG_SHIP": to_object(event.parent_id) if event.parent_id else None,
+                "DRAG_CLIENT_ID": event.client_id,
+                "DRAG_CONSOLE": self.console,
+                "EVENT": event,
+                "DRAG_ROUTED": True
+            })
+        t.tick_in_context()
+
+
+def route_drag_comms(label):
+    """Run a label each time an object is dragged onto another on the comms console.
+
+    The label receives ``DRAG_SOURCE_ID`` (the dragged object), ``DRAG_TARGET_ID``
+    (the drop target), ``DRAG_SHIP_ID`` (the console's player ship), each also as an
+    object (``DRAG_SOURCE``, ``DRAG_TARGET``, ``DRAG_SHIP``), plus ``DRAG_CLIENT_ID``
+    (the dragging console) and ``EVENT``. Not for long-running tasks.
+
+    Args:
+        label (str | Label): The label to run.
+
+    Returns:
+        HandleDrag: Route handle (rarely needed to cancel the route).
+    """
+    return HandleDrag(DragDispatcher.COMMS, label)
+
+
 def route_change_console(label):
     """Set the label shown when the "change console" button is pressed.
 
@@ -1036,6 +1089,25 @@ class RouteLaunchDrone(object):
     """        
     def __init__(self, method):
         HandleLaunch(LaunchDispatcher.DRONE, method)
+
+
+class RouteDragComms(object):
+    """ decorator for routing to a python function or python class method
+
+    Note:
+        The route is expected to be a label
+
+    ??? Example
+        ``` py
+        @RouteDragComms
+        @label
+        def handle_comms_drag():
+            ....
+            yield PollResults.OK_YIELD
+        ```
+    """
+    def __init__(self, method):
+        HandleDrag(DragDispatcher.COMMS, method)
 
 
 class RouteConsole(object):

@@ -11,6 +11,7 @@ from sbs_utils.garbagecollector import GarbageCollector
 from sbs_utils.griddispatcher import GridDispatcher
 from sbs_utils.gui import Gui
 from sbs_utils.gui import Page
+from sbs_utils.dragdispatcher import DragDispatcher
 from sbs_utils.launchdispatcher import LaunchDispatcher
 from sbs_utils.lifetimedispatcher import LifetimeDispatcher
 from sbs_utils.mast.mastscheduler import MastAsyncTask

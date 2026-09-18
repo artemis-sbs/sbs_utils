@@ -85,6 +85,15 @@ class TestRouteLabels(unittest.TestCase):
 """)
         self.assertEqual(errors, [], errors)
 
+    def test_drag_routes(self):
+        errors, _ = compile_mast("""
+->END
+
+//drag/comms
+    x = DRAG_SOURCE_ID
+""")
+        self.assertEqual(errors, [], errors)
+
     def test_dock_route(self):
         errors, _ = compile_mast("""
 ->END

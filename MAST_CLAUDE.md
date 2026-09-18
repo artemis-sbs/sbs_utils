@@ -1028,6 +1028,7 @@ match menu:
 | `//dock/hangar` | Docking event |
 | `//launch/missile` | Missile launched |
 | `//launch/drone` | Drone launched |
+| `//drag/comms` | Object dragged onto another on comms (`DRAG_SOURCE_ID`, `DRAG_TARGET_ID`, `DRAG_SHIP_ID`, `DRAG_CLIENT_ID`) |
 | `//focus/comms` | Console focus changed |
 | `//focus/science` | Science focus |
 | `//focus/weapons` | Weapons focus |

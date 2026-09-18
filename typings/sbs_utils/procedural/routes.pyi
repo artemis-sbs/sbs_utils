@@ -2,6 +2,7 @@ from sbs_utils.procedural.gui.gui import ButtonPromise
 from sbs_utils.damagedispatcher import CollisionDispatcher
 from sbs_utils.damagedispatcher import DamageDispatcher
 from sbs_utils.consoledispatcher import ConsoleDispatcher
+from sbs_utils.dragdispatcher import DragDispatcher
 from sbs_utils.helpers import FakeEvent
 from sbs_utils.helpers import FrameContext
 from sbs_utils.griddispatcher import GridDispatcher
@@ -165,6 +166,19 @@ def route_dock_hangar (label):
     
     Returns:
         HandleLifetime: Route handle (rarely needed to cancel the route)."""
+def route_drag_comms (label):
+    """Run a label each time an object is dragged onto another on the comms console.
+    
+    The label receives ``DRAG_SOURCE_ID`` (the dragged object), ``DRAG_TARGET_ID``
+    (the drop target), ``DRAG_SHIP_ID`` (the console's player ship), each also as an
+    object (``DRAG_SOURCE``, ``DRAG_TARGET``, ``DRAG_SHIP``), plus ``DRAG_CLIENT_ID``
+    (the dragging console) and ``EVENT``. Not for long-running tasks.
+    
+    Args:
+        label (str | Label): The label to run.
+    
+    Returns:
+        HandleDrag: Route handle (rarely needed to cancel the route)."""
 def route_focus_comms (label):
     """Run a label on every comms selection change (not for long-running tasks).
     
@@ -429,6 +443,12 @@ class HandleDamage(object):
         """Initialize self.  See help(type(self)) for accurate signature."""
     def selected (self, event):
         ...
+class HandleDrag(object):
+    """class HandleDrag"""
+    def __init__ (self, console, label) -> None:
+        """Initialize self.  See help(type(self)) for accurate signature."""
+    def selected (self, event):
+        ...
 class HandleLaunch(object):
     """class HandleLaunch"""
     def __init__ (self, launch_type, label) -> None:
@@ -672,6 +692,22 @@ class RouteGridSpawn(RouteLifetime):
         @RouteGridSpawn
         @label
         def handle_grid_spawn():
+            ....
+            yield PollResults.OK_YIELD
+        ```"""
+    def __init__ (self, method):
+        """Initialize self.  See help(type(self)) for accurate signature."""
+class RouteDragComms(object):
+    """decorator for routing to a python function or python class method
+    
+    Note:
+        The route is expected to be a label
+    
+    ??? Example
+        ``` py
+        @RouteDragComms
+        @label
+        def handle_comms_drag():
             ....
             yield PollResults.OK_YIELD
         ```"""

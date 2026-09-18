@@ -92,6 +92,43 @@ These button types can be mixed together. e.g. the code button example has a bac
             map_mine_scatter(4, 10, *pos, size, 1000, size)
     ```
 
+## Dragging on comms
+Dragging one object onto another on the comms console runs `//drag/comms`. It is an
+event route, like `//launch/missile`: it runs once per drag, on the server, and is not
+for long-running work.
+
+The route provides these variables
+
+- DRAG_SOURCE_ID / DRAG_SOURCE - the object that was dragged
+- DRAG_TARGET_ID / DRAG_TARGET - the object it was dropped on
+- DRAG_SHIP_ID / DRAG_SHIP - the player ship of the comms console
+- DRAG_CLIENT_ID - the console that did the drag
+
+=== ":mast-icon: {{ab.m}}"
+    ```
+    //drag/comms if has_role(DRAG_TARGET_ID, "station")
+        log(f"{DRAG_SOURCE.name} dropped on {DRAG_TARGET.name}", "comms")
+    ```
+
+LegendaryMissions uses this for **drag to order** (`comms/drag_orders.mast`): drag an ally
+onto a target, and comms selects the ally and opens `//comms/orders` with the orders that
+fit that target (Attack for a hostile, the ally orders for a friend, Full Stop when dropped
+on itself). The pattern is general. Comms carries only two objects (ship and selected), so
+the route stores the third, then selects the unit and navigates there:
+
+=== ":mast-icon: {{ab.m}}"
+    ```
+    //drag/comms if lm_can_take_orders(DRAG_SHIP_ID, DRAG_SOURCE_ID)
+        ->END if not object_exists(DRAG_TARGET_ID)
+        lm_drag_orders_set(DRAG_SHIP_ID, DRAG_SOURCE_ID, DRAG_TARGET_ID)
+        set_comms_selection(DRAG_SHIP_ID, DRAG_SOURCE_ID)
+        follow_route_select_comms(DRAG_SHIP_ID, DRAG_SOURCE_ID)
+        comms_navigate_override(DRAG_SHIP_ID, DRAG_SOURCE_ID, "orders", path_must_match=False)
+    ```
+
+Comms sends no buttons for a contact the ship's side has not scanned, so an unscanned unit
+opens as "unknown" with an empty menu.
+
 ## More
 The Admiral comms demonstrate many different whay that comms buttons and navigation can work.
 

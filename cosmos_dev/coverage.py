@@ -30,7 +30,7 @@ def label_kind(label: str) -> str:
     if label.startswith("__route__"):
         body = label[len("__route__"):]
         for p in ("shared/signal", "signal", "comms", "damage", "collision",
-                  "spawn", "focus", "select", "dock", "launch", "gui", "console"):
+                  "spawn", "focus", "select", "dock", "launch", "drag", "gui", "console"):
             if body.startswith(p):
                 return p
         return "route:other"

@@ -81,6 +81,25 @@ Damage route variants: `//damage/object` (any hit), `//damage/destroy`,
     too (see the combat-events table below), so `//damage` logic behaves the same in
     the dev runner.
 
+### `//drag/comms` (code - `procedural/routes.py`)
+
+The engine sends `comms_drag_event` when an object is dragged onto another on the
+comms console. The mock has no drag gesture, so this route only fires on a real
+bridge (or from a test that dispatches the event).
+
+| Variable | Source |
+|---|---|
+| `DRAG_SOURCE_ID` / `DRAG_SOURCE` | `event.origin_id` - the dragged object |
+| `DRAG_TARGET_ID` / `DRAG_TARGET` | `event.selected_id` - the drop target |
+| `DRAG_SHIP_ID` / `DRAG_SHIP` | `event.parent_id` - the console's player ship |
+| `DRAG_CLIENT_ID` | `event.client_id` - the console that dragged |
+| `DRAG_CONSOLE` | `"comms"` |
+| `EVENT` | the whole event object |
+
+The route runs on the server task, so the MAST `client_id` inside it is `0`; use
+`DRAG_CLIENT_ID` for the console. `COMMS_ORIGIN_ID` is deliberately **not** set:
+in comms routes it means the player ship, and here the origin is the dragged object.
+
 ### GUI events (code / `cosmos_dev` confirmed)
 
 All browser/console widget interactions arrive as `tag = "gui_message"`. The
@@ -115,6 +134,7 @@ order is `(tag, sub_tag, origin_id, selected_id[, parent_id][, {extra fields}])`
 | `ship_launches_drone` | `""` | source → target | `//launch/drone`; `extra_extra_tag = "drone"` |
 | `player_launches_missile` | `""` | source → target | `//launch/missile`; `extra_extra_tag = kind` (Homing / Nuke / EMP / Mine) |
 | `*_collision_start` / `*_collision_end` | kind | terrain→ship (1) · ship↔ship (both) | `//collision/*` |
+| `comms_drag_event` | `""` | dragged → drop target; `parent_id` = player ship | `//drag/comms` (engine only - the mock does not emit it) |
 
 !!! note "Collision: passive vs interactive (data-driven)"
     For a ship-vs-terrain contact the kind is decided by the terrain object's radii:

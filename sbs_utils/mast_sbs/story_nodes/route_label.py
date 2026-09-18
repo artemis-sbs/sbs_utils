@@ -171,6 +171,8 @@ class RouteDecoratorLabel(DecoratorLabel):
                 routes.route_launch_missile(self)
             case ["launch", "drone"]:
                 routes.route_launch_drone(self)
+            case ["drag", "comms"]:
+                routes.route_drag_comms(self)
             case ["shared", "signal", *b]: 
                 #
                 # This needs to run 
