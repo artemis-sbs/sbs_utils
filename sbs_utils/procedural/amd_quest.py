@@ -48,15 +48,32 @@ def _is_duration(text):
     return any(u in t for u in ("second", "minute", "min", "hour"))
 
 
+def _singular(word):
+    """English plural -> singular, for the words a role is likely to be.
+
+    It used to drop any trailing `s`, which made `anomalies` the role `anomalie` (never
+    matching `anomaly`) and turned a SINGULAR `bus` into `bu`. Now: `-ies` -> `-y`;
+    `-xes`/`-ches`/`-shes`/`-zzes` lose `es`; words that end in `s` without being plural
+    (`-ss`, `-us`, `-is`) are left alone; anything else loses its `s`.
+    """
+    if word.endswith("ies") and len(word) > 4:
+        return word[:-3] + "y"
+    if word.endswith(("xes", "ches", "shes", "zzes")):
+        return word[:-2]
+    if word.endswith(("ss", "us", "is")):
+        return word
+    if word.endswith("s"):
+        return word[:-1]
+    return word
+
+
 def _resolve_role(target, aliases=None):
     """A friendly role name -> its real role: apply an alias, else singularize
-    ('raiders' -> 'raider') but keep 'ss' words ('boss' stays 'boss')."""
+    ('raiders' -> 'raider', 'anomalies' -> 'anomaly'; 'boss' and 'bus' stay put)."""
     aliases = aliases or {}
     role = aliases.get(target.lower())
     if role is None:
-        role = target.lower()
-        if role.endswith("s") and not role.endswith("ss"):
-            role = role[:-1]
+        role = _singular(target.lower())
     return role
 
 
@@ -252,6 +269,10 @@ _CANONICAL_TO_LEGACY = {
     "at_start": "state",        # State: -> At start:
     "fatal": "critical",        # Critical: -> Fatal:
     "reward": "pays",           # Pays: -> Reward:
+    # Scan says: is the CURRENT spelling (amd_schema: key="reveals"), but this map had no
+    # entry for it, so it landed as `scan_says` and the driver - which reads
+    # `reveal_scan` - never showed the text. LM peacetime_remastered's survey job was dead.
+    "scan_says": "reveals",     # Reveals: / Scan text: -> Scan says:
     "fails_when": "fails_when",  # (matched directly; listed so the intent is visible)
 }
 

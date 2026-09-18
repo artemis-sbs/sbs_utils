@@ -1548,8 +1548,32 @@ class Mast():
                                 
                                 (i_loc,_) = indent_stack[-1]
                         #
+                        # A plain statement DIRECTLY inside an `await ...:` block never
+                        # runs. The block exists for inline choices - `+`/`*` buttons,
+                        # `=` inline labels and `on` handlers, which all attach to the
+                        # await (they carry `await_node`) - and the runtime resumes at
+                        # the block's end, so anything else there is skipped, silently.
+                        # WARNED, not an error: a story that compiled before must still
+                        # compile (MAST backward compatibility), and an error would take
+                        # it to 0 labels. `sbs lint` / tests read `compile_warnings`.
+                        _block = indent_stack[-1][1] if indent_stack else None
+                        if (_block is not None and type(_block).__name__ == "Await"
+                                and getattr(_block, "is_end", None) is None
+                                and not obj.is_virtual()
+                                and not hasattr(obj, "await_node")):
+                            _warn = (f"{file_name}:{line_no}: this line is directly inside an "
+                                     f"`await ...:` block and will NEVER RUN - the block only "
+                                     f"holds choices (+ / * buttons, = inline labels, on "
+                                     f"handlers). Move it into a button's body, or after the "
+                                     f"block: {line.strip()[:80]}")
+                            compile_logger.warning(_warn)
+                            print("MAST compile warning: " + _warn)
+                            if not hasattr(self, "compile_warnings"):
+                                self.compile_warnings = []
+                            self.compile_warnings.append(_warn)
+                        #
                         # This is for nesting things
-                        # like for loops, that should wait to do things 
+                        # like for loops, that should wait to do things
                         #
                         obj.post_dedent(info)
                         self.cmd_stack[-1].add_child(obj)

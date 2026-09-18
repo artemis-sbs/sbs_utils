@@ -22,6 +22,39 @@ class AmdTriggerTests(unittest.TestCase):
         self.assertEqual(amd_trigger("kill boss"),
                          ("on_kill", {"role": "boss", "count": 1}))
 
+    def test_IES_PLURAL_SINGULARIZES_TO_Y(self):
+        """`anomalies` used to become the role `anomalie`, which never matches
+        `anomaly` - so the shipped AMD had to write `scan 3 anomaly`."""
+        self.assertEqual(amd_trigger("scan 2 anomalies"),
+                         ("on_scan", {"role": "anomaly", "count": 2}))
+
+    def test_a_singular_word_ending_in_s_is_left_alone(self):
+        """`bus` used to become `bu`; `-us`, `-is` and `-ss` are not plurals."""
+        self.assertEqual(amd_trigger("scan 1 bus")[1]["role"], "bus")
+        self.assertEqual(amd_trigger("scan 1 nexus")[1]["role"], "nexus")
+        self.assertEqual(amd_trigger("scan 1 analysis")[1]["role"], "analysis")
+
+    def test_es_plurals_after_x_ch_sh(self):
+        self.assertEqual(amd_trigger("scan 2 boxes")[1]["role"], "box")
+        self.assertEqual(amd_trigger("scan 2 matches")[1]["role"], "match")
+        self.assertEqual(amd_trigger("scan 2 dishes")[1]["role"], "dish")
+
+    def test_ordinary_plurals_still_singularize(self):
+        for plural, role in (("raiders", "raider"), ("stations", "station"),
+                             ("buoys", "buoy"), ("bases", "base")):
+            self.assertEqual(amd_trigger("scan 2 " + plural)[1]["role"], role, plural)
+
+    def test_SCAN_SAYS_REACHES_THE_DRIVER(self):
+        """`Scan says:` is the current spelling but landed as `scan_says`, a key the
+        quest driver never reads - so LM peacetime_remastered's survey text never
+        showed. It must land where `Reveals:` does."""
+        from sbs_utils.procedural.amd_mission import amd_mission_data
+        says = amd_mission_data("Job\nDone when: scan 3 anomaly\nScan says: Survey logged.")
+        old = amd_mission_data("Job\nDone when: scan 3 anomaly\nReveals: Survey logged.")
+        self.assertEqual("Survey logged.", says.get("reveal_scan"))
+        self.assertNotIn("scan_says", says)
+        self.assertEqual(old.get("reveal_scan"), says.get("reveal_scan"))
+
     def test_destroy_enemies_is_diplomacy_based(self):
         # The general, faction-agnostic, ceasefire-safe kill goal: scores by
         # diplomacy (hostile) rather than binding to a specific faction role.

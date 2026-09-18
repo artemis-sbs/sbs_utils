@@ -2,7 +2,7 @@
 
 @MAST_CLAUDE.md
 
-Five references load ON DEMAND as skills rather than every session - invoke them
+Eight references load ON DEMAND as skills rather than every session - invoke them
 when the work is theirs:
 
 - **`writing-a-mission`** - writing a mission, an addon (`.mastlib`), or a `@map`
@@ -21,6 +21,12 @@ when the work is theirs:
   `story.json`, .sbslib/.mastlib/media packs, per-repo branches, commit/push and
   `sbs.pyz release -u` rereleases. **An edit is invisible to the engine until
   `sbs.pyz lib` rebuilds it.**
+- **`authoring-amd`** - writing `.amd` files (quests, dialogue, scans, sides, landmarks,
+  lifeforms...), AMD kinds/fields, the `amd_*` modules, and `sbs lint`/`fmt`/`site` on AMD.
+- **`making-a-mod`** - a Cosmos mod: custom hulls and ship data, media packs, the art
+  bake, faces, interiors, and the silent ways a hull reaches the library but not the engine.
+- **`art-pipeline`** - 3D art for Cosmos: Blender (headless or MCP), Synty assets,
+  kitbashing, OBJ export the engine loads, skyboxes, shaders, orientation traps.
 
 ## Environment
 
