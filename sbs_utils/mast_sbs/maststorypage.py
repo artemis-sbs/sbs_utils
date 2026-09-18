@@ -907,7 +907,11 @@ class StoryPage(Page):
             pass
         else:
             self.pending_widgets += "^"+widget
-        widgets = set(self.pending_widgets.split("^"))
+        # Never an empty name. `"".split("^")` is `[""]`, and "" always iterates first,
+        # so it came out as a LEADING caret - which the engine reads as one widget named
+        # after the whole rest of the list, persists to data/guiboxdata.txt, and then
+        # null-derefs in GUIBoxTick every time that console opens.
+        widgets = {w for w in self.pending_widgets.split("^") if w}
         new_widgets = ""
         widgets_2d = ""
         widgets_3d = ""

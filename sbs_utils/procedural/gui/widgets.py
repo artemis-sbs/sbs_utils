@@ -51,7 +51,9 @@ def gui_update_widget_list(add_widgets=None, remove_widgets=None):
     widgets = set(page.widgets.split("^"))
     add_widgets = set(add_widgets.split("^"))
     remove_widgets = set(remove_widgets.split("^"))
-    widgets = (widgets | add_widgets) - remove_widgets
+    # Drop "" - an empty add/remove argument splits to {""}, and an empty name is sent
+    # as a leading caret the engine turns into one bogus widget (see add_console_widget).
+    widgets = {w for w in (widgets | add_widgets) - remove_widgets if w}
     new_widgets = ""
     delim = ""
     for widget in widgets:
@@ -86,7 +88,8 @@ def gui_update_widgets(add_widgets, remove_widgets):
     widgets = set(page.pending_widgets.split("^"))
     add_widgets = set(add_widgets.split("^"))
     remove_widgets = set(remove_widgets.split("^"))
-    widgets = (widgets | add_widgets) - remove_widgets
+    # Drop "" - gui_update_widgets("", "grid_face") added one, see add_console_widget.
+    widgets = {w for w in (widgets | add_widgets) - remove_widgets if w}
     new_widgets = ""
     delim = ""
     for widget in widgets:
