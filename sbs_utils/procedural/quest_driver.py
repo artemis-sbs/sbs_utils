@@ -686,6 +686,43 @@ def _kill_is_hostile(killer_id, victim_id):
     return is_hostile_to_players(victim_id, scope_role=None)
 
 
+def quest_credit_ids(agent_id):
+    """The agent that earned something, PLUS anyone crewing it.
+
+    A quest held by a CLIENT is the "You" section of the quest log - a job belonging to the
+    person rather than to the hull they happen to be sitting in. Every event, though, is
+    credited to the SHIP: `quest_on_kill` is handed `DAMAGE_SOURCE_ID`, `quest_on_scan` the
+    scanning ship, `quest_on_dock` the docking one. So a client-held quest counting kills,
+    scans, docks or pickups never advanced at all - it sat at 0 of N forever, with nothing
+    logged, because nothing ever looked at the client.
+
+    `on_signal`, `on_reach` and `on_arrive` were always fine: they walk `_quest_holders()`,
+    which is every agent with a tree. This closes the other four.
+
+    IT IS NOT DOUBLE COUNTING. A quest on the ship and a quest on the client are different
+    trees. A crew of six each holding their own copy of a job each get credit for what the
+    ship did, which is what "your job" means when six people share a hull. SHARED is
+    handled separately by each caller and is deliberately not in here.
+
+    AND IT FOLLOWS THE PERSON. The link is read at the MOMENT of the event, so a pilot who
+    swaps ships mid-job keeps counting: kills made from the second hull credit the same
+    client as kills from the first.
+
+    Returns the agent alone when nothing crews it, so a ship-held or SHARED-held quest
+    behaves exactly as before.
+    """
+    if agent_id is None:
+        return ()
+    try:
+        from sbs_utils.procedural.links import linked_to
+        crew = linked_to(agent_id, "consoles")
+    except Exception:                                    # noqa: BLE001
+        return (agent_id,)
+    if not crew:
+        return (agent_id,)
+    return (agent_id,) + tuple(sorted(crew))
+
+
 def quest_on_kill(killer_id, destroyed_id):
     """Advance the killer's on_kill quests when an object is destroyed.
 
@@ -699,19 +736,21 @@ def quest_on_kill(killer_id, destroyed_id):
     Omitting all three counts any destruction (unchanged legacy behavior)."""
     if killer_id is None:
         return
-    for qid, data in _active_quests(killer_id):
-        trig = data.get("on_kill")
-        if not isinstance(trig, dict):
-            continue
-        role = trig.get("role")
-        if role and not has_role(destroyed_id, role):
-            continue
-        roles = trig.get("roles")
-        if roles and not any(has_role(destroyed_id, r) for r in roles):
-            continue
-        if trig.get("hostile") and not _kill_is_hostile(killer_id, destroyed_id):
-            continue
-        _advance_count(killer_id, qid, data, trig.get("count", 1))
+    for aid in quest_credit_ids(killer_id):
+        for qid, data in _active_quests(aid):
+            trig = data.get("on_kill")
+            if not isinstance(trig, dict):
+                continue
+            role = trig.get("role")
+            if role and not has_role(destroyed_id, role):
+                continue
+            roles = trig.get("roles")
+            if roles and not any(has_role(destroyed_id, r) for r in roles):
+                continue
+            # Hostility is the KILLER's question - a console has no diplomacy of its own.
+            if trig.get("hostile") and not _kill_is_hostile(killer_id, destroyed_id):
+                continue
+            _advance_count(aid, qid, data, trig.get("count", 1))
 
 
 def quest_on_kill_shared(destroyed_id):
@@ -730,7 +769,9 @@ def quest_on_scan(scanner_id, scanned_id):
     ``_scanned`` list."""
     if scanner_id is None:
         return
-    for aid in (scanner_id, Agent.SHARED_ID):
+    # The agent, ANYONE CREWING IT (a client-held job counts what the ship does - see
+    # quest_credit_ids), and the game.
+    for aid in quest_credit_ids(scanner_id) + (Agent.SHARED_ID,):
         for qid, data in _active_quests(aid):
             trig = data.get("on_scan")
             if not isinstance(trig, dict):
@@ -753,7 +794,9 @@ def _quest_scan_reveals(scanner_id, scanned_id):
     out = []
     if scanner_id is None or scanned_id is None:
         return out
-    for aid in (scanner_id, Agent.SHARED_ID):
+    # The agent, ANYONE CREWING IT (a client-held job counts what the ship does - see
+    # quest_credit_ids), and the game.
+    for aid in quest_credit_ids(scanner_id) + (Agent.SHARED_ID,):
         for qid, data in _active_quests(aid):
             reveal = data.get("reveal_scan")
             if not reveal:
@@ -784,7 +827,9 @@ def quest_on_dock(ship_id, station_id):
     station. on_dock {role: <role>} (optional) filters by the station's role."""
     if ship_id is None:
         return
-    for aid in (ship_id, Agent.SHARED_ID):
+    # The agent, ANYONE CREWING IT (a client-held job counts what the ship does - see
+    # quest_credit_ids), and the game.
+    for aid in quest_credit_ids(ship_id) + (Agent.SHARED_ID,):
         for qid, data in _active_quests(aid):
             trig = data.get("on_dock")
             if not isinstance(trig, dict):
@@ -804,7 +849,9 @@ def quest_on_tow(ship_id, towed_id):
     """
     if ship_id is None:
         return
-    for aid in (ship_id, Agent.SHARED_ID):
+    # The agent, ANYONE CREWING IT (a client-held job counts what the ship does - see
+    # quest_credit_ids), and the game.
+    for aid in quest_credit_ids(ship_id) + (Agent.SHARED_ID,):
         for qid, data in _active_quests(aid):
             trig = data.get("on_tow")
             if not isinstance(trig, dict):
@@ -1127,7 +1174,9 @@ def quest_on_collect(holder_id, key):
     """Advance the holder's (and game/SHARED) on_collect quests on collection."""
     if holder_id is None:
         return
-    for aid in (holder_id, Agent.SHARED_ID):
+    # The agent, ANYONE CREWING IT (a client-held job counts what the ship does - see
+    # quest_credit_ids), and the game.
+    for aid in quest_credit_ids(holder_id) + (Agent.SHARED_ID,):
         for qid, data in _active_quests(aid):
             trig = data.get("on_collect")
             if not isinstance(trig, dict):
