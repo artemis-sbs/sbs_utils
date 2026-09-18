@@ -2987,8 +2987,10 @@ if __name__ == "__main__":
                          "so a soak is one flag instead of a hand-assembled command line")
     ap.add_argument("--soak-bless", action="store_true",
                     help="After a --soak run, fold what it achieved into "
-                         "<mission>/soaks/<NAME>.baseline.json. The ratchet only ever "
-                         "tightens: quests and routes are unioned in, never removed")
+                         "<mission>/soaks/<NAME>.baseline.json. The baseline demands "
+                         "only the quests and routes seen in EVERY blessed run (an "
+                         "intersection), so blessing more runs relaxes a flaky item; "
+                         "a failing run never edits it")
     ap.add_argument("--use-working-tree", action="store_true",
                     help="Run the working-tree sbs_utils instead of the packaged "
                          ".sbslib (smoke-test local library edits against a mission)")

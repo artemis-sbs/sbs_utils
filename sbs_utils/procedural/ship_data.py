@@ -18,8 +18,10 @@ import os
 # `add_extra()`, `merge_mod_ship_yaml()` (the choke point every mod merge funnels
 # through), `extra_replay()` after `create_new_sim()`, and the `extraShipData.json`
 # that `ship_data_mod.ship_data_flush_mod_file()` writes. The file write is in the set
-# deliberately: the engine reads that file INSIDE `create_new_sim()`, so leaving it
-# would re-introduce the loading by putting a file on disk that outlives the run.
+# deliberately: engine 1.3.4 reads that file INSIDE `create_new_sim()` (measured
+# 2026-08-05), so on that engine leaving it would re-introduce the loading by putting a
+# file on disk that outlives the run. Later engines appear not to read it at all (no
+# reference to the filename in the 1.3.6-A exe) - the gate stays for 1.3.4 installs.
 #
 # TURNING IT ON IS SAFE IN ONE DIRECTION ONLY. Loader on with consumers off is fine;
 # consumers on with the loader off is the crash above. See `extra_enabled()` for the
@@ -1178,9 +1180,9 @@ def _record_extra(filename, path, reached, engine_arg):
 def extra_replay():
     """Tell the engine again about every extra ship data file it has been given.
 
-    `create_new_sim()` REBUILDS the engine's ship data table - it reads the mission's
-    `extraShipData.json` inside that call - and everything `add_extra_ship_data` registered
-    beforehand is gone. Nothing reports it. The library keeps its own merged copy, so the
+    `create_new_sim()` REBUILDS the engine's ship data table (engine 1.3.4 also re-reads the
+    mission's `extraShipData.json` inside that call; later engines appear not to), and
+    everything `add_extra_ship_data` registered beforehand is gone. Nothing reports it. The library keeps its own merged copy, so the
     ships still have stats everywhere sbs_utils can see, and the loss surfaces later as
     `MemoryError: bad allocation` from a spawn, against whichever mission line asked for
     one of those hulls.

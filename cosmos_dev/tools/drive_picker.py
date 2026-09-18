@@ -34,6 +34,11 @@ the task can be executing the picker while still reporting the label it entered.
 has reached select_console at all is the first thing to establish, probably by instrumenting
 the build rather than reading task state.
 
+RULED OUT (2026-09-18): `fs.exe_dir` was the missions root instead of the install root
+(fixed below - the page still builds nothing); and sending the connect through
+`cosmos_event_handler` the way mission_runner's `_fire_client_connect` does gives NO page at
+all under this bootstrap, so the direct `Gui.add_client` below stays.
+
 Two known-harmless noises: `sim.set_diplomacy_color` raises inside the create_sides route
 (the MAST-level `sim` is None here; sides load fine), and "Possible badly formed for" is a
 compile warning from the mission, not from this.
@@ -60,7 +65,10 @@ import cosmos_dev.mock.sbs as sbs  # noqa: E402
 sys.modules["script"] = sys.modules.get("__main__")
 
 from sbs_utils import fs  # noqa: E402
-fs.exe_dir = MISSIONS_ROOT
+# The INSTALL root (parent of data/missions), exactly as mission_runner sets it -
+# fs.get_artemis_data_dir() is exe_dir + "/data". This used to be MISSIONS_ROOT, which
+# resolves every data path one level too deep.
+fs.exe_dir = os.path.dirname(os.path.dirname(MISSIONS_ROOT))
 fs.script_dir = MISSION
 
 from sbs_utils.mast import core_nodes            # noqa: F401,E402
@@ -120,7 +128,9 @@ def walk(page):
             val = getattr(node, "value", None)
             found.append((str(tag), type(node).__name__, str(val)[:70]))
     rec(page)
-    return found
+    # The page itself carries a tag, so it would count as "a widget" and turn an EMPTY page
+    # into "OK - picker painted 1 widgets". Count what is ON the page, not the page.
+    return [w for w in found if w[1] != type(page).__name__]
 
 
 def client_page():
