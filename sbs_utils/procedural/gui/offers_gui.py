@@ -71,7 +71,12 @@ def offer_rows(client_id=None, ship_id=None, console=None):
 
 
 def _row_template(item):
-    """One board row.
+    """One board row: what it is, and who is offering it. TWO COLUMNS, not three.
+
+    The objective used to be a third column sharing the row, and with the title at 30 and
+    the source at 16 there was almost nothing left for it - so "Destroy 10 raiders" wrapped
+    one character wide and ran down the screen. A row says WHICH offer this is; what it
+    asks of you belongs in the detail line, where there is room for a sentence.
 
     Sizes its ROW and returns None - a listbox only calls resize_to_content() when the
     template returns nothing.
@@ -82,35 +87,63 @@ def _row_template(item):
 
     gui_row("row-height: 1.8em;")
     icon = _KIND_ICON.get(item.get("kind"), "quest.job")
-    # A pending offer is dimmed rather than hidden: knowing the work exists is the whole
-    # point of the board, even when somebody else has to hand it to you.
+    # A pending offer is dimmed rather than hidden: knowing the work exists is the point
+    # of the board, even when somebody else has to hand it to you.
     color = ACCENT if item.get("can_take") else DIM
     gui_icon_name(icon, color=color, style="col-width: content;")
-    gui_text(f"$text:{_esc(item['title'])};font:gui-3;overflow:shrink;",
-             style="col-width: 30;")
+    gui_text(f"$text:{_esc(str(item.get('title') or ''))};font:gui-3;overflow:shrink;")
     if item.get("source"):
         gui_text(f"$text:{_esc(str(item['source']))};font:gui-1;color:{DIM};"
-                 f"overflow:shrink;", style="col-width: 16;")
-    # WHERE it can be taken, but only when this console cannot take it. On a console that
-    # CAN, the line is just noise telling you to do what you are already able to do.
-    tail = item.get("detail") or ""
-    if not item.get("can_take") and item.get("where"):
-        tail = item["where"]
-    if tail:
-        gui_text(f"$text:{_esc(str(tail))};font:gui-1;color:{DIM};overflow:ellipsis;")
+                 f"overflow:shrink;", style="col-width: 22;")
+
+
+def _detail_text(item):
+    """The line under the list. One string, so it can be pushed into a held widget.
+
+    A HELD WIDGET AND A NEW VALUE - never a rebuilt panel. Refilling a `gui_sub_section`
+    leaves the previous fill painted underneath (the ePADD inbox's three superimposed
+    messages), and rebuilding the page to show a different line is the anti-pattern that
+    manufactures bugs which read as layout faults.
+    """
+    if item is None:
+        return "Select an offer to see what it asks."
+    bits = []
+    if item.get("detail"):
+        bits.append(str(item["detail"]))
+    # Where it is taken, but only when this console cannot take it - on one that can, the
+    # Take button below is the answer and the line would just be telling you to do what
+    # you are already doing.
+    if not (callable(item.get("take")) and item.get("can_take")) and item.get("where"):
+        bits.append(str(item["where"]))
+    return "   ".join(bits) if bits else str(item.get("title") or "")
+
+
+def _take_label(item):
+    """What the button says, so it can be pushed into the held button's style."""
+    if item is None:
+        return "Take"
+    if callable(item.get("take")) and item.get("can_take"):
+        return "Take"
+    return "-"
 
 
 def gui_offers_screen(title="Offers"):
-    """Draw the Offers board for this console."""
-    from .section import gui_section, gui_sub_section
+    """Draw the Offers board for this console.
+
+    BUILT ONCE. Selecting updates the detail line's VALUE and the list's own rows; it
+    never rebuilds the page and never jumps to a repaint label. That is not an
+    optimisation - a repaint re-sends every widget on the screen over the wire, and two
+    builds landing at once is what makes a board look scrambled.
+    """
+    from .section import gui_section
     from .row import gui_row
     from .text import gui_text
     from .button import gui_button
     from .listbox import gui_list_box
     from .message import gui_message_callback
-    from .update import gui_rebuild
 
-    rows = offer_rows()
+    cid, ship = offer_context_here()
+    rows = offer_rows(cid, ship)
 
     gui_app_chrome(title, subtitle=(None if rows else "nothing on offer"))
     gui_section(style="area: 0, 80px, 100, 100;")
@@ -123,63 +156,52 @@ def gui_offers_screen(title="Offers"):
                  f"font:gui-1;color:{DIM};")
         return None
 
-    # THE LIST SELECTS. IT DOES NOT COMMIT. Touching a row used to take the job - no
-    # confirmation, no way to read one before deciding, and nothing on screen changed to
-    # say it had happened. A list you cannot browse is not a list.
-    gui_row("padding: 24px, 12px, 12px, 12px;")
+    gui_row("padding: 24px, 12px, 24px, 4px;")
     lb = gui_list_box(rows, "item-gap: 0.25em;", item_template=_row_template,
                       select=True, reveal=True)
 
-    # ...AND A BAND UNDERNEATH SAYS WHAT IS SELECTED AND OFFERS THE ONE ACTION. The
-    # listbox-plus-detail shape the rest of the library already uses, and the reason it
-    # is the right one here: the decision and the thing decided about are on screen
-    # together.
-    detail = gui_sub_section()
+    # THE DETAIL LINE AND THE BUTTON ARE BUILT ONCE AND UPDATED. Both are held, so a
+    # selection sets a value rather than throwing the screen away and sending it again.
+    first = lb.get_value()
 
-    def _paint(item):
-        with detail:
-            if item is None:
-                gui_row("row-height: 2.0em; padding: 24px, 6px, 24px, 0;")
-                gui_text(f"$text:Select something to see what it is.;"
-                         f"font:gui-1;color:{DIM};")
-                return
-            gui_row("row-height: 1.8em; padding: 24px, 6px, 24px, 0;")
-            gui_text(f"$text:{_esc(str(item.get('title') or ''))};font:gui-3;"
-                     f"color:{ACCENT};overflow:shrink;")
-            line = item.get("detail") or ""
-            if item.get("source"):
-                line = f"{item['source']}   {line}".strip()
-            if line:
-                gui_row("row-height: 1.5em; padding: 24px, 2px, 24px, 0;")
-                gui_text(f"$text:{_esc(str(line))};font:gui-1;color:{DIM};"
-                         f"overflow:ellipsis;")
-            # ONE BUTTON, and only when this console can actually do it. An offer that is
-            # taken somewhere else says WHERE instead - a dead Take is worse than none,
-            # because it reads as the screen being broken.
-            if callable(item.get("take")) and item.get("can_take"):
-                gui_row("row-height: 2.2em; padding: 24px, 6px, 24px, 6px;")
-                gui_button("Take", on_press=lambda _i=item: _take(_i))
-            elif item.get("where"):
-                gui_row("row-height: 1.5em; padding: 24px, 6px, 24px, 0;")
-                gui_text(f"$text:{_esc(str(item['where']))};font:gui-1;color:{DIM};"
-                         f"overflow:ellipsis;")
+    def _line(item):
+        return (f"$text:{_esc(_detail_text(item))};font:gui-1;color:{DIM};"
+                f"overflow:shrink;")
 
-    def _take(item):
-        cid, _ship = offer_context_here()
+    # CLIENT BOUND AT BUILD TIME. `MessageHandler` calls a handler with no arguments, so
+    # one that reads the ambient client works until the frame belongs to somebody else -
+    # and a job granted to the wrong client lands on nobody's Quests tab, which is
+    # exactly how this failed. No REQUIRED parameter, so the no-argument call is correct.
+    def _take(_cid=cid):
+        item = lb.get_value()
+        if item is None or not callable(item.get("take")) or not item.get("can_take"):
+            return
         try:
-            item["take"](cid, item)
+            item["take"](_cid, item)
         except Exception as e:                            # noqa: BLE001
             from ..execution import log
             log(f"could not take offer {item.get('key')!r}: "
                 f"{type(e).__name__}: {e}", "offer", "warning")
-        # NO REPAINT FROM HERE. Taking a job moves `offer_generation()`, and the route's
-        # own `on change` is what rebuilds - one repaint path rather than two that can
-        # disagree about what the board currently says.
+            return
+        # UPDATE, DO NOT REPAINT. The taken row is gone from what the providers answer,
+        # so the list is re-rendered from the new answer and the two held widgets are set
+        # - no page rebuild, no jump, nothing re-sent that did not change.
+        lb.items = offer_rows(_cid, ship)
+        nxt = lb.get_value()
+        detail.value = _line(nxt)
+        take_btn.update(_take_label(nxt))
 
     def _select(event, sender):
-        gui_rebuild(detail)
-        _paint(lb.get_value())
+        item = lb.get_value()
+        detail.value = _line(item)
+        take_btn.update(_take_label(item))
+
+    gui_row("row-height: 1.6em; padding: 24px, 2px, 24px, 2px;")
+    detail = gui_text(_line(first))
+    gui_row("row-height: 2.2em; padding: 24px, 2px, 24px, 8px;")
+    # Wired at CONSTRUCTION, not assigned afterwards - `on_press` is what the button
+    # carries into its own handler registration.
+    take_btn = gui_button(_take_label(first), on_press=_take)
 
     gui_message_callback(lb, _select)
-    _paint(lb.get_value())
     return lb

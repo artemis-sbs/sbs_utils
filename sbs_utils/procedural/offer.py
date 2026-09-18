@@ -328,7 +328,16 @@ def offer_context_here():
     ctx = FrameContext.context
     if ctx is None or getattr(ctx, "sbs", None) is None:
         return (None, None)
-    cid = FrameContext.client_id
+    # THE PAGE'S CLIENT, NOT THE EVENT'S. Same rule, and the same reason, as
+    # `epadd._client_id` and `console_tab._tab_client_id`: a page that runs because
+    # something else emitted a signal - or a button handler called by MessageHandler -
+    # runs under somebody else's event while `FrameContext.page` is still correctly this
+    # console. Reading the event meant a job could be granted to the wrong client, or to
+    # none, and then it appeared on nobody's Quests tab.
+    page = FrameContext.page
+    cid = getattr(page, "client_id", None) if page is not None else None
+    if cid is None:
+        cid = FrameContext.client_id
     try:
         from .gui.viewscreen import viewscreen_home_ship
         ship = viewscreen_home_ship(cid)

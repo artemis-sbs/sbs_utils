@@ -196,47 +196,107 @@ class OfferRecordTests(unittest.TestCase):
         self.assertEqual(r.get("where"), "")
 
 
-class SelectingIsNotTakingTests(unittest.TestCase):
-    """The board SELECTS. A button takes.
+class TheBoardUpdatesItDoesNotRepaintTests(unittest.TestCase):
+    """The board builds ONCE and updates what moved.
 
-    Touching a row used to invoke the offer's `take` - no confirmation, no way to read
-    one before deciding, and nothing on screen changed to say it had happened. The same
-    argument the FIRE app already makes about its own list: one you cannot browse is not
-    a list.
+    Three things were wrong at once and they had one cause - reaching for a rebuild:
 
-    Pinned at the source rather than through a rendered screen, because what matters is
-    that the ONLY caller of `take` is the button's handler.
+    * selecting a row invoked the offer's `take`, so the list could not be browsed;
+    * the route carried `on change offer_generation(): jump <label>`, which is the named
+      anti-pattern verbatim - a repaint re-sends every widget over the wire per change,
+      and two builds landing at once is what makes a board look scrambled;
+    * the detail band was a refilled `gui_sub_section`, which leaves the previous fill
+      painted underneath.
+
+    Pinned at the source, because what matters is which code paths exist at all.
     """
 
-    def test_the_board_does_not_take_on_selection(self):
+    def _src(self):
         import inspect
         from sbs_utils.procedural.gui import offers_gui
-        src = inspect.getsource(offers_gui.gui_offers_screen)
-        # The selection callback repaints the detail band and nothing else.
-        self.assertIn("def _select(", src)
-        select = src[src.index("def _select("):]
-        self.assertNotIn("take", select.split("gui_message_callback")[0],
+        return inspect.getsource(offers_gui)
+
+    def test_selecting_does_not_take(self):
+        src = self._src()
+        sel = src[src.index("def _select("):]
+        self.assertNotIn('item["take"]', sel,
                          "selecting a row still invokes the offer's take")
 
-    def test_taking_goes_through_the_button(self):
+    def test_there_is_a_take_button(self):
+        self.assertIn("gui_button(_take_label(first), on_press=_take)", self._src())
+
+    def test_the_button_binds_its_client_at_build_time(self):
+        """MessageHandler calls a handler with NO arguments, so one that reads the
+        ambient client works until the frame belongs to somebody else - and a job granted
+        to the wrong client lands on nobody's Quests tab."""
+        self.assertIn("def _take(_cid=cid):", self._src())
+
+    def test_taking_updates_the_widgets_rather_than_repainting(self):
+        src = self._src()
+        take = src[src.index("def _take(_cid=cid):"):]
+        self.assertIn("lb.items =", take)
+        self.assertIn("detail.value =", take)
+        self.assertIn("take_btn.update(", take)
+
+    def test_nothing_rebuilds_a_section(self):
+        """A refilled sub_section leaves the earlier fill painted underneath."""
+        src = self._src()
+        # The CALL, not the word - the docstrings explain why it is not used.
+        self.assertNotIn("gui_rebuild(", src)
+        self.assertNotIn("gui_sub_section(", src)
+
+    def test_a_row_is_two_columns_not_three(self):
+        """The objective used to share the row and wrapped one character wide."""
+        src = self._src()
+        row = src[src.index("def _row_template("):src.index("def _detail_text(")]
+        self.assertNotIn("item.get('detail')", row)
+        self.assertNotIn('item["detail"]', row)
+
+
+class DetailLineTests(unittest.TestCase):
+    """What the line under the list says - it is a VALUE pushed into a held widget."""
+
+    def _row(self, **kw):
+        base = {"title": "Picket Patrol", "detail": "Hold the picket",
+                "where": "Hangar", "take": None, "can_take": False}
+        base.update(kw)
+        return base
+
+    def test_nothing_selected_says_so(self):
+        from sbs_utils.procedural.gui.offers_gui import _detail_text
+        self.assertIn("Select", _detail_text(None))
+
+    def test_it_shows_what_the_job_asks(self):
+        from sbs_utils.procedural.gui.offers_gui import _detail_text
+        self.assertIn("Hold the picket", _detail_text(self._row()))
+
+    def test_it_says_WHERE_only_when_this_console_cannot_take_it(self):
+        from sbs_utils.procedural.gui.offers_gui import _detail_text
+        self.assertIn("Hangar", _detail_text(self._row()))
+        takeable = self._row(take=lambda c, r: True, can_take=True)
+        self.assertNotIn("Hangar", _detail_text(takeable),
+                         "telling you to go where you already are")
+
+    def test_the_button_label_is_ascii(self):
+        from sbs_utils.procedural.gui.offers_gui import _take_label
+        for item in (None, self._row(), self._row(take=lambda c, r: True,
+                                                  can_take=True)):
+            _take_label(item).encode("ascii")
+
+
+class TheClientIsThePagesTests(unittest.TestCase):
+    """Whose board this is: the PAGE's client, not the event's.
+
+    A button handler runs under MessageHandler's frame and a watcher runs under the
+    emitter's, while `FrameContext.page` is still correctly this console. Reading the
+    event is how a job gets granted to the wrong client - or to none.
+    """
+
+    def test_it_prefers_the_pages_client(self):
         import inspect
-        from sbs_utils.procedural.gui import offers_gui
-        src = inspect.getsource(offers_gui.gui_offers_screen)
-        self.assertIn('gui_button("Take"', src)
-
-    def test_a_take_is_only_offered_when_the_console_may_act(self):
-        import inspect
-        from sbs_utils.procedural.gui import offers_gui
-        src = inspect.getsource(offers_gui.gui_offers_screen)
-        self.assertIn('item.get("can_take")', src)
-
-    def test_the_record_carries_take(self):
-        r = offer_record("k", "T", take=lambda cid, rec: True)
-        self.assertTrue(callable(r.get("take")))
-
-    def test_take_defaults_to_none(self):
-        """Most offers are accepted somewhere else - the Quests tab owns that policy."""
-        self.assertIsNone(offer_record("k", "T").get("take"))
+        from sbs_utils.procedural import offer
+        src = inspect.getsource(offer.offer_context_here)
+        self.assertIn('getattr(page, "client_id", None)', src)
 
 
 if __name__ == "__main__":
