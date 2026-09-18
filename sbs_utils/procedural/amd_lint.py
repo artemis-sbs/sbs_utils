@@ -594,7 +594,23 @@ def mast_source_index(mast_sources):
     return {"routes": _mast_routes(mast_sources) | decl_handles,
             "emitted": _emitted_from_sources(mast_sources) | decl_emits | DRIVER_SIGNALS,
             "labels": mast_labels(mast_sources),
-            "items": mast_item_keys(mast_sources)}
+            "items": mast_item_keys(mast_sources),
+            "quoted_words": _quoted_words(mast_sources)}
+
+
+#: A string literal on one line. Roles are always written inside one ("tsn, station",
+#: add_role(id, "lens")), so words found here are the mission's role vocabulary - and
+#: code words (`len(`) are not, which is what keeps the plural check below honest.
+_QUOTED = re.compile(r"\"([^\"\n]*)\"|'([^'\n]*)'")
+
+
+def _quoted_words(mast_sources):
+    """Lower-case words that appear inside string literals in the mission's sources."""
+    words = set()
+    for src in mast_sources or []:
+        for m in _QUOTED.finditer(src):
+            words.update(re.findall(r"[a-z][a-z0-9_]*", (m.group(1) or m.group(2) or "").lower()))
+    return words
 
 
 def amd_lint_cross_file(doc, mast_sources=None, source_index=None):
@@ -639,6 +655,99 @@ def amd_lint_cross_file(doc, mast_sources=None, source_index=None):
                     ref.span, WARNING, "reach-no-landmark",
                     f"`{ref.owner}` sends the player to cell {i},{j} but no landmark has "
                     f"`At: {i}, {j}` - they may jump to an empty cell"))
+    return findings
+
+
+#: Trigger fields whose target word is singularized into a role (normalized label).
+_TRIGGER_FIELDS = ("done_when", "starts_when", "fails_when", "goal", "when",
+                   "fail_on_all_dead")
+
+#: Plurals no suffix rule gets right. `_singular` strips the `s` (or does nothing), so
+#: the role it looks for is never the one the author meant.
+_IRREGULAR_PLURALS = {
+    "mice": "mouse", "lice": "louse", "men": "man", "women": "woman",
+    "people": "person", "children": "child", "geese": "goose", "feet": "foot",
+    "teeth": "tooth", "oxen": "ox", "dice": "die", "cacti": "cactus",
+    "fungi": "fungus", "nuclei": "nucleus", "radii": "radius", "alumni": "alumnus",
+    "criteria": "criterion", "phenomena": "phenomenon", "vertices": "vertex",
+    "indices": "index", "matrices": "matrix", "crises": "crisis", "analyses": "analysis",
+    "theses": "thesis",
+}
+
+
+def _trigger_target(value):
+    """The words a trigger singularizes into a role, lower-cased, or None.
+
+    Mirrors `amd_trigger`'s token handling: drop the verb (or `all dead`), a leading
+    count, and trailing numbers (a `reach <role> <radius>` radius)."""
+    toks = str(value).replace(",", " ").split()
+    if not toks:
+        return None
+    if len(toks) > 2 and toks[0].lower() == "all" and toks[1].lower() == "dead":
+        toks = toks[2:]
+    else:
+        toks = toks[1:]
+    if toks and toks[0].isdigit():
+        toks = toks[1:]
+    while toks and toks[-1].lstrip("-").isdigit():
+        toks = toks[:-1]
+    target = " ".join(toks).strip().lower()
+    return target or None
+
+
+def amd_lint_trigger_roles(doc, source_index=None):
+    """Flag a trigger target the role singularizer gets wrong. WARNING.
+
+    `_singular` only knows suffix rules, so an irregular plural (`destroy 2 mice` looks
+    for the role `mice`, not `mouse`) or a `-ves` plural (`wolves` -> `wolve`) never
+    names the real role. And a SINGULAR ending in
+    `s` can be read as a plural (`scan 1 lens` -> `len`). Either way the trigger
+    compiles, and never fires.
+
+    The irregular and `-ves` cases are flagged always. The mangled-singular case needs
+    evidence, since `guns` and `cameras` are fine: it is flagged only when the
+    mission's string literals use the word AS WRITTEN and never the singularized form
+    (needs `source_index`)."""
+    from sbs_utils.procedural.amd_quest import amd_trigger, _resolve_role
+    findings = []
+    quoted = (source_index or {}).get("quoted_words")
+    for node in doc.nodes:
+        for lineno, raw, label, value in _fence_fields(node):
+            field = label.lower().replace(" ", "_")
+            if field not in _TRIGGER_FIELDS:
+                continue
+            if field == "fail_on_all_dead":
+                # The whole value is the role here - no verb, no count.
+                target = str(value).strip().lower() or None
+                role = _resolve_role(target) if target else None
+            else:
+                parsed = amd_trigger(value)
+                target = _trigger_target(value)
+                role = parsed[1].get("role") if parsed else None
+            if not target or not role:
+                continue
+            last = target.split()[-1]
+            message = None
+            if last in _IRREGULAR_PLURALS:
+                message = (f"`{target}` is an irregular plural, so this trigger looks for "
+                           f"the role `{role}` - write the role's singular "
+                           f"(`{_IRREGULAR_PLURALS[last]}`) instead")
+            elif last.endswith("ves") and len(last) > 4:
+                message = (f"`{target}` becomes the role `{role}` (only the `s` is "
+                           f"dropped) - write the role's singular instead, e.g. "
+                           f"`{last[:-3]}f` / `{last[:-3]}fe`")
+            elif (quoted is not None and role != target and target in quoted
+                  and role not in quoted):
+                message = (f"this trigger looks for the role `{role}` (`{target}` read as "
+                           f"a plural), but the mission only ever uses `{target}` - a "
+                           f"singular ending in `s` is not safe here. Name the role "
+                           f"differently (e.g. `{target}_target`)")
+            if message:
+                col = len(raw.split(":", 1)[0]) + 1
+                col += len(raw[col:]) - len(raw[col:].lstrip())
+                findings.append(AmdFinding(lineno, WARNING, "trigger-role-plural", message,
+                                           col=col, end_line=lineno,
+                                           end_col=col + len(str(value))))
     return findings
 
 
@@ -1704,6 +1813,7 @@ def amd_lint(file_path=None, content=None, mast_sources=None, cross_file=None,
         findings += amd_lint_dialogue_outcomes(doc)
         findings += amd_lint_callouts(doc)
         findings += amd_lint_images(doc, file_path)
+        findings += amd_lint_trigger_roles(doc, source_index)
         if cross_file is not False:
             findings += amd_lint_cross_file(doc, mast_sources, source_index)
     except Exception as e:

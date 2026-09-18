@@ -2,8 +2,9 @@
 rewrites.
 
 `comms_map_filter` on a player ship lists the ids its comms 2D map shows (empty = all).
-`extra_scan_source` lists what else the ship sees through. Both are written as indices
-0..n-1, so both must be cleared first or a shorter list leaves the old tail behind.
+The ship is always listed. Both lists are written as indices 0..n-1, so both are
+cleared first or a shorter list leaves the old tail behind. (Engine 1.3.13 does not
+replicate a clear to clients - an engine bug; this code assumes the fixed engine.)
 """
 import unittest
 
@@ -48,21 +49,21 @@ class Base(unittest.TestCase):
 
 class TestCommsMapFilter(Base):
 
-    def test_WRITES_THE_IDS_AFTER_A_CLEAR(self):
+    def test_WRITES_THE_IDS_AND_THE_SHIP(self):
         comms_map_filter_set(self.ship, [self.c, self.a])
-        self.assertEqual(sorted([self.a, self.c]), self.written())
+        self.assertEqual(sorted([self.ship, self.a, self.c]), self.written())
 
     def test_A_SHORTER_LIST_LEAVES_NO_TAIL(self):
         comms_map_filter_set(self.ship, [self.a, self.b, self.c])
         comms_map_filter_set(self.ship, [self.b])
-        self.assertEqual([self.b], self.written())
+        self.assertEqual(sorted([self.ship, self.b]), self.written())
 
     def test_ONLY_ENGINE_SPACE_OBJECTS_ARE_WRITTEN(self):
         person = lifeform_spawn("Ensign", "", "crew")
         dead = self.c
         delete_object(dead)
         comms_map_filter_set(self.ship, [self.a, person, dead, 0, None])
-        self.assertEqual([self.a], self.written())
+        self.assertEqual(sorted([self.ship, self.a]), self.written())
 
     def test_AN_EMPTY_LENS_WRITES_THE_SHIP_NOT_NOTHING(self):
         """Empty means "show everything" to the engine."""
@@ -85,7 +86,7 @@ class TestCommsMapFilter(Base):
         comms_map_filter_set(self.ship, [self.a])
         comms_map_filter_clear(self.ship)
         comms_map_filter_set(self.ship, [self.a])
-        self.assertEqual([self.a], self.written())
+        self.assertEqual(sorted([self.ship, self.a]), self.written())
 
 
 class TestExtraScanSources(Base):

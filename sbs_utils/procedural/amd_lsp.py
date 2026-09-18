@@ -296,9 +296,48 @@ def _write_message(stdout, msg):
     stdout.flush()
 
 
+def _is_mast(uri):
+    """A .mast document: the editor sends these too, for their diagnostics only."""
+    return str(uri).lower().endswith(".mast")
+
+
+def _mast_diagnostics(text):
+    """The per-file .mast rules `sbs lint` runs - an `await` block's stray statement,
+    an unguarded data_set read, a side effect in a //signal route - as LSP Diagnostics.
+
+    Per-file only: the namespace checks need the whole mission and stay in `sbs lint`."""
+    from sbs_utils.procedural.await_lint import await_lint
+    from sbs_utils.procedural.blob_lint import blob_lint
+    from sbs_utils.procedural.signal_lint import signal_lint
+    findings = []
+    for rule in (await_lint, blob_lint, signal_lint):
+        try:
+            findings += rule(content=text)
+        except Exception:
+            pass           # one rule failing must not hide the others
+    lines = text.splitlines()
+    diags = []
+    for f in findings:
+        l0 = max(0, (f.line or 1) - 1)
+        ln = lines[l0] if l0 < len(lines) else ""
+        indent = len(ln) - len(ln.lstrip())
+        diags.append({
+            "range": {"start": {"line": l0, "character": indent},
+                      "end": {"line": l0, "character": max(indent + 1, len(ln))}},
+            "severity": 1 if f.is_error() else 2,
+            "source": "mast",
+            "code": f.code,
+            "message": f.message,
+        })
+    return diags
+
+
 def _publish(stdout, uri, text, docs):
     try:
-        diags = _diagnostics(text, _index_for(uri, docs))
+        if _is_mast(uri):
+            diags = _mast_diagnostics(text)
+        else:
+            diags = _diagnostics(text, _index_for(uri, docs))
     except Exception:
         diags = []
     _write_message(stdout, {"jsonrpc": "2.0", "method": "textDocument/publishDiagnostics",
@@ -1680,6 +1719,20 @@ def serve(stdin=None, stdout=None):
 
         if method == "exit":
             break
+        # A .mast document gets diagnostics and nothing else: every other feature here
+        # reads the AMD model, and would answer a MAST file with AMD symbols. A request
+        # (it has an id) gets an empty result; a notification is simply not acted on.
+        # Defensive: this runs OUTSIDE the handler's try, and a malformed request must
+        # not take the server down.
+        _params = msg.get("params") if isinstance(msg, dict) else None
+        _td = _params.get("textDocument") if isinstance(_params, dict) else None
+        _uri = _td.get("uri", "") if isinstance(_td, dict) else ""
+        if (_is_mast(_uri) and method not in (
+                "textDocument/didOpen", "textDocument/didChange",
+                "textDocument/didSave", "textDocument/didClose")):
+            if mid is not None:
+                _write_message(stdout, {"jsonrpc": "2.0", "id": mid, "result": None})
+            continue
         try:
             if method == "initialize":
                 _write_message(stdout, {"jsonrpc": "2.0", "id": mid, "result": {

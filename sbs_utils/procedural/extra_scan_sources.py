@@ -73,7 +73,8 @@ def extra_scan_sources_run_all(tick_task:TickTask):
         data_set = to_data_set(scanner_id)
         side = scanner.side
         # Clear first: writing indices 0..n-1 over a longer earlier list left its tail
-        # entries behind in the blob.
+        # entries behind in the blob. (Engine 1.3.13 does not replicate a clear to
+        # clients - an engine bug, reported; `num_extra_scan_sources` still bounds it.)
         data_set.clear_data("extra_scan_source")
         num_ids = 0
         for friend in friends:

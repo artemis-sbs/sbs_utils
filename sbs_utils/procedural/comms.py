@@ -1701,18 +1701,23 @@ def comms_set_2dview_focus(client_id, focus_id=0, EVENT=None):
 
 
 # The comms map filter is an ENGINE data set on the player ship: the ids the comms 2D map
-# shows. Empty shows everything, so "show nothing else" is written as the ship's own id.
-# Every comms console on the ship shares it.
+# shows. Empty shows everything. Every comms console on the ship shares it.
+#
+# Written as clear + set by index. On engine 1.3.13 the comms map follows only the FIRST
+# write (the server's blob is right every time - data/missions/cmf_probe); that is an
+# engine bug, reported, and this code assumes the fixed engine rather than working
+# around it.
 _MAP_FILTER = "comms_map_filter"
 _MAP_FILTER_LAST = "comms_map_filter_last"
 
 
 def comms_map_filter_set(ship_id, ids):
-    """Show only `ids` on this ship's comms map.
+    """Show only `ids` - and the ship itself - on this ship's comms map.
 
     Only ids the engine knows are written - live space objects. A lifeform, grid object,
-    fleet or dead id is dropped. An empty result would read as "no filter" to the engine,
-    so it is written as the ship's own id instead. Skips the write when the set has not
+    fleet or dead id is dropped. The ship's own id is always in the list, so the crew
+    never loses their own ship from the map, and a lens that matches nothing still writes
+    a non-empty list (empty would mean "no filter"). Skips the write when the list has not
     changed since the last one, since every write goes over the network.
 
     Args:
@@ -1720,17 +1725,15 @@ def comms_map_filter_set(ship_id, ids):
         ids (iterable): Agent ids or objects to show.
 
     Returns:
-        list: The ids written (or already in place), sorted.
+        list: The ids shown (the ship included), sorted.
     """
     from .query import to_id, to_data_set, object_exists, is_space_object_id
     ship_id = to_id(ship_id)
-    keep = set()
+    keep = {ship_id}
     for i in ids or ():
         i = to_id(i)
         if i and is_space_object_id(i) and object_exists(i):
             keep.add(i)
-    if not keep:
-        keep = {ship_id}
     keep = sorted(keep)
     if get_inventory_value(ship_id, _MAP_FILTER_LAST, None) == keep:
         return keep

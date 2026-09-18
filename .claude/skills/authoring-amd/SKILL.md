@@ -142,10 +142,13 @@ Traps:
 `_resolve_role` singularizes via `_singular` (fixed 2026-09-18): `-ies` -> `-y`
 (`anomalies` -> `anomaly`), `-xes/-ches/-shes/-zzes` drop `es`, a word ending `ss`/`us`/`is`
 is left alone (`bus`, `nimbus`), otherwise one trailing `s` goes (`raiders`, `bases`). The
-driver then matches with `has_role`, which is exact. Still not caught by `sbs lint`:
+driver then matches with `has_role`, which is exact.
 
-- Irregular plurals (`destroy 2 mice`) and singulars the rules misread (`scan 1 lens`
-  -> `len`) never match. Write the role's exact singular, or suffix the role
+- Irregular plurals (`destroy 2 mice`), `-ves` plurals (`wolves` -> `wolve`) and
+  singulars the rules misread (`scan 1 lens` -> `len`) never match. `sbs lint` flags
+  them as `trigger-role-plural` (2026-09-18): the first two always, the singular case
+  only when the mission's string literals use `lens` and never `len` (so `guns`,
+  `cameras` stay quiet). Write the role's exact singular, or suffix the role
   (`lens_target`) - do not emit the mangled spelling, a human will "correct" it back.
 - Before the fix, `-ies` produced `anomalie` and a lone-`s` word lost its `s`; content
   written as `scan 3 anomaly` for that reason still works.

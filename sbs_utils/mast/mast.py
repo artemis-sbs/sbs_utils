@@ -308,6 +308,11 @@ def _addon_profile_rules():
 class Mast():
     include_code = False
 
+    # Compile WARNINGS (a story still compiles) are printed to the console by default.
+    # `sbs lint` compiles files only to collect them, and turns the print off - it reads
+    # `compile_warning_records`, a list of (file_name, line_no, message) per instance.
+    print_compile_warnings = True
+
     # Optional verdict/trace seam. When set to a callable, a compile that produces
     # errors invokes ``on_compile_error(errors, file_name)``. Default ``None`` → a
     # single ``is not None`` check, no overhead; never set in the shipped library.
@@ -1567,10 +1572,19 @@ class Mast():
                                      f"handlers). Move it into a button's body, or after the "
                                      f"block: {line.strip()[:80]}")
                             compile_logger.warning(_warn)
-                            print("MAST compile warning: " + _warn)
+                            if Mast.print_compile_warnings:
+                                print("MAST compile warning: " + _warn)
                             if not hasattr(self, "compile_warnings"):
                                 self.compile_warnings = []
+                                self.compile_warning_records = []
                             self.compile_warnings.append(_warn)
+                            # Structured twin for tools: a file name can contain ':'
+                            # (a Windows drive), so the string is not parsed back.
+                            self.compile_warning_records.append(
+                                (file_name, line_no, "this line is directly inside an `await ...:` "
+                                 "block and will NEVER RUN - the block only holds choices "
+                                 "(+ / * buttons, = inline labels, on handlers). Move it "
+                                 "into a button's body, or after the block."))
                         #
                         # This is for nesting things
                         # like for loops, that should wait to do things
