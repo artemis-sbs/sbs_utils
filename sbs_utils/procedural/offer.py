@@ -75,7 +75,7 @@ def _offer_log(message, level="warning"):
 # --- the record ---------------------------------------------------------------
 def offer_record(key, title, detail="", kind="job", source=None, agent_id=None,
                  where="", app=None, route=None, consoles=None, pending=False,
-                 sort=100, data=None):
+                 sort=100, data=None, take=None):
     """One offer, as plain data.
 
     Args:
@@ -101,13 +101,23 @@ def offer_record(key, title, detail="", kind="job", source=None, agent_id=None,
             digest**: a count means "you can take this now".
         sort (int): Ascending. Ties fall back to title.
         data (dict): Anything the provider wants to carry through to its own renderer.
+        take (callable): ``fn(client_id, record)`` - take this offer HERE.
+
+            Most offers do not have one: a quest is accepted on the Quests tab, where
+            `quest_tab_controls_gate` already decides who may act, and a second copy of
+            that policy is two places that must agree and eventually will not.
+
+            A SORTIE has no such tab. It is not a quest until it is assigned, so sending
+            a pilot to the Quests app to take one shows them an empty list - the offer
+            they just clicked is the one thing that cannot be there. An offer that
+            nothing else can accept carries the means to accept itself.
     """
     return MastDataObject({
         "key": str(key), "title": str(title), "detail": str(detail or ""),
         "kind": str(kind or "job"), "source": source, "agent_id": agent_id,
         "where": str(where or ""), "app": app, "route": route,
         "consoles": consoles, "pending": bool(pending),
-        "sort": int(sort or 0), "data": data or {},
+        "sort": int(sort or 0), "data": data or {}, "take": take,
     })
 
 

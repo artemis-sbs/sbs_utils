@@ -9,11 +9,17 @@ Deliberately a sibling of ``status_gui``, not a generalization of it: that board
 are APP registrations that happen to carry a badge, and an offer is not an app. Same
 shape, same chrome, same empty state, different question.
 
-The board DISCOVERS; the Quests tab TAKES. There is no Accept button here on purpose -
-who may accept a job is resolved by ``quest_tab_controls_gate`` (a per-quest ``Accept
-On:`` override, then ``QUEST_ACCEPT_CONSOLES``), and a second implementation of that
-policy is two places that must agree and eventually will not. A row that this console
-cannot act on says WHERE it can be taken instead.
+MOSTLY THE BOARD DISCOVERS AND SOMETHING ELSE TAKES. A quest is accepted on the Quests
+tab, where ``quest_tab_controls_gate`` already resolves who may act (a per-quest ``Accept
+On:`` override, then ``QUEST_ACCEPT_CONSOLES``); a second implementation of that policy
+would be two places that must agree and eventually will not. So a quest offer carries an
+``app`` and the click goes there.
+
+THE EXCEPTION IS AN OFFER NOTHING ELSE CAN ACCEPT. A hangar sortie is not a quest until
+it is assigned, so sending a pilot to the Quests app to take one shows them a list that
+cannot contain the thing they just clicked - which is exactly what it did. Such an offer
+carries a ``take`` callable and is accepted here. A row that this console cannot act on
+says WHERE instead.
 """
 from ...helpers import FrameContext
 from ..offer import offers, offer_context_here
@@ -59,7 +65,7 @@ def offer_rows(client_id=None, ship_id=None, console=None):
         rows.append(dict(
             {k: r.get(k) for k in ("key", "title", "detail", "kind", "source",
                                    "agent_id", "where", "app", "route", "consoles",
-                                   "pending", "sort", "data")},
+                                   "pending", "sort", "data", "take")},
             can_take=_console_can_take(r, console)))
     return rows
 
@@ -123,8 +129,22 @@ def gui_offers_screen(title="Offers"):
         item = lb.get_value()
         if item is None:
             return
-        # Selecting goes to where the work is TAKEN - the reason you read a board is to
-        # go and do something about it. An offer with no app (a station job taken by
+        # TAKE IT HERE IF IT CAN BE. An offer that nothing else can accept carries its
+        # own means of acceptance - a sortie is not a quest until it is assigned, so
+        # sending a pilot to the Quests app to take one shows them the empty list that
+        # does not yet contain the thing they just clicked.
+        take = item.get("take")
+        if callable(take) and item.get("can_take"):
+            cid, _ship = offer_context_here()
+            try:
+                take(cid, item)
+            except Exception as e:                        # noqa: BLE001
+                from ..execution import log
+                log(f"could not take offer {item.get('key')!r}: "
+                    f"{type(e).__name__}: {e}", "offer", "warning")
+            return
+        # Otherwise go to where the work IS taken - the reason you read a board is to go
+        # and do something about it. An offer with neither (a station job taken by
         # hailing) has nowhere to send you, so the row's `where` line is the answer and
         # the click does nothing rather than opening something unrelated.
         app = item.get("app")
