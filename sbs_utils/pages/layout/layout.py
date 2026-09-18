@@ -997,7 +997,12 @@ class Layout(Clickable):
             h = bounds_area.height
             bounds_area = Bounds(0,0,w,h)
 
-        # rows = self.rows
+        # EVERY row learns its parent, hidden ones included. Row.show() reflows by
+        # marking its parent dirty, and the placement loop below only reaches shown
+        # rows - so a row hidden from birth had no parent, and showing it did nothing
+        # until an unrelated repaint (the comms Options panel, hide_when_empty).
+        for row in self.rows:
+            row.parent = self
         rows = list(filter(lambda r: r._show, self.rows))
         #if self.orientation == 1:
         #    rows = list(reversed(rows))

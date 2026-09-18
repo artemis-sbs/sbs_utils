@@ -459,6 +459,24 @@ class TestHiddenRowsAreNotLaidOut(_Base):
         sec.calc(0)
         self.assertAlmostEqual(50.0, rows[0].height, places=3)
 
+    def test_showing_a_row_hidden_from_birth_queues_a_reflow(self):
+        """Row.show() reflows by marking its PARENT dirty. A row hidden before
+        its first layout pass was never placed, so it had no parent and showing
+        it queued nothing - it stayed invisible until an unrelated repaint (the
+        comms Options panel, gui_property_list_box hide_when_empty)."""
+        from sbs_utils.pages.layout.dirty import Dirty
+        rows = self._rows(2)
+        rows[1].show(False)
+        sec = Layout("t", rows, 0, 0, 100, 100)
+        sec.calc(0)
+        Dirty.dirty = {}
+        try:
+            rows[1].show(True)
+            self.assertIn(sec, Dirty.dirty.get(0, set()),
+                          "showing the row must queue its section for a re-layout")
+        finally:
+            Dirty.dirty = {}
+
 
 class TestRowGeometryExistsFromBirth(_Base):
     """A row hidden before it was ever laid out still has its side attributes.
