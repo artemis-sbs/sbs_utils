@@ -1233,6 +1233,60 @@ def quest_on_collect(holder_id, key):
 # procedural.quest quest_log_build_items / quest_log_template / quest_log_title, so
 # the look lives in ONE place. Only `sources` (whose quests to show) differs between
 # the two logs.
+#: Client inventory key for the quest holder a console uses in place of its ship.
+_QUEST_HOLDER_KEY = "__quest_holder__"
+
+
+def quest_holder_set(client_id, agent_id, label="Ship"):
+    """Make the quest screens use `agent_id` (under `label`) as this console's own holder,
+    in place of the ship it is assigned to.
+
+    For a console whose ship is not its own: on the flight deck a pilot's console is
+    assigned to the CARRIER, so the Quests screens listed the carrier's patrol quests. The
+    hangar points it at the side's Flight Wing instead. Cleared by quest_holder_clear
+    (a console select does this), after which the ship is used again.
+    """
+    if client_id is None:
+        return
+    from sbs_utils.procedural.inventory import set_inventory_value
+    set_inventory_value(client_id, _QUEST_HOLDER_KEY,
+                        None if agent_id is None else (to_id(agent_id), str(label or "Ship")))
+
+
+def quest_holder_clear(client_id):
+    """Go back to the console's ship as its quest holder."""
+    if client_id is None:
+        return
+    from sbs_utils.procedural.inventory import set_inventory_value
+    set_inventory_value(client_id, _QUEST_HOLDER_KEY, None)
+
+
+def quest_holder_for_client(client_id, ship_id=None):
+    """`(label, agent_id)` for a console's own quest holder: the override set by
+    quest_holder_set, else ("Ship", `ship_id`)."""
+    if client_id:
+        from sbs_utils.procedural.inventory import get_inventory_value
+        try:
+            held = get_inventory_value(client_id, _QUEST_HOLDER_KEY, None)
+        except Exception:                                # noqa: BLE001
+            held = None
+        if held:
+            return (held[1], held[0])
+    return ("Ship", ship_id)
+
+
+def _quest_sources(client_id, ship_id):
+    """The three sections every quest screen lists: the game, this client, and this
+    console's own holder (its ship, or what quest_holder_set named)."""
+    sources = [("Game", Agent.SHARED_ID)]
+    if client_id and client_id != 0:
+        sources.append(("You", client_id))
+    label, holder = quest_holder_for_client(client_id, ship_id)
+    if holder and holder != 0:
+        sources.append((label, holder))
+    return sources
+
+
 def quest_tab_items(client_id, ship_id):
     """Collapsible quest-log items for THIS console: the game (SHARED), the client,
     and its ship. Rows carry their owning agent (for abandon / engage).
@@ -1243,11 +1297,7 @@ def quest_tab_items(client_id, ship_id):
     Offers provider, the game-results log and the viewscreen also read - hiding it there
     would empty the board.
     """
-    sources = [("Game", Agent.SHARED_ID)]
-    if client_id and client_id != 0:
-        sources.append(("You", client_id))
-    if ship_id and ship_id != 0:
-        sources.append(("Ship", ship_id))
+    sources = _quest_sources(client_id, ship_id)
     return _quest_tab_taken_only(quest_log_build_items(sources))
 
 
@@ -1265,11 +1315,7 @@ def quest_offers_tab_items(client_id, ship_id, console=None):
     record under `offer`, grouped by who is offering it. A job's STEPS are not listed: the
     job is what gets accepted, and its steps are its sequencer's to reveal.
     """
-    sources = [("Game", Agent.SHARED_ID)]
-    if client_id and client_id != 0:
-        sources.append(("You", client_id))
-    if ship_id and ship_id != 0:
-        sources.append(("Ship", ship_id))
+    sources = _quest_sources(client_id, ship_id)
     out = []
     section = None
     for item in quest_log_build_items(sources):
@@ -1287,7 +1333,10 @@ def quest_offers_tab_items(client_id, ship_id, console=None):
         # A job with visible steps comes back as a collapsible header; here it is listed
         # as the plain row it carries, since its steps are not.
         out.append(row)
-    out.extend(_quest_offer_other_rows(client_id, ship_id, console))
+    # Offers that are not quests yet ask about the console's own holder too, so a pilot
+    # on the flight deck is not offered the carrier's station work.
+    holder = quest_holder_for_client(client_id, ship_id)[1]
+    out.extend(_quest_offer_other_rows(client_id, holder, console))
     return out
 
 
@@ -1646,11 +1695,7 @@ def quest_offer_rows(client_id, ship_id):
     # provider, and execution pulls in most of the package.
     from sbs_utils.procedural.offer import offer_record
     from sbs_utils.procedural.execution import get_shared_variable
-    sources = [("Game", Agent.SHARED_ID)]
-    if client_id and client_id != 0:
-        sources.append(("You", client_id))
-    if ship_id and ship_id != 0:
-        sources.append(("Ship", ship_id))
+    sources = _quest_sources(client_id, ship_id)
 
     out = []
     for item in quest_log_build_items(sources):

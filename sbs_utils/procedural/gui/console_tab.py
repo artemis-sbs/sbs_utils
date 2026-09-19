@@ -201,11 +201,41 @@ def _boarded_back_tab(client_id):
     return grid if client_id in boarding_clients() else None
 
 
+#: Client inventory key for a mission-set Back target (see gui_tab_back_override).
+_BACK_OVERRIDE_KEY = "__back_tab_override__"
+
+
+def gui_tab_back_override(client_id, tab_name):
+    """Send this console's Back to `tab_name`, whatever a screen asks for.
+
+    For a console that is somewhere other than the console it picked - a pilot in the
+    cockpit picked the Hangar, so every ePADD screen's `gui_tab_back(CONSOLE_SELECT)`
+    said "hangar", and Back pulled them out of their craft mid-flight. The mission sets
+    this when the pilot takes the seat and clears it when they leave; no call site
+    changes. A boarded or EVA console's own swap still wins.
+    """
+    if client_id is None:
+        return
+    set_inventory_value(client_id, _BACK_OVERRIDE_KEY, str(tab_name or "") or None)
+
+
+def gui_tab_back_override_clear(client_id):
+    """Forget a Back target set by gui_tab_back_override."""
+    if client_id is None:
+        return
+    set_inventory_value(client_id, _BACK_OVERRIDE_KEY, None)
+
+
 def _back_tab_for(client_id, tab_name):
-    """Substitute the crew console for whatever a boarded console was asked for."""
+    """Substitute the crew console for whatever a boarded console was asked for, and a
+    mission's Back override (gui_tab_back_override) for everything else."""
     crew_tab = _boarded_back_tab(client_id)
     if crew_tab is None:
-        return tab_name
+        try:
+            override = get_inventory_value(client_id, _BACK_OVERRIDE_KEY, None)
+        except Exception:                   # noqa: BLE001 - no agent for this client
+            override = None
+        return override or tab_name
     if tab_name.strip().lower() == crew_tab:
         return tab_name                     # already there; do not recurse into itself
     return crew_tab

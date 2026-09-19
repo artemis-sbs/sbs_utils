@@ -38,6 +38,9 @@ REQUIRED = (
     "offer_register", "offer_record", "offer_clear",
     "offer_board_count_here", "quest_offers_tab_items", "quest_offers_tab_sig",
     "quest_offers_title", "quest_tab_items", "quest_tab_accept",
+    # hangar - the Flight Wing as the pilot's quest holder, and the cockpit's Back
+    "quest_holder_set", "quest_holder_clear", "gui_tab_back_override",
+    "gui_tab_back_override_clear",
     # urges - the teaching nudges and their ledger
     "urge_add", "urge_record", "urge_teach_note", "urge_taught",
     "urges_install_on", "urges_from_section",

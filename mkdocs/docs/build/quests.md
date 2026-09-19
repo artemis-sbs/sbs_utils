@@ -82,6 +82,13 @@ description, and accepted there. Once accepted it moves to the **Quests** tab, w
 lists only what the crew has taken on: active, complete and failed. Both are the same
 screen. A quest's *steps* are never offered on their own - the quest is.
 
+Each screen lists three holders: **Game** (shared), **You** (this console) and the
+console's **Ship**. A console whose ship is not its own can name another holder with
+`quest_holder_set(client_id, agent_id, label)` - the LegendaryMissions flight deck and
+cockpit use the side's **Flight Wing** (`hangar_flight_wing(side)`), so pilots see the
+wing's quests rather than the carrier's. `quest_holder_clear(client_id)` goes back to the
+ship.
+
 Both screens **display** on every enabled console, but *who may act* is gated per
 console. A mission sets the defaults (shared vars, e.g. in `settings.yaml`):
 

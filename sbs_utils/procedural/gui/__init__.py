@@ -1,5 +1,6 @@
 from .console_tab import gui_tab_enable,gui_tab_back,gui_tab_add_top,gui_tab_enable_top,gui_tab_activate, gui_tab_get_active, gui_app_activate, gui_app_get_active, gui_tab_clear_top, gui_tab_remove_top, gui_tab_is_top
 from .console_tab import gui_tab_get_list
+from .console_tab import gui_tab_back_override, gui_tab_back_override_clear
 from .console_tab import (gui_tab_back_while_boarded, gui_tab_boarded_back_tab,
                           gui_tab_boarded_back_tabs, gui_tab_boarded_back_clear)
 from .messages_gui import gui_messages_screen, gui_messages_tick

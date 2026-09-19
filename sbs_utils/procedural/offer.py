@@ -344,6 +344,13 @@ def offer_context_here():
         ship = viewscreen_home_ship(cid)
     except Exception:
         ship = None
+    # A console whose own quest holder is not its ship (a pilot on the flight deck is
+    # assigned to the carrier; the hangar names the Flight Wing) counts the holder's.
+    try:
+        from .quest_driver import quest_holder_for_client
+        ship = quest_holder_for_client(cid, ship)[1]
+    except Exception:
+        pass
     return (cid, ship or None)
 
 
