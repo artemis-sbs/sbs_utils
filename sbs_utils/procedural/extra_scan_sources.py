@@ -3,7 +3,7 @@
 from sbs_utils.procedural.links import linked_to,unlink, has_link_to, link
 from sbs_utils.procedural.inventory import get_inventory_value, set_inventory_value
 from sbs_utils.procedural.roles import role
-from sbs_utils.procedural.query import to_data_set, to_object
+from sbs_utils.procedural.query import to_data_set, to_object, clear_data_set_value
 from sbs_utils.tickdispatcher import TickDispatcher, TickTask
 from sbs_utils.procedural.routes import follow_route_select_science
 from sbs_utils.helpers import FrameContext
@@ -73,9 +73,8 @@ def extra_scan_sources_run_all(tick_task:TickTask):
         data_set = to_data_set(scanner_id)
         side = scanner.side
         # Clear first: writing indices 0..n-1 over a longer earlier list left its tail
-        # entries behind in the blob. (Engine 1.3.13 does not replicate a clear to
-        # clients - an engine bug, reported; `num_extra_scan_sources` still bounds it.)
-        data_set.clear_data("extra_scan_source")
+        # entries behind in the blob. clear_data_set_value clears the clients' copy too.
+        clear_data_set_value(scanner_id, "extra_scan_source")
         num_ids = 0
         for friend in friends:
             # Remove if friend is no more

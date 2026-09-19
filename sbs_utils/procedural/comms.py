@@ -1735,10 +1735,9 @@ def comms_set_2dview_focus(client_id, focus_id=0, EVENT=None):
 # The comms map filter is an ENGINE data set on the player ship: the ids the comms 2D map
 # shows. Empty shows everything. Every comms console on the ship shares it.
 #
-# Written as clear + set by index. On engine 1.3.13 the comms map follows only the FIRST
-# write (a probe read the server's blob back correct after every clear + rewrite, so a
-# clear is not reaching the client); that is an engine bug, and this code assumes the
-# fixed engine rather than working around it.
+# Written as clear + set by index. The clear goes through clear_data_set_value, which also
+# clears the clients' copy: a bare clear_data is not replicated, so on engine 1.3.13 the
+# comms map followed only the FIRST write.
 _MAP_FILTER = "comms_map_filter"
 _MAP_FILTER_LAST = "comms_map_filter_last"
 
@@ -1759,7 +1758,7 @@ def comms_map_filter_set(ship_id, ids):
     Returns:
         list: The ids shown (the ship included), sorted.
     """
-    from .query import to_id, to_data_set, object_exists, is_space_object_id
+    from .query import to_id, to_data_set, object_exists, is_space_object_id, clear_data_set_value
     ship_id = to_id(ship_id)
     keep = {ship_id}
     for i in ids or ():
@@ -1772,7 +1771,7 @@ def comms_map_filter_set(ship_id, ids):
     data_set = to_data_set(ship_id)
     if data_set is None:
         return keep
-    data_set.clear_data(_MAP_FILTER)
+    clear_data_set_value(ship_id, _MAP_FILTER)
     for index, i in enumerate(keep):
         data_set.set(_MAP_FILTER, i, index)
     set_inventory_value(ship_id, _MAP_FILTER_LAST, keep)
@@ -1781,14 +1780,14 @@ def comms_map_filter_set(ship_id, ids):
 
 def comms_map_filter_clear(ship_id):
     """Remove the comms map filter from this ship: the map shows everything again."""
-    from .query import to_id, to_data_set
+    from .query import to_id, to_data_set, clear_data_set_value
     ship_id = to_id(ship_id)
     if get_inventory_value(ship_id, _MAP_FILTER_LAST, None) == []:
         return
     data_set = to_data_set(ship_id)
     if data_set is None:
         return
-    data_set.clear_data(_MAP_FILTER)
+    clear_data_set_value(ship_id, _MAP_FILTER)
     set_inventory_value(ship_id, _MAP_FILTER_LAST, [])
 
 

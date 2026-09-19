@@ -262,6 +262,7 @@ def create_new_sim() -> None:
     # stale nodes on top of the new ones (e.g. a fresh 3-node ship reading 7). Blank it so a new
     # sim starts with no grid state.
     hull_map_objects.clear()
+    client_data_clears.clear()
     # Particle emitters die with the sim they were attached to. The id counter is NOT
     # reset: a recycled handle would let a stale delete_particle_emittor from the old
     # mission reach into the new one's table.
@@ -312,6 +313,16 @@ def delete_all_navproxies() -> None:
     global sim
     if sim is not None:
         sim.navproxies = {}
+
+# (space_object_id, grid_object_id, data_name) per clear_object_data_set_value_on_clients
+# call, for tests. The mock has no clients, so recording the call is all it does.
+client_data_clears: list = []
+
+
+def clear_object_data_set_value_on_clients(space_object_id: int, grid_object_id: int, data_name: str) -> None:
+    """clears a data set value on every client; grid_object_id is 0 for a space object"""
+    client_data_clears.append((space_object_id, grid_object_id, data_name))
+
 
 def delete_grid_object(spaceObjectID: int, gridObjID: int) -> None:
     """deletes the grid object, and sends the deletion message to all clients

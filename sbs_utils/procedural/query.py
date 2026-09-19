@@ -440,6 +440,37 @@ def set_data_set_value(to_update, key, value, index=0):
         if is_space_object_id(object) or is_grid_object_id(object):
             object.data_set.set(key, value, index)
 
+def clear_data_set_value(id_or_obj, key):
+    """Clear every index of a data-set (blob) key, on the server AND on every client.
+
+    ``data_set.clear_data(key)`` clears only the server's copy; the engine does not
+    replicate it, so clients keep the old entries. This also calls
+    ``sbs.clear_object_data_set_value_on_clients``, which takes the host ship's id and
+    the grid object's id - 0 for a space object - so a grid object is resolved to its host.
+    Use this instead of calling ``clear_data`` directly.
+
+    Args:
+        id_or_obj (Agent | int): A space or grid object.
+        key (str): The data-set key to clear.
+    """
+    object = to_object(id_or_obj)
+    if object is None:
+        return
+    data_set = object.data_set
+    if data_set is None:
+        return
+    data_set.clear_data(key)
+    if is_grid_object_id(object):
+        space_id, grid_id = object.host_id, object.id
+    elif is_space_object_id(object):
+        space_id, grid_id = object.id, 0
+    else:
+        return
+    # An engine older than the call still gets the server-side clear.
+    on_clients = getattr(FrameContext.context.sbs, "clear_object_data_set_value_on_clients", None)
+    if on_clients is not None:
+        on_clients(space_id, grid_id, key)
+
 def get_engine_data_set(id_or_obj):
     """Return the engine data-set (blob) for an agent.
 

@@ -3,8 +3,9 @@ rewrites.
 
 `comms_map_filter` on a player ship lists the ids its comms 2D map shows (empty = all).
 The ship is always listed. Both lists are written as indices 0..n-1, so both are
-cleared first or a shorter list leaves the old tail behind. (Engine 1.3.13 does not
-replicate a clear to clients - an engine bug; this code assumes the fixed engine.)
+cleared first or a shorter list leaves the old tail behind. A blob clear_data is not
+replicated to clients, so clear_data_set_value also calls
+clear_object_data_set_value_on_clients.
 """
 import unittest
 
@@ -21,9 +22,9 @@ from sbs_utils.procedural.comms import (comms_map_filter_set, comms_map_filter_c
 from sbs_utils.procedural.extra_scan_sources import extra_scan_sources_run_all
 from sbs_utils.procedural.lifeform import lifeform_spawn
 from sbs_utils.procedural.links import link, unlink
-from sbs_utils.procedural.query import to_id
+from sbs_utils.procedural.query import to_id, clear_data_set_value
 from sbs_utils.procedural.space_objects import delete_object
-from sbs_utils.procedural.spawn import npc_spawn, player_spawn
+from sbs_utils.procedural.spawn import npc_spawn, player_spawn, grid_spawn
 from sbs_utils.spaceobject import SpaceObject
 
 
@@ -39,6 +40,7 @@ class Base(unittest.TestCase):
         self.b = to_id(npc_spawn(2000, 0, 0, "B", "tsn", "tsn_light_cruiser", "behav_npcship"))
         self.c = to_id(npc_spawn(3000, 0, 0, "C", "tsn", "tsn_light_cruiser", "behav_npcship"))
         self.ds = sbs.sim.get_space_object(self.ship).data_set
+        sbs.client_data_clears.clear()
 
     def tearDown(self):
         FrameContext.context = None
@@ -101,6 +103,30 @@ class TestExtraScanSources(Base):
         extra_scan_sources_run_all(None)
         self.assertEqual([self.a], self.written("extra_scan_source"))
         self.assertEqual(1, self.ds.get("num_extra_scan_sources", 0))
+
+
+class TestClearReachesClients(Base):
+    """Every clear also calls clear_object_data_set_value_on_clients (host id, grid id)."""
+
+    def test_map_filter_set_and_clear(self):
+        comms_map_filter_set(self.ship, [self.a])
+        comms_map_filter_clear(self.ship)
+        self.assertEqual([(self.ship, 0, "comms_map_filter")] * 2, sbs.client_data_clears)
+
+    def test_extra_scan_sources(self):
+        link(self.ship, "extra_scan_source", self.a)
+        extra_scan_sources_run_all(None)
+        self.assertIn((self.ship, 0, "extra_scan_source"), sbs.client_data_clears)
+
+    def test_a_grid_object_goes_through_its_host(self):
+        go = grid_spawn(self.ship, "DC1", "DC1", 2, 3, 2, "#0ff", "crew")
+        go_id = to_id(go)
+        clear_data_set_value(go_id, "some_key")
+        self.assertEqual([(self.ship, go_id, "some_key")], sbs.client_data_clears)
+
+    def test_a_non_engine_id_sends_nothing(self):
+        clear_data_set_value(lifeform_spawn("Ensign", "", "crew"), "some_key")
+        self.assertEqual([], sbs.client_data_clears)
 
 
 class TestMockClearData(Base):
