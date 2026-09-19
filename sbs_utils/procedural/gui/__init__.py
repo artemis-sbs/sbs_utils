@@ -4,7 +4,7 @@ from .console_tab import (gui_tab_back_while_boarded, gui_tab_boarded_back_tab,
                           gui_tab_boarded_back_tabs, gui_tab_boarded_back_clear)
 from .messages_gui import gui_messages_screen, gui_messages_tick
 from .status_gui import gui_status_screen, status_rows
-from .offers_gui import gui_offers_screen, offer_rows
+from .offers_gui import offer_rows, offer_board_count_here
 from .boarding_gui import (gui_boarding_screen, boarding_who, boarding_set_who, boarding_label,
                        boarding_go_down, boarding_go_up, boarding_relevant,
                        boarding_home_ship)

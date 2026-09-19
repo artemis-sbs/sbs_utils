@@ -113,13 +113,15 @@ class QuestOfferProviderTests(unittest.TestCase):
         self.assertEqual(row.get("key"), f"quest:{self.ship}:patrol")
         self.assertEqual(row.get("data").get("quest_id"), "patrol")
 
-    def test_a_nested_step_keeps_its_full_path(self):
-        """The key is the full path so accept/abandon stay path-aware."""
+    def test_a_step_is_not_an_offer(self):
+        """An arc's step is its sequencer's to reveal, not the crew's to take - offering
+        it would let a crew start step three of something they never began."""
         quest_add(self.ship, "arc", "The Arc", "")
         quest_add(self.ship, "arc/step1", "Step One", "")
         keys = [r.get("data").get("quest_id")
                 for r in offers(client_id=0, ship_id=self.ship)]
-        self.assertIn("arc/step1", keys)
+        self.assertIn("arc", keys)
+        self.assertNotIn("arc/step1", keys)
 
     def test_it_opens_the_quests_app(self):
         quest_add(self.ship, "j", "J", "")
@@ -140,6 +142,29 @@ class QuestOfferProviderTests(unittest.TestCase):
         row = offers(client_id=0, ship_id=self.ship)[0]
         row.get("where").encode("ascii")     # raises if not
 
+    # --- accepted on the board ------------------------------------------------
+    def test_a_quest_offer_can_be_taken(self):
+        quest_add(self.ship, "j", "J", "")
+        row = offers(client_id=0, ship_id=self.ship)[0]
+        self.assertTrue(callable(row.get("take")))
+        self.assertTrue(row.get("take")(0, row))
+        from sbs_utils.procedural.quest import quest_get_state
+        self.assertEqual(int(quest_get_state(self.ship, "j")), int(QuestState.ACTIVE))
+        self.assertEqual(self._titles(), [], "a taken job is no longer on offer")
+
+    def test_taking_does_not_restart_a_job_no_longer_idle(self):
+        quest_add(self.ship, "j", "J", "")
+        row = offers(client_id=0, ship_id=self.ship)[0]
+        quest_set_key(self.ship, "j", "state", QuestState.FAILED)
+        self.assertFalse(row.get("take")(0, row))
+        from sbs_utils.procedural.quest import quest_get_state
+        self.assertEqual(int(quest_get_state(self.ship, "j")), int(QuestState.FAILED))
+
+    def test_the_description_rides_along_for_the_reading_pane(self):
+        quest_add(self.ship, "j", "J", "Clear the lane of hazard rocks.")
+        row = offers(client_id=0, ship_id=self.ship)[0]
+        self.assertIn("hazard rocks", row.get("description"))
+
     # --- a multi-step job -----------------------------------------------------
     def test_a_parent_job_with_steps_is_still_an_offer(self):
         """_quest_log_rows emits a parent with visible children as a collapsible HEADER
@@ -151,6 +176,104 @@ class QuestOfferProviderTests(unittest.TestCase):
                                    "state": "IDLE"}},
         }, "arc")
         self.assertIn("The Arc", self._titles())
+
+
+class QuestTabListsOnlyTakenWorkTests(unittest.TestCase):
+    """Untaken jobs are on the Offers board; the Quests tab is work in hand."""
+
+    def setUp(self):
+        reset_mock(sbs)
+        offer_clear()
+        self.ship = to_id(create_enemy(0, 0, 0, "kralien_cruiser", name="P"))
+
+    def _tab_titles(self):
+        out = []
+        for item in QD.quest_tab_items(0, self.ship):
+            row = QD._quest_offer_row(item)
+            if row is not None:
+                out.append(row.get("title"))
+        return out
+
+    def test_an_idle_job_is_not_on_the_tab(self):
+        quest_add(self.ship, "idle", "Waiting", "")
+        quest_add(self.ship, "live", "Running", "", state=QuestState.ACTIVE)
+        self.assertEqual(self._tab_titles(), ["Running"])
+
+    def test_a_section_with_only_idle_jobs_is_dropped(self):
+        quest_add(self.ship, "idle", "Waiting", "")
+        self.assertEqual(QD.quest_tab_items(0, self.ship), [])
+
+    def test_the_shared_builder_still_lists_idle(self):
+        """The Offers provider and the results log read the builder - it must not filter."""
+        from sbs_utils.procedural.quest import quest_log_build_items
+        quest_add(self.ship, "idle", "Waiting", "")
+        items = quest_log_build_items([("Ship", self.ship)])
+        self.assertTrue(any(QD._quest_offer_row(i) is not None for i in items))
+
+
+class OffersTabIsTheQuestScreenTests(unittest.TestCase):
+    """Available Quests lists untaken work in the quest log's own row shape, so the Quests
+    tab's template, description pane and Accept gate serve it unchanged."""
+
+    def setUp(self):
+        reset_mock(sbs)
+        offer_clear()
+        self.ship = to_id(create_enemy(0, 0, 0, "kralien_cruiser", name="P"))
+
+    def tearDown(self):
+        offer_clear()
+
+    def _rows(self, console="comms"):
+        return [i for i in QD.quest_offers_tab_items(0, self.ship, console)
+                if QD._quest_offer_row(i) is not None]
+
+    def test_idle_jobs_are_listed_and_taken_ones_are_not(self):
+        quest_add(self.ship, "idle", "Waiting", "Clear the lane.")
+        quest_add(self.ship, "live", "Running", "", state=QuestState.ACTIVE)
+        rows = self._rows()
+        self.assertEqual([r.get("title") for r in rows], ["Waiting"])
+        self.assertEqual(rows[0].get("desc"), "Clear the lane.")
+
+    def test_a_step_is_not_listed(self):
+        quest_add(self.ship, "arc", "The Arc", "")
+        quest_add(self.ship, "arc/step1", "Step One", "")
+        self.assertEqual([r.get("title") for r in self._rows()], ["The Arc"])
+
+    def test_accepting_a_listed_job_uses_the_quest_tabs_own_accept(self):
+        quest_add(self.ship, "idle", "Waiting", "")
+        row = self._rows()[0]
+        gate = QD.quest_tab_controls_gate("comms", row, "comms,admiral", False, "helm")
+        self.assertTrue(gate.get("show_accept"))
+        QD.quest_tab_accept(row, 0)
+        from sbs_utils.procedural.quest import quest_get_state
+        self.assertEqual(int(quest_get_state(self.ship, "idle")), int(QuestState.ACTIVE))
+        self.assertEqual(self._rows(), [])
+
+    def test_a_non_quest_offer_is_a_row_with_its_record(self):
+        from sbs_utils.procedural.offer import offer_register, offer_record
+        taken = []
+        offer_register("t", lambda ctx: [offer_record(
+            "sortie:1", "Strike Run", detail="200 cr", kind="sortie", source="Flight Deck",
+            description="Hit the depot.", consoles="hangar",
+            take=lambda cid, rec: taken.append(cid))])
+        rows = self._rows("hangar")
+        self.assertEqual([r.get("title") for r in rows], ["Strike Run"])
+        row = rows[0]
+        self.assertEqual(row.get("desc"), "Hit the depot.")
+        self.assertEqual(row.get("group"), "Flight Deck")
+        self.assertTrue(QD.quest_tab_controls_gate("hangar", row, "", False, "").get("show_accept"))
+        self.assertFalse(QD.quest_tab_controls_gate("comms", row, "", False, "").get("show_accept"))
+        QD.quest_tab_accept(row, 42)
+        self.assertEqual(taken, [42])
+
+    def test_an_offer_taken_by_hailing_shows_where_instead(self):
+        from sbs_utils.procedural.offer import offer_register, offer_record
+        offer_register("t", lambda ctx: [offer_record(
+            "ou:1", "Cargo Run", source="DS 4", where="Comms - hail DS 4", route="//comms")])
+        row = self._rows()[0]
+        gate = QD.quest_tab_controls_gate("comms", row, "", False, "")
+        self.assertFalse(gate.get("show_accept"))
+        self.assertIn("hail DS 4", gate.get("hint"))
 
 
 class QuestOfferedSignalTests(unittest.TestCase):

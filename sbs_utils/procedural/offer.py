@@ -75,7 +75,7 @@ def _offer_log(message, level="warning"):
 # --- the record ---------------------------------------------------------------
 def offer_record(key, title, detail="", kind="job", source=None, agent_id=None,
                  where="", app=None, route=None, consoles=None, pending=False,
-                 sort=100, data=None, take=None):
+                 sort=100, data=None, take=None, description=""):
     """One offer, as plain data.
 
     Args:
@@ -84,6 +84,8 @@ def offer_record(key, title, detail="", kind="job", source=None, agent_id=None,
             offer - prefer ``"quest:<agent>:<quest id>"`` over anything positional.
         title (str): Short ASCII label. The row's first line.
         detail (str): One line - the reward, or what the job wants.
+        description (str): The long text - what the job IS. Shown in full in the board's
+            reading pane; a record without one shows its ``detail`` there instead.
         kind (str): One of ``OFFER_KINDS``; drives the row's glyph and lets the digest
             say "2 jobs and a contact" instead of "3 things".
         source (str): Who is offering, by name ("DS 1", "Prof. Storm").
@@ -103,17 +105,16 @@ def offer_record(key, title, detail="", kind="job", source=None, agent_id=None,
         data (dict): Anything the provider wants to carry through to its own renderer.
         take (callable): ``fn(client_id, record)`` - take this offer HERE.
 
-            Most offers do not have one: a quest is accepted on the Quests tab, where
-            `quest_tab_controls_gate` already decides who may act, and a second copy of
-            that policy is two places that must agree and eventually will not.
+            The Offers board is where untaken work is accepted, so an offer the board
+            can act on carries this: an idle quest (it marks the quest active) and a
+            hangar sortie (it assigns the pilot). WHO may press it is ``consoles``.
 
-            A SORTIE has no such tab. It is not a quest until it is assigned, so sending
-            a pilot to the Quests app to take one shows them an empty list - the offer
-            they just clicked is the one thing that cannot be there. An offer that
-            nothing else can accept carries the means to accept itself.
+            An offer taken some other way has none - an Open Universe station job is
+            taken by hailing the station, and its ``where`` says so.
     """
     return MastDataObject({
         "key": str(key), "title": str(title), "detail": str(detail or ""),
+        "description": str(description or ""),
         "kind": str(kind or "job"), "source": source, "agent_id": agent_id,
         "where": str(where or ""), "app": app, "route": route,
         "consoles": consoles, "pending": bool(pending),

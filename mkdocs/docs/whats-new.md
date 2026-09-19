@@ -364,7 +364,8 @@ Authors: [The Casino addon](legendarymissions/addons/casino.md).
 
 #### 🛩️ Hangar
 
-- **Sortie board.** Fighter and shuttle pilots pick their own missions from a board.
+- **Sorties for pilots.** Pick a fighter or a shuttle and its sortie quests appear under
+  [Available Quests](#available-quests), ready to accept before you launch.
 - **Loadouts as upgrades.** Craft loadouts are now deltas over the ship hull —
   shields and ammo applied through the item/upgrade system — with an image-based
   cockpit overlay.
@@ -392,20 +393,41 @@ MAST holds only the *logic* that reacts to it.
 | The Ambassador's **passenger complaints** | a **chatter line-pool** — one picked at random |
 | Briefings, cargo manifests, interview reports | **prose templates** filled in at send time |
 | **Object scans** (cargo ships, anomalies) | dialogue-native scans (`Scan of:` / `Tab:` / `%` variants) |
-| The **job board** — gunnery, rocks, poacher, mercy, customs, survey | **quests** with goals, rewards, and fail triggers |
+| The **patrol quests** — gunnery, rocks, poacher, mercy, customs, survey | **quests** with goals, rewards, and fail triggers |
 
-**The job board is a pick-up-work board.** Every job starts **idle** — shown as
-*Available* — and the crew **Accepts** the ones they want from the Quest Log. Accepting is
-when a job's clock starts *and* when its targets spawn, so a timed rescue gives you the
-full window (the Mayday arrives, then the shuttle) and nothing clutters space for work
-nobody took. Weapons stays busy in peacetime: qualify on drones, break hazard rocks, and
+**Pick the quests you want.** Each one waits under
+[Available Quests](#available-quests) until the crew **Accepts** it. Accepting is when a
+quest's clock starts *and* when its targets spawn, so a timed rescue gives you the full
+window (the Mayday arrives, then the shuttle) and nothing clutters space for work nobody
+took. Weapons stays busy in peacetime: qualify on drones, break hazard rocks, and
 **disable — don't destroy** a poacher.
+
+**Two dials.** **Quests Offered** (none / few / some / max, default *some*) deals a
+random hand of quests, so no two shifts offer the same work — and a seed deals the same
+hand every time. **Quest Size** sets how big each one is.
 
 **The mystery is different every time, and always solvable.** One kidnapper, the
 Ambassador hidden in exactly one cargo hold, and a clue trail laced with decoys — dealt
 fresh each game, and never dealt into a dead end.
 
 Authoring reference: [Quests](build/quests.md) · [Sides, lifeforms & faces](build/sides-lifeforms.md).
+
+---
+
+#### 📋 Available Quests — everything you can take on, in one place { #available-quests }
+
+Quests you *could* take on and quests you *have* taken on now live side by side, on the
+same screen:
+
+- **Available Quests** lists every quest on offer — a mission's patrol work, the sorties
+  for the craft a pilot has picked, and in Open Universe the station work, cargo runs and
+  passengers. Pick one and read it in full, then press **Accept**, on the consoles that
+  may. Station work in Open Universe says to hail the station instead.
+- **Quests** is what you have taken on — active, done and failed. A quest moves there the
+  moment you accept it.
+
+The Available Quests tile shows how many are waiting, and only appears when there is one
+to take.
 
 ---
 
@@ -439,6 +461,10 @@ Player guide: [Multiplayer jobs](legendarymissions/playing/multiplayer-quests.md
 - **Share the exact setup** with per-map **seed options** and a **shareable game
   code**.
 - **Optional bonus objectives** for skilled crews.
+- **Quests between waves.** Peacetime's patrol quests come to the Siege: set **Quests
+  Offered** to few, some or max and a random hand of rescues, tows, surveys and gunnery
+  drills appears under Available Quests, to take on between assaults. Off by default; the
+  same seed deals the same quests. [Quests offered](legendarymissions/playing/features.md#side-jobs).
 - **Survive Clock option.** Choose what the time limit *means*: **Win** = outlast the
   clock to hold the line, or **Loss** = break the siege before time runs out or you
   lose. One dropdown flips a defensive hold into a race against the clock.

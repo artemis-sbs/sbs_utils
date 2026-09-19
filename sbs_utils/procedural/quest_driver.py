@@ -1235,13 +1235,127 @@ def quest_on_collect(holder_id, key):
 # the two logs.
 def quest_tab_items(client_id, ship_id):
     """Collapsible quest-log items for THIS console: the game (SHARED), the client,
-    and its ship. Rows carry their owning agent (for accept/abandon)."""
+    and its ship. Rows carry their owning agent (for abandon / engage).
+
+    WORK IN HAND ONLY. An untaken job (IDLE, or POSTING) is on the Offers board, which is
+    where it is read and accepted; listing it here as well made two places answer "what
+    could we pick up?". Filtered HERE rather than in quest_log_build_items, which the
+    Offers provider, the game-results log and the viewscreen also read - hiding it there
+    would empty the board.
+    """
     sources = [("Game", Agent.SHARED_ID)]
     if client_id and client_id != 0:
         sources.append(("You", client_id))
     if ship_id and ship_id != 0:
         sources.append(("Ship", ship_id))
-    return quest_log_build_items(sources)
+    return _quest_tab_taken_only(quest_log_build_items(sources))
+
+
+_QUEST_UNTAKEN = (int(QuestState.IDLE), int(QuestState.POSTING))
+
+
+def quest_offers_tab_items(client_id, ship_id, console=None):
+    """The Offers tab: the SAME quest-log screen as the Quests tab, listing what could be
+    taken instead of what has been.
+
+    Two kinds of row, one shape. Untaken jobs (IDLE / POSTING) are the quest log's own
+    rows, so the template, the description pane and the Accept gate treat them exactly as
+    the Quests tab always did. Work that is NOT a quest yet - a hangar sortie, an Open
+    Universe station job - is turned into a row of the same shape carrying its offer
+    record under `offer`, grouped by who is offering it. A job's STEPS are not listed: the
+    job is what gets accepted, and its steps are its sequencer's to reveal.
+    """
+    sources = [("Game", Agent.SHARED_ID)]
+    if client_id and client_id != 0:
+        sources.append(("You", client_id))
+    if ship_id and ship_id != 0:
+        sources.append(("Ship", ship_id))
+    out = []
+    section = None
+    for item in quest_log_build_items(sources):
+        row = _quest_offer_row(item)
+        if row is None:
+            section = item
+            continue
+        if int(row.get("state") or 0) not in _QUEST_UNTAKEN:
+            continue
+        if "/" in str(row.get("key")):
+            continue
+        if section is not None:
+            out.append(section)
+            section = None
+        # A job with visible steps comes back as a collapsible header; here it is listed
+        # as the plain row it carries, since its steps are not.
+        out.append(row)
+    out.extend(_quest_offer_other_rows(client_id, ship_id, console))
+    return out
+
+
+#: Offer kind -> quest-log kind, so the row's glyph reads right in the quest template.
+_OFFER_ROW_KIND = {"sortie": "objective", "trade": "job", "contact": "beat", "lore": "arc"}
+
+
+def _quest_offer_other_rows(client_id, ship_id, console):
+    """Offers that are not quests yet, as quest-log rows grouped under their source."""
+    from sbs_utils.procedural.offer import offers
+    from sbs_utils.procedural.gui import gui_list_box_header
+    from sbs_utils.mast.mast_node import MastDataObject
+    groups = {}
+    for rec in offers(client_id=client_id, ship_id=ship_id, console=console):
+        if str(rec.get("key") or "").startswith("quest:"):
+            continue                          # listed above, as the quest itself
+        if rec.get("app") and not callable(rec.get("take")):
+            continue                          # its own app lists and takes it
+        src = str(rec.get("source") or "Elsewhere")
+        body = str(rec.get("description") or "").strip() or str(rec.get("detail") or "")
+        pending = bool(rec.get("pending"))
+        st = int(QuestState.POSTING) if pending else int(QuestState.IDLE)
+        kind = str(rec.get("kind") or "job")
+        groups.setdefault(src, []).append(MastDataObject({
+            "agent_id": rec.get("agent_id"), "key": rec.get("key"), "group": src,
+            "indent": 0, "title": str(rec.get("title") or ""), "state": st,
+            "state_label": "Available", "progress": 0, "desc": body,
+            "kind": _OFFER_ROW_KIND.get(kind, kind), "need": 0,
+            "reward": str(rec.get("detail") or "") or None, "remaining": "",
+            "offer": rec,
+        }))
+    out = []
+    for src in sorted(groups):
+        out.append(gui_list_box_header(src, False, 0, True, {"section": src}))
+        out.extend(groups[src])
+    return out
+
+
+def quest_offers_tab_sig(client_id, ship_id, offers=True):
+    """What the shared quest screen repaints on. Always any quest changing; on the Offers
+    tab also any offer provider saying its answer moved (offer_touch)."""
+    base = quest_tab_state_sig(client_id, ship_id)
+    if not offers:
+        return base
+    from sbs_utils.procedural.offer import offer_generation
+    return f"{base}:{offer_generation()}"
+
+
+def _quest_tab_taken_only(items):
+    """Drop untaken quests, and any section header left with nothing under it.
+
+    A header carries its quest's row in `.data` (a job with visible steps); a SECTION
+    header ({"section": ...}) has no state and is kept only while a row follows it.
+    """
+    out = []
+    pending_section = None
+    for item in items:
+        row = _quest_offer_row(item)
+        if row is None:
+            pending_section = item        # a section header - wait for a row under it
+            continue
+        if int(row.get("state") or 0) in _QUEST_UNTAKEN:
+            continue
+        if pending_section is not None:
+            out.append(pending_section)
+            pending_section = None
+        out.append(item)
+    return out
 
 
 # --- Quests-tab action gating ------------------------------------------------
@@ -1311,6 +1425,15 @@ def quest_tab_controls_gate(console, item, accept_consoles, engage_enabled, enga
     """
     console = (console or "").strip().lower()
     is_quest = item is not None and not gui_list_box_is_header(item)
+    # Not a quest yet (a sortie, a station job on the Offers tab): Accept when the offer
+    # can be taken from here, otherwise say where it is taken.
+    rec = item.get("offer") if is_quest else None
+    if rec is not None:
+        can = (callable(rec.get("take")) and not rec.get("pending")
+               and _quest_console_allowed(console, rec.get("consoles")))
+        hint = "" if can else str(rec.get("where") or "")
+        return {"show_accept": bool(can), "show_abandon": False, "show_engage": False,
+                "hint": hint, "sig": f"offer|{int(bool(can))}|{hint}"}
     state = int(item.get("state")) if is_quest and item.get("state") is not None else None
     IDLE = int(QuestState.IDLE)
     ACTIVE = int(QuestState.ACTIVE)
@@ -1330,11 +1453,11 @@ def quest_tab_controls_gate(console, item, accept_consoles, engage_enabled, enga
     hint = ""
     if can_engage and state == IDLE:
         if can_accept:
-            hint = "Accept this job before engaging."
+            hint = "Accept this quest before engaging."
         else:
-            hint = "Accept this job at the " + _quest_console_names(acc_spec) + " console before engaging."
+            hint = "Accept this quest at the " + _quest_console_names(acc_spec) + " console before engaging."
     elif not can_accept and state in (IDLE, ACTIVE):
-        hint = "Manage jobs at the " + _quest_console_names(acc_spec) + " console."
+        hint = "Manage quests at the " + _quest_console_names(acc_spec) + " console."
 
     sig = f"{int(show_accept)}|{int(show_abandon)}|{int(show_engage)}|{hint}"
     return {"show_accept": show_accept, "show_abandon": show_abandon,
@@ -1367,9 +1490,15 @@ def quest_tab_state_sig(client_id, ship_id):
     return f"{client_id}:{ship_id}:{quest_generation()}"
 
 
-def quest_tab_accept(item):
-    """Accept an available (IDLE) quest. No-op on a section header."""
+def quest_tab_accept(item, client_id=None):
+    """Accept an available (IDLE) quest - or, on the Offers tab, take an offer that is not
+    a quest yet (a sortie). No-op on a section header."""
     if item is None or gui_list_box_is_header(item):
+        return
+    rec = item.get("offer")
+    if rec is not None:
+        if callable(rec.get("take")):
+            rec.get("take")(client_id, rec)
         return
     if item.get("state") == int(QuestState.IDLE):
         quest_mark_active(item.get("agent_id"), item.get("key"))
@@ -1529,10 +1658,15 @@ def quest_offer_rows(client_id, ship_id):
         if row is None:
             continue
         state = int(row.get("state") or 0)
-        if state not in (int(QuestState.IDLE), int(QuestState.POSTING)):
+        if state not in _QUEST_UNTAKEN:
             continue
         agent_id = row.get("agent_id")
         key = row.get("key")
+        # A JOB, not a step. An idle step of an arc is the arc's sequencer's to reveal
+        # (it marks each one active as the one before completes), not the crew's to take;
+        # offering it would let a crew start step three of something they never began.
+        if "/" in str(key):
+            continue
         # The mission default is a MAST shared variable (the .mast passes it into
         # quest_tab_controls_gate); read it the same way rather than hard-coding a
         # default that would disagree with the tab's buttons.
@@ -1553,14 +1687,38 @@ def quest_offer_rows(client_id, ship_id):
             # comms or scanned, so anything else is left unattributed rather than
             # claiming the shared agent has work sitting on it.
             agent_id=agent_id if is_space_object_id(agent_id) else None,
-            where=f"{_quest_console_names(consoles)} - Quests tab",
+            description=str(row.get("desc") or ""),
+            where=f"{_quest_console_names(consoles)} can accept this",
             app="quest",
             consoles=consoles,
             pending=(state == int(QuestState.POSTING)),
             sort=10,
-            data={"quest_id": key, "quest_agent_id": agent_id},
+            data={"quest_id": key, "quest_agent_id": agent_id,
+                  "reward": row.get("reward")},
+            # ACCEPTED ON THE BOARD. The Offers board is the one place untaken work is
+            # listed, so it is where a job is taken; who may take it is still `consoles`,
+            # the same spec the Quests tab's button used to read.
+            take=_quest_offer_take,
         ))
     return out
+
+
+def _quest_offer_take(client_id, record):
+    """Accept a quest offer: mark it ACTIVE, exactly as the Quests tab's Accept did.
+
+    Only from IDLE - a job somebody else accepted a moment ago, or one that has since
+    failed, is left alone rather than restarted. `client_id` is the taker's console; the
+    quest belongs to its own agent, which the record carries.
+    """
+    data = (record.get("data") if hasattr(record, "get") else None) or {}
+    agent_id = data.get("quest_agent_id")
+    quest_id = data.get("quest_id")
+    if agent_id is None or quest_id is None:
+        return False
+    if int(quest_get_state(agent_id, quest_id) or 0) != int(QuestState.IDLE):
+        return False
+    quest_mark_active(agent_id, quest_id)
+    return True
 
 
 def quest_offer_provider(ctx):

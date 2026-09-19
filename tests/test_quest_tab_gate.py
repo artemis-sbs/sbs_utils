@@ -99,7 +99,7 @@ class QuestTabGateTests(unittest.TestCase):
         item = self._job("j", QuestState.IDLE)
         g = self._gate("helm", item, engage_enabled=True)
         self.assertFalse(g["show_engage"])
-        self.assertIn("Accept this job", g["hint"])
+        self.assertIn("Accept this quest", g["hint"])
 
     def test_engage_disabled_never_shows(self):
         item = self._job("j", QuestState.ACTIVE)

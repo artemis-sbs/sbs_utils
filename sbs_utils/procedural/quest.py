@@ -1552,6 +1552,13 @@ def quest_log_title():
     gui_text("$text:Quest Log;justify: left;")
 
 
+def quest_offers_title():
+    """List title for Available Quests - the same quest-log screen, listing untaken ones."""
+    from sbs_utils.procedural.gui import gui_row, gui_text
+    gui_row("row-height: 1.2em;padding:13px;background:#1578;")
+    gui_text("$text:Available Quests;justify: left;")
+
+
 def quest_log_template(item):
     """Canonical quest-log row renderer (section headers + quest rows), shared by
     the in-game and end-game logs. Fix the look here and both update."""

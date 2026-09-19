@@ -36,7 +36,8 @@ REQUIRED = (
     # offers - the board's route condition and the badge
     "offer_count", "offer_count_here", "offers", "offers_for_object",
     "offer_register", "offer_record", "offer_clear",
-    "gui_offers_screen",
+    "offer_board_count_here", "quest_offers_tab_items", "quest_offers_tab_sig",
+    "quest_offers_title", "quest_tab_items", "quest_tab_accept",
     # urges - the teaching nudges and their ledger
     "urge_add", "urge_record", "urge_teach_note", "urge_taught",
     "urges_install_on", "urges_from_section",

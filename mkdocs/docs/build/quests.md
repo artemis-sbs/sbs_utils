@@ -60,9 +60,9 @@ it is — is in [The AMD file format](amd-format.md).
 | `Cockpit:` | The craft a sortie is flown in. |  |
 <!-- amd:end -->
 
-`At start: posting` is worth calling out: the job is listed like an available one,
-but the Accept button does not show - the only way to take it is whatever else
-offers it, typically answering an [incoming hail](incoming-hails.md). And a record
+`At start: posting` is worth calling out: the quest is listed under Available Quests
+like any other, but the Accept button does not show - the only way to take it is
+whatever else offers it, typically answering an [incoming hail](incoming-hails.md). And a record
 that calls itself a **`Beat`** or an **`Arc`** already implies its `Show:` value -
 see [screenplay words](amd-format.md#screenplay-words).
 
@@ -72,14 +72,22 @@ see [screenplay words](amd-format.md#screenplay-words).
     means `Show: with children` — see [screenplay words](amd-format.md#screenplay-words).
     Write `Show:` only to contradict the word.
 
-### Console gating
+### Where a job is taken, and console gating
 
-The Quests tab **displays** on every enabled console, but *who may act* is gated per
+Players see one word: **quest**. `Job`, `Sortie`, `Beat` and the rest are KINDS of
+quest - they set the row's icon and some defaults - never separate screens.
+
+An available (idle) quest is listed under **Available Quests**, with its full
+description, and accepted there. Once accepted it moves to the **Quests** tab, which
+lists only what the crew has taken on: active, complete and failed. Both are the same
+screen. A quest's *steps* are never offered on their own - the quest is.
+
+Both screens **display** on every enabled console, but *who may act* is gated per
 console. A mission sets the defaults (shared vars, e.g. in `settings.yaml`):
 
 | Var | Default | Controls |
 |---|---|---|
-| `QUEST_ACCEPT_CONSOLES` | `comms,admiral` | Consoles that may show **Accept / Abandon**. `""` = any console (the pre-gating behavior). |
+| `QUEST_ACCEPT_CONSOLES` | `comms,admiral` | Consoles that may **Accept** (Available Quests) and **Abandon** (Quests). `""` = any console (the pre-gating behavior). |
 | `QUEST_ENGAGE_CONSOLES` | `helm` | Consoles that may show **Engage** (when `QUEST_ENGAGE_ENABLED`). |
 
 Each control is also gated by the job's **state**: **Accept** shows only for an
@@ -88,7 +96,8 @@ available (not-yet-accepted) job, **Abandon** only for an accepted (active) one,
 no selection — shows no action controls. Engage additionally means the job must be
 accepted first — before that, the helm shows a short *"Accept this job … before
 engaging."* hint. On a console that can't act on an actionable job, the buttons are
-replaced with text naming the console(s) that can. `Accept On:` / `Engage On:` on a
+replaced with text naming the console(s) that can (*"Manage quests at the Comms or Admiral
+console."*). `Accept On:` / `Engage On:` on a
 single quest override these lists for that job (a station-specific task).
 
 ### Triggers
