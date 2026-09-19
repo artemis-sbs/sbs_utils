@@ -37,10 +37,12 @@ _PICKUP_KEYS = {
 }
 
 # --- 2.8 monsterType (0..8) -> (Cosmos art, creature role) -------------------------
+# `monster_charybdis` is the ship-table key. It was spelled `monster_charbdis` here, a key
+# only an old copy of shipData ever had - so every converted monster drew `unknown`.
 # Only 0 (classic) and 8 (derelict) have real Cosmos art today; 1..7 use a placeholder
 # hull but always carry a creature_* role so a future re-skin is a single role query.
 _MONSTER_ART = {
-    0: "monster_charbdis",  # CLASSIC  (real art)
+    0: "monster_charybdis",  # CLASSIC  (real art)
     8: "wreck",             # DERELICT (real art)
 }
 _MONSTER_ROLE = {
@@ -54,7 +56,7 @@ _MONSTER_ROLE = {
     7: "creature_jelly",
     8: "creature_derelict",
 }
-_MONSTER_PLACEHOLDER_ART = "monster_charbdis"
+_MONSTER_PLACEHOLDER_ART = "monster_charybdis"
 
 
 def pickup_key(pickup_type):

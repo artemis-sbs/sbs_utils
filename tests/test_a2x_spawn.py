@@ -22,9 +22,16 @@ class A2xSpawnPureTests(unittest.TestCase):
         self.assertIsNone(pickup_key(8))  # beacon: no direct Cosmos pickup
 
     def test_monster_art_real_vs_placeholder(self):
-        self.assertEqual(monster_art(0), "monster_charbdis")  # classic, real
+        self.assertEqual(monster_art(0), "monster_charybdis")  # classic, real
         self.assertEqual(monster_art(8), "wreck")             # derelict, real
-        self.assertEqual(monster_art(1), "monster_charbdis")  # whale -> placeholder
+        self.assertEqual(monster_art(1), "monster_charybdis")  # whale -> placeholder
+
+    def test_EVERY_MONSTER_ART_IS_IN_THE_SHIP_TABLE(self):
+        """A key the ship table lacks spawns the `unknown` placeholder - it was
+        `monster_charbdis` for every converted 2.8 monster."""
+        from sbs_utils.procedural.ship_data import get_ship_data_for
+        for t in range(0, 9):
+            self.assertIsNotNone(get_ship_data_for(monster_art(t)), (t, monster_art(t)))
 
     def test_monster_role_seam(self):
         self.assertEqual(monster_role(1), "creature_whale")

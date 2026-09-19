@@ -111,7 +111,7 @@ claim on it: a bare `brain` takes over the built-in glyph for everything else th
 it. LegendaryMissions claims `epadd.*` from its own sheet:
 
 ```
-gui_icon_add_atlas_grid(media_shared("epadd/icons"), 4, 5, cell=128, names=[
+gui_icon_add_atlas_grid(media_shared("epadd/icons"), 4, 6, cell=128, names=[
     "epadd.cargo", "epadd.fabricate", "epadd.upgrades", "epadd.quests", ...])
 ```
 

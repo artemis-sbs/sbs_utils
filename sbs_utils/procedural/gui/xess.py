@@ -1467,7 +1467,7 @@ def _register_builtins():
     xess_register(APP_FIRE, title="Fire", icon="epadd.damage", sort=40,
                   blurb="Arm, then click the map",
                   draw=_fire_app, badge=_fire_badge, available=_standing_somewhere)
-    xess_register(APP_NAV, title="Nav", icon="epadd.helm", sort=25,
+    xess_register(APP_NAV, title="Nav", icon="helm-wheel", sort=25,
                   blurb="Where you can go, and going there",
                   draw=_nav_app, badge=_nav_badge, available=_in_a_suit)
 
