@@ -91,6 +91,19 @@ console. `--no-auto` restores the old launcher-menu behavior.
 
 The mission is passed as `defaultmission=`, so `preferences.json` is never edited.
 
+**Choosing the engine build.** `sbs run` and `sbs art bake` launch
+`Artemis3-x64-release.exe` unless told otherwise:
+
+```
+sbs run --debug                            Artemis3-x64-debug.exe
+sbs run --exe release-1.3.4                Artemis3-x64-release-1.3.4.exe (short form)
+sbs run --exe D:\cosmos\Artemis3-x64-debug.exe   any path
+```
+
+Setting `SBS_ENGINE_EXE` (e.g. `debug`) does the same for every launch in that shell; a
+flag still wins over it. An exe that does not exist is an error that lists the builds
+the install actually has.
+
 **Anything you add on the end reaches the mission**, which is how you start a particular
 map or set of settings:
 
