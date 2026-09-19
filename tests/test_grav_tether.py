@@ -8,6 +8,7 @@ from sbs_utils.fs import test_set_exe_dir
 test_set_exe_dir()
 
 import unittest
+from unittest import mock
 
 from cosmos_dev.mock import sbs
 from tests.reset_helper import reset_mock
@@ -1028,12 +1029,12 @@ class TestGravTetherTickIsUnkillable(unittest.TestCase):
     def test_an_engine_that_refuses_the_beam_drops_the_tether(self):
         gt.grav_tether_reel(self.ship, self.load, rate=10)
         self.assertTrue(gt.grav_tether_has(self.ship, self.load))
-        real = sbs.sim.AddTractorConnection
-        try:
-            sbs.simulation.AddTractorConnection = lambda *a, **k: None
+        # Patch the CLASS function. Saving `sbs.sim.AddTractorConnection` saved a method
+        # BOUND to this test's sim; restored onto the class, every later sim called it
+        # with that stale self, so test_volume's tractors vanished once a later test
+        # replaced sbs.sim.
+        with mock.patch.object(sbs.simulation, "AddTractorConnection", lambda *a, **k: None):
             gt.grav_tether_tick()                     # must not raise
-        finally:
-            sbs.simulation.AddTractorConnection = real
         self.assertFalse(gt.grav_tether_has(self.ship, self.load))
 
     def test_a_raising_tether_is_dropped_not_propagated(self):
