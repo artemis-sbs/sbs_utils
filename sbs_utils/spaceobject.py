@@ -138,6 +138,10 @@ class SpaceObject(Agent):
         self._ship_data_key = ""
         self.spawn_pos = Vec3(0,0,0)
         self.tick_type = TickType.UNKNOWN
+        # The engine behavior it was spawned with ("behav_station", "behav_selection"...).
+        # Kept because nothing else records it: tick_type above is only the
+        # PASSIVE/ACTIVE/PLAYER class.
+        self.behave_id = None
         self._data_set = None
         self._engine_object = None
     
@@ -551,7 +555,18 @@ class SpaceObject(Agent):
 
 
 
+#: Role every `behav_selection` object gets at spawn - map markers, nebula markers,
+#: relic markers, galaxy-board icons. The behavior is not readable back from a role set
+#: otherwise, and asking the engine object per contact per recount is not free.
+SELECTION_ROLE = "__selection__"
+
+
 class MSpawn:
+    def _note_behavior(self, behave_id):
+        self.behave_id = behave_id
+        if behave_id == "behav_selection":
+            self.add_role(SELECTION_ROLE)
+
     def spawn_common(self, obj, x, y, z, name, side, art_id):
         self.spawn_pos = FrameContext.context.sbs.vec3(x,y,z)
         self._engine_object = obj
@@ -614,6 +629,7 @@ class MSpawnPlayer(MSpawn):
     def _spawn(self, x, y, z, name, side, art_id) -> SpawnData:
         # playerID will be a NUMBER, a unique value for every space object that you create.
         ship = self._make_new_player("behav_playership", art_id)
+        self.behave_id = "behav_playership"
         blob = self.spawn_common(ship, x, y, z, name, side, art_id)
         self.add_role("__PLAYER__")
         self.add_role("__space_spawn__")
@@ -680,6 +696,7 @@ class MSpawnActive(MSpawn):
         self._ship_data_key = art_id
         self.add_role("__NPC__")
         self.add_role("__space_spawn__")
+        self._note_behavior(behave_id)
         return SpawnData(self.id, ship, blob, self)
 
     def spawn(self, x, y, z, name, side, art_id, behave_id) -> SpawnData:
@@ -742,6 +759,7 @@ class MSpawnPassive(MSpawn):
         blob = self.spawn_common(ship, x, y, z, name, side, art_id)
         self._ship_data_key = art_id
         self.add_role("__TERRAIN__")
+        self._note_behavior(behave_id)
         return SpawnData(self.id, ship, blob, self)
 
     def spawn(self, x, y, z, name, side, art_id, behave_id) -> SpawnData:

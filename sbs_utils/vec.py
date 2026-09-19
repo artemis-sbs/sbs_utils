@@ -247,9 +247,16 @@ class Vec3:
             v ( Vec3): the other vector
 
         Returns:
-            (bool):  new vector 
+            (bool):  new vector
         """
-        return self.x == v.x and self.y == v.y and self.z == v.z
+        # Anything without x/y/z is simply not equal. MAST's `default x = ...` compares the
+        # variable's current value against the tuple (None,), so a Vec3 already in scope
+        # (SCIENCE_POPUP_POINT on a second right-click) used to raise AttributeError here
+        # and stop the whole route.
+        try:
+            return self.x == v.x and self.y == v.y and self.z == v.z
+        except AttributeError:
+            return False
 
     def dot(self, v):
         """dot product immutable

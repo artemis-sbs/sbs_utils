@@ -183,4 +183,16 @@ class TestVec3(unittest.TestCase):
         n = v1 @ v2
         self.assertEqual(n, 320)
 
+class TestVecEqualsNonVector(unittest.TestCase):
+    """MAST `default x = ...` compares the current value with (None,). A Vec3 already in
+    scope - SCIENCE_POPUP_POINT on a second right-click - raised and stopped the route."""
 
+    def test_A_VEC3_IS_NOT_EQUAL_TO_A_TUPLE(self):
+        v = Vec3(1, 2, 3)
+        self.assertFalse(v == (None,))
+        self.assertTrue(v != (None,))
+        self.assertFalse(v == None)                       # noqa: E711
+
+    def test_vectors_still_compare(self):
+        self.assertEqual(Vec3(1, 2, 3), Vec3(1, 2, 3))
+        self.assertNotEqual(Vec3(1, 2, 3), Vec3(1, 2, 4))

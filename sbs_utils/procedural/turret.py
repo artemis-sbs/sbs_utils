@@ -259,6 +259,13 @@ def turret_acquire(id_or_obj):
     if designated and turret_in_range(tid, designated):
         return designated
 
+    # HOLD FIRE (orders_stance_set) stops everything a turret would choose for itself.
+    # A designated target above still stands: an explicit attack order is the one thing
+    # hold fire does not override, the same as for a ship.
+    from .orders import orders_holding_fire
+    if orders_holding_fire(tid):
+        return None
+
     current = turret_target(tid)
     if current and turret_in_range(tid, current):
         if _turret_now() < (turret_config(tid, "hold_until", 0.0) or 0.0):

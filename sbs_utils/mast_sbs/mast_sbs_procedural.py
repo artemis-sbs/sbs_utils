@@ -165,6 +165,8 @@ MastGlobals.import_python_module('sbs_utils.procedural.modifiers')
 MastGlobals.import_python_module('sbs_utils.procedural.web')
 MastGlobals.import_python_module('sbs_utils.procedural.grav_tether')
 MastGlobals.import_python_module('sbs_utils.procedural.turret')
+# Who can be given which orders (capabilities, the orders gate, stance).
+MastGlobals.import_python_module('sbs_utils.procedural.orders')
 MastGlobals.import_python_module('sbs_utils.procedural.mount')
 MastGlobals.import_python_module('sbs_utils.procedural.orbit')
 MastGlobals.import_python_module('sbs_utils.procedural.helm')

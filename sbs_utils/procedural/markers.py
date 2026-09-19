@@ -110,3 +110,98 @@ def marker_delete_role(role_name):
         obj.delete_object()
         count += 1
     return count
+
+
+# --- ORDER markers: named points a crew drops so it can give orders about a place ------
+#
+# The comms 2D view can no longer pick a point in space, so every "go there" order needs
+# an OBJECT to aim at. Science drops one where it right-clicks; comms then drags a unit
+# onto it (or right-clicks it) exactly as it would any contact. Several per side, named
+# from the phonetic alphabet so "patrol to Bravo" is something a crew can say out loud.
+
+#: Role every order marker carries, on top of marker_object's `map,marker`.
+MARKER_ORDER_ROLE = "orders_marker"
+_MARKER_ORDER_SIDE = "marker_order_side"
+
+MARKER_ORDER_NAMES = ("Alpha", "Bravo", "Charlie", "Delta", "Echo", "Foxtrot", "Golf",
+                      "Hotel", "India", "Juliet", "Kilo", "Lima", "Mike", "November",
+                      "Oscar", "Papa", "Quebec", "Romeo", "Sierra", "Tango", "Uniform",
+                      "Victor", "Whiskey", "Xray", "Yankee", "Zulu")
+
+#: The color order markers draw on radar - distinct from the gold job markers.
+MARKER_ORDER_COLOR = "#4cf"
+
+
+def _marker_order_side_of(owner):
+    obj = to_object(owner)
+    side = getattr(obj, "side", None) if obj is not None else None
+    return side or (owner if isinstance(owner, str) else None)
+
+
+def marker_order_list(owner):
+    """The order markers belonging to `owner`'s side (a ship, an id, or a side key), in
+    the order they were dropped."""
+    from .roles import role
+    from .inventory import get_inventory_value
+    side = _marker_order_side_of(owner)
+    out = []
+    for mid in sorted(role(MARKER_ORDER_ROLE)):
+        if get_inventory_value(mid, _MARKER_ORDER_SIDE, None) == side:
+            out.append(mid)
+    return out
+
+
+def marker_order_next_name(owner):
+    """The first phonetic name that side is not already using."""
+    used = {getattr(to_object(m), "name", "") for m in marker_order_list(owner)}
+    for name in MARKER_ORDER_NAMES:
+        if name not in used:
+            return name
+    n = len(used) + 1
+    while f"Marker {n}" in used:
+        n += 1
+    return f"Marker {n}"
+
+
+def marker_order_drop(owner, x, y, z, name=None):
+    """Drop an order marker for `owner`'s side at (x, y, z). Returns the marker object
+    (not SpawnData), or None if the spawn failed.
+
+    The side is given the marker's scan at once: comms will not open on an object the
+    side has no science data for, and a marker nobody can select is no use as a target.
+    """
+    from .inventory import set_inventory_value
+    side = _marker_order_side_of(owner)
+    name = name or marker_order_next_name(owner)
+    obj = to_object(marker_object(x, y, z, name, roles=MARKER_ORDER_ROLE, color=MARKER_ORDER_COLOR))
+    if obj is None:
+        return None
+    set_inventory_value(obj.id, _MARKER_ORDER_SIDE, side)
+    oid = to_id(owner)
+    if oid is not None and to_object(oid) is not None:
+        from .science import science_set_scan_data
+        science_set_scan_data(oid, obj.id, {"scan": f"Order marker {name}"})
+    return obj
+
+
+def marker_order_is(obj):
+    """Is this an order marker?"""
+    from .roles import has_role
+    oid = to_id(obj)
+    return bool(oid) and has_role(oid, MARKER_ORDER_ROLE)
+
+
+def marker_order_remove(obj):
+    """Remove one order marker. Anything else is left alone. Returns True if removed."""
+    if not marker_order_is(obj):
+        return False
+    marker_delete(to_object(obj))
+    return True
+
+
+def marker_order_clear(owner):
+    """Remove every order marker belonging to `owner`'s side. Returns how many."""
+    ids = marker_order_list(owner)
+    for mid in ids:
+        marker_delete(to_object(mid))
+    return len(ids)
