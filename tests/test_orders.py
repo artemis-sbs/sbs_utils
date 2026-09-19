@@ -173,6 +173,42 @@ class TestAvailable(OrdersBase):
         self.assertEqual(["escort_only"], self.avail(self.cruiser, self.freighter))
 
 
+class TestInstances(OrdersBase):
+    """One label, one menu entry per instance - how a station's wings each get orders."""
+
+    def items(self, labels, target=None):
+        return [(l.name, k, t) for l, k, t in O.orders_items(self.hero, self.cruiser, target, labels=labels)]
+
+    def test_a_plain_order_is_one_entry(self):
+        self.assertEqual([("stop", None, "stop")], self.items([STOP]))
+
+    def test_AN_ORDER_WITH_INSTANCES_IS_ONE_ENTRY_EACH(self):
+        wings = _Label("launch", requires="move", valid_for="self", display_name="Launch @",
+                       instances=lambda sid, label: [("red", "Red wing"), ("gold", "Gold wing")])
+        self.assertEqual([("launch", "red", "Launch Red wing"), ("launch", "gold", "Launch Gold wing")],
+                         self.items([wings]))
+
+    def test_no_instances_no_entry(self):
+        wings = _Label("launch", requires="move", valid_for="self", instances=lambda sid, label: [])
+        self.assertEqual([], self.items([wings]))
+
+    def test_a_provider_by_mast_global_name(self):
+        from sbs_utils.mast.mast_globals import MastGlobals
+        MastGlobals.globals["_test_orders_wings"] = lambda sid, label: [("red", "Red wing")]
+        try:
+            wings = _Label("recall", requires="move", valid_for="self", display_name="Recall @",
+                           instances="_test_orders_wings")
+            self.assertEqual([("recall", "red", "Recall Red wing")], self.items([wings]))
+        finally:
+            del MastGlobals.globals["_test_orders_wings"]
+
+    def test_a_broken_provider_gives_no_entries(self):
+        def boom(sid, label):
+            raise RuntimeError("no")
+        wings = _Label("launch", requires="move", valid_for="self", instances=boom)
+        self.assertEqual([], self.items([wings]))
+
+
 class TestCanTake(OrdersBase):
 
     def can(self, who):

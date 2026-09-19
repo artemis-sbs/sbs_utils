@@ -271,6 +271,57 @@ def orders_available(origin, selected, target=None, labels=None, at_point=False)
     return out
 
 
+#: In a display name, replaced by the instance's name ("Launch @" -> "Launch Red wing").
+ORDERS_INSTANCE_MARK = "@"
+
+
+def _orders_resolve(fn_or_name):
+    """An `instances:` provider: a callable, or the name of a MAST global function."""
+    if callable(fn_or_name):
+        return fn_or_name
+    try:
+        from ..mast.mast_globals import MastGlobals
+        return MastGlobals.globals.get(str(fn_or_name))
+    except Exception:                                   # noqa: BLE001
+        return None
+
+
+def _orders_instance_text(display, instance_text):
+    if ORDERS_INSTANCE_MARK in display:
+        return display.replace(ORDERS_INSTANCE_MARK, instance_text)
+    return f"{display} {instance_text}"
+
+
+def orders_items(origin, selected, target=None, labels=None, at_point=False):
+    """The menu entries for `selected` aimed at `target`: `[(label, instance, text)]`.
+
+    Most orders are one entry, with instance None. An order whose label names an
+    `instances:` provider - a function `fn(selected_id, label) -> [(key, text)]` - is one
+    entry PER INSTANCE, so a station with two wings offers "Launch Red wing" and "Launch
+    Gold wing" from a single label. The provider also decides which instances apply right
+    now; an order with none is left off the menu. The chosen `instance` key travels to
+    the objective as `order_instance`.
+    """
+    out = []
+    sid = to_id(selected)
+    for label in orders_available(origin, selected, target, labels, at_point):
+        display = label.get_inventory_value("display_name", None) or getattr(label, "name", "")
+        provider = label.get_inventory_value("instances", None)
+        if not provider:
+            out.append((label, None, display))
+            continue
+        fn = _orders_resolve(provider)
+        if fn is None:
+            continue
+        try:
+            instances = fn(sid, label) or []
+        except Exception:                               # noqa: BLE001
+            instances = []
+        for key, text in instances:
+            out.append((label, key, _orders_instance_text(display, str(text))))
+    return out
+
+
 def orders_can_take(origin, selected, labels=None):
     """Does `selected` have ANY order `origin` could give it? What the "Can order" chip,
     the comms enable route and drag all ask. Ignores the target - any target will do.
