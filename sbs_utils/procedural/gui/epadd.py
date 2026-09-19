@@ -88,6 +88,22 @@ CONSOLE_ALIASES = {
     "normal_comm": "comms",
 }
 
+# The ONLY consoles the PADD draws on: the five bridge stations, the flight deck (a
+# pilot's `cockpit` and the `hangar` it launches from, where the badge is the callsign),
+# and the away screens (LM's boarding screen enters as `crew`, the library's boarding
+# console as `boarding_crew`; `away` is that screen's older name). An allow-list, not a
+# deny-list: director, gamemaster, cinematic, the main screen, admiral and whatever
+# console a mod adds next are overseer or display screens, and a PADD there is a stray
+# button.
+EPADD_CONSOLES = frozenset({"helm", "weapons", "comms", "engineering", "science",
+                            "cockpit", "hangar", "crew", "boarding_crew", "away"})
+
+
+def epadd_console_allowed(console):
+    """Whether the PADD belongs on this console (any name the engine or a script uses)."""
+    return epadd_console_name(console) in EPADD_CONSOLES
+
+
 # Where a pilot is known by a callsign rather than by their name. `cockpit` is a real console
 # type - the hangar's launch path sets it with `gui_activate_console("cockpit")` and the
 # addon reads it back to spot a craft whose pilot wandered off - and `hangar` is the deck it

@@ -994,8 +994,18 @@ class StoryPage(Page):
         the player last sat at, and console select sets it outright.
         """
         from ..procedural.gui.console_tab import gui_app_get_active
+        from ..procedural.gui.epadd import epadd_console_allowed
         if _is_main_screen(self.client_id, console):
             return False          # the whole room's view, not one person's station
+        # Only the bridge stations, the flight deck and the away screens (EPADD_CONSOLES).
+        # Director, gamemaster, cinematic and the like are consoles too, and every signal
+        # below says yes for them. Tested against the STATION - the CONSOLE_TYPE the one
+        # door wrote - not this build's console: a tab or app screen re-activates its own
+        # (`gui_activate_console("cargo")`, "quest", "upgrade"...), and testing that
+        # would close the PADD inside every app it opens.
+        station = get_inventory_value(self.client_id, "CONSOLE_TYPE", None) or console
+        if not epadd_console_allowed(station):
+            return False
         return bool(gui_app_get_active(self.client_id)) or bool(self.console) or bool(enabled_tabs)
 
     def gui_queue_console_tabs(self):

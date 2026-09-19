@@ -215,5 +215,34 @@ class TestWithoutTheRoute(EpaddStripBase):
         self.assertNotIn("ePADD", self.labels_on(self.build()))
 
 
+class TestOnlyOnItsConsoles(EpaddStripBase):
+    """The PADD is for the bridge stations, the flight deck and the away screens - not
+    for the overseer and display consoles, which are consoles too and pass every other
+    test `_epadd_belongs_here` makes."""
+
+    def on(self, station, page_console=None):
+        set_inventory_value(CID, "CONSOLE_TYPE", station)
+        self.page.console = page_console if page_console is not None else station
+        self.declare(["help"], back=station)
+        self.build()
+        return self.page.identity_badge is not None
+
+    def test_the_stations_it_belongs_on(self):
+        for station in ("helm", "weapons", "comms", "engineering", "science",
+                        "normal_sci", "cockpit", "hangar", "crew", "boarding_crew"):
+            with self.subTest(station=station):
+                self.assertTrue(self.on(station), f"no ePADD on {station}")
+
+    def test_and_the_ones_it_does_not(self):
+        for station in ("director", "gamemaster", "cinematic", "admiral", "admin",
+                        "display_panels", "jump", "gamemaster_overseer_comms"):
+            with self.subTest(station=station):
+                self.assertFalse(self.on(station), f"ePADD drawn on {station}")
+
+    def test_an_app_screen_keeps_it_on_its_station(self):
+        # The Cargo app re-activates its own console; the station is still helm.
+        self.assertTrue(self.on("helm", page_console="cargo"))
+
+
 if __name__ == "__main__":
     unittest.main()
