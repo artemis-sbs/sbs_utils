@@ -83,6 +83,18 @@ def named (name):
     ``distance_less`` / ``distance_greater`` promises) treat a missing object as "condition
     does not hold". It is NOT safe to hand to ``sbs.distance_id`` directly -- the engine
     errors with "sbs.distance_id was sent None". (A bare ``role(name)`` set would throw too.)"""
+def park_spare_players (spare_role='a2x_spare_player'):
+    """Retire the player ships the conversion added only for ship select. Returns the
+    slots parked.
+    
+    2.8 always had eight crewable ships, so a converted mission spawns all eight and marks
+    the ones it did not declare with ``spare_role``. Once play starts they go - but by
+    PARKING (standby, via the roster), never by ``delete_object``. Deleting a player ship
+    while consoles are live is the ``ObjectDataBlob`` use-after-free, and a spare may be
+    the very ship a crew picked.
+    
+    A spare that a connected console is crewing is KEPT and becomes a real ship: dropping
+    the ship out from under a crew is worse than one more hull than 2.8 declared."""
 def pickup_key (pickup_type):
     """2.8 ``pickupType`` (int) -> Cosmos upgrade key, or ``None`` for type 8 (beacon)."""
 def place_player (x, y, z, slot=0, name=None, side=None):

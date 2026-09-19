@@ -184,6 +184,37 @@ def camera_dolly (to, subject, from_distance, to_distance, yaw=0.0, pitch=12.0, 
     
     Returns:
         Promise: resolves when the push ends."""
+def camera_follow (to, subject, distance, height=0.0, yaw=0.0, pitch=0.0, lens_filter=None, consoles=None):
+    """Aim a third-person lens behind a subject, ONCE, from live geometry.
+    
+    `camera_chase` is the same idea as a timed move: it takes the dispatcher, runs for a
+    leg, and has to be re-issued. This is the single aim underneath it, so a caller with
+    its own tick - a console driving a camera every frame while it flies - re-aims without
+    starting and stopping a driver each time. That is what the Game Master does, and it is
+    what the engine wants: there is no interpolation, so following IS re-aiming.
+    
+    Two things it adds over `camera_chase`, and each is why this exists:
+    
+    * **``yaw`` and ``pitch``** orbit the lens around the subject's own heading, so a
+      console can look round its craft without losing the chase.
+    * **``lens_filter(base, want) -> lens``** gets the last word on where the camera
+      actually sits. Handed the subject's position and the lens the angles asked for, it
+      may return something nearer. A ship in open space has no use for it; a suit inside a
+      relic does, because a chase lens `distance` behind it in a 380-unit shaft is in the
+      rock, and the engine's own chase mode has no way to say so.
+    
+    Args:
+        distance (float): how far BEHIND the subject to sit.
+        height (float): how far above it. A little is usually better than none.
+        yaw (float): degrees around the subject from dead astern.
+        pitch (float): degrees above (positive) or below it.
+        lens_filter (callable, optional): `(base, want) -> lens`, both world positions.
+    
+    Returns:
+        The world position the lens was put at, or None if the subject is not resolvable.
+    
+    A subject whose heading cannot be read falls back to a fixed offset rather than
+    raising - a chase that is merely not behind the ship still shows the ship."""
 def camera_lens (to=None, consoles=None):
     """Where the lens is right now on the first of these consoles, or None.
     
@@ -416,15 +447,63 @@ def cutscene_stop (to=None, consoles=None):
     Resolves its promise as skipped, so a story awaiting it still continues."""
 def epadd_console_name (console):
     """The name a script would use for a console, whatever the engine calls it."""
+def eva_camera_aim (client_id, suit=None, volume=None):
+    """Re-aim ONE console's camera. Returns where the lens went, or None.
+    
+    Called every tick by `eva_camera_tick`. Cheap on purpose: one `camera_follow`, one
+    depth read for the distance, and at most eight `volume_inside` tests for the clamp -
+    all of which the autopilot is paying for anyway."""
+def eva_camera_distance (client_id, suit=None, volume=None):
+    """How far back the lens should sit right now.
+    
+    Manual wins outright. Otherwise: as far back as the room allows, then closer again the
+    faster the suit is going."""
+def eva_camera_dolly (client_id, amount=30.0):
+    """Push the lens in or pull it out, and hold it there.
+    
+    Taking manual control of the distance turns OFF the automatic framing - a console that
+    asked for a distance should get it, not have the clearance rule quietly argue with it.
+    `eva_camera_recenter` gives the automatic framing back."""
 def eva_camera_mode (mode=None):
     """Read, or set, the camera every EVA console rides.
     
     Args:
-        mode (str, optional): `chase`, `first_person`, `tracking` or `cinematic`. Omit to
-            read the current one.
+        mode (str, optional): `third` (ours - see `eva_camera.py`), or one of the engine's
+            own: `chase`, `first_person`, `tracking`, `cinematic`. Omit to read the
+            current one.
     
     Returns:
         str: the mode in force."""
+def eva_camera_orbit (client_id, degrees=24.0):
+    """Turn the lens around the suit. Marks the view as deliberately placed, so it stops
+    washing back to dead astern on its own."""
+def eva_camera_recenter (client_id):
+    """Put the lens back behind the suit and hand the framing back to the automatic rule.
+    
+    One control, because "the camera is somewhere odd" is one problem however it got
+    there - a stray orbit, a dolly left in, or both."""
+def eva_camera_release (client_id):
+    """Give the camera back to the engine's own director and forget this console's view.
+    
+    Called when a suit is put away. Without it a console that came back aboard would keep
+    a script-driven lens pointed at a ship it is no longer flying."""
+def eva_camera_state (client_id):
+    """``(yaw, pitch, distance_or_None, free)`` for one console."""
+def eva_camera_tick (t=None):
+    """Re-aim every console flying a suit. ONE shared pass, not a task per console.
+    
+    The same idiom `eva_tick` and `volume_containment_tick` use, and for the same reason:
+    six consoles is six of everything otherwise, and the work per console is small enough
+    that the scheduling would cost more than the aiming."""
+def eva_camera_tilt (client_id, degrees=8.0):
+    """Raise or lower the lens. Clamped short of straight up or down, where a chase has no
+    usable horizon and the shot reads as a map."""
+def eva_camera_unwatch ():
+    """Stop the camera pass."""
+def eva_camera_watch (seconds=0.0):
+    """Start the camera pass. Idempotent - asking twice watches once."""
+def eva_camera_watching ():
+    """Reset-ledger probe. Must NOT create anything by asking."""
 def eva_console_revision (client_id=None):
     """A value that changes when anything on this console's screen should change.
     
@@ -680,6 +759,23 @@ def gui_app_subnav (apps):
 def gui_app_unregister (tab):
     """Drop an app registration. The `//gui/app/` route is untouched - it simply stops
     being offered on the PADD."""
+def gui_app_why (tab, console=None, client_id=None):
+    """Why a tile is, or is not, on this console's PADD. One line, in plain words.
+    
+    A missing tile has four causes and three of them are SILENT by design - the whole
+    point of a route condition is that it hides things quietly - so "the app is just not
+    there" has been costing a full archaeology session each time it is reported. Ask
+    this instead, from a debug console or a comms route::
+    
+        log(gui_app_why("boarding_party"))
+    
+    Args:
+        tab (str): the app, as `gui_app_register` was given it.
+        console (str, optional): the console to ask about. Defaults to this client's.
+        client_id (optional): the console's client. Defaults to the page's own.
+    
+    Returns:
+        str: the reason, naming the thing to go and look at."""
 def gui_blank (count=1, style=None):
     """Add one or more empty columns to the current layout row.
     
@@ -1049,7 +1145,7 @@ def gui_drop_down (props, style=None, var=None, data=None):
     Example:
         speed = gui_drop_down("text:Medium;list:Slow,Medium,Fast;", var="speed_setting")
         speed.value = "Fast"      # move the selection from script"""
-def gui_eva_console (client_id=None, map_width=66, suit=None):
+def gui_eva_console (client_id=None, map_width=66, suit=None, radar=True):
     """Build the EVA console: the relic on the left, the xESS on the right.
     
     Args:
@@ -1057,6 +1153,7 @@ def gui_eva_console (client_id=None, map_width=66, suit=None):
         map_width (int, optional): how much of the screen the view takes, in percent.
         suit (optional): the ship to ride. Defaults to the one this console was given by
             :func:`eva_take`.
+        radar (bool, optional): draw the corner 2D view over the 3D one. Defaults True.
     
     Returns:
         dict: the held widgets, also stored on the page for :func:`gui_eva_console_tick`."""
@@ -1375,6 +1472,22 @@ def gui_icon_recolor (widget, color):
     
     Returns:
         bool: whether the tint was applied."""
+def gui_icon_rename (widget, name, color=None):
+    """Show a different NAMED icon in a widget already on screen - a toggle's two
+    states, say - whatever kind of widget `gui_icon_name` / `gui_icon_name_button`
+    gave back. Same tag, so only that one glyph is re-sent.
+    
+    Both names must be the same kind: two built-in glyphs, or two atlas cells. A
+    built-in icon cannot become an image in place (they are different engine
+    widgets); that is refused with a warning rather than drawn wrong.
+    
+    Args:
+        widget: the layout item (None is a no-op).
+        name (str): the icon name to show now.
+        color (str, optional): a new tint; None keeps the current one.
+    
+    Returns:
+        bool: whether the widget was changed."""
 def gui_image (props, style=None, fit=0, color=None):
     """Add an image to the current GUI layout.
     
@@ -1496,6 +1609,35 @@ def gui_image_add_atlas_grid (image, cols, rows=None, names=None, cell=None, col
     
     Returns:
         dict: {name: ImageAtlas} for everything registered."""
+def gui_image_button (props, style=None, data=None, on_press=None, is_sub_task=None, fit=3, color=None):
+    """Add a clickable image - a portrait, a card, a map tile, a custom icon.
+    
+    The engine has no image-button command, so this is an image with a transparent
+    click region laid over it. It behaves like ``gui_button``: ``data`` and
+    ``on_press`` work the same way, and ``on gui_message(widget)`` fires on a click.
+    Change the picture in place with ``widget.update(props)`` (or ``gui_icon_rename``
+    for a named icon) - same tag, so only that image is re-sent.
+    
+    Args:
+        props (str): Image filename (without extension), atlas key, or image
+            property string, exactly as ``gui_image`` takes it.
+        style (str, optional): Layout style. A ``click_background`` in it
+            overrides the transparent default. Defaults to None.
+        data (object, optional): Carried by the widget; a dict is unpacked into
+            the handler's variables. Defaults to None.
+        on_press (label | callable | Promise, optional): What a click does, as
+            on ``gui_button``. Defaults to None.
+        is_sub_task (bool, optional): How an ``on_press`` LABEL runs. See
+            ``gui_button``. Defaults to None.
+        fit (int, optional): Scaling mode, as ``gui_image``. Defaults to 3,
+            keep aspect ratio, centered.
+        color (str, optional): Tint for this use. Defaults to None.
+    
+    Returns:
+        Image: The layout item created.
+    
+    Example:
+        card = gui_image_button("card_ter_hearts_7", on_press=play_card, data={"card": 7})"""
 def gui_image_get_atlas (text, domain=None):
     """The atlas registered under a key, or one built from the text as a file name.
     
@@ -2123,7 +2265,7 @@ def gui_properties_set (p=None, tag=None):
     
     Example:
         gui_properties_set({"Speed": "gui_text(str(ship_speed))", "Shields": "gui_slider(shield_pct)"})"""
-def gui_property_list_box (name=None, tag=None, temp=<function _property_lb_item_template_one_line at 0x000002741D2A7A60>):
+def gui_property_list_box (name=None, tag=None, temp=<function _property_lb_item_template_one_line at 0x00000261778F3600>, hide_when_empty=False):
     """Create a property list box with single-line label/control layout.
     
     Each property is rendered as a label on the left and its control widget
@@ -2138,6 +2280,10 @@ def gui_property_list_box (name=None, tag=None, temp=<function _property_lb_item
             the list box widget. Defaults to ``"__PROPS_LB__"``.
         temp (callable, optional): Item template function used to render each
             row. Defaults to the built-in one-line template.
+        hide_when_empty (bool, optional): Hide the ROW the panel sits in while it
+            has no properties, so the rows below it take the space. Give the panel
+            a row of its own (``gui_row`` just before this call) - anything sharing
+            the row hides with it. Defaults to False.
     
     Returns:
         LayoutListBox: The list box widget.
@@ -2566,20 +2712,45 @@ def gui_tab_back (tab_name: str):
     
     Args:
         tab_name (str): The path of a //gui/tab"""
-def gui_tab_back_while_boarded (tab_name=None):
+def gui_tab_back_override (client_id, tab_name):
+    """Send this console's Back to `tab_name`, whatever a screen asks for.
+    
+    For a console that is somewhere other than the console it picked - a pilot in the
+    cockpit picked the Hangar, so every ePADD screen's `gui_tab_back(CONSOLE_SELECT)`
+    said "hangar", and Back pulled them out of their craft mid-flight. The mission sets
+    this when the pilot takes the seat and clears it when they leave; no call site
+    changes. A boarded or EVA console's own swap still wins."""
+def gui_tab_back_override_clear (client_id):
+    """Forget a Back target set by gui_tab_back_override."""
+def gui_tab_back_while_boarded (tab_name=None, kind='grid'):
     """Name the tab a BOARDED console's Back should go to, or clear it with ``None``.
     
     Called once by the addon that declares that tab::
     
         gui_tab_back_while_boarded("boarding_crew")
+        gui_tab_back_while_boarded("eva_crew", kind="eva")
     
         //gui/tab/boarding_crew
             jump boarding_crew_console
     
+    Args:
+        tab_name (str, optional): the `//gui/tab` to substitute. ``None`` clears it.
+        kind (str, optional): which kind of boarded console this tab is for - ``"grid"``
+            (a deck, the default and what every existing caller means) or ``"eva"`` (a
+            suit). A console flying a suit takes the ``eva`` tab; anything else boarded
+            takes the ``grid`` one.
+    
     Returns:
-        str | None: the name now installed."""
-def gui_tab_boarded_back_tab ():
+        str | None: the name now installed for that kind."""
+def gui_tab_boarded_back_clear ():
+    """Drop every substitution (called by `reset_mission_state`).
+    
+    A LATCH, not a container: an addon installs it at its top level, so one left behind
+    would point the next mission's Back at a tab whose route no longer exists."""
+def gui_tab_boarded_back_tab (kind='grid'):
     """The tab a boarded console's Back goes to, or None when nothing installed one."""
+def gui_tab_boarded_back_tabs ():
+    """Every installed substitution, as ``{kind: tab}``. For tools and the reset ledger."""
 def gui_tab_clear_top ():
     """Specify a tab by default to shown when the page is shown for standard consoles.
     
@@ -3069,6 +3240,14 @@ def icon_resolve (name):
     without it any mission registering an image called `square` or `flag` - words no one
     would think twice about - would silently re-skin every icon meaning pointing there.
     Overriding a look has to be something you meant."""
+def offer_board_count_here ():
+    """How many offers the Offers app lists for THIS console that could be acted on -
+    the tile's gate, so the tile never opens onto an empty list.
+    
+    Not ``offer_count_here``: that counts every offer, including one left to its own
+    app, which this app does not list."""
+def offer_rows (client_id=None, ship_id=None, console=None):
+    """Every offer the Offers app lists, each with `can_take` resolved for this console."""
 def overlay_banner (text, color='#fd0', slot='top_banner', to=None, consoles=None, seconds=None, background='#000a', cycle=True, dwell=None, loop=None):
     """Full-width top strip (alert / countdown). Auto-dismiss after ``seconds`` if set.
     Re-call it to update in place (generation-guarded) - a countdown needs no new API.
@@ -3835,7 +4014,20 @@ def xess_revision (client_id=None):
     A shared counter would mean one crew member opening an app repainting five other
     screens. Carries the armed state so the device redraws the moment the weapon goes
     live - that visibility is a safety feature, not decoration - and the badges, so a
-    tile that starts saying "2 new" is seen to say it."""
+    tile that starts saying "2 new" is seen to say it.
+    
+    BOTH BODIES' ARMED STATE. A boarder has a cell to stand in or a suit to fly, and each
+    holds its weapon somewhere different: the grid one in `boarding_armed` /
+    `boarding_setting`, the suit's verb in `eva_armed`. Only the grid pair was watched, so
+    pressing BEAM or TETHER in the suit's Fire app changed the state and moved nothing on
+    screen - the `> ` marker stayed where it was. It was not dead, it was SLOW: the only
+    other thing in this tuple a suit can shift is its badge, so the pick finally appeared
+    whenever the nearest target's name or distance bucket happened to change. Stationary
+    in front of one target, it never appeared at all.
+    
+    The running job needs nothing here - `_work_badge` already reports the countdown as
+    "%ds", which changes every second and repaints on its own. Adding the seconds would
+    force a rebuild every tick for a number the badge is already carrying."""
 def xess_set_focus (client_id, value):
     ...
 def xess_unregister (key):

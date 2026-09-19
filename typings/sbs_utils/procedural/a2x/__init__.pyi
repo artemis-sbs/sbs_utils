@@ -70,6 +70,9 @@ def caller_face (from_name):
     to, so consistency within a session is what matters."""
 def clear_ai (agent):
     """2.8 ``clear_ai``: remove the agent's brain stack."""
+def clear_comms_button (text, side_value=0):
+    """2.8 ``clear_comms_button``: withdraw ``text``. ``side_value`` 0 (the default)
+    withdraws it from every side; N withdraws only side N's offer."""
 def clear_station_carried (station):
     """2.8 ``clear_player_station_carried name="X"``: remove a station's stored single-seat
     craft.
@@ -77,6 +80,9 @@ def clear_station_carried (station):
     Deletes the STANDBY (in-hangar, not launched) craft hosted by the station --
     ``linked_to(station, "hangar_craft") & role("standby") & role("cockpit")`` -- leaving any
     already-launched craft flying. Returns the count removed."""
+def comms_button_visible (text, origin=None):
+    """Is ``text`` currently offered to the console of ``origin`` (the player ship whose
+    comms is open, COMMS_ORIGIN_ID)? Used as the ``+ "text" if ...`` condition."""
 def comms_callers_load (section):
     """Register the callers: a record per 2.8 ``from`` label, key = its slug.
     
@@ -373,6 +379,18 @@ def object_property_key (prop):
     Useful for reads (``get_object_property`` / ``if_object_property``)."""
 def object_property_mapped (prop):
     """True if this 2.8 property has a confirmed Cosmos mapping."""
+def park_spare_players (spare_role='a2x_spare_player'):
+    """Retire the player ships the conversion added only for ship select. Returns the
+    slots parked.
+    
+    2.8 always had eight crewable ships, so a converted mission spawns all eight and marks
+    the ones it did not declare with ``spare_role``. Once play starts they go - but by
+    PARKING (standby, via the roster), never by ``delete_object``. Deleting a player ship
+    while consoles are live is the ``ObjectDataBlob`` use-after-free, and a spare may be
+    the very ship a crew picked.
+    
+    A spare that a connected console is crewing is KEPT and becomes a real ship: dropping
+    the ship out from under a crew is worse than one more hull than 2.8 declared."""
 def pickup_key (pickup_type):
     """2.8 ``pickupType`` (int) -> Cosmos upgrade key, or ``None`` for type 8 (beacon)."""
 def place_player (x, y, z, slot=0, name=None, side=None):
@@ -433,6 +451,9 @@ def set_captain (obj, captain):
     implies it, ``a2x_surrender_chance`` -- both keys the LM comms addons already read
     (a2x carries no LM import; LM decides the behavior). ``-1`` leaves the ship as-is.
     Returns the trait name, or ``None`` if unmapped / the object is gone."""
+def set_comms_button (text, side_value=0):
+    """2.8 ``set_comms_button``: offer ``text`` on the comms consoles of ``side_value``
+    (0 = every side). Idempotent."""
 def set_damcon_members (ship, team_index, value):
     """2.8 ``set_damcon_members(team_index, value)`` -> set a damcon team's HP.
     
@@ -595,6 +616,9 @@ def side_key (side_value):
     NOT collapsed onto the three LegendaryMissions keys -- see the module docstring."""
 def side_name (side_value):
     """A display name for a 2.8 sideValue (shown on the 2D map / sensor contacts)."""
+def side_value (side):
+    """Cosmos side key -> the 2.8 ``sideValue`` it came from; the inverse of
+    :func:`side_key`. None for a side a2x did not declare (an LM side like ``tsn``)."""
 def spawn_external_program (name, arguments='', id=None):
     """2.8 ``spawn_external_program``: launch an external program (non-blocking).
     

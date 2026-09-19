@@ -63,3 +63,6 @@ def side_key (side_value):
     NOT collapsed onto the three LegendaryMissions keys -- see the module docstring."""
 def side_name (side_value):
     """A display name for a 2.8 sideValue (shown on the 2D map / sensor contacts)."""
+def side_value (side):
+    """Cosmos side key -> the 2.8 ``sideValue`` it came from; the inverse of
+    :func:`side_key`. None for a side a2x did not declare (an LM side like ``tsn``)."""

@@ -4,6 +4,8 @@ class GridDispatcher(object):
     Provides a registry system for handling grid object interactions and point
     selections. Allows registering object-specific and point-specific callbacks
     as well as catch-all handlers for any grid event."""
+    def _replay_library ():
+        ...
     def add_any_object (cb: callable):
         """Register a catch-all callback for any grid object selection.
         
@@ -14,6 +16,12 @@ class GridDispatcher(object):
         
         Args:
             cb (Callable): Callback function invoked for any point selection event."""
+    def add_library (method, *args):
+        """Register a LIBRARY handler that must survive `clear()`.
+        
+        Args:
+            method (str): The name of this class's `add_*` method to call.
+            *args: Its arguments."""
     def add_object (id: int, cb: callable):
         """Register a callback for a specific grid object.
         
@@ -27,7 +35,9 @@ class GridDispatcher(object):
             id (int): The unique identifier of the grid point.
             cb (Callable): Callback function to invoke when the point is selected."""
     def clear ():
-        """Drop all registered grid routes (fresh mission / in-process recompile)."""
+        """Drop all registered grid routes (fresh mission / in-process recompile).
+        
+        The library's own handlers (`add_library`) are put back."""
     def dispatch_grid_event (event):
         """Dispatch a grid event to registered callbacks.
         

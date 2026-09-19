@@ -20,6 +20,8 @@ def cinematic_control(clientID: int, scriptControlsCamera: int, dollyID: int, do
     """for a specific client (0=server machine), this sets the values to be used with the 'cinematic' console, which requiers a 3d_view widget, and 'cinematic' == camModeTag"""
 def clear_client_tags() -> None:
     """stub; does nothing yet."""
+def clear_object_data_set_value_on_clients(space_object_id: int, grid_object_id: int, data_name: str) -> None:
+    """sends a message to all clients, to Clear() the specific blob value (and all its array elements).  Leave grid_object_id zero if changing a space_object blob."""
 def command_line_dict() -> Dict[str, str]:
     """Returns a dictionary of the space-seperated key-value-pairs of the exe command line."""
 def command_line_list() -> List[str]:

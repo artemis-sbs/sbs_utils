@@ -13,11 +13,18 @@ def _rep_clause (toks):
     words. One grammar for shifting standing, not two spellings of it."""
 def _resolve_role (target, aliases=None):
     """A friendly role name -> its real role: apply an alias, else singularize
-    ('raiders' -> 'raider') but keep 'ss' words ('boss' stays 'boss')."""
+    ('raiders' -> 'raider', 'anomalies' -> 'anomaly'; 'boss' and 'bus' stay put)."""
 def _signal_name (value):
     """A signal name, lowercased with spaces -> underscores (matched exactly).
     Kept as a local alias; the rule itself lives in `amd.amd_signal_name` so the
     editor's signal join matches exactly what the driver matches."""
+def _singular (word):
+    """English plural -> singular, for the words a role is likely to be.
+    
+    It used to drop any trailing `s`, which made `anomalies` the role `anomalie` (never
+    matching `anomaly`) and turned a SINGULAR `bus` into `bu`. Now: `-ies` -> `-y`;
+    `-xes`/`-ches`/`-shes`/`-zzes` lose `es`; words that end in `s` without being plural
+    (`-ss`, `-us`, `-is`) are left alone; anything else loses its `s`."""
 def amd_console_list (value):
     """'comms, admiral' / 'comms admiral' -> ['comms', 'admiral'] (lowercased). Used by
     the Quests-tab `Accept On:` / `Engage On:` labels to restrict WHICH consoles may
@@ -42,7 +49,7 @@ def amd_norm (name):
     """Canonicalize a token: lowercase, hyphens/spaces -> underscores."""
 def amd_num (s):
     """int -> float -> the trimmed string, whichever parses first."""
-def amd_parse_facts (text, handler=None, default=<function amd_num at 0x000002741D0E0540>, archetype=None, errors=None):
+def amd_parse_facts (text, handler=None, default=<function amd_num at 0x0000026177D728E0>, archetype=None, errors=None):
     """Parse one fact-sheet fence into a dict.
     
     Per label, in order: the caller's `handler` gets first refusal (returns truthy to

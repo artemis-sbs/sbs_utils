@@ -45,8 +45,11 @@ def comms_message (msg, from_ids_or_obj, to_ids_or_obj, title=None, face=None, c
         from_ids_or_obj: Sender agent ID(s) or object(s).
         to_ids_or_obj: Receiver agent ID(s) or object(s). Pass ``None`` to
             send the message to the sender (internal communication).
-        title (str, optional): Title bar text. Defaults to the sender's
-            comms ID.
+        title (str, optional): Header text for the message. Defaults to
+            EMPTY - the sender's name is a field of its own now, so the title
+            carries only what the script wrote. It used to default to the
+            sender's comms ID, and a title given alongside it was packed on
+            behind it as "Lt Rios (TSN): Orders".
         face (str, optional): Face asset string for the sender portrait.
             Defaults to the face registered for the sender.
         color (str, optional): Body text color. Defaults to ``"#fff"``.
@@ -56,7 +59,8 @@ def comms_message (msg, from_ids_or_obj, to_ids_or_obj, title=None, face=None, c
             (tagged ``recv``); ``False`` = the player ship TRANSMITTED it
             (tagged ``send``). Defaults to ``True``.
         from_name (str, optional): Override the display name of the sender.
-            Defaults to None (uses the sender object's ``comms_id``).
+            Defaults to None (uses the sender object's ``comms_id``). Sent to
+            the console as its own ``name`` field, beside the title.
     
     Note:
         When BOTH ends are player ships a transmit reaches both bridges: the
@@ -83,8 +87,11 @@ def comms_receive (msg, title=None, face=None, color=None, title_color=None) -> 
     
     Args:
         msg (str): The message body text. Supports ``{var}`` interpolation.
-        title (str, optional): Title bar text. Defaults to the sender's
-            comms ID.
+        title (str, optional): Header text for the message. Defaults to
+            EMPTY - the sender's name is a field of its own now, so the title
+            carries only what the script wrote. It used to default to the
+            sender's comms ID, and a title given alongside it was packed on
+            behind it as "Lt Rios (TSN): Orders".
         face (str, optional): Face asset string for the portrait. Defaults to
             the face registered for the sender.
         color (str, optional): Body text color. Defaults to ``"#fff"``.
@@ -121,8 +128,11 @@ def comms_transmit (msg, title=None, face=None, color=None, title_color=None) ->
     
     Args:
         msg (str): The message body text. Supports ``{var}`` interpolation.
-        title (str, optional): Title bar text. Defaults to the sender's
-            comms ID.
+        title (str, optional): Header text for the message. Defaults to
+            EMPTY - the sender's name is a field of its own now, so the title
+            carries only what the script wrote. It used to default to the
+            sender's comms ID, and a title given alongside it was packed on
+            behind it as "Lt Rios (TSN): Orders".
         face (str, optional): Face asset string for the portrait. Defaults to
             the face registered for the sender.
         color (str, optional): Body text color. Defaults to ``"#fff"``.

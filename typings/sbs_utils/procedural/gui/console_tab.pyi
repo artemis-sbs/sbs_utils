@@ -1,6 +1,13 @@
 from sbs_utils.helpers import FrameContext
 def _back_tab_for (client_id, tab_name):
-    """Substitute the crew console for whatever a boarded console was asked for."""
+    """Substitute the crew console for whatever a boarded console was asked for, and a
+    mission's Back override (gui_tab_back_override) for everything else."""
+def _boarded_back_tab (client_id):
+    """Which substitution applies to THIS console, or None if it is not boarded.
+    
+    A suit first: a console flying one is out in a relic, where the grid crew console has
+    nothing to draw. Asked in that order rather than by CONSOLE_TYPE because the suit is
+    the thing the client is actually assigned to."""
 def _tab_client_id ():
     """Whose tab strip is being declared: the PAGE's client, not the event's.
     
@@ -72,20 +79,45 @@ def gui_tab_back (tab_name: str):
     
     Args:
         tab_name (str): The path of a //gui/tab"""
-def gui_tab_back_while_boarded (tab_name=None):
+def gui_tab_back_override (client_id, tab_name):
+    """Send this console's Back to `tab_name`, whatever a screen asks for.
+    
+    For a console that is somewhere other than the console it picked - a pilot in the
+    cockpit picked the Hangar, so every ePADD screen's `gui_tab_back(CONSOLE_SELECT)`
+    said "hangar", and Back pulled them out of their craft mid-flight. The mission sets
+    this when the pilot takes the seat and clears it when they leave; no call site
+    changes. A boarded or EVA console's own swap still wins."""
+def gui_tab_back_override_clear (client_id):
+    """Forget a Back target set by gui_tab_back_override."""
+def gui_tab_back_while_boarded (tab_name=None, kind='grid'):
     """Name the tab a BOARDED console's Back should go to, or clear it with ``None``.
     
     Called once by the addon that declares that tab::
     
         gui_tab_back_while_boarded("boarding_crew")
+        gui_tab_back_while_boarded("eva_crew", kind="eva")
     
         //gui/tab/boarding_crew
             jump boarding_crew_console
     
+    Args:
+        tab_name (str, optional): the `//gui/tab` to substitute. ``None`` clears it.
+        kind (str, optional): which kind of boarded console this tab is for - ``"grid"``
+            (a deck, the default and what every existing caller means) or ``"eva"`` (a
+            suit). A console flying a suit takes the ``eva`` tab; anything else boarded
+            takes the ``grid`` one.
+    
     Returns:
-        str | None: the name now installed."""
-def gui_tab_boarded_back_tab ():
+        str | None: the name now installed for that kind."""
+def gui_tab_boarded_back_clear ():
+    """Drop every substitution (called by `reset_mission_state`).
+    
+    A LATCH, not a container: an addon installs it at its top level, so one left behind
+    would point the next mission's Back at a tab whose route no longer exists."""
+def gui_tab_boarded_back_tab (kind='grid'):
     """The tab a boarded console's Back goes to, or None when nothing installed one."""
+def gui_tab_boarded_back_tabs ():
+    """Every installed substitution, as ``{kind: tab}``. For tools and the reset ledger."""
 def gui_tab_clear_top ():
     """Specify a tab by default to shown when the page is shown for standard consoles.
     

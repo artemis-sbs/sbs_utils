@@ -93,18 +93,36 @@ def _identity_name (client_id, console=None):
     name plus a callsign plus a count does not fit any of them."""
 def _save (apps):
     ...
+def _say (message):
+    """Report an ePADD problem where somebody will actually see it.
+    
+    `log(msg, "epadd", "warning")` alone goes NOWHERE: a named category is a bare
+    `logging.getLogger("epadd")`, and unless the mission happened to call
+    `logger(name="epadd", file=...)` it has no handler at all. Every "the tile is simply
+    not there" report so far has had a clean `mast.runtime.log` beside it for exactly
+    that reason. So the named logger is kept - a mission that DOES attach one still gets
+    its own file - and the same line also goes to `mast.runtime`, which is the log
+    everybody reads."""
 def _scoped_here (app, console):
     """Whether this app belongs on this console.
     
     `"*"` means every SHIP console. The crew console has to be named or opted into,
     because a landing party carrying the fabricator is not a scoping bug anybody would
-    notice until it was on screen."""
+    notice until it was on screen.
+    
+    An UNKNOWN console (None) gets only the `"*"` apps. A console-scoped app is a claim
+    about who may use it, and a client with no console - the pick screen, the server's
+    own screen - has not earned engineering's tools. (This used to fail OPEN, which is
+    also how a broken console lookup stayed invisible: every tile still showed.
+    `gui_app_why` names the unknown console instead.)"""
 def _tile (app, dense):
     """One app tile: a clickable panel holding its icon, name and description.
     
     The WHOLE panel is the hit target, not just a button inside it - a sub-section
     with `click_text` emits a click region over its own bounds (Layout._post_present),
     which is the same mechanism the tab strip and the text area's links use."""
+def epadd_console_allowed (console):
+    """Whether the PADD belongs on this console (any name the engine or a script uses)."""
 def epadd_console_name (console):
     """The name a script would use for a console, whatever the engine calls it."""
 def get_inventory_value (id_or_object, key: str, default=None):
@@ -292,6 +310,23 @@ def gui_app_waiting (console=None, client_id=None):
     
     Apps, not messages. Unread mail is only one of the things a badge reports, and the
     number a crew member cannot get any other way is "how many of these should I open"."""
+def gui_app_why (tab, console=None, client_id=None):
+    """Why a tile is, or is not, on this console's PADD. One line, in plain words.
+    
+    A missing tile has four causes and three of them are SILENT by design - the whole
+    point of a route condition is that it hides things quietly - so "the app is just not
+    there" has been costing a full archaeology session each time it is reported. Ask
+    this instead, from a debug console or a comms route::
+    
+        log(gui_app_why("boarding_party"))
+    
+    Args:
+        tab (str): the app, as `gui_app_register` was given it.
+        console (str, optional): the console to ask about. Defaults to this client's.
+        client_id (optional): the console's client. Defaults to the page's own.
+    
+    Returns:
+        str: the reason, naming the thing to go and look at."""
 def set_inventory_value (so, key: str, value):
     """Set an inventory value on one or more agents.
     

@@ -9,8 +9,25 @@ def _amd_relic_pairs (value):
     None for it, so the caller can fall back to a default rather than guess here."""
 def _amd_relic_words (value):
     """Every non-numeric word in a value - the names in `hub 300, gallery 240`."""
+def _relic_arm_barriers (rec, relic_key):
+    """Arm every `Barrier:` that has an `Opens when:`. Returns how many are waiting.
+    
+    A barrier with no trigger is a hard block: it opens when somebody CUTS it, and that is
+    the weapons app's business, not a clock's. One with a trigger is armed on the same
+    shared tick as the contents, using the same `amd_trigger` grammar - so an author has
+    one vocabulary for "when does this happen", not two."""
 def _relic_arm_tick ():
     """Start the shared tick, once, and only while something is waiting on it."""
+def _relic_attach_content (c, pos):
+    """Put a placed thing ON THE RAIL WEB, so it is somewhere you can be SENT.
+    
+    This is what makes a cache a destination rather than something you happen to fly past.
+    A relic's contents do not all exist when the ruin is built - `Starts when: reach ...`
+    places one the first time somebody gets near the room - so the web is joined to rather
+    than resolved again.
+    
+    A content hanging off a POINT is already a node under the author's own key; only one
+    on a chamber or a box needs its own."""
 def _relic_contents_tick (t=None):
     """Place every armed record whose trigger has now fired, and light up the places the
     crew has reached."""
@@ -24,6 +41,8 @@ def _relic_mark_placed (obj, c):
     That second half is what makes "carry it OUT" answerable at all: the containment latch
     tracks ships, and a thing on the end of a tether is not one, so the only way to ask
     whether the treasure has left is to ask the treasure which ruin to measure against."""
+def _relic_open_barrier (rec):
+    """Open one barrier and say so, so a suit holding for a shut way re-plans at once."""
 def _relic_part_pos (rec, name, base=None):
     """Where a named part is, in world coordinates - point, chamber or box."""
 def _relic_place_contents (c):
@@ -83,7 +102,7 @@ def _relic_trigger_fired (rec):
     ...
 def amd_coords (s, n=2):
     """'6, 4' -> [6, 4] (the first `n` signed-integer tokens)."""
-def amd_parse_facts (text, handler=None, default=<function amd_num at 0x000002741D0E0540>, archetype=None, errors=None):
+def amd_parse_facts (text, handler=None, default=<function amd_num at 0x0000026177D728E0>, archetype=None, errors=None):
     """Parse one fact-sheet fence into a dict.
     
     Per label, in order: the caller's `handler` gets first refusal (returns truthy to
@@ -119,6 +138,26 @@ def log (message: str, name: str = None, level: str = None, use_mast_scope=False
             Defaults to None (``DEBUG``).
         use_mast_scope (bool, optional): Format the message via the current
             MAST task. Defaults to False."""
+def relic_barrier_destroyed (obj_id):
+    """A destroyed barrier object opens its barrier. What a `//damage/destroy` route calls.
+    
+    Returns the barrier key it opened, or None when the object was not a barrier - so a
+    route can hand it every destruction without asking first."""
+def relic_barriers (relic_key):
+    """``{name: [x, y, z, radius, opens_when, clear_with, display]}`` as AUTHORED.
+    
+    Positions are relic-relative, like every other authored part. For the live state - is
+    it open, which edges is it severing - ask the web with `rail_barriers`."""
+def relic_barriers_spawn (relic_key, name=None):
+    """Give every SHUT barrier a space object, so a beam has something to hit.
+    
+    A barrier is a sphere in the rail web, and nothing in the engine can shoot a sphere -
+    which is the whole reason cutting one used to be a scripted timer with no beam on
+    screen. A real object makes it an ordinary weapons problem: point at it, fire, and the
+    thing dies. `relic_barrier_destroyed` is the other end.
+    
+    Idempotent per (relic, barrier): a reload replaces rather than accumulates, the same
+    identity rule the markers and contents use. Returns how many were placed."""
 def relic_contain (record, name=None):
     """Start containment for a built relic, honoring its authored fields.
     
@@ -166,6 +205,12 @@ def relic_contents_state (relic_key, part):
     like "the loot is not there", and only one of them is a bug."""
 def relic_keys ():
     """Every registered relic key."""
+def relic_open_barrier (relic_key, barrier, name=None):
+    """Open one of a relic's barriers - what a cutting beam or a haul ends in.
+    
+    Emits `rail_opened` so a suit holding for a shut way re-plans at once rather than
+    waiting out its stall counter. False when there is no such barrier, or it was already
+    open."""
 def relic_place (record, x, y, z):
     """Put a relic somewhere at RUNTIME, overriding its authored `Loc:`.
     
@@ -197,6 +242,20 @@ def relic_point_display (relic_key, name):
     
     The same string `_relic_place_role_markers` names the marker with, so a list of places
     to go and the label that lights up on the radar cannot disagree."""
+def relic_point_has_marker (relic_key, name):
+    """Whether this point was armed with a marker at all.
+    
+    The companion `relic_point_revealed` answers TRUE for a point with no marker, which
+    is right for its own job - it gates destinations, and a relic that does not use the
+    reveal mechanism must not have every destination hidden. It makes it useless as a
+    record of where the crew has BEEN, though: without this test, every place in an
+    unarmed relic reads as already seen."""
+def relic_point_hidden (relic_key, name):
+    """Whether a point is authored `Hidden:` - off the destination list until found.
+    
+    Hidden is a property of the LIST, never of the graph: a route still passes THROUGH a
+    hidden place, because stumbling into a secret on the way somewhere else is the point
+    of having one."""
 def relic_point_revealed (relic_key, name):
     """Whether the crew has been close enough to light this point's marker.
     
@@ -219,6 +278,29 @@ def relic_pos (record):
     the landmark one has never been used by a shipped mission (Open Universe rolls its
     own). If a galaxy mission needs one, add it the way landmarks did rather than
     assuming this hook exists."""
+def relic_rails (record, name=None, margin=None):
+    """Solve this relic's rail web. Called by `relic_volume`; returns the stats dict.
+    
+    ONCE PER RELIC, HERE, rather than once per trip. Every destination a console picks
+    used to re-derive the ruin's connectivity from the geometry - doorways, skirts and an
+    N-squared visibility graph, measured at 96ms for the first pick and 17ms for every one
+    after, per console, on a bridge. Connectivity is a property of the RUIN, so it is
+    solved when the ruin is built.
+    
+    Nothing about it is authored. The relic's own `Point:` records become named
+    destinations; everything else - the stations through each room, the doorways, the way
+    round a pillar - is derived. `Rail step:` is the one dial, and `Barrier:` parts are
+    registered here so a shut way is shut from the first route anybody asks for."""
+def relic_rails_ensure (relic_key, name=None):
+    """The relic's rail web name, solving the web now if it has not been solved yet.
+    
+    `relic_volume` builds it, which covers every relic read from an `.amd`. A mission - or
+    a test - that defines the volume itself and registers the points by hand never goes
+    through that, and a route with no web to walk would simply refuse. So the first route
+    asked for is what builds it, once, and everything after that walks the cache.
+    
+    Returns the volume name, or None when there is no such relic or its volume has not
+    been built."""
 def relic_record (key):
     """The registered record for ``key``, or None."""
 def relic_release (key):

@@ -36,6 +36,17 @@ def _amd_slug (text):
     """A heading display -> a key: lowercase, non-alphanumeric runs -> single '_'."""
 def _document_get_amd_file (file_path, root_display_text='', strip_comments=True, content=None, data_parser=None, allow_bare_headings=False):
     ...
+def _quest_emit_offered (agent_id, quest_id, quest=None):
+    """Announce that a job is on the board and nobody has taken it.
+    
+    The sibling of ``quest_activated`` / ``quest_completed`` / ``quest_failed``, and the
+    one that was missing: until this existed, availability was silent by construction -
+    ``quest_add`` emitted nothing at all, so no mission could react to a job appearing
+    without polling for it.
+    
+    This is for a mission that wants to say something. The badge and the Offers board do
+    NOT listen to it; they poll ``offer_generation()``, because a signal does not wake
+    ``await gui()``."""
 def _quest_field (q, label):
     """A fence field, wherever it ended up. Only state / display_text / description are
     promoted onto the quest itself, so an AMD-authored `Reward:` is under `data` while a
@@ -551,6 +562,8 @@ def quest_log_template (item):
     the in-game and end-game logs. Fix the look here and both update."""
 def quest_log_title ():
     """Shared list title for the quest log."""
+def quest_offers_title ():
+    """List title for Available Quests - the same quest-log screen, listing untaken ones."""
 def quest_remove (agent, quest_id):
     """Remove a quest from an agent and return it.
     

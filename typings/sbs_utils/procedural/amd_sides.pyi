@@ -15,7 +15,7 @@ def _side_expand (items, all_keys, self_key, claimed):
     Scope is THIS DOCUMENT. A wildcard reaches the sides authored alongside it and no
     others - so an addon declaring its own factions cannot silently redefine a relation
     with a side some other addon declared."""
-def amd_parse_facts (text, handler=None, default=<function amd_num at 0x000002741D0E0540>, archetype=None, errors=None):
+def amd_parse_facts (text, handler=None, default=<function amd_num at 0x0000026177D728E0>, archetype=None, errors=None):
     """Parse one fact-sheet fence into a dict.
     
     Per label, in order: the caller's `handler` gets first refusal (returns truthy to

@@ -1,6 +1,13 @@
 from sbs_utils.helpers import FrameContext
 from sbs_utils.pages.layout.icon import Icon
 from sbs_utils.pages.layout.icon_button import IconButton
+def _gui_atlas_icon_button (atlas_key, color, style, data, on_press, is_sub_task):
+    """An atlas icon made clickable: an Image with a click region laid over it.
+    
+    The engine has no image-button command, but every layout column can carry a click
+    region, and `gui_message` / `on_press` match its click tag. `gui_image_button` does
+    the work; this lays it out like the icon it stands in for - a square column sized
+    by the row height."""
 def apply_control_styles (control_name, extra_style, layout_item, task):
     """Apply a named control style and optional overrides to a layout item.
     
@@ -151,6 +158,22 @@ def gui_icon_recolor (widget, color):
     
     Returns:
         bool: whether the tint was applied."""
+def gui_icon_rename (widget, name, color=None):
+    """Show a different NAMED icon in a widget already on screen - a toggle's two
+    states, say - whatever kind of widget `gui_icon_name` / `gui_icon_name_button`
+    gave back. Same tag, so only that one glyph is re-sent.
+    
+    Both names must be the same kind: two built-in glyphs, or two atlas cells. A
+    built-in icon cannot become an image in place (they are different engine
+    widgets); that is refused with a warning rather than drawn wrong.
+    
+    Args:
+        widget: the layout item (None is a no-op).
+        name (str): the icon name to show now.
+        color (str, optional): a new tint; None keeps the current one.
+    
+    Returns:
+        bool: whether the widget was changed."""
 def merge_props (d):
     ...
 def split_props (s, def_key):

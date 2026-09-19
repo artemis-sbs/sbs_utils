@@ -16,7 +16,7 @@ def _scan_body_lines (text):
     
     (`amd_urge` reads a third rule off the same sigil - it COUNTS `%` to number a
     stage, so `%%` is stage 2 - and cannot share this one.)"""
-def amd_parse_facts (text, handler=None, default=<function amd_num at 0x000002741D0E0540>, archetype=None, errors=None):
+def amd_parse_facts (text, handler=None, default=<function amd_num at 0x0000026177D728E0>, archetype=None, errors=None):
     """Parse one fact-sheet fence into a dict.
     
     Per label, in order: the caller's `handler` gets first refusal (returns truthy to

@@ -176,6 +176,37 @@ def camera_establishing (to, subject, world, angle='behind', distance=None, seco
     
     Example:
         await camera_establishing(role("mainscreen"), ship, planet, angle="side")"""
+def camera_follow (to, subject, distance, height=0.0, yaw=0.0, pitch=0.0, lens_filter=None, consoles=None):
+    """Aim a third-person lens behind a subject, ONCE, from live geometry.
+    
+    `camera_chase` is the same idea as a timed move: it takes the dispatcher, runs for a
+    leg, and has to be re-issued. This is the single aim underneath it, so a caller with
+    its own tick - a console driving a camera every frame while it flies - re-aims without
+    starting and stopping a driver each time. That is what the Game Master does, and it is
+    what the engine wants: there is no interpolation, so following IS re-aiming.
+    
+    Two things it adds over `camera_chase`, and each is why this exists:
+    
+    * **``yaw`` and ``pitch``** orbit the lens around the subject's own heading, so a
+      console can look round its craft without losing the chase.
+    * **``lens_filter(base, want) -> lens``** gets the last word on where the camera
+      actually sits. Handed the subject's position and the lens the angles asked for, it
+      may return something nearer. A ship in open space has no use for it; a suit inside a
+      relic does, because a chase lens `distance` behind it in a 380-unit shaft is in the
+      rock, and the engine's own chase mode has no way to say so.
+    
+    Args:
+        distance (float): how far BEHIND the subject to sit.
+        height (float): how far above it. A little is usually better than none.
+        yaw (float): degrees around the subject from dead astern.
+        pitch (float): degrees above (positive) or below it.
+        lens_filter (callable, optional): `(base, want) -> lens`, both world positions.
+    
+    Returns:
+        The world position the lens was put at, or None if the subject is not resolvable.
+    
+    A subject whose heading cannot be read falls back to a fixed offset rather than
+    raising - a chase that is merely not behind the ship still shows the ship."""
 def camera_lens (to=None, consoles=None):
     """Where the lens is right now on the first of these consoles, or None.
     

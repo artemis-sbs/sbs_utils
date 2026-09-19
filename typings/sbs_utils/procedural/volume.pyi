@@ -80,6 +80,17 @@ def _vol_dist (p, q):
     ...
 def _vol_doorway (vol, a, b):
     """A point inside both primitives and inside nothing subtracted, or None."""
+def _vol_drop_rails (name=None):
+    """Drop the rail web derived from a volume that is going away.
+    
+    A WEB CANNOT OUTLIVE ITS VOLUME. It is nodes and edges solved from this geometry, so
+    a volume that is cleared and rebuilt under the same name leaves a web describing a
+    ruin that no longer exists - and the next route walks it, silently, because a stale
+    web looks exactly like a fresh one. Found by a relic test that kept offering a
+    destination the rebuilt relic did not have.
+    
+    Imported here rather than at module scope: `rails` is built ON `volume`, so the
+    dependency only runs one way at import time."""
 def _vol_even_sphere (n):
     """`n` roughly-even directions on the unit sphere - a golden-angle spiral.
     
@@ -281,6 +292,13 @@ def volume_engaged (volume):
     apply because containment is not gated on having been inside."""
 def volume_get (name):
     """The named volume, or None."""
+def volume_inside (volume, pos, margin=0.0):
+    """Whether `pos` is inside by at least `margin` - `depth(pos) <= -margin`, without
+    measuring how far.
+    
+    The cheap half of `volume_depth`, and the right question for anything that only needs
+    a yes or no: a visibility sample, a camera looking for somewhere it fits. The first
+    primitive that swallows the point settles it, where `depth` has to scan them all."""
 def volume_inside_points (volume, n, seed=None, margin=0.0, tries=40):
     """`n` points INSIDE the volume - the fill, for debris, cargo, anything floating.
     
@@ -529,6 +547,14 @@ class Volume(object):
         
         An empty volume is all wall, reporting +inf rather than pretending everything
         is contained."""
+    def inside (self, pos, margin=0.0):
+        """Whether `pos` is inside by at least `margin` - the same question as
+        ``depth(pos) <= -margin``, answered without measuring how far.
+        
+        `depth` has to scan every primitive to find the nearest wall. A visibility walk
+        only ever asks "is this sample in the clear", and a sample is usually deep inside
+        one room - so the first primitive that swallows it settles the question. That
+        early-out is the difference between a rail web being solvable and not."""
     def named_primitives (self):
         """Every navigable primitive as `(name, prim)`.
         
@@ -562,7 +588,15 @@ class Volume(object):
         Breadth-first: passages have no meaningful cost yet, and with a dozen
         chambers a weighted search would be ceremony."""
     def primitives (self):
-        """Every NAVIGABLE primitive, uniformly tagged."""
+        """Every NAVIGABLE primitive, uniformly tagged.
+        
+        CACHED, and the cache is what makes the geometry affordable. This is called from
+        `nearest`, so it used to rebuild a fresh list on every containment test, every
+        depth sample and every step of every visibility walk - building a relic's rail web
+        is millions of those. Invalidated by each `add_*`, beside `_bound` and `_graph`.
+        
+        The list is shared, not copied: every caller in the library reads it. Do not
+        mutate what comes back."""
 class _Watcher(object):
     """class _Watcher"""
     def __init__ (self, volume, agents, scrape_band, margin, govern, clamp, hold, speed_limit, block_jump, engage='entered'):

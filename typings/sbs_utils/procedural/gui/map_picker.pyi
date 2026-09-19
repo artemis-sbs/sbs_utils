@@ -203,7 +203,7 @@ def gui_properties_set (p=None, tag=None):
     
     Example:
         gui_properties_set({"Speed": "gui_text(str(ship_speed))", "Shields": "gui_slider(shield_pct)"})"""
-def gui_property_list_box (name=None, tag=None, temp=<function _property_lb_item_template_one_line at 0x000002741D2A7A60>):
+def gui_property_list_box (name=None, tag=None, temp=<function _property_lb_item_template_one_line at 0x00000261778F3600>, hide_when_empty=False):
     """Create a property list box with single-line label/control layout.
     
     Each property is rendered as a label on the left and its control widget
@@ -218,6 +218,10 @@ def gui_property_list_box (name=None, tag=None, temp=<function _property_lb_item
             the list box widget. Defaults to ``"__PROPS_LB__"``.
         temp (callable, optional): Item template function used to render each
             row. Defaults to the built-in one-line template.
+        hide_when_empty (bool, optional): Hide the ROW the panel sits in while it
+            has no properties, so the rows below it take the space. Give the panel
+            a row of its own (``gui_row`` just before this call) - anything sharing
+            the row hides with it. Defaults to False.
     
     Returns:
         LayoutListBox: The list box widget.

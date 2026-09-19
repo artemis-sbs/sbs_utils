@@ -101,6 +101,11 @@ def _fire_app (client_id):
     guess is the same problem as inferring it from what you hit."""
 def _fire_badge ():
     ...
+def _fire_row (item, **kwargs):
+    """One reach target. Colored by whether the held tool can do anything with it.
+    
+    Returns None so the listbox sizes it - see `_choice_row` for why returning a size
+    kills selection."""
 def _home (client_id):
     """The tile sheet: what is happening, then the tools.
     
@@ -110,6 +115,8 @@ def _identity (client_id):
     ...
 def _in_a_suit (client_id):
     """NAV needs a suit to fly. On a grid interior there is nothing for it to do."""
+def _in_a_suit_with_tools (client_id):
+    ...
 def _job_style (job):
     ...
 def _last_from (item):
@@ -146,15 +153,34 @@ def _nav_gap (client_id, pos):
     beside every destination. "They all show 0 for the distance." A number that is wrong
     is worse than no number: it reads as a working readout saying you have arrived.
     (`helm_position` takes a tuple now, so this is belt and braces.)"""
+def _nav_mark (item):
+    """The prefix for one destination. Visited beats seen - arriving implies seeing.
+    
+    A nav row is ``(name, label, visited, seen)``; anything shorter is a caller that
+    predates the marks and draws a blank rather than raising."""
 def _nav_row (item, **kwargs):
     """One destination as a list row. Returns None, so the listbox sizes it - see
-    `_choice_row` for why returning a size kills selection."""
+    `_choice_row` for why returning a size kills selection.
+    
+    A RUIN IS A MAP YOU ARE DRAWING. Without a mark, every room reads the same whether
+    the crew cleared it an hour ago or have never been near it, and the only record of
+    where they had been was in their heads. Visited is dimmed: it is done, and the row
+    worth looking at is the one that is not."""
 def _nav_speed_row (client_id):
     """How hard to fly: three named speeds, as three buttons.
     
     NOT A SLIDER. The choice a boarder makes is "pick through this" or "get there", and a
     continuous control invites fiddling with a number whose units mean nothing to anybody
     on a bridge. The chosen one is marked rather than removed, so the row never moves."""
+def _nav_view_row (client_id):
+    """Orbit and dolly, as four presses and a way back.
+    
+    ON NAV RATHER THAN AN APP OF ITS OWN. Looking round is part of flying, not a settings
+    screen - and a tile costs a whole row of the device to say "the camera".
+    
+    The centre control is deliberately ONE button. "The camera is somewhere odd" is one
+    problem however it got there - a stray orbit, a dolly left in, or both - and a console
+    that has lost the view wants it back, not a menu."""
 def _older_count (item):
     ...
 def _pick_setting (client_id, setting):
@@ -190,6 +216,14 @@ def _tile (client_id, app):
 def _unread_from (item):
     """How many unread messages this caller has sent. "" when none - the convention the
     PADD's own badge providers follow."""
+def _work_app (client_id):
+    """What is in reach, and the two things a suit can do about it."""
+def _work_badge ():
+    """What is in reach, and how far - and it has to MOVE.
+    
+    `gui_xess_tick` only rebuilds when `xess_revision` changes, and the badge is the part
+    of that tuple a moving suit can shift. Without a number that changes, the whole screen
+    freezes the moment the suit starts flying."""
 def gui_xess (client_id=None):
     """Build the device: the identity bar, then the app area.
     
@@ -286,7 +320,20 @@ def xess_revision (client_id=None):
     A shared counter would mean one crew member opening an app repainting five other
     screens. Carries the armed state so the device redraws the moment the weapon goes
     live - that visibility is a safety feature, not decoration - and the badges, so a
-    tile that starts saying "2 new" is seen to say it."""
+    tile that starts saying "2 new" is seen to say it.
+    
+    BOTH BODIES' ARMED STATE. A boarder has a cell to stand in or a suit to fly, and each
+    holds its weapon somewhere different: the grid one in `boarding_armed` /
+    `boarding_setting`, the suit's verb in `eva_armed`. Only the grid pair was watched, so
+    pressing BEAM or TETHER in the suit's Fire app changed the state and moved nothing on
+    screen - the `> ` marker stayed where it was. It was not dead, it was SLOW: the only
+    other thing in this tuple a suit can shift is its badge, so the pick finally appeared
+    whenever the nearest target's name or distance bucket happened to change. Stationary
+    in front of one target, it never appeared at all.
+    
+    The running job needs nothing here - `_work_badge` already reports the countdown as
+    "%ds", which changes every second and repaints on its own. Adding the seconds would
+    force a rebuild every tick for a number the badge is already carrying."""
 def xess_set_focus (client_id, value):
     ...
 def xess_unregister (key):

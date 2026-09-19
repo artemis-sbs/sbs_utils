@@ -1,11 +1,17 @@
 def _clean (text):
     """2.8 message text -> plain text (``^`` is the line-break character)."""
+def _comms_buttons ():
+    ...
+def _comms_buttons_store (buttons):
+    ...
 def _cue_name (cue):
     """A cue slug -> the exact 2.8 label, via the registered callers.
     
     Falls back to title-casing the slug when a mission never registered a caster
     list. That fallback is LOSSY on purpose-built names ("gw_214" -> "Gw 214"), which
     is exactly why `comms_callers_load` exists and why the emitter writes it."""
+def _side_scope (side_value):
+    ...
 def big_message (title, subtitle1='', subtitle2='', to=None, time=8):
     """2.8 ``big_message`` -> a cinematic Hero chapter card on every player MAIN SCREEN.
     
@@ -44,6 +50,12 @@ def caller_face (from_name):
     
     Stable for the run, not across runs: it is a portrait for a name 2.8 never gave one
     to, so consistency within a session is what matters."""
+def clear_comms_button (text, side_value=0):
+    """2.8 ``clear_comms_button``: withdraw ``text``. ``side_value`` 0 (the default)
+    withdraws it from every side; N withdraws only side N's offer."""
+def comms_button_visible (text, origin=None):
+    """Is ``text`` currently offered to the console of ``origin`` (the player ship whose
+    comms is open, COMMS_ORIGIN_ID)? Used as the ``+ "text" if ...`` condition."""
 def comms_callers_load (section):
     """Register the callers: a record per 2.8 ``from`` label, key = its slug.
     
@@ -118,6 +130,9 @@ def incoming_message (from_name, filename, to=None):
     
     Simplified: 2.8 created a button; this plays the file directly. ``filename`` is
     resolved relative to the mission's media folder."""
+def set_comms_button (text, side_value=0):
+    """2.8 ``set_comms_button``: offer ``text`` on the comms consoles of ``side_value``
+    (0 = every side). Idempotent."""
 def set_gm_instructions (title, text=''):
     """2.8 ``gm_instructions`` -> the Cosmos GM console instruction panel.
     

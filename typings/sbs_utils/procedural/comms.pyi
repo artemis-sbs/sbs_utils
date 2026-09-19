@@ -20,6 +20,10 @@ def AWAIT (promise: sbs_utils.futures.Promise) -> sbs_utils.futures.PromiseWaite
     
     Returns:
         PromiseWaiter: A waiter that reports completion without blocking."""
+def _comms_annotate_title (origin_id, selected_id, title):
+    """Run the installed annotator, or return `title` untouched.
+    
+    Never raises: a decoration that throws must not cost the crew the comms panel."""
 def _comms_contact_name (obj, is_life_form):
     """The label for a contact.
     
@@ -31,6 +35,12 @@ def _comms_get_origin_id () -> int:
     ...
 def _comms_get_selected_id () -> int:
     ...
+def _comms_override_pair (origin_id, selected_id, path, path_must_match):
+    """One pair of :func:`comms_navigate_override`. A pair with no open interaction is
+    SKIPPED - this used to ``return``, which silently abandoned every remaining pair, so a
+    call covering several ships stopped at the first one without a menu open. And the
+    path is resolved per pair: it used to be reassigned in place, so the first pair's
+    current path became every later pair's path."""
 def _forget_comms_promise (origin_id, selected_id):
     """Evict a cached comms promise for an (origin, selected) pair.
     
@@ -195,6 +205,25 @@ def comms_info_face_override (face=None) -> None:
     
     Example:
         comms_info_face_override("crew/commander")"""
+def comms_map_filter_clear (ship_id):
+    """Remove the comms map filter from this ship: the map shows everything again."""
+def comms_map_filter_get (ship_id):
+    """The ids this ship's comms map is filtered to, or [] when it shows everything."""
+def comms_map_filter_set (ship_id, ids):
+    """Show only `ids` - and the ship itself - on this ship's comms map.
+    
+    Only ids the engine knows are written - live space objects. A lifeform, grid object,
+    fleet or dead id is dropped. The ship's own id is always in the list, so the crew
+    never loses their own ship from the map, and a lens that matches nothing still writes
+    a non-empty list (empty would mean "no filter"). Skips the write when the list has not
+    changed since the last one, since every write goes over the network.
+    
+    Args:
+        ship_id (Agent | int): The player ship whose comms map is filtered.
+        ids (iterable): Agent ids or objects to show.
+    
+    Returns:
+        list: The ids shown (the ship included), sorted."""
 def comms_message (msg, from_ids_or_obj, to_ids_or_obj, title=None, face=None, color=None, title_color=None, is_receive=True, from_name=None) -> None:
     """Send a comms message with explicit sender and receiver control.
     
@@ -208,8 +237,11 @@ def comms_message (msg, from_ids_or_obj, to_ids_or_obj, title=None, face=None, c
         from_ids_or_obj: Sender agent ID(s) or object(s).
         to_ids_or_obj: Receiver agent ID(s) or object(s). Pass ``None`` to
             send the message to the sender (internal communication).
-        title (str, optional): Title bar text. Defaults to the sender's
-            comms ID.
+        title (str, optional): Header text for the message. Defaults to
+            EMPTY - the sender's name is a field of its own now, so the title
+            carries only what the script wrote. It used to default to the
+            sender's comms ID, and a title given alongside it was packed on
+            behind it as "Lt Rios (TSN): Orders".
         face (str, optional): Face asset string for the sender portrait.
             Defaults to the face registered for the sender.
         color (str, optional): Body text color. Defaults to ``"#fff"``.
@@ -219,7 +251,8 @@ def comms_message (msg, from_ids_or_obj, to_ids_or_obj, title=None, face=None, c
             (tagged ``recv``); ``False`` = the player ship TRANSMITTED it
             (tagged ``send``). Defaults to ``True``.
         from_name (str, optional): Override the display name of the sender.
-            Defaults to None (uses the sender object's ``comms_id``).
+            Defaults to None (uses the sender object's ``comms_id``). Sent to
+            the console as its own ``name`` field, beside the title.
     
     Note:
         When BOTH ends are player ships a transmit reaches both bridges: the
@@ -310,8 +343,11 @@ def comms_receive (msg, title=None, face=None, color=None, title_color=None) -> 
     
     Args:
         msg (str): The message body text. Supports ``{var}`` interpolation.
-        title (str, optional): Title bar text. Defaults to the sender's
-            comms ID.
+        title (str, optional): Header text for the message. Defaults to
+            EMPTY - the sender's name is a field of its own now, so the title
+            carries only what the script wrote. It used to default to the
+            sender's comms ID, and a title given alongside it was packed on
+            behind it as "Lt Rios (TSN): Orders".
         face (str, optional): Face asset string for the portrait. Defaults to
             the face registered for the sender.
         color (str, optional): Body text color. Defaults to ``"#fff"``.
@@ -342,6 +378,37 @@ def comms_receive_internal (msg, ids_or_obj=None, from_name=None, title=None, fa
     
     Example:
         comms_receive_internal("Power restored.", from_name="Engineering")"""
+def comms_refresh_open (ids_or_obj=None) -> int:
+    """Re-run the comms routes for every OPEN comms menu, so buttons whose conditions
+    changed appear or disappear now instead of on the next selection.
+    
+    For state that changes outside any particular pair - a story flag that shows or hides
+    a button everywhere - where :func:`comms_navigate_override` would need every
+    origin x selected pair spelled out. Stays on the current path.
+    
+    Args:
+        ids_or_obj: only menus opened by these origins (player ships). None = all.
+    
+    Returns:
+        int: how many open menus were refreshed."""
+def comms_selection_annotator (fn):
+    """Add something to the comms selection title.
+    
+    ``fn(origin_id, selected_id, title) -> title``. The comms panel already shows who you
+    have selected; this lets an addon say something about them that the crew would
+    otherwise have to hail to discover - "DS 1 - 2 jobs", say.
+    
+    Two rules the annotator must obey, both the engine's:
+    
+    * **ASCII, and no ``:`` or ``;``.** A selection title is a style-property string to
+      the engine, so those two characters are PARSED rather than drawn - the same reason
+      ``hail_answer_label`` refuses them.
+    * **Keep it short, and truncate your own suffix rather than the name.** The name is
+      how the crew know who they clicked on.
+    
+    Pass None to remove it."""
+def comms_selection_annotator_clear ():
+    """Drop the annotator (called by reset_mission_state)."""
 def comms_set_2dview_focus (client_id, focus_id=0, EVENT=None):
     """Set the 2D radar view to follow an alternate ship for a comms client.
     
@@ -413,8 +480,11 @@ def comms_transmit (msg, title=None, face=None, color=None, title_color=None) ->
     
     Args:
         msg (str): The message body text. Supports ``{var}`` interpolation.
-        title (str, optional): Title bar text. Defaults to the sender's
-            comms ID.
+        title (str, optional): Header text for the message. Defaults to
+            EMPTY - the sender's name is a field of its own now, so the title
+            carries only what the script wrote. It used to default to the
+            sender's comms ID, and a title given alongside it was packed on
+            behind it as "Lt Rios (TSN): Orders".
         face (str, optional): Face asset string for the portrait. Defaults to
             the face registered for the sender.
         color (str, optional): Body text color. Defaults to ``"#fff"``.

@@ -1,10 +1,18 @@
 from sbs_utils.agent import Agent
 class LifetimeDispatcher(object):
     """class LifetimeDispatcher"""
+    def _replay_library ():
+        ...
     def add_destroy (cb: callable):
         ...
     def add_dock (cb: callable):
         ...
+    def add_library (method, *args):
+        """Register a LIBRARY handler that must survive `clear()`.
+        
+        Args:
+            method (str): The name of this class's `add_*` method to call.
+            *args: Its arguments."""
     def add_lifecycle (lifecycle, cb: callable):
         ...
     def add_spawn (cb: callable):
@@ -12,7 +20,9 @@ class LifetimeDispatcher(object):
     def add_spawn_grid (cb: callable):
         ...
     def clear ():
-        """Drop all registered lifetime routes (fresh mission / in-process recompile)."""
+        """Drop all registered lifetime routes (fresh mission / in-process recompile).
+        
+        The library's own handlers (`add_library`) are put back."""
     def dispatch_damage (damage_event):
         ...
     def dispatch_dock (damage_event):

@@ -13,6 +13,17 @@ def _cond_quest (actor_id, operand):
     Any holder, not the actor's own: the diplomat's urge watches the delivery quest the
     PLAYER accepted, while a station's urge watches one it holds itself. Making the
     author say which would be a distinction with no payoff - a quest id is unique."""
+def _cond_taught (actor_id, operand):
+    """`taught <lesson>` - the crew have used this affordance at least once.
+    
+    NOT expressible as `has role`: that is evaluated against the ACTOR
+    (``has_role(actor_id, operand)``), so it can say what the speaker is, never what the
+    crew know. Every mission would otherwise invent its own bearer agent to hang the
+    flag on, and each one differently.
+    
+    Reads best negated, which is the whole point - `Whenever: not taught ultra_beam`
+    says "keep mentioning this until they try it", and `Until: taught hail_storm` retires
+    the character permanently once they have."""
 def _install_conditions ():
     ...
 def _norm (text):
@@ -173,6 +184,15 @@ def urge_speak (actor_id, line, title=None):
     caught and logged against the actor."""
 def urge_stage (state):
     """Which stage this urge should speak at (1-based), clamped to what was authored."""
+def urge_taught (lesson):
+    """Have they."""
+def urge_taught_all ():
+    """Every lesson learned so far, sorted. For tests and the reset audit."""
+def urge_teach_note (lesson):
+    """Record that the crew have shown they know this. Stamped at the moment of USE -
+    the route they opened, the order they gave - never when something merely told them."""
+def urge_teach_reset ():
+    """Drop the lesson ledger (called by urge_reset)."""
 def urge_ticks_stale ():
     """True if we think the tick task is scheduled but the dispatcher has lost it."""
 def urges_run_all (tick_task=None, pass_seconds=None):

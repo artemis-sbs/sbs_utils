@@ -617,6 +617,22 @@ class RouteDockHangar(RouteLifetime):
         ```"""
     def __init__ (self, method):
         """Initialize self.  See help(type(self)) for accurate signature."""
+class RouteDragComms(object):
+    """decorator for routing to a python function or python class method
+    
+    Note:
+        The route is expected to be a label
+    
+    ??? Example
+        ``` py
+        @RouteDragComms
+        @label
+        def handle_comms_drag():
+            ....
+            yield PollResults.OK_YIELD
+        ```"""
+    def __init__ (self, method):
+        """Initialize self.  See help(type(self)) for accurate signature."""
 class RouteGridFocus(RouteConsole):
     """decorator for routing to a python function or python class method
     
@@ -692,22 +708,6 @@ class RouteGridSpawn(RouteLifetime):
         @RouteGridSpawn
         @label
         def handle_grid_spawn():
-            ....
-            yield PollResults.OK_YIELD
-        ```"""
-    def __init__ (self, method):
-        """Initialize self.  See help(type(self)) for accurate signature."""
-class RouteDragComms(object):
-    """decorator for routing to a python function or python class method
-    
-    Note:
-        The route is expected to be a label
-    
-    ??? Example
-        ``` py
-        @RouteDragComms
-        @label
-        def handle_comms_drag():
             ....
             yield PollResults.OK_YIELD
         ```"""

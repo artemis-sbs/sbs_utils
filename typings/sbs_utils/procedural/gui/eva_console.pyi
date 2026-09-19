@@ -13,8 +13,9 @@ def eva_camera_mode (mode=None):
     """Read, or set, the camera every EVA console rides.
     
     Args:
-        mode (str, optional): `chase`, `first_person`, `tracking` or `cinematic`. Omit to
-            read the current one.
+        mode (str, optional): `third` (ours - see `eva_camera.py`), or one of the engine's
+            own: `chase`, `first_person`, `tracking`, `cinematic`. Omit to read the
+            current one.
     
     Returns:
         str: the mode in force."""
@@ -28,7 +29,12 @@ def eva_console_revision (client_id=None):
     folds in every app's badge, and NAV's badge carries the distance left to run. Without
     that the screen would freeze the moment a destination was picked and never show the
     suit arriving."""
-def gui_eva_console (client_id=None, map_width=66, suit=None):
+def eva_radar_area (map_width=None):
+    """The corner radar's absolute area, tucked into the view's bottom-right.
+    
+    Measured off the SAME map width the 3D view uses, so the two cannot drift apart when
+    a console is built at a different width."""
+def gui_eva_console (client_id=None, map_width=66, suit=None, radar=True):
     """Build the EVA console: the relic on the left, the xESS on the right.
     
     Args:
@@ -36,6 +42,7 @@ def gui_eva_console (client_id=None, map_width=66, suit=None):
         map_width (int, optional): how much of the screen the view takes, in percent.
         suit (optional): the ship to ride. Defaults to the one this console was given by
             :func:`eva_take`.
+        radar (bool, optional): draw the corner 2D view over the 3D one. Defaults True.
     
     Returns:
         dict: the held widgets, also stored on the page for :func:`gui_eva_console_tick`."""

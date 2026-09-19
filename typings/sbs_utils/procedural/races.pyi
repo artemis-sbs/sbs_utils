@@ -15,7 +15,7 @@ def _is_station (entry):
     which shows up as "most of the faction converted and a few ships are still stock"."""
 def _norm (value):
     """A race key, lowercased and stripped. Empty string for nothing."""
-def amd_parse_facts (text, handler=None, default=<function amd_num at 0x000002741D0E0540>, archetype=None, errors=None):
+def amd_parse_facts (text, handler=None, default=<function amd_num at 0x0000026177D728E0>, archetype=None, errors=None):
     """Parse one fact-sheet fence into a dict.
     
     Per label, in order: the caller's `handler` gets first refusal (returns truthy to

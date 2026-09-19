@@ -1,4 +1,5 @@
 from sbs_utils.agent import Agent
+from sbs_utils.helpers import FrameContext
 from sbs_utils.procedural.quest import QuestState
 def _active_quests (agent_id):
     """(quest_id, data) for each ACTIVE quest on the agent, INCLUDING nested arc steps
@@ -134,6 +135,22 @@ def _quest_noun (data):
     arc. "Mission" is reserved for a quest that ends the game (`end_win`/`end_lose`),
     where it is simply true; everything else is a Quest, which is the word on the tab
     the player clicks to find it."""
+def _quest_offer_other_rows (client_id, ship_id, console):
+    """Offers that are not quests yet, as quest-log rows grouped under their source."""
+def _quest_offer_row (item):
+    """The quest row behind a list item, or None if it is not a quest.
+    
+    A parent job with visible steps is emitted as a collapsible HEADER carrying the
+    quest's own row data (_quest_log_rows), so unwrapping `.data` is what keeps a
+    multi-step job on the board. The Quests tab does not do this - it treats every
+    header as a non-quest - but that is a limitation of its Accept button, not a
+    visibility rule, and an offer is only ever read."""
+def _quest_offer_take (client_id, record):
+    """Accept a quest offer: mark it ACTIVE, exactly as the Quests tab's Accept did.
+    
+    Only from IDLE - a job somebody else accepted a moment ago, or one that has since
+    failed, is left alone rather than restarted. `client_id` is the taker's console; the
+    quest belongs to its own agent, which the record carries."""
 def _quest_outcome (verb, apply_fn):
     """Build a dialogue outcome handler for `<verb> <quest_id>`.
     
@@ -161,6 +178,9 @@ def _quest_scan_reveals (scanner_id, scanned_id):
     reveal-text strings (usually one)."""
 def _quest_sig_walk (children, aid, parts):
     ...
+def _quest_sources (client_id, ship_id):
+    """The three sections every quest screen lists: the game, this client, and this
+    console's own holder (its ship, or what quest_holder_set named)."""
 def _quest_speaker (qid, data):
     """Who speaks for this quest, in order of how much the author asked for it.
     
@@ -174,6 +194,11 @@ def _quest_speaker (qid, data):
 def _quest_swap_in_armed (agent_id, quest_id, data):
     """The start trigger fired: arm the real one instead of completing. True when this
     was a start (so the caller must not complete, reward or announce)."""
+def _quest_tab_taken_only (items):
+    """Drop untaken quests, and any section header left with nothing under it.
+    
+    A header carries its quest's row in `.data` (a job with visible steps); a SECTION
+    header ({"section": ...}) has no state and is kept only while a row follows it."""
 def _quest_tree_parent (quest_id):
     """The parent path of a nested quest key (`arc/step` -> `arc`); None for a top-level key."""
 def _scale_goal_counts (data, scale):
@@ -303,6 +328,14 @@ def has_role (so, role):
     
     Returns:
         bool: ``True`` if the agent has the role."""
+def is_client_id (id):
+    """Return whether an ID belongs to a client (player console) agent.
+    
+    Args:
+        id (Agent | int): Agent ID or object.
+    
+    Returns:
+        bool: ``True`` if the client-console bit (0x8000…) is set."""
 def is_hostile_to_players (target, scope_role=None) -> bool:
     """Return whether ``target`` is a hostile combatant to at least one player side.
     
@@ -408,6 +441,30 @@ def quest_any_holder_state (qid, state):
     actor per urge on every pass, and it grows with the holder set - Open Universe
     makes every station with a waiting passenger a quest holder, so the scan grows
     with the number of populated systems."""
+def quest_credit_ids (agent_id):
+    """The agent that earned something, PLUS anyone crewing it.
+    
+    A quest held by a CLIENT is the "You" section of the quest log - a job belonging to the
+    person rather than to the hull they happen to be sitting in. Every event, though, is
+    credited to the SHIP: `quest_on_kill` is handed `DAMAGE_SOURCE_ID`, `quest_on_scan` the
+    scanning ship, `quest_on_dock` the docking one. So a client-held quest counting kills,
+    scans, docks or pickups never advanced at all - it sat at 0 of N forever, with nothing
+    logged, because nothing ever looked at the client.
+    
+    `on_signal`, `on_reach` and `on_arrive` were always fine: they walk `_quest_holders()`,
+    which is every agent with a tree. This closes the other four.
+    
+    IT IS NOT DOUBLE COUNTING. A quest on the ship and a quest on the client are different
+    trees. A crew of six each holding their own copy of a job each get credit for what the
+    ship did, which is what "your job" means when six people share a hull. SHARED is
+    handled separately by each caller and is deliberately not in here.
+    
+    AND IT FOLLOWS THE PERSON. The link is read at the MOMENT of the event, so a pilot who
+    swaps ships mid-job keeps counting: kills made from the second hull credit the same
+    client as kills from the first.
+    
+    Returns the agent alone when nothing crews it, so a ship-held or SHARED-held quest
+    behaves exactly as before."""
 def quest_credit_signal (agent_id, name):
     """Owner-scoped on_signal advance: like quest_on_signal but for ONE agent only, so a
     shared/contested quest target can credit the ship that completed it (peacetime
@@ -535,10 +592,29 @@ def quest_grant_penalty (agent_id, penalty):
     """Apply a quest penalty (mirror of quest_grant_reward): deduct credits from
     the agent's side, remove items from the agent, and apply any reputation block
     (player/SHARED holders only). Credits and items never go below zero; reputation
-    applies as authored, so a penalty's ``earns`` carries its own sign."""
+    applies as authored, so a penalty's ``earns`` carries its own sign.
+    
+    Mirrors the reward in WHO PAYS too: a client-held quest is charged through its ship
+    (``quest_payee``). Without that a job taken by the person and failed cost nothing at
+    all, which would make a client-held job strictly safer than the same job on a hull."""
 def quest_grant_reward (agent_id, reward):
     """Grant a quest reward: credits to the agent's side, items to the agent, and
-    reputation to the agent (player/SHARED holders only - see ``_quest_rep_holder``)."""
+    reputation to the agent (player/SHARED holders only - see ``_quest_rep_holder``).
+    
+    A client-held quest is paid through its ship - see ``quest_payee``."""
+def quest_holder_clear (client_id):
+    """Go back to the console's ship as its quest holder."""
+def quest_holder_for_client (client_id, ship_id=None):
+    """`(label, agent_id)` for a console's own quest holder: the override set by
+    quest_holder_set, else ("Ship", `ship_id`)."""
+def quest_holder_set (client_id, agent_id, label='Ship'):
+    """Make the quest screens use `agent_id` (under `label`) as this console's own holder,
+    in place of the ship it is assigned to.
+    
+    For a console whose ship is not its own: on the flight deck a pilot's console is
+    assigned to the CARRIER, so the Quests screens listed the carrier's patrol quests. The
+    hangar points it at the side's Flight Wing instead. Cleared by quest_holder_clear
+    (a console select does this), after which the ship is used again."""
 def quest_holders_of (quest_id, prefer=None):
     """Every agent holding `quest_id`, most-specific first.
     
@@ -571,6 +647,27 @@ def quest_mark_complete (agent_id, quest_id):
 def quest_mark_failed (agent_id, quest_id):
     """Fail an active quest (idempotent): set state, apply penalty, announce, then
     fire the lose (if end_lose) and bubble up to the parent mission."""
+def quest_offer_provider (ctx):
+    """The `quest` offer provider. Registered core by procedural.offer."""
+def quest_offer_rows (client_id, ship_id):
+    """IDLE and POSTING quests across the three sources the Quests tab shows.
+    
+    POSTING rows come back with `pending=True`: they are listed so the crew can see the
+    work exists, but they are never counted, because something else has to offer them
+    (that is what POSTING means - a board you take by answering a call)."""
+def quest_offers_tab_items (client_id, ship_id, console=None):
+    """The Offers tab: the SAME quest-log screen as the Quests tab, listing what could be
+    taken instead of what has been.
+    
+    Two kinds of row, one shape. Untaken jobs (IDLE / POSTING) are the quest log's own
+    rows, so the template, the description pane and the Accept gate treat them exactly as
+    the Quests tab always did. Work that is NOT a quest yet - a hangar sortie, an Open
+    Universe station job - is turned into a row of the same shape carrying its offer
+    record under `offer`, grouped by who is offering it. A job's STEPS are not listed: the
+    job is what gets accepted, and its steps are its sequencer's to reveal."""
+def quest_offers_tab_sig (client_id, ship_id, offers=True):
+    """What the shared quest screen repaints on. Always any quest changing; on the Offers
+    tab also any offer provider saying its answer moved (offer_touch)."""
 def quest_on_arrive (i, j):
     """Complete on_reach(sector) quests for every player arriving at (i,j).
     
@@ -617,6 +714,26 @@ def quest_on_tow (ship_id, towed_id):
     the HAULER (and SHARED) - the ship that did the work, not whatever it was dragging."""
 def quest_owner (target):
     """The ship id that has claimed this quest target (0 = unclaimed)."""
+def quest_payee (agent_id):
+    """Who a quest's reward is actually PAID to: a console is paid through its ship.
+    
+    A quest can be held by a CLIENT - that is the "You" section of the quest log, a job
+    belonging to the person rather than to the hull. A reward, though, has to land where
+    the game READS it, and every consumer reads a ship:
+    
+    - credits go to a SIDE, and a console has no ``.side`` at all;
+    - reputation is read per ship - ``fleet.truced_ships`` walks ``role("__player__")``
+      and OU's dialogue guards ask the comms origin - and ``_quest_rep_holder`` answers
+      False for a console, so the line was dropped;
+    - items are cargo, and OU's ``carrying`` guard reads the ship's inventory.
+    
+    So a client-held quest paid nothing but items nobody could see. Paying the console's
+    ship is not a compromise - it is the only place the payment means anything.
+    
+    This is the OPPOSITE direction to ``quest_credit_ids``: that spreads an event from a
+    ship out to its crew, this collects a crew member's payment back to the ship they are
+    flying. Anything that is not a console is paid as itself, so ship-held and SHARED-held
+    rewards are untouched."""
 def quest_reeval_mission (agent_id, parent_qid):
     """Re-evaluate a mission (parent) quest from its children's states.
     
@@ -691,8 +808,9 @@ def quest_tab_abandon (item):
     and an `end_lose` quest could be neutralised by abandoning it.
     
     A deliberate drop and a timed-out drop now mean the same thing."""
-def quest_tab_accept (item):
-    """Accept an available (IDLE) quest. No-op on a section header."""
+def quest_tab_accept (item, client_id=None):
+    """Accept an available (IDLE) quest - or, on the Offers tab, take an offer that is not
+    a quest yet (a sortie). No-op on a section header."""
 def quest_tab_controls_gate (console, item, accept_consoles, engage_enabled, engage_consoles):
     """Resolve which Quests-tab action controls THIS console shows for the selected quest.
     
@@ -712,7 +830,13 @@ def quest_tab_controls_gate (console, item, accept_consoles, engage_enabled, eng
                      controls correctly)"""
 def quest_tab_items (client_id, ship_id):
     """Collapsible quest-log items for THIS console: the game (SHARED), the client,
-    and its ship. Rows carry their owning agent (for accept/abandon)."""
+    and its ship. Rows carry their owning agent (for abandon / engage).
+    
+    WORK IN HAND ONLY. An untaken job (IDLE, or POSTING) is on the Offers board, which is
+    where it is read and accepted; listing it here as well made two places answer "what
+    could we pick up?". Filtered HERE rather than in quest_log_build_items, which the
+    Offers provider, the game-results log and the viewscreen also read - hiding it there
+    would empty the board."""
 def quest_tab_state_sig (client_id, ship_id):
     """A lightweight signature of the quest log shown on this console - every quest's
     (agent, key, state) across the same sources as quest_tab_items (including SECRET, so a

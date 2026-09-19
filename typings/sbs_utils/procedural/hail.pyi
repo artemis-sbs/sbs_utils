@@ -22,6 +22,8 @@ def _hail_bump_seq (ship_id):
 def _hail_choices_from (choices):
     """Normalize a `choices=` argument. Accepts labels, `(label, target)` pairs, or
     dicts - so a MAST-driven hail needs no AMD document to offer an answer."""
+def _hail_echo (ship_id, rec, declined):
+    """File the closing line. Never raises - an echo must not cost a hail its close."""
 def _hail_emit (ship_id, state, record=None, client_id=None, beat=None, choice=None):
     """One signal for every transition, so a listener is a single route rather than one
     per verb - the shape `viewscreen` already uses.
@@ -325,6 +327,23 @@ def hail_defer (ship, client_id=None, seq=None):
     
     Returns:
         bool: whether a conversation was put back."""
+def hail_echo_enable (on=True, declined=True):
+    """File a durable line when a conversation ends.
+    
+    Args:
+        on (bool): whether to echo at all.
+        declined (bool): echo a hail the crew never picked up. ON by default, and it is
+            the more important case - an answered hail at least left a conversation
+            behind, while an unanswered one otherwise vanishes without trace."""
+def hail_echo_reset ():
+    """Back to the shipped default (called by reset_mission_state)."""
+def hail_echo_settings ():
+    """``(on, declined)`` - what the echo is currently set to."""
+def hail_echo_text (record, declined=False):
+    """The line the echo files. ASCII, and no ``:`` or ``;``.
+    
+    Reuses hail_answer_label for the who-and-what-about half rather than writing a
+    second summarizer that would drift from the strip's wording."""
 def hail_form (ship, client_id=None):
     """How the open hail should be drawn, or None.
     

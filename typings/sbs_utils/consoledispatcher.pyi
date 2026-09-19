@@ -22,6 +22,8 @@ def set_inventory_value (so, key: str, value):
         value (any): The value to store."""
 class ConsoleDispatcher(object):
     """class ConsoleDispatcher"""
+    def _replay_library ():
+        ...
     def add_always_select (console: str, cb: callable):
         """add a target for console selection
         :param console: The consoles unique ID
@@ -41,6 +43,12 @@ class ConsoleDispatcher(object):
         :type console: string
         :param cb: call back function
         :type cb:  should have arguments of other ctx and object's id"""
+    def add_library (method, *args):
+        """Register a LIBRARY handler that must survive `clear()`.
+        
+        Args:
+            method (str): The name of this class's `add_*` method to call.
+            *args: Its arguments."""
     def add_message (an_id: int, console: str, cb: callable):
         """add a target for console message
         
@@ -78,7 +86,9 @@ class ConsoleDispatcher(object):
         :param cb: call back function
         :type cb:  should have arguments of other ctx and object's id"""
     def clear ():
-        """Drop all registered console routes (fresh mission / in-process recompile)."""
+        """Drop all registered console routes (fresh mission / in-process recompile).
+        
+        The library's own handlers (`add_library`) are put back."""
     def convert (event):
         ...
     def convert_to_console_id (event):

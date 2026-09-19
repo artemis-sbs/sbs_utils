@@ -359,9 +359,9 @@ def extra_loaded ():
 def extra_replay ():
     """Tell the engine again about every extra ship data file it has been given.
     
-    `create_new_sim()` REBUILDS the engine's ship data table - it reads the mission's
-    `extraShipData.json` inside that call - and everything `add_extra_ship_data` registered
-    beforehand is gone. Nothing reports it. The library keeps its own merged copy, so the
+    `create_new_sim()` REBUILDS the engine's ship data table (engine 1.3.4 also re-reads the
+    mission's `extraShipData.json` inside that call; later engines appear not to), and
+    everything `add_extra_ship_data` registered beforehand is gone. Nothing reports it. The library keeps its own merged copy, so the
     ships still have stats everywhere sbs_utils can see, and the loss surfaces later as
     `MemoryError: bad allocation` from a spawn, against whichever mission line asked for
     one of those hulls.

@@ -7,11 +7,11 @@ from sbs_utils.consoledispatcher import ConsoleDispatcher
 from sbs_utils.helpers import Context
 from sbs_utils.helpers import FrameContext
 from sbs_utils.delete_queue import DeleteQueue
+from sbs_utils.dragdispatcher import DragDispatcher
 from sbs_utils.garbagecollector import GarbageCollector
 from sbs_utils.griddispatcher import GridDispatcher
 from sbs_utils.gui import Gui
 from sbs_utils.gui import Page
-from sbs_utils.dragdispatcher import DragDispatcher
 from sbs_utils.launchdispatcher import LaunchDispatcher
 from sbs_utils.lifetimedispatcher import LifetimeDispatcher
 from sbs_utils.mast.mastscheduler import MastAsyncTask
@@ -19,6 +19,8 @@ from sbs_utils.tickdispatcher import TickDispatcher
 from sbs_utils.vec import Vec3
 def _await_gui_sites ():
     ...
+def _boarded_back_tabs ():
+    """Every installed substitution, as ``{kind: tab}``. For tools and the reset ledger."""
 def _boarding_figure_count ():
     """Reset-ledger probe: bodies still standing on one."""
 def _boarding_fire_count ():
@@ -59,10 +61,15 @@ def _epadd_apps_count ():
     """Reset-ledger probe. `Agent.SHARED` is rebuilt by `clear_shared()` on every
     mission reset, so this should always report 0 after one - it is registered so that
     a future move off SHARED cannot go unnoticed."""
+def _eva_camera_watching ():
+    """Reset-ledger probe. Must NOT create anything by asking."""
 def _eva_route_count ():
     """Reset-ledger probe: consoles still flying a route."""
 def _eva_suit_count ():
     """Reset-ledger probe: suits still in the world."""
+def _eva_tools_working ():
+    """Reset-ledger probe: how many consoles have a job running. Must NOT create anything
+    by asking."""
 def _face_mod_size ():
     """Reset-ledger probe: how much mod registration is currently held."""
 def _log_size ():
@@ -73,6 +80,11 @@ def _messages_count ():
     """Reset-ledger probe."""
 def _messages_pending ():
     """Reset-ledger probe for the undelivered pile."""
+def _offer_mission_providers ():
+    """The providers a MISSION registered - everything that is not core.
+    
+    This is what the restart-reset audit probes: ``offer_clear()`` reinstalls the core
+    ones, so a non-zero count here after a reset means an addon leaked into the next run."""
 def _particle_count ():
     """How many attached emitters are live. Ledger probe."""
 def _phase (store, name, fn, *args):
@@ -90,6 +102,8 @@ def _probe_ship_data_extra ():
     
     An unregistered per-mission container is invisible to the soak audit, and
     the whole point of the ledger is that nothing gets to be invisible."""
+def _rail_count ():
+    """Reset-ledger probe. Must NOT create anything by asking."""
 def _relic_contents_count ():
     """How many content records are armed. The reset-ledger probe - an armed record that
     survives a mission reset would place loot in the NEXT mission."""

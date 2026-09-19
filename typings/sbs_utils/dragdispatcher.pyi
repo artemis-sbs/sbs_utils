@@ -4,6 +4,8 @@ class DragDispatcher(object):
     The engine sends one event per console that supports dragging, e.g.
     ``comms_drag_event``: origin = the dragged object, selected = the drop
     target, parent = the player ship of the console."""
+    def _handlers (console):
+        ...
     def add_comms (cb: callable):
         ...
     def add_drag (console, cb: callable):

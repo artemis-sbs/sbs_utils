@@ -8,6 +8,50 @@ def _client (client_id=None):
     ...
 def _dist (a, b):
     ...
+def _eva_drift (suit, here, aim, volume, room):
+    """Nudge the aim to one side, the same way for this suit every tick.
+    
+    No RNG object and no state: the offset is a pure function of the suit's id, so it
+    cannot drift between ticks, does not need seeding, and has nothing to reset. Two
+    suits get different angles; one suit gets the same angle for the whole trip."""
+def _eva_frame (d):
+    """Two unit axes perpendicular to `d`, or None if `d` is too short to have a
+    direction. The helper axis is swapped near vertical, or a shaft gets a degenerate
+    frame and the whole drift collapses onto one line."""
+def _eva_leg_clearance (volume, a, b, samples=7):
+    """The tightest clearance along one leg, or None when it cannot be measured.
+    
+    MEASURED ONCE PER LEG, never per tick. The rail web exists precisely so that flying
+    does no geometry, so this is called when a waypoint is reached and the answer is kept
+    in inventory until the next one."""
+def _eva_places (key, role_name, rail_nodes, relic_rails_ensure, relic_points, relic_point_display, client_id):
+    """``[(name, pos, display)]`` - the relic's destinations, from its rail web.
+    
+    THE WEB, NOT THE AUTHORED POINT LIST, and the difference is the whole of "access to
+    other things": a cache placed by a `Starts when:` trigger joins the web when it
+    appears (`rail_attach`), so it becomes somewhere the crew can be SENT rather than
+    something they have to happen to fly past. `Hidden:` places are left out until they
+    are found, and derived waypoints - the stations through a hall, a doorway, the way
+    round a pillar - are never offered: they are how you get somewhere, not somewhere to
+    go.
+    
+    Falls back to the authored points when there is no web, which is a relic built in code
+    with no volume yet rather than a failure."""
+def _eva_room (client_id, ceiling, fraction):
+    """A ceiling scaled down to what the CURRENT leg can actually afford.
+    
+    Falls back to the ceiling when the leg was never measured - a route flown before a
+    web existed, or a relic built in code - so this can never make an unmeasured flight
+    worse than it was."""
+def _eva_rope (here, aim, leg_start, rope=140.0):
+    """Pull the aim back toward the leg the suit is supposed to be flying.
+    
+    A rail leg is KNOWN clear, so it is a far stronger guarantee than "inside the volume
+    somewhere" and much cheaper to test. Beyond `RAIL_ROPE` from it, the aim blends toward
+    the nearest point ON the leg, so a suit that got knocked wide comes back to the rail
+    before it tries to take the next corner from where it ended up."""
+def _eva_set_leg (client_id, start, goal, volume):
+    """Record the leg being flown AND how much room it has."""
 def _pos (thing):
     """An (x, y, z) tuple from an object, an id, a Vec3, or an (x, y, z) already.
     
@@ -20,6 +64,13 @@ def eva_clear (relic_key=None):
     The LIFEFORMS belong to `boarding.py` and are left alone; this owns only the suits."""
 def eva_dest (client_id):
     """The point name this console is flying to, or None."""
+def eva_drivers ():
+    """Every console that has ever been handed a suit.
+    
+    The camera's pass walks this rather than `eva_flying`: a console holding station still
+    has a camera, and one that stopped mid-relic is exactly when somebody wants to look
+    round. Kept on SHARED rather than at module level so the same machinery clears and
+    audits it."""
 def eva_entry (relic_key=None, offer=None):
     """Where a suit materialises, as (x, y, z).
     
@@ -28,15 +79,17 @@ def eva_entry (relic_key=None, offer=None):
     volume; else the relic's own origin. Every step is somewhere a suit can legitimately
     be, so this never hands back a spot inside the rock."""
 def eva_flying ():
-    """Every console with a route running. What the tick walks."""
+    """Every console with a route running. What the autopilot walks."""
 def eva_goto (client_id, point_name, _replan=False):
-    """Fly this console's suit to a named point in its relic.
+    """Fly this console's suit to a named place in its relic.
     
-    Plans on the relic's chamber graph, then keeps the destination as the last waypoint so
-    the route ends at the PLACE rather than at the middle of the room holding it.
+    Walks the relic's rail web, which was solved once when the ruin was built, and ends at
+    the PLACE rather than at the middle of the room holding it.
     
     Returns:
-        bool: False is ordinary - no suit, or a name this relic does not have."""
+        bool: False is ordinary - no suit, a name this relic does not have, somewhere the
+        suit already is, or a way that is currently barred. `eva_no_way` is what the
+        screen shows for the last of those."""
 def eva_lifeform_of (suit):
     """Who is inside a suit, or None."""
 def eva_my_home (client_id):
@@ -78,6 +131,11 @@ def eva_offered ():
 def eva_points (client_id, role_name=None, revealed_only=False):
     """The places this console may fly to: ``[(name, display, (x, y, z)), ...]``.
     
+    A THREE-TUPLE, and it stays one. Callers DESTRUCTURE this - `for name, label, pos in
+    places` - so growing it is not the additive change it looks like; appending two flags
+    here broke the Nav app and five tests at once. Where the crew has BEEN is asked for
+    separately, with `eva_visited` and `eva_seen`.
+    
     Sorted by distance, nearest first - the list is a menu of somewhere to go next, and
     the next place is nearly always a near one.
     
@@ -114,6 +172,11 @@ def eva_route (client_id):
     ``(None, 0, 0.0)`` when holding station."""
 def eva_route_count ():
     """Reset-ledger probe: consoles still flying a route."""
+def eva_seen (client_id, name, relic_key=None):
+    """Has this place's marker lit - the crew came near it, without necessarily entering.
+    
+    Only true for a point that HAS a marker: `relic_point_revealed` answers True for one
+    that does not, which would make every place in an unarmed relic read as seen."""
 def eva_set_suit_hull (hull):
     """Draw suits as this ship-data key from now on."""
 def eva_speed (client_id, name=None):
@@ -174,6 +237,12 @@ def eva_tick (t=None):
     `docking_run_all` and `volume_containment_tick` already use."""
 def eva_unwatch ():
     """Stop the autopilot tick."""
+def eva_visit_note (client_id, name, relic_key=None):
+    """Record that this console's suit has actually been to a place."""
+def eva_visited (client_id, name, relic_key=None):
+    """Has this console's suit been to this place."""
+def eva_visited_names (client_id, relic_key=None):
+    """Everywhere this console has been in a relic, in the order it got there."""
 def eva_watch (seconds=0.2):
     """Start the autopilot tick. Idempotent - asking twice watches once."""
 def eva_where (client_id):

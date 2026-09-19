@@ -74,7 +74,14 @@ def player_roster_adopt ():
     The record is read OFF the ship: this describes what the mission already made, it
     does not decide anything. Nothing on the ship is written except the slot marker.
     
-    Idempotent - a ship already holding a slot is skipped - so this is safe to call on
+    A ship the mission made with ``player_ensure`` ALREADY holds a slot but, unless the
+    mission also seeded, has no record for it. That ship is adopted at its OWN slot rather
+    than skipped: skipping it is how every arme2cosmos conversion (``a2x_create_player(...,
+    slot=N)``) ended up with eight live ships and an empty picker. Slots are the record
+    index, so a gap below a stamped slot is padded with an inactive placeholder record,
+    and the next un-slotted ship takes the first placeholder before appending.
+    
+    Idempotent - a slot that already has a record is skipped - so this is safe to call on
     every roster build, and safe beside a seeded roster (adopted slots land after it).
     
     Returns:
@@ -183,6 +190,15 @@ def player_roster_seed (roster=None):
     
     Returns:
         list: the records."""
+def player_roster_set_active (slot, active):
+    """Activate or park ONE slot. NEVER deletes.
+    
+    :func:`player_roster_set_count` is "the first n"; this is for a mission whose kept
+    ships are not a prefix of the roster (arme2cosmos keeps the 2.8 slots the mission
+    declared, wherever they fall).
+    
+    Returns:
+        bool: True if the slot's active-ness actually changed."""
 def player_roster_set_count (n):
     """Activate the first ``n`` records and park the rest. NEVER deletes.
     
