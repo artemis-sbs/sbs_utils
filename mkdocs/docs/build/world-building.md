@@ -87,3 +87,12 @@ A job that wants its markers gone before the mission ends removes them itself:
 up after itself when it completes. Otherwise there is nothing to clean up: navpoints live
 in the sim (rebuilt per mission) and marker objects are agents, cleared with everything
 else. See the [markers API](../api/procedural/markers.md).
+
+### Markers the crew drops - pointing an order at a place
+
+`marker_order_drop(owner, x, y, z)` puts down a named marker for the owner's side -
+Alpha, Bravo, Charlie, reusing freed names - scanned for that side so comms can open on
+it. `marker_order_list(owner)`, `marker_order_remove(marker)` and `marker_order_clear(owner)`
+manage them. LegendaryMissions wires this to a science right-click ("Drop marker Alpha"),
+because a comms order that means "go there" needs an object to aim at: drag a ship onto
+a marker to send it, Guard it or Patrol to it ([orders](../api/procedural/orders.md)).

@@ -10,6 +10,18 @@ move**. Two things fall out of one idea:
 
 They share all of their combat code and differ only in where position comes from.
 
+## Turning turrets on
+
+Turrets need **extra ship data**: every turret hull exists only in the add-on's own
+`turrets/extraShipData_turrets` file. Set `EXTRA_SHIP_DATA: true` in the mission's settings
+or profile on an engine that loads it. `lm_turrets_enabled()` is then true exactly when
+those hulls reached the engine this mission. With it off, turrets are off - prefabs yield
+0, kits never spawn, and the Peacetime job built on them is not offered - so a turret can
+never ask the engine for a hull it was not given.
+
+Once deployed, a turret takes comms orders like any unit: **Fire on** a target and **Hold
+fire** / **Weapons free** ([orders](../api/procedural/orders.md)).
+
 ## Placing one from a mission
 
 ```

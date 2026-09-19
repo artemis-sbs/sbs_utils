@@ -19,6 +19,8 @@ tools, and finally the library changes. Links go to the relevant docs.
 | **[Into the ruin](#relic-dungeons)** | Put the crew in suits and fly them *inside* a derelict. Rooms, shafts, a way round, doors that are shut until somebody cuts them, and things you will only find by looking. |
 | **["On screen"](#on-screen)** | The captain says it and science can finally do it: hand the main screen a shot of whatever science has selected. |
 | **[Incoming hails](#incoming-hails)** | Comms stops being something only the crew start. The mission calls you, and waits until somebody answers. |
+| **[Starbases launch fighters](#starbase-wings)** | Bases hold named fighter wings you can launch, reassign and recall - and a base with no crew to command it flies them itself, enemy bases included. |
+| **[Command your allies](#orders)** | Every friendly ship, turret and starbase takes the orders it can actually carry out: escort, patrol, retreat, investigate, return to base, hold fire. |
 | **[The old missions fly again](#old-missions)** | All 27 Artemis 2.8 missions in our archive crossed over, and they play — same fleets, same tempers, same voice over comms. |
 | **[A living bestiary](#a-living-bestiary)** | Seven new species over one behavior, each one aging from Young to Ancient. Scan it before you shoot it. |
 | **[Grav-tether](#grav-tether)** | Reel, tow and lock — on a beam that now feels the weight, and tells you when it is struggling. |
@@ -185,6 +187,66 @@ checkbox, and it hands the radar back afterwards.
 each named by one line of the story.
 
 [Incoming hails](build/incoming-hails.md){ .md-button }
+
+---
+
+#### 🛩️ Starbases launch fighters { #starbase-wings }
+
+A starbase with hangar bays now holds **wings** of fighters - Red, Gold, Blue - and each
+one is yours to command from the base's comms menu:
+
+- **Launch Red wing (4/4)** at a hostile, or **to protect** an ally.
+- Once it is out: **Reassign Red wing (2 out)** onto a new target, or **Recall** it.
+- A command starbase flies two wings, so one can cover the station while the other strikes.
+
+Fighters launch with a few minutes of fuel. At **bingo** they break off and head home on
+their own, and a fighter that lands spends a minute refueling and rearming before it can
+go again. **Losses are permanent**: the count on the menu is what the wing has left, and a
+science scan's new **hangar** tab shows every wing - ready, out, refitting and lost.
+
+**A base with nobody to give it orders fights for itself.** It launches at whatever comes
+near, keeps a reserve wing home until the station itself is hit, covers allies under
+fire, and recalls its fighters when the sky is clear. That includes **enemy bases** - fly
+into range of one with bays and expect company. On your own side, tell a base **Act on
+your own** and it runs itself until a bridge gives it an order.
+
+**Enemy maps build a real base network.** Deep Strike and Border War now field a mix of
+Command, Industrial, Science and Civil bases for whichever race you are fighting, each
+with the fighters its kind carries - and the smaller kinds draw as smaller copies of the
+race's base when the host has extra ship data on.
+
+Play guide: [Giving orders, markers & fighter wings](legendarymissions/playing/orders.md).
+
+---
+
+#### 🎖️ Command your allies { #orders }
+
+Comms can order anything on your side: warships, freighters, turrets and starbases. Each
+one is offered only what it can carry out - a freighter is never told to attack, a turret
+is never told to move, and a base with no hangar is not on the list at all.
+
+| New order | What it does |
+|---|---|
+| **Escort** | stays with an ally and fights off anything that gets near it |
+| **Patrol** | flies between where it is and a marker, engaging on the way |
+| **Guard here** | holds its position and engages whatever comes close |
+| **Investigate** | flies out to a contact and scans it for your side |
+| **Return to base** | docks at the nearest friendly station and recharges |
+| **Retreat** | holds fire and gets clear of the nearest threats |
+| **Fire on** | holds position and shoots one target - turrets too |
+| **Hold fire / Weapons free** | stops or resumes choosing its own targets, without cancelling its orders |
+
+**Drag to order:** drag a ship onto its target on the comms map and comms opens with just
+the orders that fit that pair.
+
+**Point at a place.** Science right-clicks empty space and drops a named marker - Alpha,
+Bravo, Charlie - for the whole side. Drag a ship onto *Bravo* to send it there, guard it
+or patrol to it. The comms map gains **Can order** and **Markers** chips.
+
+**Turrets are back** wherever the install supports them: with `EXTRA_SHIP_DATA` on, towers
+deploy again, take Fire on and Hold fire, and Peacetime's Picket Line job returns.
+
+Play guide: [Giving orders](legendarymissions/playing/orders.md).
 
 ---
 
@@ -1950,6 +2012,32 @@ mod](build/making-a-mod.md).
 
 Library and API changes. Nothing here needs your attention unless a mission of yours
 misbehaves in a way one of them explains.
+
+---
+
+#### 🎖️ Orders by capability - one module every menu asks { #orders-api }
+
+An order is a MAST objective label under `objective/orders/` that says what it needs and
+what it may be aimed at:
+
+```
+requires: move, weapons
+valid_for: hostile
+```
+
+`orders_available` / `orders_can_take` answer for the comms chip, the right-click menu and
+drag alike, so they can never disagree. Capabilities come from what the object is (a
+`behav_station` does not move; a stock station does not fire) plus addon providers, with
+per-object overrides and the `no_orders` role for story ships. An order can list
+`instances:` to appear once per wing, bay or whatever else the provider returns. Order
+markers (`marker_order_drop`) give "go there" orders something to aim at.
+
+Also in the library: every spawn records its `behave_id`, and every `behav_selection` object
+carries the `__selection__` role; and a `Vec3` compared with a non-vector is simply unequal,
+which fixed `default x = ...` stopping a route when `x` already held a position.
+
+Docs: [Orders](api/procedural/orders.md), [Naming a place](build/world-building.md#naming-a-place),
+[Turrets](build/turrets.md).
 
 ---
 

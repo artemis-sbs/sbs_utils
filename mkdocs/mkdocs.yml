@@ -186,6 +186,7 @@ nav:
       - modifiers: api/procedural/modifiers.md
       - mount: api/procedural/mount.md
       - objective: api/procedural/objective.md
+      - orders: api/procedural/orders.md
       - persistence: api/procedural/persistence.md
       - popup: api/procedural/popup.md
       - prefab: api/procedural/prefab.md

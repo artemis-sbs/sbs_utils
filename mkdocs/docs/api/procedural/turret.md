@@ -26,6 +26,7 @@ The engine's beams do the firing; this module only ever writes `target_id`, thro
 | | rule |
 |---|---|
 | 1 | a **designated** target (a player or GM order), while it lives and is in range - never re-evaluated |
+| - | **hold fire** ([`orders_stance_set`](orders.md#stance)) stops rules 2 and 3; a designation still stands |
 | 2 | the **current** target, until `hold_seconds` expires, while inside `range * hold_slack` |
 | 3 | otherwise **scan**: nearest (or weakest) hostile matching the `targets` role expression |
 
