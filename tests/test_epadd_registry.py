@@ -121,6 +121,19 @@ class TestScoping(EpaddBase):
         FrameContext.page = _Page(ENGI, console="normal_engi")
         self.assertIn("Cargo", self.titles())
 
+    def test_AN_UNKNOWN_CONSOLE_GETS_ONLY_THE_STAR_APPS(self):
+        """No console (the pick screen, the server's own screen) has not earned a
+        console-scoped tool. This used to fail OPEN and show Cargo to everyone."""
+        FrameContext.page = _Page(ENGI, console=None)
+        titles = self.titles(client_id=ENGI)      # no page console, no CONSOLE_TYPE
+        self.assertNotIn("Cargo", titles)
+        self.assertIn("Help", titles)
+
+    def test_why_names_the_missing_console(self):
+        from sbs_utils.procedural.gui.epadd import gui_app_why
+        FrameContext.page = _Page(ENGI, console=None)
+        self.assertIn("NO console", gui_app_why("cargo", client_id=ENGI))
+
 
 class TestRouteAuthority(EpaddBase):
     """The `//gui/tab/` route stays the authority on whether a panel exists at all."""

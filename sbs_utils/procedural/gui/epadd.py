@@ -294,13 +294,19 @@ def _scoped_here(app, console):
     `"*"` means every SHIP console. The crew console has to be named or opted into,
     because a landing party carrying the fabricator is not a scoping bug anybody would
     notice until it was on screen.
+
+    An UNKNOWN console (None) gets only the `"*"` apps. A console-scoped app is a claim
+    about who may use it, and a client with no console - the pick screen, the server's
+    own screen - has not earned engineering's tools. (This used to fail OPEN, which is
+    also how a broken console lookup stayed invisible: every tile still showed.
+    `gui_app_why` names the unknown console instead.)
     """
     wanted = app.get("consoles")
     if console == BOARDING_CONSOLE:
         return bool(app.get("boarding")) or (wanted is not None and BOARDING_CONSOLE in wanted)
     if wanted is None:
         return True
-    return console is None or console in wanted
+    return console is not None and console in wanted
 
 
 def gui_app_why(tab, console=None, client_id=None):
@@ -338,6 +344,10 @@ def gui_app_why(tab, console=None, client_id=None):
         if console == BOARDING_CONSOLE and not app.get("boarding"):
             return (f"{tab!r} is not offered on the crew console - it needs "
                     f"boarding=True, because '*' deliberately does not include it")
+        if console is None:
+            return (f"{tab!r} is scoped to {where}, and this client has NO console - "
+                    f"neither the page nor its CONSOLE_TYPE names one, so only '*' apps "
+                    f"are offered")
         return f"{tab!r} is scoped to {where}, and this console is {console!r}"
     label = GuiAppDecoratorLabel.all.get(tab)
     if label is None:
