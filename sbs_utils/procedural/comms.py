@@ -1704,9 +1704,9 @@ def comms_set_2dview_focus(client_id, focus_id=0, EVENT=None):
 # shows. Empty shows everything. Every comms console on the ship shares it.
 #
 # Written as clear + set by index. On engine 1.3.13 the comms map follows only the FIRST
-# write (the server's blob is right every time - data/missions/cmf_probe); that is an
-# engine bug, reported, and this code assumes the fixed engine rather than working
-# around it.
+# write (a probe read the server's blob back correct after every clear + rewrite, so a
+# clear is not reaching the client); that is an engine bug, and this code assumes the
+# fixed engine rather than working around it.
 _MAP_FILTER = "comms_map_filter"
 _MAP_FILTER_LAST = "comms_map_filter_last"
 
