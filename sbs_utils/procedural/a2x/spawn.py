@@ -276,7 +276,7 @@ def create_anomaly(x, y, z, pickup_type, name=None):
     v = pos(x, y, z)
     if int(pickup_type) == 8:
         from sbs_utils.procedural.spawn import terrain_spawn
-        return to_id(terrain_spawn(v.x, v.y, v.z, name or "Beacon", "#,beacon", "danger_4a", "behav_pickup"))
+        return to_id(terrain_spawn(v.x, v.y, v.z, name or "Beacon", "#,beacon", "alien_1a", "behav_pickup"))
     key = pickup_key(pickup_type)
     if key is None:
         return None
