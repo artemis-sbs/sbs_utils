@@ -373,3 +373,88 @@ def incoming_message(from_name, filename, to=None):
     import sbs
     from sbs_utils.fs import get_mission_audio_file
     sbs.play_audio_file(0, get_mission_audio_file(filename), 1.0, 1.0)
+
+
+# ---------------------------------------------------------------------------
+# 2.8 comms buttons: set_comms_button / clear_comms_button / if_comms_button.
+#
+# In 2.8 a button EXISTS only between its set and its clear, per sideValue (0 = every
+# side). The converter used to put every button in the //comms route from t=0 and turn
+# both commands into comments, so a button showed before the mission offered it and
+# stayed after it was used - 1369 of the corpus's handlers clear their own button, i.e.
+# are one-shot, and all of them could be pressed again.
+#
+# State lives in SHARED INVENTORY (Agent.SHARED), which a mission reload resets, so there
+# is no module-level container for the reset ledger to miss.
+# ---------------------------------------------------------------------------
+
+_COMMS_BUTTONS_KEY = "a2x_comms_buttons"
+
+
+def _comms_buttons():
+    from sbs_utils.procedural.inventory import get_shared_inventory_value
+    return dict(get_shared_inventory_value(_COMMS_BUTTONS_KEY, None) or {})
+
+
+def _comms_buttons_store(buttons):
+    from sbs_utils.procedural.inventory import set_shared_inventory_value
+    from sbs_utils.procedural.comms import comms_refresh_open
+    set_shared_inventory_value(_COMMS_BUTTONS_KEY, buttons)
+    # An open comms menu is a snapshot of the routes; re-run it so the button appears /
+    # disappears now, not on the crew's next selection.
+    try:
+        comms_refresh_open()
+    except Exception:                                  # pragma: no cover - defensive
+        pass
+
+
+def _side_scope(side_value):
+    try:
+        return int(float(side_value or 0))
+    except (TypeError, ValueError):
+        return 0
+
+
+def set_comms_button(text, side_value=0):
+    """2.8 ``set_comms_button``: offer ``text`` on the comms consoles of ``side_value``
+    (0 = every side). Idempotent."""
+    buttons = _comms_buttons()
+    scopes = set(buttons.get(text, ()))
+    scope = _side_scope(side_value)
+    if scope in scopes:
+        return
+    scopes.add(scope)
+    buttons[text] = sorted(scopes)
+    _comms_buttons_store(buttons)
+
+
+def clear_comms_button(text, side_value=0):
+    """2.8 ``clear_comms_button``: withdraw ``text``. ``side_value`` 0 (the default)
+    withdraws it from every side; N withdraws only side N's offer."""
+    buttons = _comms_buttons()
+    if text not in buttons:
+        return
+    scope = _side_scope(side_value)
+    if scope == 0:
+        buttons.pop(text)
+    else:
+        rest = [s for s in buttons[text] if s != scope]
+        if rest:
+            buttons[text] = rest
+        else:
+            buttons.pop(text)
+    _comms_buttons_store(buttons)
+
+
+def comms_button_visible(text, origin=None):
+    """Is ``text`` currently offered to the console of ``origin`` (the player ship whose
+    comms is open, COMMS_ORIGIN_ID)? Used as the ``+ "text" if ...`` condition."""
+    scopes = _comms_buttons().get(text)
+    if not scopes:
+        return False
+    if 0 in scopes:
+        return True
+    from sbs_utils.procedural.query import to_object
+    from .sides import side_value
+    o = to_object(origin) if origin is not None else None
+    return o is not None and side_value(o.side) in scopes

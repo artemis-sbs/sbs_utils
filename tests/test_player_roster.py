@@ -780,6 +780,26 @@ class MissionSpawnedPlayersTests(unittest.TestCase):
         self.assertEqual([4], R.player_roster_adopt())
         self.assertEqual(stray, R.player_roster_resolve(4))
 
+    def test_a_ship_player_ensure_stamped_is_adopted_at_its_own_slot(self):
+        # arme2cosmos: a2x_create_player(..., slot=N) goes through player_ensure, which
+        # stamps the slot, and nothing seeds. Skipping stamped ships left the picker empty.
+        a = to_id(player_ensure(0, 0, 0, 0, "tsn_light_cruiser", "Artemis", "tsn"))
+        b = to_id(player_ensure(3, 0, 0, 0, "tsn_battle_cruiser", "Horatio", "tsn"))
+        self.assertEqual([0, 3], R.player_roster_adopt())
+        self.assertEqual([0, 3], R.player_roster_slots())
+        self.assertEqual(a, R.player_roster_resolve(0))
+        self.assertEqual(b, R.player_roster_resolve(3))
+        self.assertEqual("Horatio", R.player_roster_display(3)["name"])
+        self.assertEqual([], R.player_roster_adopt())
+
+    def test_an_unslotted_ship_fills_the_first_hole_below_a_stamped_slot(self):
+        player_ensure(2, 0, 0, 0, "tsn_light_cruiser", "Aegis", "tsn")
+        stray = self._spawn_mission_ship("Ranger")
+        self.assertEqual([2, 0], R.player_roster_adopt())
+        self.assertEqual(stray, R.player_roster_resolve(0))
+        self.assertEqual([0, 2], R.player_roster_slots())
+        self.assertEqual(3, len(R.player_roster()))
+
     def test_the_picker_can_now_write_to_a_mission_spawned_ship(self):
         self._spawn_mission_ship()
         R.player_roster_adopt()

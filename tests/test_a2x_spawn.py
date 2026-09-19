@@ -99,6 +99,45 @@ class A2xSpawnMockTests(unittest.TestCase):
         self.assertEqual(get_data_set_value(to_id(so), "target_pos_x"), 99000.0)
 
 
+class A2xPlayerRosterTests(unittest.TestCase):
+    """What a converted mission does with its eight ships: create_player_ships spawns
+    them by slot, LM adopts them into the roster, and game_started parks the spares."""
+
+    def setUp(self):
+        self.sim = reset_mock(sbs)
+        from sbs_utils.procedural.a2x.spawn import create_player
+        self.kept = create_player(50000, 0, 50000, "tsn_light_cruiser", name="Artemis",
+                                  side="tsn", slot=0)
+        self.spare = create_player(50000, 0, 51000, "tsn_battle_cruiser", name="Intrepid",
+                                   side="tsn, a2x_spare_player", slot=1)
+
+    def test_created_players_reach_the_roster(self):
+        from sbs_utils.procedural import player_roster as R
+        self.assertEqual([0, 1], R.player_roster_adopt())
+        self.assertEqual([0, 1], R.player_roster_slots())
+
+    def test_spares_are_parked_not_deleted(self):
+        from sbs_utils.procedural import player_roster as R
+        from sbs_utils.procedural.a2x.spawn import park_spare_players
+        from sbs_utils.procedural.query import object_exists
+        R.player_roster_adopt()
+        self.assertEqual([1], park_spare_players())
+        self.assertEqual([0], R.player_roster_slots())
+        self.assertTrue(object_exists(self.spare))
+        self.assertFalse(has_role(self.spare, "__player__"))
+        self.assertTrue(has_role(self.kept, "__player__"))
+        self.assertEqual([], park_spare_players())
+
+    def test_a_crewed_spare_is_kept(self):
+        from sbs_utils.procedural import player_roster as R
+        from sbs_utils.procedural.a2x.spawn import park_spare_players
+        R.player_roster_adopt()
+        R.player_roster_bind(1, 42)
+        self.assertEqual([], park_spare_players())
+        self.assertEqual([0, 1], R.player_roster_slots())
+        self.assertFalse(has_role(self.spare, "a2x_spare_player"))
+
+
 class CorePickupSpawnTests(unittest.TestCase):
     def setUp(self):
         self.sim = reset_mock(sbs)

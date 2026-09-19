@@ -776,6 +776,12 @@ def object_property(obj, prop, index=None):
     """
     from sbs_utils.procedural.query import to_space_object
 
+    if prop in ("sideValue", "SideValue"):
+        # The read side of set_side_value: the side KEY maps back to its 2.8 number, so
+        # a capture mechanic ("station sideValue EQUALS 2") evaluates for real.
+        from .sides import side_value
+        o = to_space_object(obj)
+        return None if o is None else side_value(o.side)
     m = _PROP.get(prop)
     if m is None:
         return None

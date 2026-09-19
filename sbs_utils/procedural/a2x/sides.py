@@ -60,6 +60,17 @@ def side_key(side_value):
     return _SIDE_KEY.get(v, f"side_{v}")
 
 
+def side_value(side):
+    """Cosmos side key -> the 2.8 ``sideValue`` it came from; the inverse of
+    :func:`side_key`. None for a side a2x did not declare (an LM side like ``tsn``)."""
+    for v, k in _SIDE_KEY.items():
+        if side == k:
+            return v
+    if isinstance(side, str) and side.startswith("side_") and side[5:].isdigit():
+        return int(side[5:])
+    return None
+
+
 def side_name(side_value):
     """A display name for a 2.8 sideValue (shown on the 2D map / sensor contacts)."""
     v = int(side_value)

@@ -152,7 +152,14 @@ def player_roster_adopt():
     The record is read OFF the ship: this describes what the mission already made, it
     does not decide anything. Nothing on the ship is written except the slot marker.
 
-    Idempotent - a ship already holding a slot is skipped - so this is safe to call on
+    A ship the mission made with ``player_ensure`` ALREADY holds a slot but, unless the
+    mission also seeded, has no record for it. That ship is adopted at its OWN slot rather
+    than skipped: skipping it is how every arme2cosmos conversion (``a2x_create_player(...,
+    slot=N)``) ended up with eight live ships and an empty picker. Slots are the record
+    index, so a gap below a stamped slot is padded with an inactive placeholder record,
+    and the next un-slotted ship takes the first placeholder before appending.
+
+    Idempotent - a slot that already has a record is skipped - so this is safe to call on
     every roster build, and safe beside a seeded roster (adopted slots land after it).
 
     Returns:
@@ -163,20 +170,48 @@ def player_roster_adopt():
     from .inventory import get_inventory_value, set_inventory_value
     from .spawn import PLAYER_SLOT_KEY, player_slot_role
 
-    adopted = []
+    def _record_of(slot, obj):
+        return {"slot": slot, "active": True, "name": obj.name,
+                "side": obj.side or "", "ship": obj.art_id, "face": None}
+
     # Sorted by id, so ships spawned in one frame get a stable order - the same order the
     # console picker used to show them in back when it sorted the live objects itself.
+    ships = []
     for so_id in sorted(to_id_list(role("__player__"))):
         if not object_exists(so_id):
             continue
-        if get_inventory_value(so_id, PLAYER_SLOT_KEY, None) is not None:
-            continue
         obj = to_object(so_id)
-        if obj is None:
+        if obj is not None:
+            ships.append((so_id, obj, get_inventory_value(so_id, PLAYER_SLOT_KEY, None)))
+
+    adopted = []
+    # Stamped ships first, so an un-slotted ship can never take a slot a stamped one owns.
+    for so_id, obj, stamped in ships:
+        if stamped is None:
             continue
-        slot = len(_ROSTER)
-        _ROSTER.append({"slot": slot, "active": True, "name": obj.name,
-                        "side": obj.side or "", "ship": obj.art_id, "face": None})
+        slot = int(stamped)
+        rec = player_roster_record(slot)
+        if rec is not None and not rec.get("placeholder"):
+            continue
+        while len(_ROSTER) < slot:
+            _ROSTER.append({"slot": len(_ROSTER), "active": False, "placeholder": True,
+                            "name": None, "side": None, "ship": None, "face": None})
+        if rec is None:
+            _ROSTER.append(_record_of(slot, obj))
+        else:
+            _ROSTER[slot] = _record_of(slot, obj)
+        adopted.append(slot)
+
+    for so_id, obj, stamped in ships:
+        if stamped is not None:
+            continue
+        hole = next((r["slot"] for r in _ROSTER if r.get("placeholder")), None)
+        if hole is None:
+            slot = len(_ROSTER)
+            _ROSTER.append(_record_of(slot, obj))
+        else:
+            slot = hole
+            _ROSTER[slot] = _record_of(slot, obj)
         add_role(so_id, player_slot_role(slot))
         set_inventory_value(so_id, PLAYER_SLOT_KEY, slot)
         adopted.append(slot)
@@ -335,6 +370,29 @@ def player_roster_set_count(n):
             continue
         _set_parked(so_id, not want, rec)
     return changed
+
+
+def player_roster_set_active(slot, active):
+    """Activate or park ONE slot. NEVER deletes.
+
+    :func:`player_roster_set_count` is "the first n"; this is for a mission whose kept
+    ships are not a prefix of the roster (arme2cosmos keeps the 2.8 slots the mission
+    declared, wherever they fall).
+
+    Returns:
+        bool: True if the slot's active-ness actually changed.
+    """
+    rec = player_roster_record(slot)
+    if rec is None or rec.get("placeholder"):
+        return False
+    want = bool(active)
+    if bool(rec.get("active")) == want:
+        return False
+    rec["active"] = want
+    so_id = player_roster_resolve(rec["slot"])
+    if so_id is not None:
+        _set_parked(so_id, not want, rec)
+    return True
 
 
 def _set_parked(so_id, parked, rec):

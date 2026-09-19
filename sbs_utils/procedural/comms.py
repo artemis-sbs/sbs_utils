@@ -1632,27 +1632,59 @@ def comms_navigate_override(ids_or_obj, sel_ids_or_obj, path=None, path_must_mat
                 continue
             if p.id == 0 or s.id == 0:
                 continue
+            _comms_override_pair(p.id, s.id, path, path_must_match)
 
-            t = __comms_promises.get((p.id, s.id))
-            if t is None:
-                return
-            prom = t.get_variable("BUTTON_PROMISE")
-            if prom is None:
-                return
-            
-            if path is None or path == "":
-                path = prom.path
 
-            # makes sure path starts with //comms
-            path = path.strip("'//")
-            if not path.startswith("comms"):
-                path = "//comms/" + path
-            else:
-                path = "//"+path
+def _comms_override_pair(origin_id, selected_id, path, path_must_match):
+    """One pair of :func:`comms_navigate_override`. A pair with no open interaction is
+    SKIPPED - this used to ``return``, which silently abandoned every remaining pair, so a
+    call covering several ships stopped at the first one without a menu open. And the
+    path is resolved per pair: it used to be reassigned in place, so the first pair's
+    current path became every later pair's path."""
+    t = __comms_promises.get((origin_id, selected_id))
+    if t is None:
+        return
+    prom = t.get_variable("BUTTON_PROMISE")
+    if prom is None:
+        return
 
-            if (path_must_match and path.strip("//")==prom.path) or not path_must_match:
-                prom.set_path(path)
-            
+    if path is None or path == "":
+        path = prom.path
+
+    # makes sure path starts with //comms
+    path = path.strip("'//")
+    if not path.startswith("comms"):
+        path = "//comms/" + path
+    else:
+        path = "//"+path
+
+    if (path_must_match and path.strip("//")==prom.path) or not path_must_match:
+        prom.set_path(path)
+
+
+def comms_refresh_open(ids_or_obj=None) -> int:
+    """Re-run the comms routes for every OPEN comms menu, so buttons whose conditions
+    changed appear or disappear now instead of on the next selection.
+
+    For state that changes outside any particular pair - a story flag that shows or hides
+    a button everywhere - where :func:`comms_navigate_override` would need every
+    origin x selected pair spelled out. Stays on the current path.
+
+    Args:
+        ids_or_obj: only menus opened by these origins (player ships). None = all.
+
+    Returns:
+        int: how many open menus were refreshed.
+    """
+    origins = None if ids_or_obj is None else {o.id for o in to_object_list(ids_or_obj) if o is not None}
+    n = 0
+    for (origin_id, selected_id) in list(__comms_promises.keys()):
+        if origins is not None and origin_id not in origins:
+            continue
+        _comms_override_pair(origin_id, selected_id, None, True)
+        n += 1
+    return n
+
 
 
 from sbs_utils.procedural.inventory import get_inventory_value, set_inventory_value

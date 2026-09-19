@@ -167,6 +167,36 @@ def create_player(x, y, z, art, name=None, side="tsn", slot=None):
     return sid
 
 
+def park_spare_players(spare_role="a2x_spare_player"):
+    """Retire the player ships the conversion added only for ship select. Returns the
+    slots parked.
+
+    2.8 always had eight crewable ships, so a converted mission spawns all eight and marks
+    the ones it did not declare with ``spare_role``. Once play starts they go - but by
+    PARKING (standby, via the roster), never by ``delete_object``. Deleting a player ship
+    while consoles are live is the ``ObjectDataBlob`` use-after-free, and a spare may be
+    the very ship a crew picked.
+
+    A spare that a connected console is crewing is KEPT and becomes a real ship: dropping
+    the ship out from under a crew is worse than one more hull than 2.8 declared.
+    """
+    from sbs_utils.procedural.query import to_id_list
+    from sbs_utils.procedural.roles import role, remove_role
+    from sbs_utils.procedural.player_roster import (
+        player_roster_adopt, player_roster_slot_of_ship, player_roster_bound_live,
+        player_roster_set_active)
+    player_roster_adopt()   # no-op when the roster already knows these ships
+    parked = []
+    for sid in to_id_list(role(spare_role)):
+        slot = player_roster_slot_of_ship(sid)
+        remove_role(sid, spare_role)
+        if slot is None or player_roster_bound_live(slot):
+            continue
+        if player_roster_set_active(slot, False):
+            parked.append(slot)
+    return parked
+
+
 def place_player(x, y, z, slot=0, name=None, side=None):
     """2.8 ``create type="player"`` OUTSIDE the ``<start>`` block: PLACE the ship, don't
     make one. Returns the ship ID, or None if that slot has no ship.

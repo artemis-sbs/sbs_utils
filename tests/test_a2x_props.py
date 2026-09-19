@@ -38,6 +38,17 @@ class A2xPropsMockTests(unittest.TestCase):
         self.sim = reset_mock(sbs)
         self.so = create_enemy(0, 0, 0, "kralien_cruiser", name="X")
 
+    def test_side_value_reads_back_what_set_side_value_wrote(self):
+        # conquest_pvp2 captures by testing a station's sideValue.
+        self.assertTrue(set_side_value(self.so, 2))
+        self.assertEqual(object_property(self.so, "sideValue"), 2)
+        self.assertTrue(set_side_value(self.so, 7))
+        self.assertEqual(object_property(self.so, "SideValue"), 7)
+
+    def test_side_value_of_an_undeclared_side_is_none(self):
+        to_object(self.so).side = "tsn"
+        self.assertIsNone(object_property(self.so, "sideValue"))
+
     def test_data_set_scalar(self):
         self.assertTrue(set_object_property(self.so, "energy", 250))
         self.assertEqual(get_data_set_value(to_id(self.so), "energy"), 250)
