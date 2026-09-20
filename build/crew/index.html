@@ -10761,7 +10761,11 @@ worked out once and kept, so what the line shows is what the console gets.</p>
 <li>their <strong>name</strong>, typed;</li>
 <li>their <strong>face</strong>, through the <a href="../../cosmos/gui/">avatar editor</a> &mdash; present only when the
   <code>avatar_editor</code> add-on is loaded. It builds the six stock races; a mod's faces are whole
-  drawn portraits with nothing to slide, so those are picked from a gallery instead;</li>
+  drawn portraits with nothing to slide, so those are picked from a gallery instead.
+  Features that are real choices rather than a range &mdash; eyes, mouths, masks &mdash;
+  are offered as named dropdowns ("Worried", "Blue", "Respirator"), because the redrawn
+  sheets carry expression and eye-color art and hunting for it on a 0-13 slider is not a
+  choice anybody makes twice;</li>
 <li><strong>who they are instead</strong>, out of a roster that staffs this ship. An <em>override</em> &mdash; a
   cast already assigns itself, so reaching for the list is reaching past the automatic
   answer;</li>
@@ -10775,6 +10779,10 @@ cannot be argued with.</p>
 <span class="w">    </span><span class="nt">allow_face</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span><span class="w">        </span><span class="c1"># the avatar editor button inside it</span>
 <span class="w">    </span><span class="nt">allow_portrait</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">false</span>
 </code></pre></div>
+<p>A face a player built before the 2026-09 sheet redraw is stored in their own
+<code>client_string_set.txt</code> and survives every mission and every update. It carries a format
+stamp now: an unstamped record is translated to the current art once, on read, and
+re-saved. Nobody has to edit that file, and nobody gets a scrambled officer.</p>
 <h2 id="what-reads-it">What reads it</h2>
 <p>The name lands on the client as <code>CREW_NAME</code>, which is where it has always lived &mdash;
 so everything that already read it keeps working with no change:</p>
