@@ -16,7 +16,6 @@ tools, and finally the library changes. Links go to the relevant docs.
 | | What it is |
 |---|---|
 | **[The ePADD](#epadd)** | One button on every console opens a screen of apps — mail, quests, cargo, the boarding party — each with a live badge you can read without opening it. |
-| **[Into the ruin](#relic-dungeons)** | Put the crew in suits and fly them *inside* a derelict. Rooms, shafts, a way round, doors that are shut until somebody cuts them, and things you will only find by looking. |
 | **["On screen"](#on-screen)** | The captain says it and science can finally do it: hand the main screen a shot of whatever science has selected. |
 | **[Incoming hails](#incoming-hails)** | Comms stops being something only the crew start. The mission calls you, and waits until somebody answers. |
 | **[Starbases launch fighters](#starbase-wings)** | Bases hold named fighter wings you can launch, reassign and recall - and a base with no crew to command it flies them itself, enemy bases included. |
@@ -42,12 +41,11 @@ The new things to *do* — whole systems that were not there before. Start here.
 
 #### 📟 The ePADD — every console gets apps { #epadd }
 
-The tab strip along the top of a console was a junk drawer. It held `help`, `library`,
-`upgrade`, `quest` and, on Engineering, `fabricate` and `cargo` — seven of the eight
-slots it allows, in no particular order, each labeled with the raw lowercase name of
-whatever wrote it. Anything else rolled into `More (7)`.
+A console used to offer three tabs along the top — `help`, `library`, `upgrade` — each
+labeled with the raw lowercase name of whatever wrote it, and nowhere to put anything
+else.
 
-One button replaces all of it. **ePADD** opens a screen of app tiles, named and
+Now one button opens a whole device. **ePADD** is a screen of app tiles, named and
 described and grouped, with only the ones this station should see:
 
 ```
@@ -77,8 +75,7 @@ described and grouped, with only the ones this station should see:
   arrives. No code.
 - **The boarding party carries it down.** A landing party's own apps travel with the party,
   and the scene they are playing is mirrored into the inbox, so the surface crew read
-  their story where they read everything else. It replaces the old separate crew
-  console.
+  their story where they read everything else — one device, wherever the person is.
 - **It fits the screen it is on.** Thirty apps at 1024x768 is a scrolling list; the same
   thirty at 1920x1080 is a grid. Nothing is ever cut off the bottom.
 
@@ -88,40 +85,6 @@ and the route keeps its own `if`, which is still what decides whether the app is
 at all.
 
 Docs: [The ePADD](build/epadd.md).
-
----
-
-#### 🧑‍🚀 Into the ruin — a derelict you walk around inside { #relic-dungeons }
-
-An ancient wreck used to be a contact you scanned from a safe distance. Now you can go
-**in**. The ship docks at the mouth, the crew put on suits, and each console flies its own
-boarder through the inside of the thing.
-
-A suit is flown by **destination**, not by stick. Your device lists the places in the ruin
-and you pick one; the suit takes itself there, round the corners, down the shaft, without
-scraping the walls. That leaves your attention where it belongs — on what is in the room
-when you arrive.
-
-And the ruins are places now, rather than corridors.
-
-- **More than one way through.** A long hall is not a single line any more. There is room
-  to go round the cradle in the middle of it, and a route that is blocked is not the end of
-  the trip — it is the reason to find the other way.
-- **Doors that are shut.** Some ways are seized, fallen in, or simply sealed. Point a
-  cutting beam at one and hold it, and the ruin opens up. Or go the long way round; that is
-  a choice, and sometimes it is the right one.
-- **Things you will only find by looking.** Not everything in a ruin is on the list when
-  you arrive. Fly past a sealed locker and it appears on your device — and a route to
-  somewhere else may take you straight past something nobody knew was there.
-- **A reason to carry a tether.** Salvage, a quest piece, the thing you came for: get a
-  line on it and reel it in. The suits are small, so there are things in a ruin you are not
-  going to move, and the device will tell you so rather than dragging you into them.
-
-The view is over your suit's shoulder, and it stays there. It closes in as you get moving,
-tucks in tight when the walls do, and you can swing it round or push it out to have a look
-at something. It will not end up on the wrong side of a wall.
-
-Storm's Beacon has seven ruins, and no two of them are built by the same hands.
 
 ---
 
@@ -244,8 +207,10 @@ the orders that fit that pair.
 Bravo, Charlie - for the whole side. Drag a ship onto *Bravo* to send it there, guard it
 or patrol to it. The comms map gains **Can order** and **Markers** chips.
 
-**Turrets are back** wherever the install supports them: with `EXTRA_SHIP_DATA` on, towers
-deploy again, take Fire on and Hold fire, and Peacetime's Picket Line job returns.
+**Deployable turrets** arrive wherever the install supports them: with `EXTRA_SHIP_DATA`
+on, a crew buys a kit, tows it into place and unfolds a defense tower that holds the
+ground it is left on — and takes Fire on and Hold fire from comms like any other unit.
+Peacetime's **Picket Line** job is built on them.
 
 Play guide: [Giving orders](legendarymissions/playing/orders.md).
 
@@ -345,8 +310,8 @@ A tractor beam for Weapons and fighters — one system, scaled by hull.
   **overloaded**, and an overloaded one says outright that it wants another ship on it.
   No more wondering why the helm feels like treacle.
 - **Grav Lock on something enormous pulls *you* over.** Lock a station and the station
-  wins — it reels you in and holds you there, which is a fast way to park. It now winches
-  you across instead of snapping you over in one frame.
+  wins: it winches you across — a steady haul you can watch, not a jump cut — and holds
+  you there, which is a fast way to park.
 
 ##### 🔧 Tug rigs
 
@@ -360,14 +325,12 @@ Two ways to make a ship better at hauling, and they stack.
 Fit both and they add up. Neither changes what your ship weighs, so a rig will not make
 you harder to grab or make your own wreck worth more.
 
-##### Fixed along the way
+##### Weight is honest
 
-- **Reeling a cargo pod no longer brakes your ship.** A canister used to weigh as much as
-  a corvette, which cost you a third of your throttle and turn for picking up a crate.
-- **A fighter can reel a pickup again.** For the same reason, a fighter's reel used to run
-  backwards and drag the *fighter* onto the canister.
-- **Turret crates tow properly.** The crate is built to be towed into position, and it was
-  heavy enough that a light cruiser's beam flipped and dragged the cruiser to the crate.
+Everything on the beam has a mass, and the mass is what a crate looks like it weighs. A
+canister barely slows you while you reel it in, a fighter can pick one up without being
+dragged onto it, and a turret kit tows behind a cruiser instead of pulling the cruiser
+around. The heavy things — stations, capital hulls — are the ones that fight back.
 
 Built on the engine's native tractor.
 
@@ -557,11 +520,10 @@ Authors: [Writing a Siege boss](legendarymissions/script/bosses.md).
 
 #### 🗣️ Characters who ask, and leave if nobody comes
 
-A quest could always count down. It just did it **in silence** — you learned the
-ambassador had given up when the fare quietly vanished from the board.
-
-An **urge** is what an actor keeps asking for: a condition, a cadence, and a pool of
-authored lines. Anyone can hold one — a passenger, a station, a whole side.
+A deadline you cannot hear is just a number expiring somewhere. An **urge** gives it a
+voice: a condition, a cadence, and a pool of authored lines. Anyone can hold one — a
+passenger, a station, a whole side — and the closer the clock runs, the more insistent
+they get.
 
 - **The stakes stay in the quest.** An urge declares no consequence of its own; it is the
   voice of a quest that is already counting down. One clock, one place to tune, and
@@ -574,16 +536,16 @@ authored lines. Anyone can hold one — a passenger, a station, a whole side.
   global floor stops five of them piping up the moment a jump makes them all eligible —
   shared with mission dispatch, so nobody talks over the Admiral. Only something urgent
   (`Weight: 90`) jumps that queue.
-- **A station can hold a quest now**, which is what lets a resupply run have a deadline
-  and a cost that lands on the world instead of on whoever happened to fly past.
+- **A whole station can hold a quest**, so a resupply run has a deadline and a cost that
+  lands on the world rather than on whichever ship happened to fly past.
 - **Standing is a consequence.** `Reward:` and `Penalty:` take
-  `earns <faction> <pole> <n>`, so finishing a job — or abandoning one — can move how a
-  faction feels about you, not just what it charges.
+  `earns <faction> <pole> <n>`, so finishing a job — or abandoning one — moves how a
+  faction feels about you, not only what it charges you.
 
-In Open Universe, **Doctor Voss** now waits on the docking ring at her pickup, asks more
+In Open Universe, **Doctor Voss** waits on the docking ring at her pickup, asks more
 insistently as her window closes, and takes a berth on someone else's freighter if nobody
 comes. In Legendary Missions, **Ambassador Florbin's** famous passenger requests are the
-same character, rewritten as five lines of data instead of a hand-written loop.
+same character, now five lines of data instead of a hand-written loop.
 
 
 ---
@@ -612,38 +574,12 @@ wander and shoot; it plays like a coordinated crew:
   pull well before it's caught in the well — **docks to repair** when hurt, and if its
   **maneuvering is shot out** it **holds station** to keep fighting instead of burning off
   into deep space.
-- **Goes home when the tank runs low.** A ship short on energy now flies to a friendly
-  station, docks, and comes back out fully fueled with its shields up. It used to stop
-  where it stood and wait for the auxiliary power unit to bring it back up — which the
-  APU never does past a trickle charge, so a lobby left running long enough filled up
-  with ships parked in deep space doing nothing.
+- **Goes home when the tank runs low.** A ship short on energy breaks off, flies to a
+  friendly station, docks, and comes back out fully fueled with its shields up — so a
+  lobby left running all evening still has ships flying at the end of it.
 
 Turn it on — and tune its **stand-off range** and **engineering overpower** — in
 [LegendaryMissions](legendarymissions/index.md) settings.
-
----
-
-#### ⚡ Everything with a brain now thinks twice as often
-
-Monsters, fleets, turrets, station defenders — anything driven by a **brain** — re-decide
-what to do on a fixed heartbeat. That heartbeat was supposed to be three seconds. It was
-really **six**, everywhere, for as long as the system has existed.
-
-Nothing looked broken, which is why it lasted: a creature that reconsiders every six
-seconds is not obviously wrong, it just commits to whatever it last chose for twice as
-long as intended. You saw it as enemies that kept chasing a target after you slipped
-away, or a hunter that took a beat too long to notice you.
-
-Brains, [objectives](mast/objectives.md) and urges now run at the period they
-declare. In practice things react about **twice as fast** to a situation changing —
-without any of them being made more aggressive.
-
-!!! note "It showed up as a ship that would not warp"
-    The tell came from the [attract-mode](#attract-mode-the-ship-flies-itself) pilot.
-    Rewritten as a brain, it almost never used its warp drive, while the older version
-    warped constantly with the same rules. It was not choosing differently: it was only
-    re-checking its speed every fifteen seconds, so by the time it looked, it had already
-    arrived. Chasing that one down is what surfaced the timing bug behind all of it.
 
 ---
 
@@ -733,11 +669,10 @@ well past human: emerald, jade, ice blue, cobalt, rust, crimson, ashen and amber
 alongside the flesh tones, and any of them can land on any race. Hair has its own range
 the same way.
 
-**The avatar editor caught up.** Anything with real choices tells you what you are
-looking at instead of making you count. Short lists - which body, which mask - are
-dropdowns; the long ones are a slider with the name written beside it, so dragging
-through thirty-nine skin tones actually says which one you are on. A new face also starts
-with a neutral expression rather than a scowl.
+**The avatar editor says what you are looking at.** Short lists - which body, which
+mask - are dropdowns; the long ones are a slider with the name written beside it, so
+dragging through thirty-nine skin tones tells you which one you are on. A new face starts
+with a neutral expression.
 
 **And there is a Randomize button.** It keeps the species you picked and rolls everything
 else - face, hair, clothes, color. Hit it until you see somebody you like. If the mission
@@ -753,10 +688,10 @@ Docs: [Faces](api/utility/faces.md).
 
 #### 🪪 The console picker says who you are about to be { #console-picker }
 
-The first screen of every session used to offer an empty **Crew person Name** box and
-an **Edit Face** button. Almost nobody filled the box in — and a name was only worked
-out *after* the console was chosen, so the one screen where you decide what to be was
-the one screen that could not tell you.
+The first screen of every session used to offer an empty **Crew person Name** box.
+Almost nobody filled it in — and a name was only worked out *after* the console was
+chosen, so the one screen where you decide what to be was the one screen that could not
+tell you.
 
 It shows you instead. The face and the name sit on one line and follow whichever
 station is highlighted in the list: run down helm, science, engineering and the line
@@ -772,29 +707,22 @@ automatically named player — you stopped being the helmsman and became the wea
 officer, which is what a cast list has always done. A name you typed yourself is
 yours, and is never overwritten.
 
-**"Edit Face" becomes "Edit"**, because the page behind it owns the whole person now —
-your name, your avatar, and the option to *be* somebody out of the ship's roster (the
-crew dropdown moved off the picker and lives here). A button naming one field reads as
-though that is the only field there is.
+**One button, marked "Edit"**, opens the whole person: your name, your avatar, and the
+option to *be* somebody out of the ship's roster.
 
-**Editing one thing no longer blanks the others.** Building a face for an
-automatically named officer used to hand back a face and nobody, and the console read
-as unmanned. Now what you choose is laid over the identity the ship had for you, one
-field at a time: naming yourself keeps the face the ship gave you, building a face
-keeps your name, and renaming a cast member keeps their rank and their station — the
-same officer under another name, not a stranger who took the chair. A face and a
-photograph still displace each other; they are two answers to the same question.
+**Editing one thing keeps the others.** What you choose is laid over the identity the
+ship had for you, one field at a time: naming yourself keeps the face the ship gave you,
+building a face keeps your name, and renaming a cast member keeps their rank and their
+station — the same officer under another name, not a stranger who took the chair. A face
+and a photograph still displace each other; they are two answers to the same question.
 
 **Faces agree with their names, and wear a uniform.** A face is rolled for anybody who
-has none of their own, and an ungendered name pool put a man's face over "Freya
-Laurent" one console in two. One roll in five also came back in civilian clothes,
-which on a bridge is not a variation on a crew member — it is a stranger at the helm.
+has none of their own — from the gender their name declares, and in the ship's uniform,
+so the bridge looks like a crew rather than a room of passengers.
 
-**The TSN Watch grows from 8 people to 40.** Seven name a station and the rest float,
-so a ship with a dozen consoles open, a second science station and a hangar full of
-pilots stays inside the cast instead of falling through to automatic names half way
-down the ship. Everybody in it declares a gender, so the rolled faces stop
-contradicting the names above them.
+**The TSN Watch is forty people.** Seven name a station and the rest float, so a ship
+with a dozen consoles open, a second science station and a hangar full of pilots stays
+inside the cast instead of falling through to automatic names half way down the ship.
 
 The ship list on that screen also offers only the ships that will **actually fly** —
 picking a hull that was about to be parked out from under your console is no longer
@@ -831,8 +759,8 @@ about five times harder on a ship than impulse.
 
 **Tuning is what a well-run ship gets for it — and somebody has to order it.** Send a
 team to a system that is *fine* and they bring it above spec: a tuned beam pool fires
-at 110 percent. Nothing tunes itself, and a team no longer tunes the room it happens
-to be standing in. It is a job you assigned.
+at 110 percent. Nothing tunes itself, and nothing is tuned by a team merely standing in
+the room. It is a job you assigned.
 
 **The order is two clicks now.** Picking a damaged or worn room in comms used to grow
 two buttons per damage-control team — eight or more on a three-team ship, with the one
@@ -846,8 +774,8 @@ face that used to hold it (and that was also the thing that collapsed at 1280x72
 
 - **Selected** — the room or team you picked on the interior view, described in full.
 - **Orders** — every work order on the ship, highest priority first, with raise and
-  close on each row. A job someone else already finished drops off the list instead of
-  sitting there as a button that does nothing.
+  close on each row. Only live jobs are listed: one another console has finished is off
+  the list before you reach for it.
 - **Systems** — the four pools, and the **eight effectiveness numbers** the grid has
   always derived and Engineering has never been able to see: beam, tube, impulse,
   warp, turn, sensor, and both shield facings. Each one wears its tier's color, so the
@@ -862,17 +790,14 @@ undamaged rather than replacing it, an all-worn ship still cannot explode. Every
 threshold and rate is a dial: `grid_set_wear_tuning(tuned_bonus=0.0)` gives you
 maintenance with no over-unity, `upkeep_rate=0` turns off time-based wear entirely.
 
-**Four things that were quietly not working, now do.** A repaired gym, cargo bay,
-hatch or airlock **stops being red** — a room that is not a system never wears and
-never needs tuning, but it does get hit, and it used to keep the damage color forever
-with no button offered to do anything about it. That is most of a shipped interior. A
-**tune that has worn off stops being paid for**, instead of leaving the beams at 110
-percent long after the tune was gone. A damage-control team in the **sick bay now
-heals all the way** — a team that had taken a single hit used to heal nothing at all,
-and Engineering said "visit sickbay" forever — and an uninjured team is left alone
-rather than parked there. And a team that is given a job **walks to it**: they could
-get stuck holding an order they never moved toward, which nobody else could take
-either.
+**The small print, so none of it surprises you.** A gym, cargo bay, hatch or airlock is
+not a system: it never wears and never needs tuning, but it can still be hit, and a
+repaired one goes back to its own color. A tune that has worn off stops being paid for,
+so beams sit at 110 percent only while the tune lasts. A team sent to a job walks to it,
+and any console can take that job over. And the **sick bay now heals a team all the
+way** — a team that had taken a single hit healed nothing at all, and Engineering said
+"visit sickbay" forever — while an uninjured team is left alone rather than parked
+there.
 
 Docs: [Work orders and maintenance](api/procedural/work_orders.md), [Damage](build/damage.md).
 
@@ -897,11 +822,10 @@ arguments: `category` picks the tab (everything still shows in **Log**, so a fil
 never hide a message), and `severity` (`tip` / `warning` / `danger`) renders the line as a
 colored callout.
 
-**The corner toast folds into the same log.** `overlay_toast()` and the `toast <text>`
-quest directive still work and still compile — they write a log line instead of drawing a
-card, so what they say is kept instead of fading. `announce(level="status")` and `level="minor"` draw no overlay at all now. They were
-the one pair of levels carrying information on a surface that kept no record: a console
-that connected a second later never saw it.
+**Everything a mission says is kept.** `overlay_toast()`, the `toast <text>` quest
+directive and `announce(level="status")` / `level="minor"` all write a log line, so a
+console that connects a second later can still read what was said. Only the levels that
+are meant to interrupt draw over the view.
 
 **Nothing seizes the console.** An urgent line does not switch the info panel to the log
 tab — the strip already shows it, in its severity colour, everywhere. A mission that wants
@@ -949,9 +873,9 @@ still change one and the change sticks.
 
 #### 📜 The Quest Log says something new
 
-Every row used to be the same square, over a caption repeating the state the square's
-color already showed. Now the **shape is what the thing is** — job, objective, beat, arc
-— and the **color is what state it's in**: two facts in one glyph.
+A quest log row says two things in one glyph: the **shape is what the thing is** — job,
+objective, beat, arc — and the **color is what state it's in**, so a caption never has to
+repeat what the icon already showed.
 
 The second line has to earn its place. It says how far along you are (`2 of 6`), what a
 job pays while it's still a choice (`Reward: 120 credits`), or how long is left
@@ -988,9 +912,9 @@ Docs: [Quests](build/quests.md).
 #### 💱 Items & Upgrades
 
 **One pickup can be worth several units.** `item_spawn(key, x, y, z, qty=24)` stamps a
-quantity on the pickup and collecting it credits the lot. A job wanting 24 salvage used
-to mean 24 collectibles scattered across the map — object churn, and a tedious flight
-rather than a pickup. Pickups that don't ask for a quantity are unchanged.
+quantity on the pickup and collecting it credits the lot — so a job wanting 24 salvage is
+a crate to fetch, not 24 collectibles scattered across the map. Pickups that don't ask for
+a quantity are unchanged.
 
 
 - **Discoverable items and upgrades** driven by a data registry — collect them in
@@ -1132,8 +1056,8 @@ At: 0, 0
 The same section type registers **any** atlas, not just icons — a card deck or a set of
 console backdrops is the same format with a different word (`images`, `art`) and its own
 `Domain:`. `sbs lint` checks them: a sheet that isn't on disk, an `At:` with no `Cell:`
-to measure against, a cell off the edge of the sheet. All three used to draw a blank
-widget with no error anywhere.
+to measure against, a cell off the edge of the sheet. Each of those draws a blank widget
+in the game and says nothing, so the lint is where you find out.
 
 The whole named set, with pictures: **[Icons by name](cosmos/gui_icons.md)**.
 
@@ -1171,11 +1095,10 @@ automatically.
     Per-tick work that iterated a whole set at once (all brains, all objectives)
     now runs a **rolling slice** each tick, sized by a shared `RollingSlicer` so a
     full pass completes in its declared period regardless of set size or tick
-    rate — no batch spike. That "regardless of tick rate" part was a claim before
-    it was true: the slice was sized **per call** on the assumption of 30 calls a
-    second, and the engine really makes 15, so every pass took twice as long as it
-    said. It is now sized by the **elapsed tick count**, which is how `TickTask`
-    has always measured its own delay. If you're chasing a `mission_tick` that
+    rate — no batch spike. The slice is sized by the **elapsed tick count**, not by
+    how often the host happens to call it (the engine makes about 15 calls a
+    sim-second, the headless runner 6), which is how `TickTask` has always measured
+    its own delay. If you're chasing a `mission_tick` that
     overruns its budget, the engine's **`Elapsed time`** log line now prints a
     **per-phase breakdown** (`dispatch_tick` / `gui_present` / `gc` / …) so you
     can see exactly which subsystem caused a given spike.
@@ -1205,12 +1128,10 @@ Details: [LegendaryMissions &rsaquo; Game features](legendarymissions/playing/fe
 
 #### 🗂️ One profile for every mission
 
-A [profile](tooling/profiles.md) — one named file that decides how a mission runs
-— had to live inside the mission it configured. Two missions wanting the same
-setup meant two copies, and updating the mission could take yours with it.
-
-Now there is a second place to put one: `data/missions/common_data/profiles/`.
-Same file, same `profile=` argument, but it applies to **whatever you launch**:
+A [profile](tooling/profiles.md) is one named file that decides how a mission runs —
+its settings, its add-ons, its art packs. Put it in `data/missions/common_data/profiles/`
+and it applies to **whatever you launch**, so one file serves every mission and survives
+updating any of them:
 
 ```
 sbs run server,science,comms profile=a28_skies -m WalkTheLine
@@ -1220,11 +1141,11 @@ That is a full profile, add-ons and art packs included — so the Artemis 2.8 sk
 follow you into any mission, from one file. A mission's own `profiles/` folder
 still wins if both have the same name, so a mission can ship a definitive one.
 
-**Launch arguments now know which mission they were for.** `profile=`, `map=`,
-`console=` and `var.NAME=` used to follow you when you restarted into a
-*different* mission — quietly, and a same-named profile over there meant
-something else entirely. They stop applying on a switch, and say so.
-`seed=`, `run=`, `record=` and `test=` describe the launch and still apply. See
+**Launch arguments know which mission they were for.** `profile=`, `map=`, `console=`
+and `var.NAME=` belong to the mission you launched: restart into a *different* one and
+they stop applying, and the log says so, rather than a same-named profile over there
+meaning something else entirely. `seed=`, `run=`, `record=` and `test=` describe the
+launch itself and still apply. See
 [Switching missions](tooling/command-line.md#switching-missions).
 
 !!! note "Sharing a game code does not share your ship names"
@@ -1435,8 +1356,8 @@ quest, or `signal` for anything those three do not cover. It is resolved on the 
 it happens exactly once however many consoles are connected — no `//shared/signal` route
 to write, and no guarding against two officers pressing at the same moment.
 
-Peacetime's Florbin case now opens this way, and the two pieces of MAST that used to do it
-by hand are gone.
+Peacetime's Florbin case opens this way — the whole exchange is authored, with no
+hand-written MAST behind it.
 
 Three smaller things came with it. **`At start: posting`** lists a quest without a working
 Accept button — a board you take by *answering the call that offers it*, not by pressing a
@@ -1977,7 +1898,7 @@ Reports what is installed, what a mission expects, and what is missing — with 
 command that fixes each one. It checks your *setup*, never your writing; for that there
 is still `sbs lint`. See [Checking your setup](tooling/doctor.md).
 
-It now **ends with the arithmetic**, so you can tell at a glance whether anything needs
+It **ends with the arithmetic**, so you can tell at a glance whether anything needs
 doing without reading forty rows:
 
 ```
@@ -2027,13 +1948,8 @@ looked at. `sbs doctor` runs the same check as part of its report. See
 
 #### 🚢 Add-on ships: a file that exists, not a file that gets written
 
-An add-on that adds hulls used to hand the library its ship data and let the library
-**generate** `extraShipData.json` in your mission folder just before the sim was
-created. That route is now known **broken**: the generated file stays on disk, and on
-the next run `get_ship_data()` prepends it whole while the add-on declares the same
-entries again — measured at **51 hulls becoming 102** from run 2 onward.
-
-Now an add-on ships its ship data in its **media pack** and names it:
+An add-on that adds hulls ships its ship data in its **media pack** and names it — a
+file that exists, never one the library writes into your mission folder:
 
 ```
 ship_data_add_extra("turrets/extraShipData_turrets", mod="MyMod")
@@ -2046,8 +1962,7 @@ One call points **both** readers at that one file: the engine (which resolves
 It has to be a media pack rather than a mastlib because a mastlib is a **zip** and the
 engine cannot read inside one — which is exactly what the writing was working around.
 
-**If you maintain a mod that calls `ship_data_merge_mod`, move it.** See [Making a
-mod](build/making-a-mod.md).
+See [Making a mod](build/making-a-mod.md).
 
 ---
 
