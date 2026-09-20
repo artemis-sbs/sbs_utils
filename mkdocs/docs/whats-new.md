@@ -25,7 +25,7 @@ tools, and finally the library changes. Links go to the relevant docs.
 | **[A living bestiary](#a-living-bestiary)** | Seven new species over one behavior, each one aging from Young to Ancient. Scan it before you shoot it. |
 | **[Grav-tether](#grav-tether)** | Reel, tow and lock — on a beam that now feels the weight, and tells you when it is struggling. |
 | **[Engineering has something to do](#engineering)** | Systems wear, and a well-run ship can be tuned above spec. Work orders, a three-tab panel, and eight effectiveness numbers nobody could see before. |
-| **[New faces](#new-faces)** | Every portrait in the game redrawn - and faces that frown, glare, blink and talk. |
+| **[New faces](#new-faces)** | Every portrait in the game redrawn - faces that frown, glare, blink and talk, skin in any color you like, and a Randomize button. |
 | **[The console picker](#console-picker)** | The first screen of the night now tells you who you are about to be. |
 | **[Beacons & the Fabricator](#beacons)** | Engineering builds ordnance over a timer and hands it to the tube. The coordination is the gameplay. |
 | **[Write the mission, don't program it](#amd)** | Quests, dialogue, drops, markers and whole missions as readable AMD documents. |
@@ -723,14 +723,25 @@ for one by name, and everything else about the person stays exactly as it was.
 **And they can talk.** The mouths include the shapes speech is made of, so a face can be
 animated while a line is delivered, and blink while it is not.
 
-**Eye colour is real.** Green, amber and blue eyes are drawn rather than tinted - on
+**Eye color is real.** Green, amber and blue eyes are drawn rather than tinted - on
 Terrans, Kraliens, Skaraans, Torgoth and Ximni alike - and the avatar editor offers them
-by name. Hair is drawn in neutral grey, which means hair colour finally works across its
-whole range instead of fighting whatever colour the hair was already painted.
+by name. Hair is drawn in neutral gray, which means hair color finally works across its
+whole range instead of fighting whatever color the hair was already painted.
 
-**The avatar editor caught up.** Choices that have names are offered as named dropdowns
-rather than an unlabelled slider you drag through fourteen positions looking for
-"Worried".
+**Skin comes in more than one color.** Every species now varies, and the range runs
+well past human: emerald, jade, ice blue, cobalt, rust, crimson, ashen and amber sit
+alongside the flesh tones, and any of them can land on any race. Hair has its own range
+the same way.
+
+**The avatar editor caught up.** Anything with real choices tells you what you are
+looking at instead of making you count. Short lists - which body, which mask - are
+dropdowns; the long ones are a slider with the name written beside it, so dragging
+through thirty-nine skin tones actually says which one you are on. A new face also starts
+with a neutral expression rather than a scowl.
+
+**And there is a Randomize button.** It keeps the species you picked and rolls everything
+else - face, hair, clothes, color. Hit it until you see somebody you like. If the mission
+says your console wears a uniform, a roll will not put you in a suit and tie.
 
 One thing to know: the new sheets replace the old ones, and the old art is gone. Faces
 written into missions have been translated to the nearest equivalent, and a face you

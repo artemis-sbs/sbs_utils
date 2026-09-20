@@ -15,7 +15,7 @@ the range multiply can actually reach. "fair" ends up as near-no-tint (the skin 
 painted, which IS the light end), "dark5" as a deep warm multiply, "green3" as a teal
 shift - every position visibly different, monotonic, and honest about what it is: a ramp
 down from the painted skin, not an absolute color picker. Absolute control needs a
-desaturated grey body cell in the art; ABSOLUTE_REACH below reports how far off we are,
+desaturated gray body cell in the art; ABSOLUTE_REACH below reports how far off we are,
 so that ask stays measurable.
 
     python _tools/face_tint_calibrate.py            # table + reachability report
@@ -36,7 +36,7 @@ from face_contact_sheet import CELL, SHEETS, graphics_dir  # noqa: E402
 Image.MAX_IMAGE_PIXELS = None
 
 #: Where each race's skin lives, and where its hair lives, as (row, col). Hair is
-#: measured from a cell drawn in the neutral white/grey the new sheets use; a race with
+#: measured from a cell drawn in the neutral white/gray the new sheets use; a race with
 #: no hair row has None and gets no hair palette.
 BASE_CELLS = {
     "ter": {"skin": (0, 0), "hair": (3, 0)},
@@ -52,14 +52,14 @@ BASE_CELLS = {
     "arv": {"skin": (0, 0), "hair": (2, 0)},
 }
 
-#: The authored intent - the colour somebody wanted to SEE - plus which correction to use.
+#: The authored intent - the color somebody wanted to SEE - plus which correction to use.
 #:
 #: "ramp" keeps the painted skin's own character and moves only its lightness/warmth. It
 #: is right for human tones: `fair1` should read as the face as drawn, and hue-correcting
-#: it would flatten a warm complexion to grey.
+#: it would flatten a warm complexion to gray.
 #:
 #: "hue" FORCES the hue by dividing out the base skin. It is the only thing that works for
-#: a non-human colour: the base is warm (R>G>B), so an uncorrected blue tint merely darkens
+#: a non-human color: the base is warm (R>G>B), so an uncorrected blue tint merely darkens
 #: toward the base and comes out BROWN - measured, `ice-blue` read #67553f. Corrected,
 #: it reads as blue.
 #:
@@ -86,7 +86,7 @@ SKIN_TONES = [
     ("violet1", "573d76", "hue"), ("violet2", "6e5e8e", "hue"),
     ("olive", "acb057", "hue"), ("pale-violet", "c0caff", "hue"),
     ("indigo", "333d70", "hue"),
-    # Non-human skin tones (2026-09-20, by request). Named for the COLOUR and nothing
+    # Non-human skin tones (2026-09-20, by request). Named for the COLOR and nothing
     # else - these ship in the product, so no borrowed species names.
     ("emerald", "6f9b3f", "hue"),     # vivid yellow-green
     ("jade", "3f7d54", "hue"),        # deeper, cooler green
@@ -94,7 +94,7 @@ SKIN_TONES = [
     ("cobalt", "4a7ea3", "hue"),      # deeper blue
     ("rust", "a8564a", "hue"),        # exact on Terran
     ("crimson", "8c3b35", "hue"),     # exact on Terran
-    ("ashen", "9aa48e", "hue"),       # cool grey-green
+    ("ashen", "9aa48e", "hue"),       # cool gray-green
     ("amber", "c9922f", "hue"),       # warm metallic
 ]
 
@@ -144,10 +144,10 @@ def calibrate(base, tones):
 
     "ramp"  keeps the tone's own hue and saturation and scales by a lightness factor from
             its luminance, so the palette spans FLOOR..1 instead of collapsing wherever
-            the art is darker than the authored colour. Right for human tones.
-    "hue"   divides the wanted colour by the BASE, so the base's own warmth is cancelled
+            the art is darker than the authored color. Right for human tones.
+    "hue"   divides the wanted color by the BASE, so the base's own warmth is canceled
             and the hue survives the multiply. Then darkens toward the wanted lightness.
-            The only thing that works for a non-human colour.
+            The only thing that works for a non-human color.
 
     Index 0 stays exactly white either way - "no tint" has to mean no tint, or the face as
     the artist drew it becomes unreachable.
@@ -165,7 +165,7 @@ def calibrate(base, tones):
             ratio = d / np.maximum(base, 1.0)
             tint = ratio / max(ratio.max(), 1e-6)     # most saturated version in reach
             lit = base * tint
-            # Only darken - if the wanted colour is lighter than this, this IS the answer.
+            # Only darken - if the wanted color is lighter than this, this IS the answer.
             k = min(1.0, float(d.mean()) / max(float(lit.mean()), 1.0))
             tint = np.clip(tint * k, 0.0, 1.0) * 255.0
         else:

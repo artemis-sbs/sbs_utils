@@ -1,4 +1,4 @@
-"""Render a labelled contact sheet of a face atlas, one PNG per sheet.
+"""Render a labeled contact sheet of a face atlas, one PNG per sheet.
 
 A face atlas is a grid of 512px cells that composite on top of each other, so a raw
 look at the PNG tells you almost nothing: a mouth cell is a few hundred pixels of lip

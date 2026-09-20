@@ -94,7 +94,7 @@ def render(face_string, gfx, size=256):
 
 
 def grid_sheet(items, gfx, size=200, per_row=8):
-    """[(label, face_string)] -> one labelled contact image."""
+    """[(label, face_string)] -> one labeled contact image."""
     n = min(per_row, max(1, len(items)))
     down = (len(items) + n - 1) // n
     out = Image.new("RGBA", (n * size, down * (size + 18)), BG)

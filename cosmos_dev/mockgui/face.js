@@ -150,11 +150,11 @@
       //
       // This used to be `globalCompositeOperation='multiply'` + an opaque fillRect, then
       // 'destination-in' to mask back to the sprite's alpha - and it was wrong on every
-      // soft edge. Canvas stores colour PREMULTIPLIED, and its multiply blend computes
+      // soft edge. Canvas stores color PREMULTIPLIED, and its multiply blend computes
       // Cs*Cd + Cs*(1-ad): with an opaque fill that second term survives wherever the
       // sprite is partially transparent, so a fringe pixel drifts toward the tint at full
-      // strength. Measured at tint 0.30 over colour 0.55: exact at full coverage, +0.30
-      // at half, +0.90 at a quarter. The result was a tint-coloured halo on every
+      // strength. Measured at tint 0.30 over color 0.55: exact at full coverage, +0.30
+      // at half, +0.90 at a quarter. The result was a tint-colored halo on every
       // antialiased edge, worst on the EYE and MOUTH cells because those are small
       // features feathered into the face and are mostly soft pixels.
       //

@@ -247,7 +247,7 @@ def face_tone_indices (race, kind, natural_only=False):
     
     Returns [] when the race has no palette of that kind - Arvonian has no skin ramp,
     and only three races have hair - so a caller can pass the result straight to a
-    random pick and get None rather than a wrong colour."""
+    random pick and get None rather than a wrong color."""
 def face_tone_names (race, kind):
     """The tone names for a race's palette, for an editor's dropdown. [] if it has none -
     Arvonian has no skin palette, and only three races have hair."""
@@ -256,7 +256,7 @@ def face_tone_tints (race, kind):
     
     Parsing needs these and an editor needs the names; handing a parser the NAMES matches
     nothing and silently reports tone 0, which reads as "this face has no tint" and
-    quietly strips somebody's skin colour on an edit."""
+    quietly strips somebody's skin color on an edit."""
 def face_visemes (race):
     """The mouth indices to cycle while somebody is speaking. [] means do not animate."""
 def get_face (ship_id):

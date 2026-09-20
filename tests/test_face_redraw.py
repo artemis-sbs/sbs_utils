@@ -291,7 +291,7 @@ class TestAnimation(unittest.TestCase):
                 self.assertEqual(was["col"], now["col"], "a blink moved the mouth")
 
     def test_only_terran_blinks(self):
-        # The alien sheets draw eye COLOURS, not eye expressions - nobody else has a
+        # The alien sheets draw eye COLORS, not eye expressions - nobody else has a
         # closed-eye cell, and inventing one would shut the wrong feature.
         for race in RACES:
             if race == "terran":
@@ -334,17 +334,17 @@ class TestTints(unittest.TestCase):
                                      len(faces.face_tone_tints(race, kind)))
 
     def test_a_raw_hex_passes_through(self):
-        # A caller with its own colour is never second-guessed.
+        # A caller with its own color is never second-guessed.
         self.assertEqual(faces.face_tint("terran", "skin", "#a1b2c3"), "a1b2c3")
 
-    def test_every_tinted_race_randomises_its_skin(self):
+    def test_every_tinted_race_randomizes_its_skin(self):
         """All six, and across the whole palette.
 
-        The five alien randomisers used to leave skin untouched entirely, and Arvonian
+        The five alien randomizers used to leave skin untouched entirely, and Arvonian
         had no palette at all on the reasoning that tinting a painted bust is tinting
         somebody's tattoos - which turned out to be wrong when rendered: the pattern
         takes the tint with the skin and reads as a different coloration of the same
-        person. So pressing Randomize now changes somebody's colour whoever they are.
+        person. So pressing Randomize now changes somebody's color whoever they are.
         """
         for race in RACES:
             if faces.FACE_LAYERS[race].get("tint", {}).get("body") != "skin":
@@ -361,7 +361,7 @@ class TestTints(unittest.TestCase):
 
     def test_the_full_range_includes_the_exotic_tones(self):
         """RANDOM_FULL_TONE_RANGE is the owner's call: the greens and blues are real art
-        and a randomiser that never reaches them means nobody ever sees them."""
+        and a randomizer that never reaches them means nobody ever sees them."""
         self.assertTrue(faces.RANDOM_FULL_TONE_RANGE)
         names = faces.face_tone_names("terran", "skin")
         tints = faces.face_tone_tints("terran", "skin")

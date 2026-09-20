@@ -48,7 +48,7 @@ def migrate_text(text):
     def sub(m):
         old = m.group(0)
         # A run has to END in ';' to be a whole face - a trailing partial match would be
-        # re-emitted normalised and quietly change a string that was never a face.
+        # re-emitted normalized and quietly change a string that was never a face.
         core = old.rstrip()
         if not core.endswith(";"):
             return old

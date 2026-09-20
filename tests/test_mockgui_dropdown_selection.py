@@ -1,4 +1,4 @@
-"""The browser mock's dropdown has to honour `text:` as the CURRENT SELECTION.
+"""The browser mock's dropdown has to honor `text:` as the CURRENT SELECTION.
 
 A `<select>` that is never told which option is selected shows its FIRST one. That broke
 two things at once in the mock, and the second is why it survived so long unnoticed:
@@ -16,12 +16,12 @@ accidental display was correct and every pick was a real change. The avatar edit
 picker is the only one whose initial `text:` (Terran) is not first in its list
 (Arvonian, Kralien, Skaraan, Terran, ...).
 
-**The engine honours `text:`**, so this was mock-only. A mock that behaves differently
+**The engine honors `text:`**, so this was mock-only. A mock that behaves differently
 from the engine makes a real bug and its absence indistinguishable, which is why the
 divergence gets fixed rather than worked around in the mission.
 
 This test is STATIC - it reads client.html, because the renderer is browser JavaScript and
-there is no JS harness here. It checks the seam rather than the behaviour, so it is worth
+there is no JS harness here. It checks the seam rather than the behavior, so it is worth
 exactly as much as that: it catches the line being deleted, not a new way to break it.
 
     python -m unittest tests.test_mockgui_dropdown_selection
@@ -49,7 +49,7 @@ def _dropdown_case():
     return src[start:end]
 
 
-class TestDropdownHonoursItsSelection(unittest.TestCase):
+class TestDropdownHonorsItsSelection(unittest.TestCase):
     def setUp(self):
         self.case = _dropdown_case()
 
@@ -81,7 +81,7 @@ class TestDropdownHonoursItsSelection(unittest.TestCase):
 
 class TestTheLibrarySendsTheSelection(unittest.TestCase):
     """The other half: whatever the browser does, the library has to put the current
-    selection in `text:` for it to honour. This part is real, not static."""
+    selection in `text:` for it to honor. This part is real, not static."""
 
     def test_setting_a_dropdown_value_writes_it_into_the_props(self):
         from sbs_utils.pages.layout.dropdown import Dropdown
@@ -108,11 +108,11 @@ class TestTheLibrarySendsTheSelection(unittest.TestCase):
 class TestFaceTintIsAlphaCorrect(unittest.TestCase):
     """The browser compositor must tint PER PIXEL, not with a canvas blend mode.
 
-    Canvas 2D stores colour premultiplied, and its `multiply` blend computes
+    Canvas 2D stores color premultiplied, and its `multiply` blend computes
     Cs*Cd + Cs*(1-ad). Tinting with an opaque fillRect therefore leaves that second term
     wherever the sprite is partially transparent, and the pixel drifts toward the tint at
     full strength: exact at full coverage, +0.30 at half, +0.90 at a quarter (tint 0.30
-    over colour 0.55). Every antialiased edge got a tint-coloured halo, worst on the eye
+    over color 0.55). Every antialiased edge got a tint-colored halo, worst on the eye
     and mouth cells - small features feathered into the face, so mostly soft pixels.
 
     getImageData/putImageData are defined on STRAIGHT alpha, so a plain channel multiply

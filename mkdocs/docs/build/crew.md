@@ -229,7 +229,7 @@ worked out once and kept, so what the line shows is what the console gets.
   drawn portraits with nothing to slide, so those are picked from a gallery instead.
   Features that are real choices rather than a range &mdash; eyes, mouths, masks &mdash;
   are offered as named dropdowns ("Worried", "Blue", "Respirator"), because the redrawn
-  sheets carry expression and eye-colour art and hunting for it on a 0-13 slider is not a
+  sheets carry expression and eye-color art and hunting for it on a 0-13 slider is not a
   choice anybody makes twice;
 - **who they are instead**, out of a roster that staffs this ship. An *override* &mdash; a
   cast already assigns itself, so reaching for the list is reaching past the automatic

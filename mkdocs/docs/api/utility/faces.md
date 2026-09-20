@@ -54,7 +54,7 @@ tolerate a missing layer rather than assume all six races match;
 `face_layer_count(race, layer)` answers `0` for exactly this reason.
 
 `_tools/face_contact_sheet.py` renders every cell of a sheet composited over its body and
-labelled `row.col`. That is the only practical way to check a layer table against the art,
+labeled `row.col`. That is the only practical way to check a layer table against the art,
 because a mouth cell on its own is a few hundred pixels of lip in an empty square.
 
 ## Making a face
@@ -100,20 +100,20 @@ missions. Whatever already has a clock drives them:
 ```
 
 Assigning is enough: `Face.update()` marks itself dirty, so the engine re-sends the widget
-without a page rebuild. Only Terran blinks - the alien sheets draw eye *colours* rather
+without a page rebuild. Only Terran blinks - the alien sheets draw eye *colors* rather
 than eye expressions, so nobody else has a closed-eye cell.
 
 ## Tints, and what they can and cannot do
 
 **The engine's only blend mode for a face layer is MULTIPLY, so a tint can only darken.**
-That is the single most important thing to know about face colour. A palette written as
-"the colour I want to see" is therefore half unusable: measured against the current art,
+That is the single most important thing to know about face color. A palette written as
+"the color I want to see" is therefore half unusable: measured against the current art,
 only 3 of 31 skin tones were absolutely reachable on Kralien and 8 on Skaraan.
 
 So the shipped palettes keep each tone's hue and saturation and re-map its lightness into
 the range multiply can reach. Every slider position is distinct and the ramp is
-monotonic, but it is **a ramp down from the skin as painted, not an absolute colour
-picker**. Absolute control needs a desaturated grey body cell in the art, which is an
+monotonic, but it is **a ramp down from the skin as painted, not an absolute color
+picker**. Absolute control needs a desaturated gray body cell in the art, which is an
 outstanding request to the artist.
 
 ```python
@@ -146,11 +146,11 @@ ask. A random Terran must not roll one.
 
 **The skin tint covers the eye and mouth layers too, not just the body.** Those cells are
 not clean cutouts - an eye cell is 17-31% skin and a mouth cell 19-40%: brow ridge,
-eyelid, the surround of the lips. Tint the body alone and that skin keeps the colour it
+eyelid, the surround of the lips. Tint the body alone and that skin keeps the color it
 was painted, so a re-toned face wears a pale mask around the eyes and a pale muzzle,
 glaring on a dark or non-human tone. The Torgoth nose is skin as well. Equipment sharing
 those rows is excluded: a Ximni breathing mask and a Torgoth eye-plate are hardware, and
-must not change colour when somebody changes complexion.
+must not change color when somebody changes complexion.
 
 Hair and facial hair take the hair palette. Hats, clothes and accessories are never
 tinted. Arvonian has no skin palette at all - its eight bodies are painted busts.
@@ -159,12 +159,12 @@ tinted. Arvonian has no skin palette at all - its eight bodies are painted busts
 
 Some cells are states rather than identities: a closed eye, an eye-roll, a mouth caught
 mid-word. They are what expressions and the talking animation are made of, and the editor
-offers every one of them - but a randomiser must not hand one to somebody as their
+offers every one of them - but a randomizer must not hand one to somebody as their
 standing portrait, or you get an officer who is permanently asleep or forever saying
 "oh". `FACE_LAYERS[race]["resting"]` names the indices a random face may use; a layer
 with no entry has no unsuitable cells.
 
-This narrows the **randomiser only**. `face_layer_count`, `face_cell`, `face_expression`
+This narrows the **randomizer only**. `face_layer_count`, `face_cell`, `face_expression`
 and the editor all still reach the full set.
 
 ## No layer offsets
@@ -172,7 +172,7 @@ and the editor all still reach the full set.
 A face string may carry an `ox`/`oy` nudge, and the pre-redraw builder used them heavily
 (`6 -2` for hair, `14 -2` for a hat, `12 4` for facial hair, `20 4` for an accessory).
 **The current builders emit none.** Every cell on the new sheets is drawn already in
-position, so a nudge would only move it off. The v1 parser still recognises the old
+position, so a nudge would only move it off. The v1 parser still recognizes the old
 offsets, because it has to read strings that were written with them.
 
 ## Faces authored before the 2026-09 redraw

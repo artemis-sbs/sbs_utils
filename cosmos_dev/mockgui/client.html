@@ -4384,7 +4384,7 @@ function buildWidget(msg, s) {
       // script held something else, AND picking option 0 was then not a change, so the
       // browser fired no `change` event and the script never heard the choice. On the
       // avatar editor that read as "selecting Arvonian gives you Terran".
-      // The engine honours `text:`, so this was mock-only - a mock kinder or stranger
+      // The engine honors `text:`, so this was mock-only - a mock kinder or stranger
       // than the engine makes a real bug and its absence indistinguishable.
       const want = ctext(s.text);
       if (want) {

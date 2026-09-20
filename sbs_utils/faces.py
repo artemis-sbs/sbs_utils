@@ -82,13 +82,13 @@ FACE_SHEETS_V1 = {"ter": (15, 8), "tor": (8, 8), "ska": (8, 8),
 #            THE EYE AND MOUTH LAYERS TAKE THE SKIN TINT. They are not clean cutouts:
 #            measured, an eye cell is 17-31% skin and a mouth cell 19-40% - brow ridge,
 #            eyelid, the surround of the lips. Tint the body alone and that skin stays the
-#            colour it was painted, so a re-toned face wears a pale mask around the eyes
+#            color it was painted, so a re-toned face wears a pale mask around the eyes
 #            and a pale muzzle. It is glaring on a dark or non-human tone and it is the
 #            reason the pre-redraw builder tinted face, eyes and mouth together.
 #            Equipment on those same rows must NOT take it - a Ximni breathing mask and a
 #            Torgoth eye-plate are hardware, not skin.
 #   names  - a label per cell, so an editor can offer "Worried" instead of "Eyes 6".
-#   resting- which indices suit a face AT REST, for the randomisers. Some cells are
+#   resting- which indices suit a face AT REST, for the randomizers. Some cells are
 #            states, not identities: a closed eye, an eye-roll, a mouth caught mid-word.
 #            They are wanted for expressions and offered in the editor, but rolling one
 #            as somebody's default portrait gives you an officer who is permanently
@@ -105,7 +105,7 @@ _TER_EYE_NAMES = [
     "Suspicious", "Closed", "Green", "Amber", "Blue", "Scowling",
 ]
 _TER_MOUTH_NAMES = [
-    "Neutral", "Thin", "Open Wide", "Open Smile", "Pale", "Grey Lips", "Pink Lips",
+    "Neutral", "Thin", "Open Wide", "Open Smile", "Pale", "Gray Lips", "Pink Lips",
     "Gritted", "Pursed", "Slight", "Dismayed", "Smiling", "Closed", "Parted",
 ]
 
@@ -217,14 +217,14 @@ FACE_LAYERS = {
         },
         "order": ["body", "clothes", "eyes", "mouth", "mask", "horns", "hair"],
         # Horns take the SKIN tint: they grow out of the head, so a Ximni who changes
-        # colour has to change with them or the horns read as a bolted-on prop. Same
+        # color has to change with them or the horns read as a bolted-on prop. Same
         # reasoning as the Torgoth nose. The mask on the next row does NOT - that one
         # really is hardware.
         "tint": {"body": "skin", "eyes": "skin", "mouth": "skin", "horns": "skin",
                  "hair": "hair"},
         "names": {
             "body": ["Masculine", "Feminine"],
-            "eyes": ["Grey", "Teal", "Narrowed", "Yellow"],
+            "eyes": ["Gray", "Teal", "Narrowed", "Yellow"],
             "mouth": ["Frown", "Smirk", "Neutral", "Downturned"],
             "mask": ["Respirator", "Breather", "Armored", "Warmask"],
         },
@@ -297,7 +297,7 @@ def face_cell(race, layer, index):
 #
 #   HUMAN tones (`fair*`, `dark*`, `warm*`, `c*`) keep the painted skin's own character
 #   and move only its lightness and warmth. A ramp down from the face as drawn, not an
-#   absolute color picker - truly pale skin needs a desaturated grey body cell in the art,
+#   absolute color picker - truly pale skin needs a desaturated gray body cell in the art,
 #   which is an outstanding ask to the artist.
 #
 #   EXOTIC tones (emerald, ice-blue, crimson, ...) divide the base skin out of
@@ -351,7 +351,7 @@ _NATURAL_SKIN = {"none", "c1", "c2", "c3", "c4", "c5",
 
 #: The non-human skin tones, for a mission that wants one by name rather than by index:
 #: ``face_build("terran", skin=face_tone_index("terran", "emerald"))``.
-#: Named for the COLOUR only - these ship, so no borrowed species names.
+#: Named for the COLOR only - these ship, so no borrowed species names.
 EXOTIC_SKIN = ("emerald", "jade", "ice-blue", "cobalt",
                "rust", "crimson", "ashen", "amber")
 _NATURAL_HAIR = {"none", "blonde", "brown", "sandy", "chestnut", "gunmetal", "red"}
@@ -362,7 +362,7 @@ def face_tone_indices(race, kind, natural_only=False):
 
     Returns [] when the race has no palette of that kind - Arvonian has no skin ramp,
     and only three races have hair - so a caller can pass the result straight to a
-    random pick and get None rather than a wrong colour.
+    random pick and get None rather than a wrong color.
     """
     keep = _NATURAL_SKIN if kind == "skin" else _NATURAL_HAIR
     names = face_tone_names(race, kind)
@@ -378,7 +378,7 @@ def face_tone_names(race, kind):
 def face_tone_index(race, kind, name, default=0):
     """The palette index of a tone BY NAME, so a mission can ask for "emerald"
     instead of counting. Unknown names answer `default` rather than raising - a face
-    built from tone 0 is still a face, and a mission should not die over a colour."""
+    built from tone 0 is still a face, and a mission should not die over a color."""
     names = face_tone_names(race, kind)
     try:
         return names.index(str(name).strip().lower())
@@ -391,7 +391,7 @@ def face_tone_tints(race, kind):
 
     Parsing needs these and an editor needs the names; handing a parser the NAMES matches
     nothing and silently reports tone 0, which reads as "this face has no tint" and
-    quietly strips somebody's skin colour on an edit.
+    quietly strips somebody's skin color on an edit.
     """
     return [t for _n, t in _face_tone_table(race, kind)]
 
@@ -450,7 +450,7 @@ def _maybe(chance, pool):
 def _indices(race, layer):
     """The indices a RANDOM face may use for a layer.
 
-    Honors the race's `resting` list, so a randomiser never hands somebody a closed eye
+    Honors the race's `resting` list, so a randomizer never hands somebody a closed eye
     or a mid-word mouth as their standing portrait. The editor and face_expression reach
     the full set through face_layer_count / face_cell; this is the resting subset only.
     """
@@ -600,7 +600,7 @@ def face_eyes(face_string, index):
 
 
 #: The closed-eye cell per race, for an idle blink. ONLY TERRAN HAS ONE - the redrawn
-#: alien sheets draw their eyes as colour variants, not as expressions, so nobody else
+#: alien sheets draw their eyes as color variants, not as expressions, so nobody else
 #: can shut them. Listing it rather than reusing the "asleep" expression matters: asleep
 #: also drops the mouth to neutral, and a blink that changes somebody's mouth reads as a
 #: twitch.
@@ -737,10 +737,10 @@ def skaraan(face_id, eye_id, mouth_id, horn_id, hat_id, clothes_id=None):
 #: Whether a random face may use the WHOLE skin palette, greens and blues included.
 #:
 #: True by default, and it is the owner's call: the exotic tones are real art, and a
-#: randomiser that never reaches them means nobody ever sees them. The cost is worth
+#: randomizer that never reaches them means nobody ever sees them. The cost is worth
 #: stating plainly - `random_face("terran")` is what crew.py rolls for an unnamed bridge
 #: officer and what `random_face()` falls back to for an unregistered race, so roughly
-#: half of a randomly-crewed bridge will not be flesh-coloured.
+#: half of a randomly-crewed bridge will not be flesh-colored.
 #:
 #: Set it False for flesh tones only. Nothing else needs changing; the natural subset is
 #: still `face_tone_indices(race, kind, natural_only=True)` and the editor, missions and
@@ -751,15 +751,15 @@ RANDOM_FULL_TONE_RANGE = True
 def _random_tones(race):
     """{skin, hairtone} for a random face of a race.
 
-    Every tinted race gets skin variation, not just Terran. The five alien randomisers
-    used to leave skin alone entirely - "preserve the old behaviour" - which was
+    Every tinted race gets skin variation, not just Terran. The five alien randomizers
+    used to leave skin alone entirely - "preserve the old behavior" - which was
     defensible while the palettes barely worked and indefensible once the avatar editor
     grew a Randomize button: pressing it on a Kralien changed everything about them
-    except their colour.
+    except their color.
 
     EVERY tinted race varies, including Arvonian, and by default every one of them draws
     from the WHOLE palette - see RANDOM_FULL_TONE_RANGE. The greens, blues and violets are
-    real art; a randomiser that never reaches them means nobody ever sees them.
+    real art; a randomizer that never reaches them means nobody ever sees them.
     """
     race = str(race).lower()
     out = {}
@@ -949,7 +949,7 @@ def random_kralien():
 
 #: (hat, clothes) per uniform index. Ten entries, keeping the old table's length and its
 #: red / green / blue / black grouping, so a stored uniform_id still lands on a uniform of
-#: roughly the colour it used to.
+#: roughly the color it used to.
 terran_uniform = [
     (0, 17), (None, 23), (4, 15),     # reds
     (2, 18), (1, 20),                 # greens
@@ -1583,7 +1583,7 @@ _V1_MAPS = {
 _V1_TERRAN_UNIFORM = [(0, 0), (0, 6), (0, 8), (1, 2), (1, 5),
                       (2, 1), (2, 3), (3, 7), (3, 8), (3, 9)]
 
-#: The old palettes, needed only to turn an old layer colour back into an index.
+#: The old palettes, needed only to turn an old layer color back into an index.
 _V1_SKIN_TONES = [
     "ffffff", "ffcd94", "fff0bd", "eac086", "ffe39f", "ffab60", "f2efee", "efe6dd",
     "ebd3c5", "d7b6a5", "9f7967", "70361c", "714937", "65371e", "492816", "321b0f",
