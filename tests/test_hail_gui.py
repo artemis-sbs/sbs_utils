@@ -580,7 +580,7 @@ class ConversationViewTests(HailViewBase):
         self.assertEqual(V.hail_view(self.ship, self.comms), "portrait")
 
     def test_a_portrait_draws_the_face_the_name_and_the_line(self):
-        self.offer(presentation="portrait", face="ter #fff 0 0;", name="Ashfang")
+        self.offer(presentation="portrait", face="ter #fff 0 0;ter #fff 5 6;ter #fff 0 1;ter #fff 0 2;", name="Ashfang")
         H.hail_accept(self.ship)
         self.assertEqual(V.hail_view(self.ship, self.comms), "portrait")
         self.assertIn("face", self.kinds())

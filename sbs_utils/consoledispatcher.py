@@ -450,7 +450,7 @@ class MCommunications:
         :type face_desc: string
         """
         self.face_desc = face_desc if face_desc is not None \
-            else f"ter #964b00 8 1;ter #968b00 3 0;ter #968b00 4 0;ter #968b00 5 2;ter #fff 3 5;ter #964b00 8 4;"
+            else f"ter #fff 1 0;ter #fff 5 6;ter #fff 0 1;ter #fff 1 2;ter #884400 6 3;"
 
         ConsoleDispatcher.add_select(self.id, 'comms_target_UID', self.comms_selected)
         ConsoleDispatcher.add_message(self.id, 'comms_target_UID', self.comms_message)

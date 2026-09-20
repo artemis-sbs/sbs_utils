@@ -1187,9 +1187,21 @@ def _no_braces(text):
     return str(text or "").replace("{", "(").replace("}", ")")
 
 
+#: Stamp marking a packed record whose face was authored against the CURRENT sheets.
+#:
+#: The six stock face atlases were replaced in place in 2026-09 - same aliases, same
+#: filenames, different cells - and nothing about a face string says which generation it
+#: belongs to. That is tolerable everywhere the strings live in source, because a person
+#: sweeps those once. It is not tolerable here: this value lives in the player's own
+#: `client_string_set.txt`, survives on their machine across every mission and every
+#: update, and nobody is going to edit it. So the record says so itself, and a record
+#: that does not say gets migrated on the way out and re-saved stamped.
+_SELF_FACE_STAMP = "f2"
+
+
 def crew_self_pack(pick="", face="", portrait=""):
     """Pack this player's own choices into one client-string value."""
-    parts = [_no_braces(pick), _no_braces(face), _no_braces(portrait)]
+    parts = [_no_braces(pick), _no_braces(face), _no_braces(portrait), _SELF_FACE_STAMP]
     return _SELF_SEP.join(p.replace(_SELF_SEP, "/") for p in parts).rstrip(_SELF_SEP)
 
 
@@ -1197,12 +1209,21 @@ def crew_self_unpack(text):
     """(pick, face, portrait) out of a packed value. Always a 3-tuple, so a caller can
     unpack it without testing - an empty or malformed value reads as three blanks.
 
+    A face saved BEFORE the 2026-09 sheet redraw is translated on the way out, so a
+    returning player gets the nearest equivalent of the person they built rather than a
+    scramble of whatever now occupies those cells. Re-saving stamps it, so this happens
+    once. A record with no face is left alone - there is nothing to translate.
+
     Braces are stripped on the way OUT as well as in, because the value comes off the
     player's own disk and a hand-edited client_string_set.txt is not this file's to trust.
     """
     parts = _no_braces(text).split(_SELF_SEP)
-    parts += [""] * (3 - len(parts))
-    return parts[0].strip(), parts[1].strip(), parts[2].strip()
+    parts += [""] * (4 - len(parts))
+    pick, face, portrait, stamp = (p.strip() for p in parts[:4])
+    if face and stamp != _SELF_FACE_STAMP:
+        from ..faces import face_migrate
+        face = face_migrate(face)
+    return pick, face, portrait
 
 
 def crew_pick_value(roster_key, member_key):

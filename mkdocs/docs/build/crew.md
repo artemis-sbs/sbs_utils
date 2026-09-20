@@ -226,7 +226,11 @@ worked out once and kept, so what the line shows is what the console gets.
 - their **name**, typed;
 - their **face**, through the [avatar editor](../cosmos/gui.md) &mdash; present only when the
   `avatar_editor` add-on is loaded. It builds the six stock races; a mod's faces are whole
-  drawn portraits with nothing to slide, so those are picked from a gallery instead;
+  drawn portraits with nothing to slide, so those are picked from a gallery instead.
+  Features that are real choices rather than a range &mdash; eyes, mouths, masks &mdash;
+  are offered as named dropdowns ("Worried", "Blue", "Respirator"), because the redrawn
+  sheets carry expression and eye-colour art and hunting for it on a 0-13 slider is not a
+  choice anybody makes twice;
 - **who they are instead**, out of a roster that staffs this ship. An *override* &mdash; a
   cast already assigns itself, so reaching for the list is reaching past the automatic
   answer;
@@ -242,6 +246,11 @@ CREW_EDIT:
     allow_face: true        # the avatar editor button inside it
     allow_portrait: false
 ```
+
+A face a player built before the 2026-09 sheet redraw is stored in their own
+`client_string_set.txt` and survives every mission and every update. It carries a format
+stamp now: an unstamped record is translated to the current art once, on read, and
+re-saved. Nobody has to edit that file, and nobody gets a scrambled officer.
 
 ## What reads it
 

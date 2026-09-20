@@ -355,9 +355,9 @@ class TestEditingOneThingKeepsTheRest(CrewCase):
         s = self.ship("Nobody", hull="tsn_light_cruiser")
         was = crew.crew_resolve(1, s.id, "helm")
         self.assertTrue(was.name)
-        now = crew.crew_resolve(1, s.id, "helm", own_face="ter #fff 0 0;")
+        now = crew.crew_resolve(1, s.id, "helm", own_face="ter #fff 0 0;ter #fff 5 6;ter #fff 0 1;ter #fff 0 2;")
         self.assertEqual(now.name, was.name)
-        self.assertEqual(now.face, "ter #fff 0 0;")
+        self.assertEqual(now.face, "ter #fff 0 0;ter #fff 5 6;ter #fff 0 1;ter #fff 0 2;")
         self.assertEqual(now.source, "own")
 
     def test_typing_a_name_keeps_the_face(self):
@@ -373,10 +373,10 @@ class TestEditingOneThingKeepsTheRest(CrewCase):
         the face, edit the name again. Nothing may fall off on the way."""
         s = self.ship("Nobody", hull="tsn_light_cruiser")
         post = crew.crew_resolve(1, s.id, "helm", own_name="Doug")
-        post = crew.crew_resolve(1, s.id, "helm", own_name="Doug", own_face="ter #fff 0 0;")
-        post = crew.crew_resolve(1, s.id, "helm", own_name="Douglas", own_face="ter #fff 0 0;")
+        post = crew.crew_resolve(1, s.id, "helm", own_name="Doug", own_face="ter #fff 0 0;ter #fff 5 6;ter #fff 0 1;ter #fff 0 2;")
+        post = crew.crew_resolve(1, s.id, "helm", own_name="Douglas", own_face="ter #fff 0 0;ter #fff 5 6;ter #fff 0 1;ter #fff 0 2;")
         self.assertEqual(post.name, "Douglas")
-        self.assertEqual(post.face, "ter #fff 0 0;")
+        self.assertEqual(post.face, "ter #fff 0 0;ter #fff 5 6;ter #fff 0 1;ter #fff 0 2;")
 
     def test_renaming_a_roster_person_keeps_their_face_and_rank(self):
         s = self.ship("Enterprise")
@@ -390,9 +390,9 @@ class TestEditingOneThingKeepsTheRest(CrewCase):
         set_shared_variable("CREW_SELECT", "thursday")
         s = self.ship("Anything")
         pick = crew.crew_pick_value("thursday", "doug")
-        post = crew.crew_resolve(1, s.id, "helm", own_pick=pick, own_face="ter #fff 0 0;")
+        post = crew.crew_resolve(1, s.id, "helm", own_pick=pick, own_face="ter #fff 0 0;ter #fff 5 6;ter #fff 0 1;ter #fff 0 2;")
         self.assertEqual(post.name, "Doug")
-        self.assertEqual(post.face, "ter #fff 0 0;")
+        self.assertEqual(post.face, "ter #fff 0 0;ter #fff 5 6;ter #fff 0 1;ter #fff 0 2;")
 
     def test_a_face_and_a_photograph_still_displace_each_other(self):
         """The one pair that CANNOT both stand - they answer the same question, and nothing
@@ -401,15 +401,15 @@ class TestEditingOneThingKeepsTheRest(CrewCase):
         post = crew.crew_resolve(1, s.id, "helm", own_portrait="media/me")
         self.assertEqual(post.portrait, "media/me")
         self.assertEqual(post.face, "")
-        post = crew.crew_resolve(1, s.id, "helm", own_face="ter #fff 0 0;")
-        self.assertEqual(post.face, "ter #fff 0 0;")
+        post = crew.crew_resolve(1, s.id, "helm", own_face="ter #fff 0 0;ter #fff 5 6;ter #fff 0 1;ter #fff 0 2;")
+        self.assertEqual(post.face, "ter #fff 0 0;ter #fff 5 6;ter #fff 0 1;ter #fff 0 2;")
         self.assertEqual(post.portrait, "")
 
     def test_clearing_everything_hands_the_seat_back(self):
         """What the Edit page's Use Default button does."""
         s = self.ship("Nobody", hull="tsn_light_cruiser")
         was = crew.crew_resolve(1, s.id, "helm")
-        crew.crew_resolve(1, s.id, "helm", own_name="Doug", own_face="ter #fff 0 0;")
+        crew.crew_resolve(1, s.id, "helm", own_name="Doug", own_face="ter #fff 0 0;ter #fff 5 6;ter #fff 0 1;ter #fff 0 2;")
         back = crew.crew_resolve(1, s.id, "helm", own_name="", own_face="", own_portrait="")
         self.assertEqual(back.name, was.name)
         self.assertEqual(back.face, was.face)
@@ -420,10 +420,10 @@ class TestEditingOneThingKeepsTheRest(CrewCase):
         s = self.ship("Nobody", hull="tsn_light_cruiser")
         self.seat(10, "helm")
         was = crew.crew_assign(10, s.id, "helm")
-        crew.crew_assign(10, s.id, "helm", own_face="ter #fff 0 0;")
+        crew.crew_assign(10, s.id, "helm", own_face="ter #fff 0 0;ter #fff 5 6;ter #fff 0 1;ter #fff 0 2;")
         post = crew.crew_post_of(10)
         self.assertEqual(post.name, was.name)
-        self.assertEqual(post.face, "ter #fff 0 0;")
+        self.assertEqual(post.face, "ter #fff 0 0;ter #fff 5 6;ter #fff 0 1;ter #fff 0 2;")
 
 
 class TestGenderAndUniform(CrewCase):
@@ -435,12 +435,14 @@ class TestGenderAndUniform(CrewCase):
         Read back through `parse_face`, the inverse the avatar editor uses, rather than by
         matching the string - so the test asks the same question the editor does.
         """
-        from sbs_utils.faces import FACE_FEATURES, parse_face
+        from sbs_utils.faces import face_in_uniform, parse_face
         parsed = parse_face(face)
         self.assertIsNotNone(parsed, face)
         self.assertEqual(parsed["race"], "terran")
-        uniform = [f["label"] for f in FACE_FEATURES["terran"]].index("Uniform")
-        return parsed["values"][0], bool(parsed["enables"][uniform])
+        # Uniform is no longer a feature of its own. The redrawn Terran sheet puts dress
+        # uniforms, flight jackets, a lab coat and a suit in ONE row of 24, so being in
+        # uniform is a property of which garment - which is what face_in_uniform asks.
+        return parsed["values"][0], face_in_uniform(face)
 
     def test_the_stock_pool_offers_both_genders(self):
         self.assertTrue(crew._GIVEN_MALE and crew._GIVEN_FEMALE)

@@ -2,7 +2,7 @@
 
 The bug this pins: `TextArea.value` short-circuits a single line with no newline into
 `simple_text`, which emits it as ONE `send_gui_text` and never runs the markdown rules. So a
-text area whose whole content is an embed - `![](face://ter #fff 0 0;)`, `![](image://key)` -
+text area whose whole content is an embed - `![](face://ter #fff 0 0;ter #fff 5 6;ter #fff 0 1;ter #fff 0 2;)`, `![](image://key)` -
 drew its own markup as a wall of characters instead of the picture.
 
 Silent, and it looked like the markdown was unsupported rather than unparsed. This file's own
@@ -25,7 +25,7 @@ from cosmos_dev.mock import sbs
 from sbs_utils.helpers import FrameContext, Context, FakeEvent
 from sbs_utils.pages.layout.text_area import TextArea, FaceLine, ImageLine
 
-FACE = "ter #ffffff 6 0 6 -2;ter #fff 1 4;"
+FACE = "ter #fff 0 0;ter #fff 17 6;ter #fff 0 1;ter #fff 0 2;ter #fff 0 3;ter #fff 0 5;"
 
 
 class TestEmbedTakesTheRichPath(unittest.TestCase):

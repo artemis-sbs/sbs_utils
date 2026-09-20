@@ -712,7 +712,7 @@ class TestOverlayHeroVisuals(OverlayTestBase):
         self.page.overlays.present_all(FakeEvent(0))
 
     def test_hero_with_face(self):
-        self._present(face="ter #964b00 8 1;ter 0 0 0")
+        self._present(face="ter #fff 0 0;ter #fff 5 6;ter #fff 0 1;ter #fff 0 2;ter #884400 3 3;ter 0 0 0")
         self.assertTrue([a for a in self.calls("send_gui_face") if a[1] == self.HERO])
 
     def test_hero_with_ship(self):

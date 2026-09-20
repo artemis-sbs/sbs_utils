@@ -16,6 +16,8 @@ Two things this exists to protect:
 
 import unittest
 
+from sbs_utils import faces
+
 from sbs_utils.faces import (
     face_mod_reset, face_mod_size, face_overlay, face_register_race,
     face_register_sheet, face_random_registered, face_registered_races,
@@ -39,11 +41,36 @@ class TestFaceRegistry(unittest.TestCase):
             self.assertTrue(f.startswith(alias + " "), "%s -> %r" % (race, f))
 
     def test_stock_grid(self):
-        # The Terran sheet is 15 columns; every other stock sheet is 8. face.js
-        # hard-codes the same rule, and a mismatch silently samples the wrong cell.
-        self.assertEqual(face_sheet_grid("ter"), (15, 8))
-        for a in ("ska", "tor", "kra", "zim", "arv"):
-            self.assertEqual(face_sheet_grid(a), (8, 8))
+        # Since the 2026-09 redraw every stock sheet has its own size. cosmos_dev's
+        # face.js carries the same table (STOCK_GRID) and sbs_cli's face_bake.py scrapes
+        # it from there, so a mismatch here silently samples the wrong cell everywhere a
+        # face is drawn outside the engine.
+        self.assertEqual(face_sheet_grid("ter"), (24, 7))
+        self.assertEqual(face_sheet_grid("tor"), (11, 5))
+        self.assertEqual(face_sheet_grid("ska"), (7, 5))
+        self.assertEqual(face_sheet_grid("kra"), (6, 6))
+        self.assertEqual(face_sheet_grid("zim"), (8, 5))
+        self.assertEqual(face_sheet_grid("arv"), (8, 4))
+
+    def test_stock_grid_agrees_with_face_js(self):
+        """The mock compositor's copy of the grid must not drift from this one.
+
+        They are separate files in separate languages and nothing but this test couples
+        them. A drift does not fail anywhere - it just draws a slice of the wrong cell,
+        which reads as "the art is broken" rather than "two tables disagree".
+        """
+        import os
+        import re
+        path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+                            "cosmos_dev", "mockgui", "face.js")
+        with open(path, encoding="utf-8") as f:
+            src = f.read()
+        block = re.search(r"STOCK_GRID\s*=\s*\{(.*?)\}\s*;", src, re.S)
+        self.assertIsNotNone(block, "face.js no longer declares STOCK_GRID")
+        found = {m.group(1): (int(m.group(2)), int(m.group(3)))
+                 for m in re.finditer(r"(\w+)\s*:\s*\{\s*cols\s*:\s*(\d+)\s*,\s*rows\s*:\s*(\d+)",
+                                      block.group(1))}
+        self.assertEqual(found, dict(faces.FACE_SHEETS))
 
     def test_unknown_race_still_falls_back(self):
         # Must not raise: callers pass arbitrary side/race strings.

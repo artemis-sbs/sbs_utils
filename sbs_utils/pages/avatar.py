@@ -1,74 +1,60 @@
-from email import message
 from ..gui import Page, Gui
 from .. import layout as layout
 from .. import faces as faces
 from ..helpers import FrameContext, gui_text_escape
 
-# import ctypes
-# MessageBox = ctypes.windll.user32.MessageBoxW
 
+#: Button tag -> race. The tags are the historical three-letter spellings this page has
+#: always used; note "xim", which is NOT the atlas alias ("zim"). Kept as-is because they
+#: are only widget tags, and renaming them would change nothing anybody can see.
+_RACE_BY_TAG = {
+    "arv": "arvonian", "kra": "kralien", "ska": "skaraan",
+    "ter": "terran", "tor": "torgoth", "xim": "ximni",
+}
 
 
 class AvatarEditor(Page):
-    widgets = {
-        "arv": [
-            {"label": "Eyes", "min": 0, "max":4}, 
-            {"label": "Mouth", "min": 0, "max":4}, 
-            {"label": "Crown", "min": 0, "max":4, "optional": True}, 
-            {"label": "Jewels", "min": 0, "max":4, "optional": True}], 
-        "kra": [
-            {"label": "Eyes", "min": 0, "max":4}, 
-            {"label": "Mouth", "min": 0, "max":4}, 
-            {"label": "Scalp", "min": 0, "max":4, "optional": True}, 
-            {"label": "Extra", "min": 0, "max":4, "optional": True}
-            ], 
+    """A minimal face builder, driven entirely by `faces.FACE_FEATURES`.
 
-        "ska": [
-            {"label": "Eyes", "min": 0, "max":4}, 
-            {"label": "Mouth", "min": 0, "max":4}, 
-            {"label": "Horn", "min": 0, "max":4, "optional": True}, 
-            {"label": "Hat", "min": 0, "max":4, "optional": True}
-            ], 
+    This page used to carry its OWN table of per-race controls - the fourth independent
+    copy of that data in the tree - and it had drifted badly: it listed controls for two
+    of the six races, and the Kralien entry offered "Eyes" and "Hair Tone" for a race
+    whose sheet has no hair at all. Reading the library's recipe instead means the page
+    cannot disagree with the art, and it picked up the features the 2026-09 redraw added
+    without being edited.
 
-        "tor": [
-            {"label": "Eyes", "min": 0, "max":4}, 
-            {"label": "Mouth", "min": 0, "max":4}, 
-            {"label": "Hair", "min": 0, "max":4, "optional": True}, 
-            {"label": "Extra", "min": 0, "max":3, "optional": True},
-            {"label": "Hat", "min": 0, "max":0, "optional": True}
-            ], 
-
-        
-        "xim": [
-            {"label": "Eyes", "min": 0, "max":4}, 
-            {"label": "Mouth", "min": 0, "max":4}, 
-            {"label": "Horns", "min": 0, "max":4, "optional": True}, 
-            {"label": "Mask", "min": 0, "max":2, "optional": True},
-            {"label": "Tattoo", "min": 0, "max":1, "optional": True}
-            ], 
-
-        "ter": [
-            {"label": "Body", "min": 0, "max":1}, 
-            {"label": "Eyes", "min": 0, "max":9}, 
-            {"label": "Mouth", "min": 0, "max":9}, 
-            {"label": "Hair", "min": 0, "max":4, "optional": True}, 
-            {"label": "Long Hair", "min": 0, "max": 7, "optional": True},
-            {"label": "Facial Hair", "min": 0, "max":4, "optional": True},
-            {"label": "Extra", "min": 0, "max":4, "optional": True},
-            {"label": "Uniform", "min": 0, "max":9, "optional": True},
-            {"label": "Skin Tone", "min": 0, "max": len(faces.skin_tones)-1},
-            {"label": "Hair Tone", "min": 0, "max":len(faces.hair_tones)-1}
-            ], 
-        
-
-
-    }  #: :meta hide-value:
+    The in-engine editor is LegendaryMissions' `avatar_editor` addon, which is what
+    players actually see. This one backs the library's own demo `script.py`.
+    """
 
     def __init__(self) -> None:
-        self.gui_state = 'arv'
-        self.race = "arv"
-        self.face = faces.Characters.URSULA
-        self.cur = [0,0,0,0,0,0, 0,0,0,0,0,0]
+        self.gui_state = "arv"
+        self.race = "arvonian"
+        self.values = []
+        self.enables = []
+        self._reset_for_race()
+
+    # --- state ---------------------------------------------------------------
+
+    def _features(self):
+        return faces.FACE_FEATURES.get(self.race, [])
+
+    def _reset_for_race(self):
+        """Start every control at its minimum and every optional feature switched off.
+
+        Sized from the feature list rather than from a fixed-length buffer: the races no
+        longer have anything like the same number of controls (Arvonian has four, Terran
+        eleven), so a shared 12-slot list quietly mixed one race's values into another's.
+        """
+        feats = self._features()
+        self.values = [0] * len(feats)
+        self.enables = [not f.get("optional", False) for f in feats]
+        self._rebuild()
+
+    def _rebuild(self):
+        self.face = faces.build_face(self.race, self.values, self.enables)
+
+    # --- drawing -------------------------------------------------------------
 
     def present(self, event):
         CID = event.client_id
@@ -77,116 +63,69 @@ class AvatarEditor(Page):
         if self.gui_state == "presenting":
             return
         SBS.send_gui_clear(CID)
-        SBS.send_gui_text(
-                    0, "title", f"$text:Avatar Editor",  25, 5, 99, 9)
-        SBS.send_gui_face(CID,  "face", self.face, 35, 0, 65, 1)
-        l1 = layout.wrap(25, 50, 19, 4,col=3)
-        
-        SBS.send_gui_button(CID,  "arv","$text: Arvonian", *next(l1))
-        SBS.send_gui_button(CID,  "kra","$text: Kralien", *next(l1))
-        SBS.send_gui_button(CID,  "ska","$text: Skaraan", *next(l1))
-        SBS.send_gui_button(CID,  "ter","$text: Terran", *next(l1))
-        SBS.send_gui_button(CID,  "tor","$text: Torgoth", *next(l1))
-        SBS.send_gui_button(CID,  "xim","$text: Ximni", *next(l1))
+        SBS.send_gui_text(0, "title", "$text:Avatar Editor", 25, 5, 99, 9)
+        SBS.send_gui_face(CID, "face", self.face, 35, 0, 65, 1)
 
-        w = layout.wrap(99, 99, 19, 4,col=1, v_dir=-1, h_dir=-1)
+        l1 = layout.wrap(25, 50, 19, 4, col=3)
+        for tag, race in _RACE_BY_TAG.items():
+            SBS.send_gui_button(CID, tag, f"$text: {race.capitalize()}", *next(l1))
+
+        w = layout.wrap(99, 99, 19, 4, col=1, v_dir=-1, h_dir=-1)
         SBS.send_gui_button(CID, "back", "$text:back", *next(w))
-        
-        # Get bottom of the race buttons
-        (l,t,r,b) = next(l1)
-        widgets = AvatarEditor.widgets.get(self.gui_state)
-        if widgets is not None:
-            l2 = layout.wrap(25, b, 15, 4,col=4, h_gutter = 1)
-            #l3 = layout.wrap(41, b, 10, 4,col=2, h_gutter = 10+10+1)
-            v = 0
-            for widget in widgets:
-                label = widget["label"]
-                loc = next(l2)
-                
-                if "optional" in widget:
-                    enable = 1 if widget["optional"] == True else 0
-                    #enable = 0
-                    SBS.send_gui_checkbox(CID,  f"op:{v}", f"$text: {label};state: {'on' if enable else 'off'}", *loc)
-                    if enable and widget["max"]>0:
-                        SBS.send_gui_slider(CID, f"{v}", self.cur[v], f"low: {widget['min']}; high: {widget['max']}", *next(l2))
-                    else:
-                        next(l2)
 
+        # Bottom of the race buttons, so the controls start below them.
+        (_l, t, _r, b) = next(l1)
+        feats = self._features()
+        l2 = layout.wrap(25, b, 15, 4, col=4, h_gutter=1)
+        for i, widget in enumerate(feats):
+            label = widget["label"]
+            loc = next(l2)
+            if widget.get("optional"):
+                on = self.enables[i]
+                SBS.send_gui_checkbox(
+                    CID, f"op:{i}",
+                    f"$text: {gui_text_escape(label)};state: {'on' if on else 'off'}",
+                    *loc)
+                if on and widget["max"] > 0:
+                    SBS.send_gui_slider(CID, f"{i}", self.values[i],
+                                        f"low: 0; high: {widget['max']}", *next(l2))
                 else:
-                    SBS.send_gui_text(CID, label, f"$text:{gui_text_escape(label)}", *loc)
-                    SBS.send_gui_slider(CID, f"{v}", self.cur[v], f"low: {widget['min']}; high: {widget['max']}; show_number: no", *next(l2))
-                    #SBS.send_gui_slider(CID, f"{v}",  widget["min"],widget["max"],self.cur[v], *next(l2), True)
-
-                
-                v+=1
+                    next(l2)
+            else:
+                SBS.send_gui_text(CID, label, f"$text:{gui_text_escape(label)}", *loc)
+                SBS.send_gui_slider(CID, f"{i}", self.values[i],
+                                    f"low: 0; high: {widget['max']}; show_number: no",
+                                    *next(l2))
         SBS.send_gui_complete(CID)
         self.gui_state = "presenting"
 
-    def reset_values(self):
-        widgets = AvatarEditor.widgets.get(self.race)
-        v = 0
-        for w in widgets:
-            if "optional" in w and w["optional"] == False:
-               self.cur[v] = None
-            elif self.cur[v] is None:
-                self.cur[v] = 0
-            elif self.cur[v] > w["max"]:
-                self.cur[v] = w["max"]
-            v += 1
-
+    # --- input ---------------------------------------------------------------
 
     def on_message(self, event):
-        v = self.cur
-        if event.sub_tag == 'back':
+        tag = event.sub_tag
+        if tag == "back":
             Gui.pop(event.client_id)
+            return
 
-        if event.sub_tag.startswith("op:"):
-            
+        if tag.startswith("op:"):
             try:
-                val = int(event.sub_tag[3:])
-                widgets = AvatarEditor.widgets.get(self.race)
-                if widgets is not None:
-                    enable = not widgets[val]["optional"]
-                    widgets[val]["optional"] = enable
-                    if not enable:
-                        self.cur[val] = None
-                    else:
-                        self.cur[val] = 0
-            finally:
-                pass
+                i = int(tag[3:])
+            except ValueError:
+                return
+            if 0 <= i < len(self.enables):
+                self.enables[i] = not self.enables[i]
+                self._rebuild()
+        elif tag in _RACE_BY_TAG:
+            self.race = _RACE_BY_TAG[tag]
+            self._reset_for_race()
         else:
             try:
-                val = int(event.sub_tag)
-                self.cur[val] = round(event.sub_float)
-            except:
-                self.race = event.sub_tag
-
-        match self.race:
-            case "arv":
-                self.reset_values()
-                self.face = faces.arvonian(0, v[0], v[1], v[2], v[3])
-            case "kra":
-                self.reset_values()
-                self.face = faces.kralien(0, v[0], v[1], v[2], v[3])
-            case "ska":
-                self.reset_values()
-                # self.face = faces.arvonian(0,1,2,3,4)
-                self.face = faces.skaraan(0, v[0], v[1], v[2], v[3])
-            case "tor":
-                # self.face = faces.arvonian(0,1,2,3,4)
-                self.reset_values()
-                self.face = faces.torgoth(0, v[0], v[1], v[2], v[3],v[4])
-            case "xim":
-                self.reset_values()
-                # self.face = faces.arvonian(0,1,2,3,4)
-                self.face = faces.ximni(0, v[0], v[1], v[2],v[3], v[4])
-            case "ter":
-                self.reset_values()
-                self.face = faces.terran(v[0], v[1], v[2], v[3],v[4], v[5], v[6],v[7], v[8], v[9])
-            
-            # catch all for switching race
-            case _:
-                pass
+                i = int(tag)
+            except ValueError:
+                return
+            if 0 <= i < len(self.values):
+                self.values[i] = round(event.sub_float)
+                self._rebuild()
 
         self.gui_state = self.race
         self.present(event)

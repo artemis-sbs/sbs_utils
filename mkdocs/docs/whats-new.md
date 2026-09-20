@@ -25,6 +25,7 @@ tools, and finally the library changes. Links go to the relevant docs.
 | **[A living bestiary](#a-living-bestiary)** | Seven new species over one behavior, each one aging from Young to Ancient. Scan it before you shoot it. |
 | **[Grav-tether](#grav-tether)** | Reel, tow and lock — on a beam that now feels the weight, and tells you when it is struggling. |
 | **[Engineering has something to do](#engineering)** | Systems wear, and a well-run ship can be tuned above spec. Work orders, a three-tab panel, and eight effectiveness numbers nobody could see before. |
+| **[New faces](#new-faces)** | Every portrait in the game redrawn - and faces that frown, glare, blink and talk. |
 | **[The console picker](#console-picker)** | The first screen of the night now tells you who you are about to be. |
 | **[Beacons & the Fabricator](#beacons)** | Engineering builds ordnance over a timer and hands it to the tube. The coordination is the gameplay. |
 | **[Write the mission, don't program it](#amd)** | Quests, dialogue, drops, markers and whole missions as readable AMD documents. |
@@ -706,6 +707,38 @@ Everything in this part is something you already had, met again. A few change wh
 your game looks like whether you ask for them or not.
 
 ---
+
+#### 😐 New faces, and faces that move { #new-faces }
+
+Every character portrait in the game has been redrawn. All six species - Terran,
+Torgoth, Skaraan, Kralien, Ximni, Arvonian - are new art: more hairstyles, far more
+clothing, glasses, headsets, rank insignia, breathing masks, and eight painted Arvonian
+busts instead of one.
+
+**Faces have expressions now.** A Terran comes with fourteen sets of eyes and fourteen
+mouths - angry, worried, a sideways glance, an eye-roll, gritted teeth, a smile, eyes
+shut - so the officer on your comms screen can look like they mean it. A mission can ask
+for one by name, and everything else about the person stays exactly as it was.
+
+**And they can talk.** The mouths include the shapes speech is made of, so a face can be
+animated while a line is delivered, and blink while it is not.
+
+**Eye colour is real.** Green, amber and blue eyes are drawn rather than tinted - on
+Terrans, Kraliens, Skaraans, Torgoth and Ximni alike - and the avatar editor offers them
+by name. Hair is drawn in neutral grey, which means hair colour finally works across its
+whole range instead of fighting whatever colour the hair was already painted.
+
+**The avatar editor caught up.** Choices that have names are offered as named dropdowns
+rather than an unlabelled slider you drag through fourteen positions looking for
+"Worried".
+
+One thing to know: the new sheets replace the old ones, and the old art is gone. Faces
+written into missions have been translated to the nearest equivalent, and a face you
+built yourself is translated once, automatically, the next time you play. It will be the
+same character - same species, same build - redrawn. It will not be pixel-for-pixel the
+person you last saw, because the art underneath it is different.
+
+Docs: [Faces](api/utility/faces.md).
 
 #### 🪪 The console picker says who you are about to be { #console-picker }
 

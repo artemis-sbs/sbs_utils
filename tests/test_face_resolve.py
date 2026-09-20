@@ -18,7 +18,7 @@ class FaceResolveTests(unittest.TestCase):
             self.assertNotEqual(f, kw)         # not the keyword itself
 
     def test_literal_face_passthrough(self):
-        lit = "ter #964b00 8 1;ter #fff 3 5;"
+        lit = "ter #fff 0 0;ter #fff 5 6;ter #fff 0 1;ter #fff 0 2;ter #884400 3 3;"
         self.assertEqual(face_resolve(lit), lit)
 
     def test_empty_defaults_to_terran(self):

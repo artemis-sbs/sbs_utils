@@ -31,9 +31,7 @@ class TestRoundTrip(unittest.TestCase):
         # Sampled rather than exhaustive - each builder is random, so repeats cover the
         # feature space without pinning any one draw.
         builders = {
-            # random_terran() also draws FLUID faces, which have a known encoding limit of
-            # their own - see test_a_fluid_terran_face_parses_and_keeps_its_race. The
-            # deterministic variants are what belongs in an exactness test.
+            # random_terran() also draws FLUID faces; those get their own test below.
             "terran": faces.random_terran_male,
             "torgoth": faces.random_torgoth,
             "skaraan": faces.random_skaraan,
@@ -54,38 +52,50 @@ class TestRoundTrip(unittest.TestCase):
                 with self.subTest(face=face):
                     self.assert_round_trips(face)
 
-    def test_eyes_and_mouth_are_read_in_either_gender_column(self):
-        """The bug that made a female face come back with somebody else's eyes.
+    def test_a_feminine_terran_round_trips_exactly(self):
+        """What the retired "+3 gender column" scheme used to get wrong.
 
-        Eyes and mouth carry their own +3 female offset INDEPENDENTLY of the base face, so
-        un-shifting them by the BODY's gender missed every mismatched pair. A miss left the
-        value at 0 - a real index, not an error - so the face parsed "successfully" wearing
-        the wrong features.
-        """
-        female = faces.random_terran_female()
-        parsed = faces.parse_face(female)
-        rebuilt = faces.build_face("terran", parsed["values"], parsed["enables"])
-        self.assertEqual(rebuilt, female)
+        On the old sheets a feminine face, its eyes, its mouth and its shirt each lived
+        three columns right of the masculine one, and eyes and mouth carried that offset
+        INDEPENDENTLY of the body - which is what a fluid face was. Un-shifting them by
+        the body's gender missed every mismatched pair, and a miss left the value at 0: a
+        real index, not an error, so the face parsed "successfully" wearing somebody
+        else's features.
 
-    def test_a_fluid_terran_face_parses_and_keeps_its_race(self):
-        """A KNOWN LIMIT, pinned so it is a decision rather than a surprise.
-
-        A fluid face is a male body with female eyes and mouth, or the reverse. The builder
-        encodes that in the eye INDEX (`eye_id > eye_count` means female eyes), and that
-        comparison cannot express index 0 - `eye_count > eye_count` is False - so the pair
-        (fluid, first eyes) has no representation to round-trip back to. Fixing it means
-        changing what an existing eye_id means, which is not this change's to make.
-
-        The consequence is small and worth knowing: opening the avatar editor on a fluid
-        face can start it on the non-fluid twin. Male and female faces are exact.
+        The redrawn sheets have no gender columns at all - body 0 is masculine, body 1
+        feminine, and the eye, mouth and clothing art is shared - so the whole class of
+        bug is gone rather than fixed. This pins that.
         """
         for _i in range(20):
+            female = faces.random_terran_female()
+            parsed = faces.parse_face(female)
+            rebuilt = faces.build_face(parsed["race"], parsed["values"], parsed["enables"])
+            with self.subTest(face=female):
+                self.assertEqual(rebuilt, female)
+                self.assertEqual(parsed["values"][0], 1, "body should read as feminine")
+
+    def test_a_fluid_terran_face_now_round_trips_exactly(self):
+        """The old KNOWN LIMIT, now closed by the redraw.
+
+        Fluid used to have no exact representation: the builder encoded "feminine eyes on
+        a masculine body" as `eye_id > eye_count`, and that comparison cannot express
+        index 0, so one pair had nowhere to round-trip back to. Opening the avatar editor
+        on such a face started it on the non-fluid twin.
+
+        Nothing encodes gender in the eye index any more - it is a choice of POOL when
+        rolling a random face and nothing at all once the face exists - so every fluid
+        face is now exact. If this ever regresses, the editor is silently editing a
+        different person again.
+        """
+        for _i in range(25):
             face = faces.random_terran_fluid()
             parsed = faces.parse_face(face)
             with self.subTest(face=face):
                 self.assertIsNotNone(parsed)
                 self.assertEqual(parsed["race"], "terran")
-                self.assertEqual(len(parsed["values"]), 10)
+                rebuilt = faces.build_face(parsed["race"], parsed["values"],
+                                           parsed["enables"])
+                self.assertEqual(rebuilt, face)
 
     def test_the_parsed_race_names_itself(self):
         # The editor takes the race FROM the face rather than from its caller's guess.

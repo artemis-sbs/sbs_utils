@@ -4378,6 +4378,19 @@ function buildWidget(msg, s) {
       (s.list || s.text || tag).split(',').forEach(o => {
         const opt = document.createElement('option'); opt.value = opt.textContent = o.trim(); sel.appendChild(opt);
       });
+      // `text:` IS THE CURRENT SELECTION, and a <select> that is not told so shows its
+      // FIRST option instead. That broke two things at once, and the second one is the
+      // reason it went unnoticed: after any repaint the box displayed option 0 while the
+      // script held something else, AND picking option 0 was then not a change, so the
+      // browser fired no `change` event and the script never heard the choice. On the
+      // avatar editor that read as "selecting Arvonian gives you Terran".
+      // The engine honours `text:`, so this was mock-only - a mock kinder or stranger
+      // than the engine makes a real bug and its absence indistinguishable.
+      const want = ctext(s.text);
+      if (want) {
+        const match = Array.from(sel.options).find(o => o.value === want.trim());
+        if (match) sel.value = match.value;
+      }
       if (s.color) sel.style.color = s.color;
       if (s.font)  applyFont(sel, s.font);
       el.appendChild(sel);

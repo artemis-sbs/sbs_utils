@@ -169,7 +169,7 @@ class ReminderWordingTests(unittest.TestCase):
 
     def _person(self):
         from sbs_utils.faces import set_face
-        set_face(777, "ter #fff 4 4;")
+        set_face(777, "ter #fff 0 0;ter #fff 17 6;ter #fff 0 1;ter #fff 0 2;ter #fff 0 5;")
         return 777
 
     def test_an_authored_line_wins_and_carries_the_clock(self):

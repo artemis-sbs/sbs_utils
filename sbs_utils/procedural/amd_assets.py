@@ -20,7 +20,7 @@ What resolves, and what does not:
     `<cosmos>/data/graphics`, not in any mission, so a search that stops at the
     mission folder reports art as missing that is sitting right there.
   * **`face://`** - no file, but not unresolvable either. The value is a
-    face-BUILDER string (`arv #ffffff 0 0;arv ...`) naming cells of a race
+    face-BUILDER string (`arv #fff 0 0;arv ...`) naming cells of a race
     ATLAS, and those atlases are real PNGs in the engine graphics dir. The
     browser mock already composites them (`cosmos_dev/mockgui/face.js`, which
     carries a `setSheetResolver` hook precisely so a second host can), so a

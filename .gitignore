@@ -18,3 +18,7 @@ overnight_*.json
 
 # Allow
 !.vscode/tasks.json
+
+# Dev-only face tooling output: contact sheets, renders, and the migration ledger.
+# Regenerated on demand by _tools/face_*.py; nothing reads them at runtime.
+_tools/out/

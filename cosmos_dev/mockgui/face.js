@@ -10,8 +10,8 @@
 // just stacking the referenced cells at the same box, each tinted by its color.
 // The optional trailing ox/oy is a small pixel nudge used by some overlay parts.
 //
-// Cell grid: the Terran sheet is 15 cols x 8 rows; every other STOCK sheet is 8 x 8.
-// A mod sheet declares its own grid through registerAlias().
+// Cell grid: every stock sheet has its OWN size - see STOCK_GRID below. A mod sheet
+// declares its own through registerAlias().
 //
 // Hosts differ only in how an atlas basename becomes a URL — override that with
 // setSheetResolver(). The mock server serves data/graphics/ at the root, so the
@@ -25,18 +25,31 @@
     kra: 'Krailen_Set',        zim: 'Zimni_Set',   arv: 'Arvonian',
   };
   const GRID_ROWS = 8;
-  // Per-alias grid, for sheets registered at runtime. The six built-ins keep the
-  // hard-coded rule (Terran is 15 wide, everything else 8); a MOD sheet declares its
-  // own, because nothing guarantees a mod uses 8x8 - it only happens that the TNG
-  // sheets do, having been built to match Skaraan_Set so this function needed no
-  // special case.
+  // Per-alias grid for the six STOCK sheets. This used to be the one-liner
+  // `alias === 'ter' ? 15 : 8`, which held while every sheet but Terran was 8x8. The
+  // 2026-09 redraw gave each race its own size and its own row-per-layer meaning, so
+  // the rule became a table. It must agree with FACE_SHEETS in sbs_utils/faces.py;
+  // a mismatch does not fail, it just slices the wrong pixels.
+  const STOCK_GRID = {
+    ter: { cols: 24, rows: 7 },
+    tor: { cols: 11, rows: 5 },
+    ska: { cols:  7, rows: 5 },
+    kra: { cols:  6, rows: 6 },
+    zim: { cols:  8, rows: 5 },
+    arv: { cols:  8, rows: 4 },
+  };
+  // Sheets registered at runtime. A MOD declares its own, because nothing guarantees a
+  // mod uses 8x8 - it only happens that the TNG sheets do.
   const _GRID = {};
   function gridCols(alias) {
     if (_GRID[alias]) return _GRID[alias].cols;
-    return alias === 'ter' ? 15 : 8;
+    if (STOCK_GRID[alias]) return STOCK_GRID[alias].cols;
+    return 8;
   }
   function gridRows(alias) {
-    return (_GRID[alias] && _GRID[alias].rows) || GRID_ROWS;
+    if (_GRID[alias]) return _GRID[alias].rows;
+    if (STOCK_GRID[alias]) return STOCK_GRID[alias].rows;
+    return GRID_ROWS;
   }
 
   // Teach the compositor a sheet the ENGINE knows about but this file does not.
@@ -133,14 +146,33 @@
       ctx2d.drawImage(img, sx, sy, cellW, cellH, 0, 0, w, h);
       ctx2d.restore();
     } else {
-      // Tint: multiply the color through, then mask back to the sprite's alpha.
-      const tmp = _mkCanvas(w, h), tctx = tmp.getContext('2d');
+      // Tint: multiply each channel, PER PIXEL, leaving alpha alone.
+      //
+      // This used to be `globalCompositeOperation='multiply'` + an opaque fillRect, then
+      // 'destination-in' to mask back to the sprite's alpha - and it was wrong on every
+      // soft edge. Canvas stores colour PREMULTIPLIED, and its multiply blend computes
+      // Cs*Cd + Cs*(1-ad): with an opaque fill that second term survives wherever the
+      // sprite is partially transparent, so a fringe pixel drifts toward the tint at full
+      // strength. Measured at tint 0.30 over colour 0.55: exact at full coverage, +0.30
+      // at half, +0.90 at a quarter. The result was a tint-coloured halo on every
+      // antialiased edge, worst on the EYE and MOUTH cells because those are small
+      // features feathered into the face and are mostly soft pixels.
+      //
+      // getImageData/putImageData are defined on STRAIGHT (un-premultiplied) alpha, so a
+      // plain channel multiply here is exactly what the engine does - which is why the
+      // engine always looked better.
+      const tmp = _mkCanvas(w, h);
+      const tctx = tmp.getContext('2d', { willReadFrequently: true });
       tctx.drawImage(img, sx, sy, cellW, cellH, 0, 0, w, h);
-      tctx.globalCompositeOperation = 'multiply';
-      tctx.fillStyle = `rgb(${Math.round(r * 255)},${Math.round(g * 255)},${Math.round(b * 255)})`;
-      tctx.fillRect(0, 0, w, h);
-      tctx.globalCompositeOperation = 'destination-in';
-      tctx.drawImage(img, sx, sy, cellW, cellH, 0, 0, w, h);
+      const px = tctx.getImageData(0, 0, w, h);
+      const d = px.data;
+      for (let i = 0; i < d.length; i += 4) {
+        if (d[i + 3] === 0) continue;       // fully transparent: nothing to tint
+        d[i]     = d[i]     * r;
+        d[i + 1] = d[i + 1] * g;
+        d[i + 2] = d[i + 2] * b;
+      }
+      tctx.putImageData(px, 0, 0);
       ctx2d.save(); ctx2d.globalAlpha = a; ctx2d.drawImage(tmp, 0, 0); ctx2d.restore();
     }
   }
@@ -170,6 +202,7 @@
     [...new Set(parse(str).map(l => l.alias))].forEach(a => getSheet(a, () => {}));
   }
 
-  global.FaceRender = { ALIAS: FACE_ALIAS, setSheetResolver, registerAlias, gridCols,
-                        gridRows, parse, draw, drawString, preload, warm, parseColor };
+  global.FaceRender = { ALIAS: FACE_ALIAS, STOCK_GRID, setSheetResolver, registerAlias,
+                        gridCols, gridRows, parse, draw, drawString, preload, warm,
+                        parseColor };
 })(typeof window !== 'undefined' ? window : this);
