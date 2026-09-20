@@ -48,6 +48,13 @@ from .epadd import ACCENT, DIM, PANEL, PANEL_HEAD, PANEL_HI, _esc
 #: On the page, so it dies with the page rather than outliving it on a module.
 VIEW = "__xess_view__"
 
+#: The device this file was written for. A SURFACE is a place the shell lives: the handheld
+#: a boarding party carries, and - since the panel was generalised - any other console that
+#: wants tiles and one app at a time (the OpenUniverse Admiral's right-hand column is the
+#: first). Boarding is one surface registered like any other, which is what keeps
+#: "the boarding imports must not run elsewhere" structural instead of a condition.
+SURFACE_BOARDING = "boarding"
+
 #: On the CLIENT. Per console, like everything else in boarding: one crew member opening
 #: SCAN must not open it on anybody else's screen.
 KEY_APP = "XESS_APP"        # which app is open; None is the tile sheet
@@ -90,6 +97,14 @@ GOOD = "#8f8"
 
 _APPS = {}
 
+#: surface -> its app table. Boarding's IS `_APPS`, the same object it has always been, so
+#: anything holding a reference to it keeps working.
+_SURFACES = {SURFACE_BOARDING: _APPS}
+
+#: surface -> how that surface differs: its identity bar, what it repaints for, what opens
+#: itself, its prose line and its geometry. Registered with :func:`xess_surface`.
+_SURFACE_DEFS = {}
+
 #: A badge provider is free to ask what the OTHER apps are reporting, which is a cycle.
 #: The PADD found this the expensive way - one provider entered 332 times for one badge,
 #: unwound only by Python's recursion limit, and the error logged several times a second.
@@ -97,12 +112,90 @@ _BADGE_RUNNING = set()
 _BADGE_REPORTED = set()
 
 
+def _apps_for(surface):
+    return _SURFACES.setdefault(surface, {})
+
+
+def _key(base, surface):
+    """A per-surface client-inventory key.
+
+    Boarding keeps the bare name it has always written, so nothing on a live client's
+    inventory moves and an upgrade mid-mission cannot lose a crew member's open app.
+    """
+    return base if surface == SURFACE_BOARDING else "%s:%s" % (base, surface)
+
+
+def _view_key(surface):
+    return VIEW if surface == SURFACE_BOARDING else "%s:%s" % (VIEW, surface)
+
+
+def xess_surface(surface, title=None, identity=None, revision=None, auto_open=None,
+                 home_text=None, identity_area=None, app_area=None, at_style=None):
+    """Teach the device a new place to live.
+
+    Everything a surface does differently is a callable here, so the shell itself holds no
+    knowledge of any one console - and a surface's imports are reached only through its own
+    descriptor. That is the whole point: a non-boarding panel must never drag the boarding
+    and EVA modules in behind it.
+
+    Args:
+        surface (str): its name, used by every other function's ``surface=``.
+        title (str, optional): the word at the top of the tile sheet. Defaults to "xESS".
+        identity (callable, optional): ``identity(client_id) -> (name, job, at)``, the bar's
+            three slots. ``None`` means NO identity bar - the panel is the app area alone.
+        revision (callable, optional): ``revision(client_id) -> hashable``, folded in after
+            ``(opened, focus, badges)``. What this surface must rebuild its app area for.
+        auto_open (callable, optional): ``auto_open(client_id)`` - a surface that opens an
+            app by itself (boarding opens ACT on a new beat). ``None`` means nothing does.
+        home_text (callable, optional): ``home_text(client_id) -> str`` - prose above the
+            tiles.
+        identity_area (str | callable, optional): the bar's area, a style string or a
+            zero-arg callable returning one.
+        app_area (str | callable, optional): the app region's area, same forms.
+        at_style (callable, optional): ``at_style(client_id, at) -> style`` for the third
+            slot, when a surface needs to take it over (boarding's ARMED readout).
+
+    Returns:
+        dict: the descriptor.
+    """
+    surface = str(surface).strip().lower()
+    _SURFACE_DEFS[surface] = {
+        "surface": surface,
+        "title": title or "xESS",
+        "identity": identity,
+        "revision": revision,
+        "auto_open": auto_open,
+        "home_text": home_text,
+        "identity_area": identity_area,
+        "app_area": app_area,
+        "at_style": at_style,
+    }
+    _apps_for(surface)
+    return _SURFACE_DEFS[surface]
+
+
+def xess_surfaces():
+    """Every surface name the device knows. An accessor because MAST cannot see a dict."""
+    return sorted(_SURFACE_DEFS)
+
+
+def _surface_def(surface):
+    return _SURFACE_DEFS.get(surface, {})
+
+
+def _area(value, fallback=None):
+    """A descriptor's area: a style string, or a callable returning one."""
+    if callable(value):
+        return value()
+    return value if value else fallback
+
+
 def xess_register(key, title=None, icon=None, blurb=None, sort=100,
-                  draw=None, badge=None, available=None):
+                  draw=None, badge=None, available=None, surface=SURFACE_BOARDING):
     """Put an app on the device.
 
     Args:
-        key (str): its name, unique. Lower-cased.
+        key (str): its name, unique within its surface. Lower-cased.
         title (str, optional): what the tile says. Defaults to the key, upper-cased.
         icon (str, optional): an icon NAME, resolved by `gui_icon_name`. An unknown name
             draws nothing and says so once, which is what lets an app be registered
@@ -115,11 +208,13 @@ def xess_register(key, title=None, icon=None, blurb=None, sort=100,
             Called at build time; never allowed to raise (see :func:`xess_app_badge`).
         available (callable, optional): ``available(client_id)`` - False means no tile.
             The route's `if` is the ePADD's equivalent; this device has no routes.
+        surface (str, optional): which surface it belongs to. Defaults to the handheld.
 
     Returns:
         dict: the registration.
     """
     key = str(key).strip().lower()
+    surface = str(surface).strip().lower()
     app = {
         "key": key,
         "title": title if title else key.upper(),
@@ -129,37 +224,51 @@ def xess_register(key, title=None, icon=None, blurb=None, sort=100,
         "draw": draw,
         "badge": badge,
         "available": available,
+        "surface": surface,
     }
-    _APPS[key] = app
+    _apps_for(surface)[key] = app
     return app
 
 
-def xess_unregister(key):
+def xess_unregister(key, surface=SURFACE_BOARDING):
     """Take an app off the device. True when there was one."""
-    return _APPS.pop(str(key).strip().lower(), None) is not None
+    return _apps_for(surface).pop(str(key).strip().lower(), None) is not None
 
 
-def xess_registered():
-    """Every app key on the device. An accessor because MAST cannot see a module-level
+def xess_registered(surface=SURFACE_BOARDING):
+    """Every app key on a surface. An accessor because MAST cannot see a module-level
     dict - only functions become MAST globals."""
-    return sorted(_APPS)
+    return sorted(_apps_for(surface))
 
 
 def xess_clear():
-    """Forget every registration. The mission reset calls this; the built-ins re-register
-    themselves immediately after, so a reset never leaves a device with no apps."""
-    _APPS.clear()
+    """Forget every registration, on EVERY surface. The mission reset calls this; the
+    built-ins re-register themselves immediately after, so a reset never leaves a device
+    with no apps.
+
+    A mission's own surface goes away entirely - its descriptor as well as its apps -
+    because the next mission has no reason to carry it. A mission re-registers its
+    surfaces when its console opens, which is why that call has to be idempotent.
+    """
+    for table in _SURFACES.values():
+        table.clear()
+    for surface in [s for s in _SURFACES if s != SURFACE_BOARDING]:
+        del _SURFACES[surface]
+    _SURFACE_DEFS.clear()
     _BADGE_RUNNING.clear()
     _BADGE_REPORTED.clear()
     _register_builtins()
 
 
-def xess_app_count():
-    """Reset-ledger probe: how many apps are registered."""
-    return len(_APPS)
+def xess_app_count(surface=None):
+    """Reset-ledger probe: how many apps are registered. Every surface when none is named,
+    so a mission's leftovers are counted too."""
+    if surface is None:
+        return sum(len(t) for t in _SURFACES.values())
+    return len(_apps_for(surface))
 
 
-def xess_apps(client_id=None):
+def xess_apps(client_id=None, surface=SURFACE_BOARDING):
     """The apps this console may open, in tile order.
 
     An `available` that raises drops its own tile and nothing else - the same bargain the
@@ -168,7 +277,7 @@ def xess_apps(client_id=None):
     """
     cid = _client(client_id)
     out = []
-    for app in _APPS.values():
+    for app in _apps_for(surface).values():
         gate = app.get("available")
         if gate is not None:
             try:
@@ -226,50 +335,53 @@ def _client(client_id=None):
     return getattr(page, "client_id", None) if page is not None else None
 
 
-def xess_opened(client_id=None):
-    """The app this console has open, or None for the tile sheet."""
+def xess_opened(client_id=None, surface=SURFACE_BOARDING):
+    """The app this console has open on this surface, or None for the tile sheet."""
     from ..inventory import get_inventory_value
     cid = _client(client_id)
     if cid is None:
         return None
-    key = get_inventory_value(cid, KEY_APP, None)
-    return key if key in _APPS else None
+    key = get_inventory_value(cid, _key(KEY_APP, surface), None)
+    return key if key in _apps_for(surface) else None
 
 
-def xess_open(client_id, key=None):
+def xess_open(client_id, key=None, surface=SURFACE_BOARDING):
     """Open an app on this console, or go home with ``None``.
 
     Leaving FIRE DISARMS. Walking away from a live weapon with the gun still up is
     exactly the accident the disarm-on-shot rule exists to prevent, one step earlier.
+    That is the HANDHELD's rule, and the import that serves it lives inside the branch -
+    a panel on some other console must not drag the boarding modules in to open a tile.
     """
     from ..inventory import set_inventory_value
-    from ..boarding_site import boarding_disarm
     cid = _client(client_id)
     if cid is None:
         return False
     key = str(key).strip().lower() if key else None
-    if key is not None and key not in _APPS:
+    if key is not None and key not in _apps_for(surface):
         return False
-    if xess_opened(cid) == APP_FIRE and key != APP_FIRE:
+    if surface == SURFACE_BOARDING and xess_opened(cid, surface) == APP_FIRE and key != APP_FIRE:
+        from ..boarding_site import boarding_disarm
         boarding_disarm(cid)
-    set_inventory_value(cid, KEY_APP, key)
-    set_inventory_value(cid, KEY_FOCUS, None)   # a new app opens on its own first row
+    set_inventory_value(cid, _key(KEY_APP, surface), key)
+    # a new app opens on its own first row
+    set_inventory_value(cid, _key(KEY_FOCUS, surface), None)
     return True
 
 
-def xess_focus(client_id=None):
+def xess_focus(client_id=None, surface=SURFACE_BOARDING):
     """The row the open app is showing, for the apps that are a list and a detail."""
     from ..inventory import get_inventory_value
     cid = _client(client_id)
-    return get_inventory_value(cid, KEY_FOCUS, None) if cid is not None else None
+    return get_inventory_value(cid, _key(KEY_FOCUS, surface), None) if cid is not None else None
 
 
-def xess_set_focus(client_id, value):
+def xess_set_focus(client_id, value, surface=SURFACE_BOARDING):
     from ..inventory import set_inventory_value
-    set_inventory_value(client_id, KEY_FOCUS, value)
+    set_inventory_value(client_id, _key(KEY_FOCUS, surface), value)
 
 
-def xess_revision(client_id=None):
+def xess_revision(client_id=None, surface=SURFACE_BOARDING):
     """What an `on change` watches. PER CONSOLE.
 
     A shared counter would mean one crew member opening an app repainting five other
@@ -289,28 +401,75 @@ def xess_revision(client_id=None):
     The running job needs nothing here - `_work_badge` already reports the countdown as
     "%ds", which changes every second and repaints on its own. Adding the seconds would
     force a rebuild every tick for a number the badge is already carrying.
+
+    What is COMMON to every surface is here; what a surface adds is its descriptor's
+    `revision`. Boarding's own half is `_boarding_revision`, so its imports are reached
+    only when boarding is the surface being asked about.
     """
-    from ..boarding import boarding_seq
-    from ..boarding_site import boarding_armed, boarding_setting
-    from ..eva_tools import eva_armed
     cid = _client(client_id)
     if cid is None:
         return 0
-    badges = tuple((a["key"], xess_app_badge(a)) for a in xess_apps(cid))
-    return (xess_opened(cid), xess_focus(cid), boarding_seq(),
-            boarding_armed(cid), boarding_setting(cid), eva_armed(cid), badges)
+    badges = tuple((a["key"], xess_app_badge(a)) for a in xess_apps(cid, surface))
+    base = (xess_opened(cid, surface), xess_focus(cid, surface), badges)
+    extra = _surface_def(surface).get("revision")
+    if extra is None:
+        return base
+    try:
+        return base + (extra(cid),)
+    except Exception as e:                               # noqa: BLE001
+        # A surface that cannot say what changed must not take the panel down with it.
+        _report_once(surface, e, "revision")
+        return base
+
+
+def _boarding_revision(client_id):
+    """The handheld's own half of the revision - see :func:`xess_revision`."""
+    from ..boarding import boarding_seq
+    from ..boarding_site import boarding_armed, boarding_setting
+    from ..eva_tools import eva_armed
+    return (boarding_seq(), boarding_armed(client_id), boarding_setting(client_id),
+            eva_armed(client_id))
+
+
+def xess_panel_revision(client_id=None, surface=SURFACE_BOARDING):
+    """What a panel's `on change` watches: the bar AND the app area.
+
+    Two channels, deliberately. :func:`gui_xess_tick` updates the bar's three widgets in
+    place and rebuilds the app region only when the app half moved, so a status line that
+    ticks every second never rebuilds a listbox somebody is halfway through clicking.
+    """
+    cid = _client(client_id)
+    if cid is None:
+        return 0
+    return (_bar_styles(cid, surface), xess_revision(cid, surface))
 
 
 # --- the surface ------------------------------------------------------------------------
 
 def gui_xess(client_id=None):
-    """Build the device: the identity bar, then the app area.
+    """Build the handheld. The boarding surface of :func:`gui_xess_panel`."""
+    return gui_xess_panel(client_id, SURFACE_BOARDING)
+
+
+def gui_xess_panel(client_id=None, surface=SURFACE_BOARDING,
+                   identity_area=None, app_area=None):
+    """Build a panel: the identity bar, then the app area.
 
     The bar is a plain flow in its own section; the app area is a REGION, because it is
     the part that changes shape and a region is one of only two things in the library
     that can take its own content off the screen. A `gui_sub_section` cannot - refilling
     one leaves every earlier fill painted underneath, which is what three superimposed
     messages in the ePADD inbox turned out to be.
+
+    A surface whose descriptor has no `identity` gets NO bar - the panel is the app area
+    alone, and `gui_xess_tick` then has only one thing to do.
+
+    Args:
+        client_id (int, optional): the console. PASS IT: a panel on a console riding a
+            detached camera cannot rely on the ambient page being its own.
+        surface (str, optional): which surface to build. Defaults to the handheld.
+        identity_area (str, optional): override the descriptor's bar area.
+        app_area (str, optional): override the descriptor's app area.
 
     Returns:
         dict: the held widgets, also stored on the page for :func:`gui_xess_tick`.
@@ -319,73 +478,100 @@ def gui_xess(client_id=None):
     from .row import gui_row
     from .text import gui_text
     from .blank import gui_blank
-    from .boarding_console import (boarding_identity_area, boarding_app_area,
-                                   NAME_PX, SUB_PX)
+    from .boarding_console import NAME_PX, SUB_PX
 
     cid = _client(client_id)
-    name, job, at = _identity(cid)
+    sdef = _surface_def(surface)
+    bar = _bar_styles(cid, surface)
 
-    gui_section(boarding_identity_area())
-    # THE NAME GETS ITS OWN ROW. Sharing one with the job and the room made a long
-    # name wrap, and the wrapped half left the bar and drew over the app below - the
-    # engine does not clip. A name's length is not ours to control: it comes from a
-    # roster, an auto-namer or a mission.
-    gui_row("row-height: %dpx; background: %s; padding: 0, 6px, 0, 14px;"
-            % (NAME_PX, PANEL_HEAD))
-    w_name = gui_text(_name_style(name))
+    w_name = w_job = w_at = None
+    if bar is not None:
+        gui_section(_area(identity_area or sdef.get("identity_area")))
+        # THE NAME GETS ITS OWN ROW. Sharing one with the job and the room made a long
+        # name wrap, and the wrapped half left the bar and drew over the app below - the
+        # engine does not clip. A name's length is not ours to control: it comes from a
+        # roster, an auto-namer or a mission.
+        gui_row("row-height: %dpx; background: %s; padding: 0, 6px, 0, 14px;"
+                % (NAME_PX, PANEL_HEAD))
+        w_name = gui_text(bar[0])
 
-    gui_row("row-height: %dpx; background: %s; padding: 0, 0, 4px, 14px;"
-            % (SUB_PX, PANEL_HEAD))
-    w_job = gui_text(_job_style(job))
-    gui_blank()
-    w_at = gui_text(_at_style(cid, at))
+        gui_row("row-height: %dpx; background: %s; padding: 0, 0, 4px, 14px;"
+                % (SUB_PX, PANEL_HEAD))
+        w_job = gui_text(bar[1])
+        gui_blank()
+        w_at = gui_text(bar[2])
 
-    app = gui_region(boarding_app_area())
+    app = gui_region(_area(app_area or sdef.get("app_area")))
     with app:
-        _draw_app(cid)
+        _draw_app(cid, surface)
 
-    view = {"cid": cid, "name": w_name, "job": w_job, "at": w_at, "app": app,
-            "rev": xess_revision(cid)}
+    view = {"cid": cid, "surface": surface, "name": w_name, "job": w_job, "at": w_at,
+            "app": app, "bar": bar, "rev": xess_revision(cid, surface)}
     page = FrameContext.page
     if page is not None:
-        setattr(page, VIEW, view)
+        setattr(page, _view_key(surface), view)
     return view
 
 
-def gui_xess_tick():
-    """Refresh the device in place. What an `on change` should CALL.
+def gui_xess_tick(surface=SURFACE_BOARDING):
+    """Refresh a panel in place. What an `on change` should CALL.
 
     Never a jump back to the screen label: that re-sends every widget on the console over
     the network, and a watcher would do it forever.
+
+    TWO CHANNELS, AND THAT IS THE POINT. The bar's three widgets are updated whenever the
+    bar's text moves; the app region is rebuilt only when the app half of the revision
+    moves. A panel whose bar carries a countdown would otherwise rebuild its app every
+    second - which, on a screen holding a selectable queue, means the row you are reaching
+    for is replaced under the cursor. It also makes the bar honest: it used to be updated
+    only when the APP's revision moved, so walking into a new room left the bar naming the
+    old one until something unrelated happened to change.
 
     Returns:
         bool: False when the screen is gone - a handler can outlive the page.
     """
     from .update import gui_rebuild
     page = FrameContext.page
-    view = getattr(page, VIEW, None) if page is not None else None
+    view = getattr(page, _view_key(surface), None) if page is not None else None
     if not view:
         return False
     cid = view["cid"]
-    _auto_open(cid)
-    rev = xess_revision(cid)
+    _auto_open(cid, surface)
+
+    # `view.get("name")`: a panel with no identity bar has no widgets to update, and a
+    # caller (a test, a mission holding its own view) may have built a view without them.
+    bar = _bar_styles(cid, surface) if view.get("name") is not None else None
+    if bar is not None and bar != view.get("bar"):
+        view["bar"] = bar
+        # EVERY part, not only the interesting one. A bar that is right about the room and
+        # stale about the name describes the previous person.
+        view["name"].update(bar[0])
+        view["job"].update(bar[1])
+        view["at"].update(bar[2])
+
+    rev = xess_revision(cid, surface)
     if rev == view.get("rev"):
         return True
     view["rev"] = rev
-
-    # EVERY part, not only the interesting one. A bar that is right about the room and
-    # stale about the name describes the previous person.
-    name, job, at = _identity(cid)
-    view["name"].update(_name_style(name))
-    view["job"].update(_job_style(job))
-    view["at"].update(_at_style(cid, at))
     gui_rebuild(view["app"])
     with view["app"]:
-        _draw_app(cid)
+        _draw_app(cid, surface)
     return True
 
 
-def _auto_open(client_id):
+def _auto_open(client_id, surface=SURFACE_BOARDING):
+    """The surface's own auto-open, if it has one."""
+    opener = _surface_def(surface).get("auto_open")
+    if opener is None:
+        return False
+    try:
+        return opener(client_id)
+    except Exception as e:                               # noqa: BLE001
+        _report_once(surface, e, "auto_open")
+        return False
+
+
+def _boarding_auto_open(client_id):
     """A new beat OPENS the ACT app, on every console at the site.
 
     Nobody should have to notice a badge to be in the scene - a beat that nobody answers
@@ -431,6 +617,34 @@ def _auto_open(client_id):
 
 # --- the identity bar --------------------------------------------------------------------
 
+def _bar_styles(client_id, surface=SURFACE_BOARDING):
+    """The bar's three STYLE strings, or None when this surface has no bar.
+
+    Styles rather than the raw text, because comparing them is how the tick decides the
+    bar moved - and the third slot's style is itself a signal on the handheld, where it
+    turns red the moment the weapon is live.
+    """
+    sdef = _surface_def(surface)
+    identity = sdef.get("identity")
+    if identity is None:
+        return None
+    try:
+        name, job, at = identity(client_id)
+    except Exception as e:                               # noqa: BLE001
+        _report_once(surface, e, "identity")
+        return None
+    at_style = sdef.get("at_style")
+    if at_style is not None:
+        try:
+            third = at_style(client_id, at)
+        except Exception as e:                           # noqa: BLE001
+            _report_once(surface, e, "at_style")
+            third = _dim_style(at)
+    else:
+        third = _dim_style(at)
+    return (_name_style(name), _job_style(job), third)
+
+
 def _identity(client_id):
     from ..boarding import boarding_me, boarding_job_text
     from .boarding_console import where_text
@@ -440,12 +654,28 @@ def _identity(client_id):
     return who.name, boarding_job_text(who, default="aboard"), where_text(client_id)
 
 
+def _dim_style(text):
+    """The third slot, for a surface that has nothing special to say with it.
+
+    SHRINK, NEVER WRAP. The bar is two rows by construction, so a slot that wraps leaves
+    the bar and draws over the app beneath it - the engine does not clip. Boarding's
+    third slot is a room name or "ARMED - BEAM" and never had the problem; the Admiral's
+    is a status line written by a mission ("No extractors yet - build an Extractor on a
+    worldlet to produce ore and gas."), and a mission's sentence is not ours to keep
+    short. Seen in the engine, 2026-09-19.
+    """
+    return ("$text:%s;font:gui-1;color:%s;col-width: content;overflow:shrink;"
+            % (_esc(text), DIM))
+
+
 def _name_style(name):
     return "$text:%s;font:gui-2;overflow:shrink;" % _esc(name)
 
 
 def _job_style(job):
-    return ("$text:%s;font:gui-1;color:%s;col-width: content;" % (_esc(job), ACCENT))
+    # Shrink for the same reason as the third slot: two rows, and nothing clips.
+    return ("$text:%s;font:gui-1;color:%s;col-width: content;overflow:shrink;"
+            % (_esc(job), ACCENT))
 
 
 def _at_style(client_id, at):
@@ -464,15 +694,15 @@ def _at_style(client_id, at):
 
 # --- the app area -------------------------------------------------------------------------
 
-def _draw_app(client_id):
+def _draw_app(client_id, surface=SURFACE_BOARDING):
     """The open app, or the tile sheet when none is."""
-    key = xess_opened(client_id)
+    key = xess_opened(client_id, surface)
     if key is None:
-        return _home(client_id)
-    app = _APPS.get(key)
+        return _home(client_id, surface)
+    app = _apps_for(surface).get(key)
     draw = app.get("draw") if app else None
     if draw is None:
-        return _home(client_id)
+        return _home(client_id, surface)
     try:
         return draw(client_id)
     except Exception as e:                               # noqa: BLE001
@@ -481,13 +711,13 @@ def _draw_app(client_id):
         _report_once(key, e, "draw")
         from .row import gui_row
         from .text import gui_text
-        gui_xess_head(client_id, app["title"] if app else key)
+        gui_xess_head(client_id, app["title"] if app else key, surface=surface)
         gui_row("row-height: 1fr;")
         gui_text("$text:%s;font:gui-2;color:%s;"
                  % (_esc("This app stopped. Back, and try another."), WARN))
 
 
-def gui_xess_head(client_id, title, back=True):
+def gui_xess_head(client_id, title, back=True, surface=SURFACE_BOARDING):
     """An app's title line, with the way back to the tiles.
 
     Every app draws this, so Back is in the same place on all of them - which is the
@@ -513,24 +743,31 @@ def gui_xess_head(client_id, title, back=True):
         # nothing when it is not. Reported as "Back does nothing on the first run,
         # then beam up and down and it works" and "the FIRE app doesn't work at all".
         # `messages_gui._reply_strip` already says this in a comment.
-        gui_button("Back", on_press=lambda _cid=client_id: xess_open(_cid, None))
+        gui_button("Back",
+                   on_press=lambda _cid=client_id, _s=surface: xess_open(_cid, None, _s))
 
 
-def _home(client_id):
+def _home(client_id, surface=SURFACE_BOARDING):
     """The tile sheet: what is happening, then the tools.
 
     The scene's line is here AS WELL AS inside ACT, so the device always has something to
     say when you glance at it and you are never answering a question you scrolled past.
+    A surface with no `home_text` simply has tiles.
     """
     from .row import gui_row
     from .text import gui_text, gui_text_area
     from .blank import gui_blank
-    from ..boarding import boarding_line
 
+    sdef = _surface_def(surface)
     gui_row("row-height: 2.2em; font:gui-2; padding: 10px, 8px, 10px, 4px;")
-    gui_text("$text:%s;font:gui-2;color:%s;" % (_esc("xESS"), ACCENT))
+    gui_text("$text:%s;font:gui-2;color:%s;" % (_esc(sdef.get("title") or "xESS"), ACCENT))
 
-    line = boarding_line() or ""
+    prose = sdef.get("home_text")
+    try:
+        line = (prose(client_id) or "") if prose is not None else ""
+    except Exception as e:                               # noqa: BLE001
+        _report_once(surface, e, "home_text")
+        line = ""
     if line:
         # A text area, not a text: prose, several lines, and it scrolls itself rather
         # than spilling over what is under it. CAPPED for the same reason as in ACT - on
@@ -539,8 +776,8 @@ def _home(client_id):
         gui_row("row-height: %dpx;" % BEAT_PX)
         gui_text_area(line)
 
-    for app in xess_apps(client_id):
-        _tile(client_id, app)
+    for app in xess_apps(client_id, surface):
+        _tile(client_id, app, surface)
 
     # The slack goes HERE, under the tiles, rather than into the prose or into the last
     # tile. A row that flexes is the only way to say "leave the rest empty"; without one
@@ -549,7 +786,7 @@ def _home(client_id):
     gui_blank()
 
 
-def _tile(client_id, app):
+def _tile(client_id, app, surface=SURFACE_BOARDING):
     """One app tile: a clickable panel holding its icon, name, blurb and badge.
 
     The WHOLE panel is the hit target - a sub-section with `click_text` emits a click
@@ -564,7 +801,11 @@ def _tile(client_id, app):
     from .message import gui_message_callback
 
     key = app["key"]
-    click = "xess-app-%s" % key
+    # A click region is matched by tag alone, so a second panel on the same screen needs
+    # its own tags. The handheld keeps the bare tag it has always emitted - it is the one
+    # surface that existed before there were surfaces, and its tags are asserted.
+    click = ("xess-app-%s" % key if surface == SURFACE_BOARDING
+             else "xess-app-%s-%s" % (surface, key))
     badge = xess_app_badge(app)
     # margin, not only padding: padding is INSIDE the panel, so tiles with padding alone
     # have their backgrounds touching and read as one block.
@@ -592,14 +833,14 @@ def _tile(client_id, app):
 
     item = getattr(tile, "sub_section", tile)
 
-    def _open(event, sender, _key=key, _tag=click):
+    def _open(event, sender, _key=key, _tag=click, _surface=surface):
         # FILTERED. `Layout.on_message` hands every event to every callback during its
         # walk of the tree, not only ones aimed at this one - a listbox filters first, a
         # plain section does not. Unfiltered, any click anywhere would open an app, and
         # which one would depend on tree order.
         if getattr(event, "sub_tag", None) != _tag:
             return
-        xess_open(client_id, _key)
+        xess_open(client_id, _key, _surface)
 
     gui_message_callback(item, _open)
     return tile
@@ -1451,7 +1692,21 @@ def _standing_somewhere(client_id):
     return boarding_where(client_id) is not None
 
 
+def _boarding_home_text(client_id):
+    from ..boarding import boarding_line
+    return boarding_line() or ""
+
+
 def _register_builtins():
+    # THE HANDHELD IS A SURFACE LIKE ANY OTHER. Everything boarding-specific about the
+    # shell is named here - its bar, what it repaints for, what opens itself, its prose
+    # and its geometry - so nothing else in this file reaches for a boarding module.
+    from .boarding_console import boarding_identity_area, boarding_app_area
+    xess_surface(SURFACE_BOARDING, title="xESS",
+                 identity=_identity, revision=_boarding_revision,
+                 auto_open=_boarding_auto_open, home_text=_boarding_home_text,
+                 identity_area=boarding_identity_area, app_area=boarding_app_area,
+                 at_style=_at_style)
     xess_register(APP_CREW, title="Crew", icon="epadd.boarding", sort=10,
                   blurb="Who is out here, and the way home",
                   draw=_crew_app, badge=_crew_badge)

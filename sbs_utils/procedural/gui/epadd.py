@@ -86,17 +86,31 @@ CONSOLE_ALIASES = {
     "normal_sci": "science",
     "normal_engi": "engineering",
     "normal_comm": "comms",
+    # An overseer console's ENGINE name is not its role. The Admiral activates
+    # `gamemaster_overseer_comms` for the engine's detached-console network path and its
+    # comms selection routing (consoledispatcher.py reads the name), while the console
+    # itself is the Admiral's. Without the alias the PADD asked the engine's name, got
+    # something in no list, and failed closed.
+    "gamemaster_overseer_comms": "admiral",
 }
 
 # The ONLY consoles the PADD draws on: the five bridge stations, the flight deck (a
 # pilot's `cockpit` and the `hangar` it launches from, where the badge is the callsign),
-# and the away screens (LM's boarding screen enters as `crew`, the library's boarding
-# console as `boarding_crew`; `away` is that screen's older name). An allow-list, not a
-# deny-list: director, gamemaster, cinematic, the main screen, admiral and whatever
-# console a mod adds next are overseer or display screens, and a PADD there is a stray
-# button.
+# the away screens (LM's boarding screen enters as `crew`, the library's boarding
+# console as `boarding_crew`; `away` is that screen's older name), and the ADMIRAL.
+#
+# An allow-list, not a deny-list: director, gamemaster, cinematic, the main screen and
+# whatever console a mod adds next are overseer or display screens, and a PADD there is
+# a stray button.
+#
+# THE ADMIRAL IS THE EXCEPTION THAT EARNED ITS WAY IN. It was excluded as an overseer
+# screen, and that was right while it had nothing to read: its commands are comms menus
+# on the map and its live state is the right-hand panel. But a side's command has
+# QUESTS, research and requisition - full-screen things, held by the Admiralty rather
+# than by any ship - and there was nowhere to put them. The panel acts; the PADD reads.
 EPADD_CONSOLES = frozenset({"helm", "weapons", "comms", "engineering", "science",
-                            "cockpit", "hangar", "crew", "boarding_crew", "away"})
+                            "cockpit", "hangar", "crew", "boarding_crew", "away",
+                            "admiral"})
 
 
 def epadd_console_allowed(console):

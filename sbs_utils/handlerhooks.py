@@ -850,6 +850,8 @@ def _cosmos_event_handler(sim, event):
         phase_ms = {}   # per-phase timing; printed only on a >33ms spike
         import sbs
         from .procedural.signal import signal_emit
+        from .engine_guards import install_engine_guards
+        install_engine_guards(sbs)
         # Allow guis more direct access to events
         # e.g. Mast Story Page, Clients change
         ctx = Context(sim, sbs, event)

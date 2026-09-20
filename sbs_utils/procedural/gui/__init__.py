@@ -20,8 +20,10 @@ from .eva_camera import (eva_camera_aim, eva_camera_orbit, eva_camera_tilt,
                          eva_camera_watch, eva_camera_unwatch, eva_camera_watching)
 from .survey_gui import (gui_survey_screen, gui_survey_screen_tick,
                         survey_badge, survey_relevant)
-from .xess import (gui_xess, gui_xess_tick, gui_xess_head, xess_revision,
+from .xess import (gui_xess, gui_xess_panel, gui_xess_tick, gui_xess_head,
+                   xess_revision, xess_panel_revision,
                    xess_register, xess_unregister, xess_registered, xess_clear,
+                   xess_surface, xess_surfaces, SURFACE_BOARDING,
                    xess_apps, xess_app_badge, xess_app_count,
                    xess_open, xess_opened, xess_focus, xess_set_focus)
 from .epadd import (gui_app_subnav,

@@ -202,7 +202,9 @@ class TheTwoBandsShareAnEdge(unittest.TestCase):
         first one's content out of it, which is the reserve-row arithmetic this replaced.
         """
         import inspect
-        src = inspect.getsource(X.gui_xess)
+        # The builder, not `gui_xess` - that is now a one-line wrapper naming the
+        # boarding SURFACE, and every panel is built by this one function.
+        src = inspect.getsource(X.gui_xess_panel)
         self.assertEqual(1, src.count("gui_region("))
 
 

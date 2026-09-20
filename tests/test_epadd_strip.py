@@ -216,9 +216,17 @@ class TestWithoutTheRoute(EpaddStripBase):
 
 
 class TestOnlyOnItsConsoles(EpaddStripBase):
-    """The PADD is for the bridge stations, the flight deck and the away screens - not
-    for the overseer and display consoles, which are consoles too and pass every other
-    test `_epadd_belongs_here` makes."""
+    """The PADD is for the bridge stations, the flight deck, the away screens and the
+    ADMIRAL - not for the other overseer and display consoles, which are consoles too and
+    pass every other test `_epadd_belongs_here` makes.
+
+    The Admiral was excluded with them until 2026-09-19, and rightly so while it had
+    nothing to read: its orders are comms menus on the map and its live state is the
+    right-hand panel. What changed is that a side's command now has QUESTS (held by the
+    Admiralty rather than by any ship), a research tree and a requisition catalog - full
+    screens with nowhere to live. It enters under the engine name it activates,
+    `gamemaster_overseer_comms`, via CONSOLE_ALIASES.
+    """
 
     def on(self, station, page_console=None):
         set_inventory_value(CID, "CONSOLE_TYPE", station)
@@ -229,13 +237,14 @@ class TestOnlyOnItsConsoles(EpaddStripBase):
 
     def test_the_stations_it_belongs_on(self):
         for station in ("helm", "weapons", "comms", "engineering", "science",
-                        "normal_sci", "cockpit", "hangar", "crew", "boarding_crew"):
+                        "normal_sci", "cockpit", "hangar", "crew", "boarding_crew",
+                        "admiral", "gamemaster_overseer_comms"):
             with self.subTest(station=station):
                 self.assertTrue(self.on(station), f"no ePADD on {station}")
 
     def test_and_the_ones_it_does_not(self):
-        for station in ("director", "gamemaster", "cinematic", "admiral", "admin",
-                        "display_panels", "jump", "gamemaster_overseer_comms"):
+        for station in ("director", "gamemaster", "cinematic", "admin",
+                        "display_panels", "jump"):
             with self.subTest(station=station):
                 self.assertFalse(self.on(station), f"ePADD drawn on {station}")
 
