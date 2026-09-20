@@ -409,8 +409,10 @@ def _face_tone_table(race, kind):
 def face_build(race, skin=None, hairtone=None, **layers):
     """Assemble a face string from per-layer indices.
 
-    Layers are named by FACE_LAYERS[race]["cells"] - body, eyes, mouth, hair, clothes and
-    whatever else that race has. A layer that is absent or None is simply not drawn, which
+    Layers are named by the race's own `cells` table in FACE_LAYERS - body, eyes, mouth,
+    hair, clothes and whatever else it has. (Spelled that way round on purpose: written
+    as a subscript chain it reads to mkdocs-autorefs as a markdown reference link and
+    fails the strict docs build.) A layer that is absent or None is simply not drawn, which
     is how optional parts (a hat, a headset, facial hair) stay optional. `body` defaults to
     0, because a face with no body is an invisible face.
 
