@@ -1672,6 +1672,39 @@ def grid_node_apply_color(id_or_obj, theme_name=None):
     return color
 
 
+def grid_node_icon_index(id_or_obj):
+    """The sheet index this node is DRAWN with on the interior view.
+
+    A panel that names a node beside a generic cog is asking the engineer to hold two
+    pictures of one room. This is the index the node actually wears, so a header glyph
+    and the node under the cursor are the same shape.
+
+    Written to inventory at spawn (`_grid_spawn_chunk`), which is also what the View
+    tab re-applies, so inventory is the unscaled source of truth. Falls back to asking
+    the theme for the node's roles - a node built by something other than
+    `grid_rebuild` still answers - and finally to None, which a caller draws as
+    nothing rather than as an arbitrary glyph.
+
+    Args:
+        id_or_obj: the grid node.
+
+    Returns:
+        int | None: the icon index, or None if neither source has one.
+    """
+    node_id = to_id(id_or_obj)
+    if not node_id:
+        return None
+    icon = get_inventory_value(node_id, "icon_index", None)
+    if icon is not None:
+        return int(icon)
+    agent = Agent.get(node_id)
+    roles = ",".join(agent.get_roles()) if agent is not None else ""
+    if not roles:
+        return None
+    icon = grid_get_item_theme_data(roles).icon
+    return int(icon) if icon is not None else None
+
+
 def grid_node_is_system(id_or_obj):
     """Is this node part of a ship SYSTEM - the only kind of node that wears?
 
@@ -1981,11 +2014,26 @@ def grid_set_wear_tuning(worn_factor=None, tuned_bonus=None, worn_min=None,
 #
 # Icons are asked for BY NAME (procedural/gui/icon_sheet), so a mission that
 # re-skins the sheet moves these with it and no caller carries a bare sheet index.
+#
+# THE GLYPH IS THE ONE THE GRID ITSELF DRAWS. An indicator that names a pool with a
+# picture the interior view never shows makes the player learn the system twice, and
+# the first set did exactly that: a turbine for engines and a radar dish sweep for
+# sensors, neither of which appears on any node. Each name below is the cosmos theme's
+# icon for a room of that pool (`data/grid_theme.json` -> `icons`), by index:
+#
+#   weapon  bullets        40  = the theme's `torpedo` room
+#   engine  turret         36  = the theme's `warp` room (the sheet's name for the
+#                               glyph is unfortunate - it is the drive, not a gun)
+#   sensor  satellite-dish 11  = the theme's `sensor` room
+#   shield  shield-plain  106  = the theme's `shield` room
+#
+# `weapon` covers beam AND torpedo rooms, which the theme draws differently (117 /
+# 40); the torpedo glyph is the one a pool of both reads as.
 GRID_SYSTEM_ICONS = (
-    ("weapon", "turret"),
-    ("engine", "turbine"),
-    ("sensor", "radar"),
-    ("shield", "shield"),
+    ("weapon", "bullets"),
+    ("engine", "turret"),
+    ("sensor", "satellite-dish"),
+    ("shield", "shield-plain"),
 )
 
 # Where an indicator falls back to when the theme has nothing to say. `system` is
