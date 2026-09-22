@@ -424,11 +424,19 @@ class Mast():
             # Expose the shared namespace under this file's bare module name so a
             # `from sibling import x` / `import sibling` between the mastlib's .py files
             # resolves to the shared dict. Idempotent; set before exec.
-            sys.modules[module_name] = ns_mod
             exec_files = ns_mod.__dict__.setdefault("__mast_files__", set())
             if name in exec_files:
                 return
-            exec(compile(content, "<not a real path>/" + module_name + ".py", "exec"), ns_mod.__dict__)
+            # Exec into the FILE's own globals, then publish only its public names.
+            # A leading underscore is private - see MastGlobals.PrivateFileNamespace.
+            file_ns = MastGlobals.make_py_file_namespace(self.lib_name)
+            # The bare module name binds THIS FILE (privates included), falling back
+            # to the shared namespace - see MastGlobals.FileModule. Set before exec so
+            # a file importing an already-loaded sibling resolves it.
+            sys.modules[module_name] = MastGlobals.FileModule(
+                module_name, file_ns, ns_mod.__dict__)
+            exec(compile(content, "<not a real path>/" + module_name + ".py", "exec"), file_ns)
+            MastGlobals.publish_py_file_namespace(self.lib_name, file_ns)
             exec_files.add(name)
             MastGlobals.register_mission_functions(ns_mod)
             return
@@ -453,14 +461,24 @@ class Mast():
         # `from sibling import x` / `import sibling` Python imports between a mission's
         # .py files keep working - the symbols live in the shared dict. Idempotent;
         # set before exec so a file importing a sibling already loaded resolves it.
-        sys.modules[module_name] = ns_mod
         # Per-mission dedup: don't re-exec a file already loaded into this namespace.
         exec_files = ns_mod.__dict__.setdefault("__mast_files__", set())
         if import_file_name in exec_files:
             return
         with open(import_file_name, "r") as pyfile:
             content = pyfile.read()
-        exec(compile(content, import_file_name, "exec"), ns_mod.__dict__)
+        # Exec into the FILE's own globals, then publish only its public names, so a
+        # top-level `_helper` cannot be replaced by - or replace - another addon's.
+        # See MastGlobals.PrivateFileNamespace for what that cost before.
+        scope_key = fs.get_mission_dir()
+        file_ns = MastGlobals.make_py_file_namespace(scope_key)
+        # The bare module name binds THIS FILE (privates included), falling back to
+        # the shared namespace - see MastGlobals.FileModule. Set before exec so a file
+        # importing an already-loaded sibling resolves it.
+        sys.modules[module_name] = MastGlobals.FileModule(
+            module_name, file_ns, ns_mod.__dict__)
+        exec(compile(content, import_file_name, "exec"), file_ns)
+        MastGlobals.publish_py_file_namespace(scope_key, file_ns)
         exec_files.add(import_file_name)
         MastGlobals.register_mission_functions(ns_mod)
 

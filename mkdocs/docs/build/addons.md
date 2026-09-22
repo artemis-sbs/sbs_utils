@@ -40,6 +40,40 @@ import panels.mast
 import helpers.py
 ```
 
+## Naming things in your add-on's Python
+
+Every `.py` your add-on imports can call a helper in any other `.py` of the mission by
+its bare name — that's what makes one add-on's helpers reachable from another. The
+flip side is that **public names are shared mission-wide**, so two add-ons that both
+define `market_price` will get whichever loaded last. Prefix public helpers with your
+add-on's name (`hangar_get_stats`, `market_sell_price`); `sbs lint`'s
+`ns-duplicate-function` tells you when two have claimed the same one.
+
+**A leading underscore makes a name private to its file.** `_helper`, `_CACHE` and
+`class _Row` belong to the file that defines them, so two add-ons can each have a
+`_label` and never meet, and a private helper needs no prefix. They're also never MAST
+globals, so `.mast` can't call them.
+
+```python
+def hangar_launch(craft):   # public: prefix it, other files can call it
+    return _pick_bay(craft)
+
+def _pick_bay(craft):       # private: this file's, whatever anyone else calls theirs
+    ...
+```
+
+If you actually want another file's private, ask for it by name:
+
+```python
+import hangar_bays
+hangar_bays._pick_bay(craft)
+```
+
+!!! note "v1.4.0 and later"
+    On earlier versions an underscored name was shared like any other, so a same-named
+    helper in another add-on could take its place — silently, and depending on load
+    order.
+
 ## Declare what it needs
 
 Add-ons share one global namespace and load in **no fixed order**, so "my add-on uses

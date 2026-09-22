@@ -1974,6 +1974,29 @@ misbehaves in a way one of them explains.
 
 ---
 
+#### 🔒 `_private` helpers in an add-on's Python are private to their file { #py-private }
+
+Two add-ons can both define `_label`, `_CACHE` or `class _Row` and never meet.
+
+A leading underscore now scopes a top-level name to the `.py` file that defines it.
+Only names *without* one are published for the rest of the mission's Python to call by
+bare name, so a private helper needs no prefix and can't be taken over by a same-named
+helper in an add-on you didn't write. Ask for one explicitly and you still get it:
+
+```python
+import hangar_bays
+hangar_bays._pick_bay(craft)
+```
+
+Public names are unchanged — shared across the mission's `.py` files and resolved when
+the call runs, so the cross-file calls add-ons rely on keep working in both directions
+whatever the load order. `sbs lint`'s `ns-duplicate-function` is still what tells you
+two add-ons have claimed the same public name.
+
+Docs: [Making add-ons](build/addons.md#naming-things-in-your-add-ons-python).
+
+---
+
 #### 🎖️ Orders by capability - one module every menu asks { #orders-api }
 
 An order is a MAST objective label under `objective/orders/` that says what it needs and

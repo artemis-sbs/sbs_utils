@@ -469,13 +469,31 @@ let two co-loaded addons share a prefix (`fleet_` was claimed by both LM `fleets
 
 Three things that surprise people:
 
-- **A leading underscore IS private now** (2026-08-16). `_dist` is skipped rather than
-  exported, in the library AND in addon `.py` files - both registration paths, which
-  is what was inconsistent: the library stopped publishing them in 2026-08-12 and
-  every mod went on doing it. The collision that bit was not function-vs-function but
-  function-vs-VARIABLE: A28's `_mine` turned autoplay's `_mine = ...` into
-  `Variable assignment to a keyword`, i.e. zero labels, in silence. A private helper
-  no longer needs a prefix - a PUBLIC one still does.
+- **A leading underscore IS private** - fully, since 2026-09-22. It was only half
+  true before, and the missing half cost a long debugging session.
+
+  2026-08-16 made `_dist` skipped rather than EXPORTED, in the library and in addon
+  `.py` files alike, so a private helper is not a MAST global. (The collision that bit
+  then was function-vs-VARIABLE: A28's `_mine` turned autoplay's `_mine = ...` into
+  `Variable assignment to a keyword`, i.e. zero labels, in silence.)
+
+  But export was never the only way names met. `Mast.import_python` exec'd every `.py`
+  of a mission into ONE shared namespace keyed by the mission directory, so every
+  top-level name landed in one dict, underscores included - and a function's
+  `__globals__` IS that dict, so `_helper` resolved AT CALL TIME to whichever file
+  loaded last. LegendaryMissions shipped it: Engineering's View tab called its own
+  `_label` and got `director/director_overlays.py`'s `_label`, a string sanitizer that
+  draws nothing, because director loads later. No error, no warning, no labels. A unit
+  test could not see it - a test imports the file as an ordinary Python module, where
+  the name is that file's own.
+
+  Now each `.py` execs into its OWN globals that fall back to the shared namespace for
+  names it does not define (`MastGlobals.PrivateFileNamespace`), and only PUBLIC names
+  are published upward. So an underscored function, variable or class belongs to its
+  file. `import sibling` then `sibling._x()` still reaches it - underscore is a
+  convention, not a lock - and PUBLIC names are unchanged: shared, call-time,
+  last-definition-wins. A private helper does not need a prefix; a PUBLIC one still
+  does.
 - **Only functions are exported** - a module-level list/dict/constant is never a MAST
   global, so every `.mast` touchpoint must be an accessor function.
 - **A re-export is not exported.** `from sbs_utils... import foo` keeps the library's

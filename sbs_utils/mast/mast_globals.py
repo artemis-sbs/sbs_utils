@@ -175,6 +175,118 @@ class MastGlobals:
     # task scope - so this can neither shadow nor be shadowed by a MAST variable.
     mission_py_modules = {}
 
+    class PrivateFileNamespace(dict):
+        """Globals for ONE .py file, falling back to its mission's shared namespace.
+
+        A leading underscore now really is private. Every .py of a mission used to be
+        exec'd straight into one shared dict, so a top-level `_helper` in one addon
+        silently replaced another addon's `_helper` - and because a function's
+        `__globals__` IS that dict, the call resolved to whichever file loaded LAST.
+        No error, no warning, wrong function, load-order dependent.
+
+        It shipped: Engineering's View tab called its own `_label`, got
+        `director/director_overlays.py`'s `_label` (a string sanitizer, loaded later),
+        and drew no labels at all. Four rounds to find, because a unit test imports the
+        file as an ordinary Python module where the name is that file's own.
+
+        So each file gets its own globals; only PUBLIC names are published upward. A
+        name this file does not define falls through to the shared namespace AT CALL
+        TIME, which is what keeps cross-file bare calls working in both directions
+        regardless of load order - the behavior this namespace exists for.
+
+        `__missing__` must also answer BUILTINS: a dict SUBCLASS as globals takes
+        CPython off its fast builtins path, so `range`, `len` and friends arrive here.
+        Measured on the engine's own 3.11 - 3.14 resolved them without help, so this
+        is exactly the kind of difference that only shows on the shipped interpreter.
+        """
+
+        def __init__(self, shared):
+            super().__init__()
+            self.shared = shared
+
+        def __missing__(self, key):
+            try:
+                return self.shared[key]
+            except KeyError:
+                pass
+            try:
+                return getattr(__builtin__, key)
+            except AttributeError:
+                raise NameError(f"name '{key}' is not defined")
+
+    class FileModule:
+        """What `import sibling` binds for one of a mission's .py files.
+
+        `sys.modules[<bare name>]` used to be the SHARED module, which was fine while
+        every file exec'd into it. Now a file keeps its privates, so an explicit
+        `import casino_amd` followed by `casino_amd._declare_casino_vocabulary()` -
+        a real pattern, and one that worked before - could no longer find them.
+        Caught by the ENGINE, not by the unit tests, which never wrote that form.
+
+        So the imported name resolves attributes against the FILE first and the
+        shared namespace second. That makes `sibling._private` work again, keeps
+        `sibling.public` working, and needs no copying, so module-level state stays
+        the one object everybody mutates.
+        """
+
+        def __init__(self, name, ns, shared):
+            self.__name__ = name
+            self._ns = ns
+            self._shared = shared
+
+        def __getattr__(self, key):
+            # Only called when normal lookup fails, so __name__/_ns/_shared never
+            # reach here.
+            ns = self.__dict__.get("_ns") or {}
+            if key in ns:
+                return ns[key]
+            shared = self.__dict__.get("_shared") or {}
+            if key in shared:
+                return shared[key]
+            raise AttributeError(
+                f"module '{self.__dict__.get('__name__')}' has no attribute '{key}'")
+
+        def __setattr__(self, key, value):
+            if key in ("__name__", "_ns", "_shared"):
+                object.__setattr__(self, key, value)
+            else:
+                self._ns[key] = value
+
+        def __dir__(self):
+            return sorted(set(self._ns) | set(self._shared))
+
+    def make_py_file_namespace(scope_key):
+        """Per-file globals for a .py being exec'd into `scope_key`'s namespace."""
+        mod = MastGlobals.get_mission_py_module(scope_key)
+        ns = MastGlobals.PrivateFileNamespace(mod.__dict__)
+        ns["__builtins__"] = __builtin__
+        # The SHARED module's name, not the file's. A def takes its `__module__` from
+        # whatever `__name__` its globals carry, and `register_mission_functions` only
+        # registers functions whose `__module__` matches the shared module - that is
+        # how it tells a mission's own defs from re-exported library ones. Leave this
+        # out and every addon function silently stops being a MAST global: the story
+        # compiles, then dies at runtime on `name 'lm_eng_crew_items' is not defined`.
+        ns["__name__"] = mod.__name__
+        return ns
+
+    def publish_py_file_namespace(scope_key, ns):
+        """Move a file's PUBLIC names into the shared namespace; keep its privates.
+
+        The publics are MOVED, not copied: once published they are deleted from the
+        file's own globals, so a later lookup falls through to the shared namespace.
+        That keeps PUBLIC resolution exactly as it was - shared, call-time,
+        last-definition-wins - and confines this change to underscored names, which is
+        the whole of the fix. (`sbs lint`'s `ns-duplicate-function` is what a
+        duplicated PUBLIC name is for; nothing here should quietly change which one a
+        mission gets.)
+
+        Privates stay in the file. So do dunders and the fallback's bookkeeping.
+        """
+        shared = MastGlobals.get_mission_py_module(scope_key).__dict__
+        for key in [k for k in ns if not k.startswith("_")]:
+            shared[key] = ns.pop(key)
+        return MastGlobals.get_mission_py_module(scope_key)
+
     def get_mission_py_module(scope_key):
         """Get-or-create the shared namespace module for a mission (by basedir).
 
