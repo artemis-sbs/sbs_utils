@@ -5,6 +5,48 @@ from ..query import to_set
 from ..links import linked_to
 
 
+#: How coarsely `gui_screen_revision` reports a screen, in pixels. 100 puts a band
+#: edge on every round hundred, so a layout that switches at a round number (1000 px
+#: tall, say) switches at exactly that number.
+GUI_SCREEN_BAND_PX = 100
+
+
+def gui_screen_revision(client_id=None, band=GUI_SCREEN_BAND_PX):
+    """What an `on change` watches to rebuild a console after a RESIZE.
+
+    A console that decides anything from the screen - how many rows a box shows, how
+    wide a column is - reads it while BUILDING, so the answer is baked into the page.
+    `screen_size` updates the aspect ratio and re-presents, which recomputes
+    percentages but does not re-run the builder, so those decisions stay as they were.
+    Watching this and jumping back to the console's label rebuilds them.
+
+    COARSE ON PURPOSE. The raw size is reported many times while a window is dragged,
+    and a console rebuild per distinct value would thrash. A band rebuilds at most
+    once per band crossed.
+
+    Args:
+        client_id (int, optional): defaults to the current frame's client.
+        band (int, optional): band size in pixels. Defaults to
+            :data:`GUI_SCREEN_BAND_PX`.
+
+    Returns:
+        tuple[int, int]: the banded (width, height). Compare, do not read as pixels.
+
+    Example:
+        on change gui_screen_revision(client_id):
+            jump my_console_label
+    """
+    from ...gui import get_client_aspect_ratio
+    if client_id is None:
+        client_id = FrameContext.client_id
+    ar = get_client_aspect_ratio(client_id)
+    if ar is None:
+        return (0, 0)
+    band = max(1, int(band))
+    return (int(getattr(ar, "x", 0) or 0) // band,
+            int(getattr(ar, "y", 0) or 0) // band)
+
+
 def gui_console_clients(path, for_ships=None):
     """Return the set of client IDs that have a specific console type.
 
