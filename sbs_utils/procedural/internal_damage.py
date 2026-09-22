@@ -280,16 +280,16 @@ def _grid_finish(ship_id, so, SBS, counts, layout):
     grid_restore_damcons(ship_id, layout)
 
     hm = SBS.get_hull_map(ship_id)
-    # The marker and the EPad used to make the IDENTICAL unfiltered call with no state
-    # change between them, so they landed on the same cell on every hull, always. Sharing
-    # the damcons' resolver keeps them apart.
+    # `placed` is kept even with one object left to place: _grid_resolve_point takes it
+    # to keep objects off each other's cells, and the next thing added here will want
+    # the same protection. (The EPad used to be the second one - see below.)
     placed = set()
     loc = _grid_resolve_point(SBS, ship_id, hm, None, placed, prefer_empty=False,
                               who="marker")
     if loc is None:
         _grid_say(f"rebuild {ship_id} '{so.art_id}': the engine offered no usable cell "
-                  f"for the marker, so there is no marker and no EPad. The hull map has "
-                  f"no open cells - see the interior-bitmap note above.")
+                  f"for the marker, so there is no marker. The hull map has no open "
+                  f"cells - see the interior-bitmap note above.")
         return
     placed.add((loc[0], loc[1]))
     ship = ship_id & 0xFFFFFFFF
@@ -300,17 +300,18 @@ def _grid_finish(ship_id, so, SBS, counts, layout):
     marker_go.engine_object.layer = 6
     set_inventory_value(ship_id, "marker_id", to_id(marker_go))
 
-    loc = _grid_resolve_point(SBS, ship_id, hm, None, placed, prefer_empty=False,
-                              who="epad")
-    if loc is None:
-        _grid_say(f"rebuild {ship_id} '{so.art_id}': no usable cell for the EPad - the "
-                  f"grid is built but engineering has no power pad.")
-        return
-    epad_go = grid_spawn(ship_id, "EPad", f"epad:{ship}", int(loc[0]), int(loc[1]),
-                         134, "#9994", "tools,epad")
-    epad_go.engine_object.layer = 0
-    epad_go.blob.set("icon_scale", 0.01, 0)
-    set_inventory_value(ship_id, "epad_id", epad_go.id)
+    # REMOVED 2026-09-22: the EPad. It was a grid object drawn at icon_scale 0.01 -
+    # all but invisible - whose only purpose was to carry four comms buttons that
+    # changed how the INTERIOR VIEW draws rooms and systems. A view preference wearing
+    # an object costume: the engineer had to find an object they could barely see and
+    # drill two menus to reach a setting, and it sat in the `tools` tab of the grid
+    # item list beside the actual damage-control teams.
+    #
+    # The settings themselves live on, as Engineering's View tab
+    # (LegendaryMissions consoles/eng_view.py), beside the view they affect.
+    #
+    # Nothing outside sbs_utils ever read `epad_id`, and this function's only callers
+    # are missions, so an interior simply has one fewer object now.
 
     # One line on SUCCESS too. Without it, "no line at all" means both "built perfectly"
     # and "never called" - and on this path the second is a real possibility, since

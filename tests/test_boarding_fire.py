@@ -86,6 +86,30 @@ class _FireBase(unittest.TestCase):
     def reasons(self):
         return [d.get("XESS_REASON") for n, d in self.fired if n == "xess_fired"]
 
+    def _room_in_range(self):
+        """A room this console's figure can actually shoot.
+
+        SORTED, the same way setUp chooses where to stand - so the pick cannot move
+        when the set does. `next(iter(a_set))` is an ARBITRARY member, and
+        boarding_fire refuses anything past FIRE_RANGE and reports "out of range"
+        without touching the node, so an arbitrary pick made these a coin flip.
+        Removing the EPad from every interior changed the set's membership and
+        landed it tails.
+
+        The stun case is worse than a flaky failure: it asserts a node was NOT
+        damaged, so an out-of-range shot passed it for the wrong reason.
+        """
+        for node in sorted(grid_objects(self.site.id)
+                           & any_role(B.boarding_room_roles())):
+            at = grid_pos_data(node)
+            if at is None or at[0] is None:
+                continue
+            nx, ny = int(at[0]), int(at[1])
+            if (nx, ny) == (self.x, self.y):
+                continue                       # the shooter's own cell
+            if abs(nx - self.x) + abs(ny - self.y) <= B.FIRE_RANGE:
+                return node, nx, ny
+        self.fail("fixture found no room within FIRE_RANGE - nothing is being tested")
 
 class AClickIsAWalkUntilYouArm(_FireBase):
     def test_unarmed_it_walks_and_does_not_shoot(self):
@@ -181,10 +205,11 @@ class WhatAShotHits(_FireBase):
     def test_stun_does_not_cut_through_a_bulkhead(self):
         """A stun setting on a node reports nothing happened rather than quietly damaging
         it - the setting is a decision, not a formality."""
-        node = next(iter(grid_objects(self.site.id) & any_role(B.boarding_room_roles())))
-        at = grid_pos_data(node)
+        node, nx, ny = self._room_in_range()
         B.boarding_arm(A_CID, B.SETTING_STUN)
-        B.boarding_fire(A_CID, int(at[0]), int(at[1]))
+        # assertTrue: the shot has to have LANDED for "it did not damage the node" to
+        # mean anything. Without this the test passes on a refusal.
+        self.assertTrue(B.boarding_fire(A_CID, nx, ny), "the shot never landed")
         self.assertFalse(has_role(node, "__damaged__"))
 
 
@@ -204,9 +229,7 @@ class TheSettingsAreALadder(_FireBase):
         return who, fig
 
     def _node(self):
-        node = next(iter(grid_objects(self.site.id) & any_role(B.boarding_room_roles())))
-        at = grid_pos_data(node)
-        return node, int(at[0]), int(at[1])
+        return self._room_in_range()
 
     def test_stun_takes_NO_hit_points(self):
         """There is no stun model anywhere in the game - no duration, no recovery. So a
