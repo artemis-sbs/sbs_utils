@@ -265,5 +265,43 @@ class TheStateListCanBeReplaced(unittest.TestCase):
         self.assertEqual(b.state, "on")
 
 
+class ButtonQuotesItsTextExactlyOnce(unittest.TestCase):
+    """A Button and a Text take the same props string, so they must quote it the same
+    way. `Button.value` used to wrap `$text` unconditionally while `Text.update`
+    skipped text that was already quoted - so a caller who ran a dynamic label through
+    `gui_text_escape` (correct, and required for a label that may contain a colon) got
+    DOUBLE backticks and the engine drew them: buttons reading ``do work order now``.
+
+    Reported from a bridge on Engineering's grid orders, 2026-09-22.
+    """
+
+    def _button(self, props):
+        from sbs_utils.pages.layout.button import Button
+        return Button("t", props)
+
+    def test_plain_text_is_quoted(self):
+        self.assertIn("$text:`hello`", self._button("$text:hello;").value)
+
+    def test_already_quoted_text_is_left_alone(self):
+        from sbs_utils.helpers import gui_text_escape
+        value = self._button(f"$text:{gui_text_escape('do work order now')};").value
+        self.assertIn("$text:`do work order now`", value)
+        self.assertNotIn("``", value)
+
+    def test_an_escaped_label_with_a_colon_survives(self):
+        """Why a caller escapes at all: a bare colon reads as a style property."""
+        from sbs_utils.helpers import gui_text_escape
+        value = self._button(f"$text:{gui_text_escape('scale 1:1')};color:red;").value
+        self.assertIn("scale 1:1", value)
+        self.assertNotIn("``", value)
+
+    def test_empty_text_becomes_a_MATCHED_empty_pair(self):
+        """Not a change - `Text` does the same. What matters is that the quotes are
+        balanced; a single stray backtick is what draws one in the box."""
+        value = self._button("$text:;").value
+        self.assertIn("$text:``;", value)
+        self.assertEqual(value.count("`") % 2, 0)
+
+
 if __name__ == "__main__":
     unittest.main()

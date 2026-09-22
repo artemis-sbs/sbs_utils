@@ -50,11 +50,11 @@ class CycleButton(Button):
         The button shows the STATE only. What the setting is called belongs to a
         label row beside it, so the control stays one word wide in a narrow column.
 
-        NO `gui_text_escape` here, deliberately. `Button.value`'s setter already
-        backtick-wraps whatever it finds in `$text`, so escaping first produced
-        DOUBLE backticks and a malformed props string. A state carrying a `:` or `;`
-        is protected by Button's own wrapping; what this must do is strip a literal
-        backtick, which would close that wrapping early.
+        `Button.value`'s setter quotes `$text` itself, so a state carrying a `:` or
+        `;` is already protected. This strips a literal backtick, which would close
+        that quoting early. (Escaping here as well used to produce DOUBLE backticks;
+        `Button.value` now leaves already-quoted text alone, as `Text.update` does,
+        so either form is safe - but there is no reason to quote twice.)
         """
         return f"$text:{str(self.state).replace('`', '')}  {self.glyph};"
 

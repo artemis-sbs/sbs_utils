@@ -107,7 +107,13 @@ class Button(Column):
             text = props.get("$text", props.get("text"))
             if text is None:
                 props["$text"] = ""
-            else:
+            elif "`" not in text:
+                # ALREADY QUOTED IS LEFT ALONE, the same guard `Text.update` has.
+                # Wrapping unconditionally meant a caller who had (correctly) run a
+                # dynamic label through `gui_text_escape` got DOUBLE backticks, and
+                # the engine drew them: buttons reading ``do work order now``. The
+                # two widgets take the same props string, so they must quote it the
+                # same way - the asymmetry is the whole trap.
                 props["$text"] = "`"+text+"`"
 
         self.square = self.icon
