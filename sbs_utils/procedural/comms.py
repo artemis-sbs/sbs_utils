@@ -1143,7 +1143,10 @@ class CommsPromise(ButtonPromise):
             value = True
             color = "white"
             if button.color is not None:
-                color = self.task.format_string(button.color)
+                # `icon:<name>` in the format block is for a console that draws these
+                # buttons itself (comms_grid_buttons). Strip it here or the engine
+                # widget is handed "red icon:wrench" as a colour.
+                color = _comms_split_icon(self.task.format_string(button.color))[0] or "white"
             if button.code is not None:
                 value = self.task.eval_code(button.code)
             if value and button.should_present((origin_id, selected_id)):
@@ -1660,6 +1663,132 @@ def _comms_override_pair(origin_id, selected_id, path, path_must_match):
 
     if (path_must_match and path.strip("//")==prom.path) or not path_must_match:
         prom.set_path(path)
+
+
+# --- reading and pressing grid buttons from a console --------------------------------
+#
+# `grid_control` is an engine widget a console can only hand a rectangle to: no scroll,
+# no row height, no styling, and a menu taller than the box is simply cut off. These let
+# a console DRAW the same buttons itself - `comms_grid_buttons` to read them,
+# `comms_grid_press` to press one, `comms_grid_revision` to know when to redraw.
+#
+# Nothing about grid comms changes. The //comms/grid routes, the expansion, the one-shot
+# rules and the press handling are all exactly as they were; this is a second way to draw
+# and press what already exists, and the engine widget keeps being fed for any console
+# still showing it.
+
+#: How a button names an icon inside its `[...]` block: `+[red icon:wrench] "Fix now"`.
+#: The whole block becomes `Button.color` (story_nodes/button.py), and the block's regex
+#: already accepts anything, so this needs no grammar change.
+#:
+#: NOT a comma-separated slot: `=$raider red, white` already means a two-colour format,
+#: so comma is spoken for.
+COMMS_ICON_PREFIX = "icon:"
+
+
+def _comms_split_icon(color):
+    """('color', 'icon') from a button's format block. Icon is None when absent."""
+    if not color:
+        return color, None
+    icon = None
+    kept = []
+    for word in str(color).split():
+        if word.startswith(COMMS_ICON_PREFIX):
+            icon = word[len(COMMS_ICON_PREFIX):] or None
+        else:
+            kept.append(word)
+    return (" ".join(kept) or None), icon
+
+
+def _comms_promise_for(origin_id, selected_id):
+    """The open interaction for this pair, or None.
+
+    A module-level accessor on purpose: `__comms_promises` name-mangles to
+    `_YourClass__comms_promises` if a mission reads it from inside a class body, which
+    fails as an AttributeError a long way from the cause.
+    """
+    task = __comms_promises.get((query.to_id(origin_id), query.to_id(selected_id)))
+    if task is None:
+        return None
+    return task.get_variable("BUTTON_PROMISE")
+
+
+def comms_grid_buttons(origin_id, selected_id):
+    """The buttons the grid menu is currently offering, as row dicts.
+
+    Returns:
+        list[dict]: ``index``, ``label``, ``color`` and ``icon`` (or None), in the order
+        the menu offers them. Empty when no interaction is open for this pair.
+
+    **`index` is the position in the UNFILTERED button list, not the row number.** A
+    button hidden by its `if` or already used (`*`) is skipped here but still consumes an
+    index - `set_buttons` enumerates before it filters, and the press path looks the
+    button up by that index. Pass `index` back to :func:`comms_grid_press` and never the
+    row's position.
+
+    The conditions and the label are evaluated on the PROMISE's task, not the caller's:
+    `COMMS_SELECTED_ID` and the rest live there.
+    """
+    prom = _comms_promise_for(origin_id, selected_id)
+    if prom is None or not prom.expanded_buttons:
+        return []
+    origin_id = query.to_id(origin_id)
+    selected_id = query.to_id(selected_id)
+    rows = []
+    for index, button in enumerate(prom.expanded_buttons):
+        if button.code is not None and not prom.task.eval_code(button.code):
+            continue
+        if not button.should_present((origin_id, selected_id)):
+            continue
+        color, icon = _comms_split_icon(
+            prom.task.format_string(button.color) if button.color is not None else None)
+        rows.append({"index": index,
+                     "label": prom.task.format_string(button.message),
+                     "color": color or "white",
+                     "icon": icon})
+    return rows
+
+
+def comms_grid_revision(origin_id, selected_id):
+    """What an `on change` watches to know the drawn list would differ.
+
+    Cheap - it re-runs the conditions but never the routes, so it is safe per tick. It
+    does NOT see a button that appeared because a route's structure changed; nothing in
+    comms rebuilds on a tick, so that still needs a press, a navigate, or
+    :func:`comms_refresh_open`.
+    """
+    prom = _comms_promise_for(origin_id, selected_id)
+    path = getattr(prom, "path", "") if prom is not None else ""
+    return (path, tuple((r["index"], r["label"], r["color"], r["icon"])
+                        for r in comms_grid_buttons(origin_id, selected_id)))
+
+
+def comms_grid_press(origin_id, selected_id, index, client_id=None):
+    """Press a grid button by its `index` from :func:`comms_grid_buttons`.
+
+    Takes the same path the engine widget's press takes - the event
+    `cosmos_event_handler` builds for `press_grid_button`, through
+    `ConsoleDispatcher.dispatch_message`. That is what keeps one-shot buttons marked
+    used and the menu redrawn afterwards; pressing the promise's button directly skips
+    both.
+
+    Returns:
+        bool: True if a press was dispatched. False when no interaction is open or the
+        index names nothing - a stale row after the list moved, which is ordinary.
+    """
+    from ..consoledispatcher import ConsoleDispatcher
+    prom = _comms_promise_for(origin_id, selected_id)
+    if prom is None or index is None:
+        return False
+    if index < 0 or index >= len(prom.expanded_buttons):
+        return False
+    event = FakeEvent(client_id=client_id,
+                      tag="press_grid_button",
+                      origin_id=query.to_id(origin_id),
+                      selected_id=query.to_id(selected_id),
+                      sub_tag=str(int(index)))
+    ConsoleDispatcher.dispatch_message(event.freeze(), "grid_selected_UID")
+    return True
 
 
 def comms_refresh_open(ids_or_obj=None) -> int:
