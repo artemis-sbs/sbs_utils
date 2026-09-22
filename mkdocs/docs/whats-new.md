@@ -23,7 +23,7 @@ tools, and finally the library changes. Links go to the relevant docs.
 | **[The old missions fly again](#old-missions)** | All 27 Artemis 2.8 missions in our archive crossed over, and they play — same fleets, same tempers, same voice over comms. |
 | **[A living bestiary](#a-living-bestiary)** | Seven new species over one behavior, each one aging from Young to Ancient. Scan it before you shoot it. |
 | **[Grav-tether](#grav-tether)** | Reel, tow and lock — on a beam that now feels the weight, and tells you when it is struggling. |
-| **[Engineering has something to do](#engineering)** | Systems wear, and a well-run ship can be tuned above spec. Work orders, a three-tab panel, and eight effectiveness numbers nobody could see before. |
+| **[Engineering has something to do](#engineering)** | Systems wear, and a well-run ship can be tuned above spec. Work orders, a four-tab panel rebuilt for touch, and eight effectiveness numbers nobody could see before. |
 | **[New faces](#new-faces)** | Every portrait in the game redrawn - faces that frown, glare, blink and talk, skin in any color you like, and a Randomize button. |
 | **[The console picker](#console-picker)** | The first screen of the night now tells you who you are about to be. |
 | **[Beacons & the Fabricator](#beacons)** | Engineering builds ordnance over a timer and hands it to the tube. The coordination is the gameplay. |
@@ -769,7 +769,7 @@ teams are already on it, opening a submenu of who to send, who to call off, and 
 urgent it is. Raise a job to critical and the team turns around **once**: the choice is
 committed, so two orders can never trade a team back and forth.
 
-**Engineering's right column is a three-tab panel**, in place of the oversized crew
+**Engineering's right column is a four-tab panel**, in place of the oversized crew
 face that used to hold it (and that was also the thing that collapsed at 1280x720):
 
 - **Selected** — the room or team you picked on the interior view, described in full.
@@ -780,6 +780,24 @@ face that used to hold it (and that was also the thing that collapsed at 1280x72
   always derived and Engineering has never been able to see: beam, tube, impulse,
   warp, turn, sensor, and both shield facings. Each one wears its tier's color, so the
   pool that is hurting is findable without reading all eight.
+- **View** — how the interior draws its rooms and systems, icons or shapes, one press
+  each. These used to live on a pad you had to find on the map and open two menus deep;
+  they sit beside the view they change now.
+
+**And the whole console is built for a finger.** Every control you actually press is a
+real target: the orders under your selection, the preset bank along the bottom, the
+panel's own tabs. The orders list **scrolls**, so a room that offers nine things to do
+shows you nine — where a long menu used to simply stop at the bottom of its box with
+nothing to say so. Ship data, the heat bank and the power sliders all grew, because the
+band of empty console between them is gone.
+
+**Your damage-control teams are a row of chips above the interior view** — name, and
+what each one is doing right now, in the team's own color. Tap one to select it; it is
+the same selection as clicking the figure on the map, so the panel and the orders follow
+either way.
+
+Engineering reads its own screen, so a short display shows three orders at a time and a
+tall one shows five, and the panel above takes whatever is left.
 
 The cockpit's system lights read the same model, so they show the wear tiers too.
 
@@ -1971,6 +1989,54 @@ See [Making a mod](build/making-a-mod.md).
 
 Library and API changes. Nothing here needs your attention unless a mission of yours
 misbehaves in a way one of them explains.
+
+---
+
+#### 🎛️ A console can draw the grid buttons itself { #grid-buttons }
+
+The engineering **grid_control** widget is a rectangle the engine fills: no scroll, no
+row height, no styling, and a menu taller than the box loses the rest. The buttons in it
+are not the engine's, though — they are your `//comms/grid` routes. Three accessors let
+a console draw them:
+
+```python
+comms_grid_buttons(origin, selected)    # [{index, label, color, icon}]
+comms_grid_press(origin, selected, index, client_id=None)
+comms_grid_revision(origin, selected)   # for an `on change`
+```
+
+Grid comms is unchanged — the routes, the expansion, the one-shot and sticky rules and
+the press handling all behave exactly as they did, and the widget keeps being fed for
+any console still showing it.
+
+**`index` is the position in the unfiltered list**, because that is what the press path
+looks a button up by. A button hidden by its `if`, or a `*` already used, is skipped
+when you draw but still consumes one — so pass back the `index` from the row, never the
+row's position.
+
+**A button can name an icon in its own format block**, which needs no new syntax:
+
+```
++ [red icon:wrench] "Fix now"
++ [icon:person] "Workout"
+```
+
+It is `icon:` rather than a comma slot because `=$raider red, white` already means a
+two-colour format. The engine widget never sees the marker.
+
+Two more for building consoles that fit the screen they are on:
+
+- **`gui_cycle_button(states, value=, label=)`** — one target that shows the current
+  state and advances on each press, for a setting with a handful of values. Read
+  `.state`. Inside a tabbed panel or a listbox row it does not repaint itself — the
+  container does, which for a tab means returning a redraw from its tick.
+- **`gui_screen_revision(client_id)`** — what an `on change` watches to rebuild a
+  console after a **resize**. A console that decides anything from the screen reads it
+  while building, and `screen_size` re-presents without re-running the builder, so those
+  decisions used to stay as they were. Banded to 100px so dragging a window rebuilds
+  once per band rather than once per reported size.
+
+Docs: [Making add-ons](build/addons.md), [Damage](build/damage.md).
 
 ---
 
