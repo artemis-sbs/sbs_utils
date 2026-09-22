@@ -1383,65 +1383,89 @@ def send_grid_button_info(arg0: int, arg1: str, arg2: str, arg3: str) -> None:
 def send_grid_selection_info(arg0: int, arg1: str, arg2: str, arg3: str) -> None:
     """sends a complex message to the engineering console of a certain ship."""
 
+# The engine's display list, modeled so a headless test can ask how many widgets are
+# on screen. These used to be no-ops, which is why a re-send addressed to the wrong
+# region read as a clean in-place update headless and duplicated on a real bridge.
+# See cosmos_dev/mock/gui_display.py for the rule.
+from .gui_display import gui_display as _gui_display, gui_display_clear  # noqa: E402
+
+
 def send_gui_3dship(clientID: int, parent: str, tag: str, style: str, left: float, top: float, right: float, bottom: float) -> None:
     """Creates a 3D ship box GUI element, on the targeted client (0 = server screen)"""
+    _gui_display(clientID).send("3dship", parent, tag, style)
 
 def send_gui_button(clientID: int, parent: str, tag: str, style: str, left: float, top: float, right: float, bottom: float) -> None:
     """Creates a button GUI element, on the targeted client (0 = server screen)"""
+    _gui_display(clientID).send("button", parent, tag, style)
 
 def send_gui_checkbox(clientID: int, parent: str, tag: str, style: str, left: float, top: float, right: float, bottom: float) -> None:
     """Creates a checkbox GUI element, on the targeted client (0 = server screen)"""
+    _gui_display(clientID).send("checkbox", parent, tag, style)
 
 def send_gui_clear(clientID: int, tag: str) -> None:
     """Clears all GUI elements from screen, on the targeted client (0 = server screen)."""
+    _gui_display(clientID).clear(tag)
 
 def send_gui_clickregion(clientID: int, parent: str, tag: str, style: str, left: float, top: float, right: float, bottom: float) -> None:
     """Creates a click-region GUI element, on the targeted client (0 = server screen)"""
+    _gui_display(clientID).send("clickregion", parent, tag, style)
 
 def send_gui_colorbutton(clientID: int, parent: str, tag: str, style: str, left: float, top: float, right: float, bottom: float) -> None:
     """Creates a color button GUI element, on the targeted client (0 = server screen)"""
+    _gui_display(clientID).send("colorbutton", parent, tag, style)
 
 def send_gui_colorcheckbox(clientID: int, parent: str, tag: str, style: str, left: float, top: float, right: float, bottom: float) -> None:
     """Creates a color checkbox GUI element, on the targeted client (0 = server screen)"""
+    _gui_display(clientID).send("colorcheckbox", parent, tag, style)
 
 def send_gui_complete(clientID: int, tag: str) -> None:
     """Flips double-buffered GUI display list, on the targeted client (0 = server screen)."""
+    _gui_display(clientID).complete(tag)
 
 def send_gui_dropdown(clientID: int, parent: str, tag: str, style: str, left: float, top: float, right: float, bottom: float) -> None:
     """Creates a dropdown GUI element, on the targeted client (0 = server screen)"""
+    _gui_display(clientID).send("dropdown", parent, tag, style)
 
 def send_gui_face(clientID: int, parent: str, tag: str, face_string: str, left: float, top: float, right: float, bottom: float) -> None:
     """Creates a face box GUI element, on the targeted client (0 = server screen)"""
+    _gui_display(clientID).send("face", parent, tag, face_string)
 
 def send_gui_hotkey(clientID: int, category: str, tag: str, keyType: str, description: str) -> None:
     """tells the targeted client (0 = server screen) to handle a hot key for a certain retained gui element."""
 
 def send_gui_icon(clientID: int, parent: str, tag: str, style: str, left: float, top: float, right: float, bottom: float) -> None:
     """Creates an icon art GUI element, on the targeted client (0 = server screen)"""
+    _gui_display(clientID).send("icon", parent, tag, style)
 
 def send_gui_iconbutton(clientID: int, parent: str, tag: str, style: str, left: float, top: float, right: float, bottom: float) -> None:
     """Creates an icon-button GUI element, on the targeted client (0 = server screen)"""
+    _gui_display(clientID).send("iconbutton", parent, tag, style)
 
 def send_gui_iconcheckbox(clientID: int, parent: str, tag: str, style: str, left: float, top: float, right: float, bottom: float) -> None:
     """Creates an icon-checkbox GUI element, on the targeted client (0 = server screen)"""
 
 def send_gui_image(clientID: int, parent: str, tag: str, style: str, left: float, top: float, right: float, bottom: float) -> None:
     """Creates a 2d art image GUI element, on the targeted client (0 = server screen)"""
+    _gui_display(clientID).send("image", parent, tag, style)
 
 def send_gui_rawiconbutton(clientID: int, parent: str, tag: str, style: str, left: float, top: float, right: float, bottom: float) -> None:
     """Creates a simple clickable icon GUI element, on the targeted client (0 = server screen)"""
+    _gui_display(clientID).send("rawiconbutton", parent, tag, style)
 
 def send_gui_slider(clientID: int, parent: str, tag: str, current: float, style: str, left: float, top: float, right: float, bottom: float) -> None:
     """Creates a slider bar GUI element, on the targeted client (0 = server screen)"""
 
 def send_gui_sub_region(clientID: int, parent: str, tag: str, style: str, left: float, top: float, right: float, bottom: float) -> None:
     """Creates a subregion GUI element, on the targeted client (0 = server screen)"""
+    _gui_display(clientID).sub_region(parent, tag)
 
 def send_gui_text(clientID: int, parent: str, tag: str, style: str, left: float, top: float, right: float, bottom: float) -> None:
     """Creates a text box GUI element, on the targeted client (0 = server screen)"""
+    _gui_display(clientID).send("text", parent, tag, style)
 
 def send_gui_typein(clientID: int, parent: str, tag: str, style: str, left: float, top: float, right: float, bottom: float) -> None:
     """Creates a text entry GUI element, on the targeted client (0 = server screen)"""
+    _gui_display(clientID).send("typein", parent, tag, style)
 
 def send_hold_menu(clientID: int, subject: int, object: int, extra: int, menuOptionStringSet: str) -> None:
     """sends info to client that displays a quick menu list on the 2d radar."""

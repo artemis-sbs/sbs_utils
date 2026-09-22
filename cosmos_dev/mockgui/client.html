@@ -4253,10 +4253,18 @@ function cmdWidget(msg) {
       log(`  ~${cmd} tag=${tag} → region[${parent||'root'}] front (in-place)`, 'dbg');
       return;
     }
-    // No matching element in front and not inside a rebuild — stale update, discard.
-    // Appending to the back would accumulate hidden elements that surface on the next
-    // buffer swap and can intercept clicks as invisible clickregions.
-    log(`  ?${cmd} tag=${tag} → stale out-of-rebuild update, discarding`, 'dbg');
+    // NOT ON SCREEN IN THIS REGION: the engine CREATES a widget here. It replaces
+    // only when the region tag AND the widget tag both match what is already showing
+    // (user, 2026-09-22); anything else is a new object.
+    //
+    // This used to discard, which made the mockgui strictly more forgiving than the
+    // engine: a re-send addressed to the wrong region, or under a tag nothing is
+    // wearing, vanished here and duplicated on a real bridge. One defect cost three
+    // engine round trips because every headless check agreed with code that could
+    // not work. Showing the duplicate is the whole point.
+    placeRoot(el, left, top, right, bottom);
+    region.front.appendChild(el);
+    log(`  +${cmd} tag=${tag} → region[${parent||'root'}] front (CREATED - no such tag here)`, 'warn');
     return;
   }
 
