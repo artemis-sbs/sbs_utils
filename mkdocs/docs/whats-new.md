@@ -23,7 +23,7 @@ tools, and finally the library changes. Links go to the relevant docs.
 | **[The old missions fly again](#old-missions)** | All 27 Artemis 2.8 missions in our archive crossed over, and they play — same fleets, same tempers, same voice over comms. |
 | **[A living bestiary](#a-living-bestiary)** | Seven new species over one behavior, each one aging from Young to Ancient. Scan it before you shoot it. |
 | **[Grav-tether](#grav-tether)** | Reel, tow and lock — on a beam that now feels the weight, and tells you when it is struggling. |
-| **[Engineering has something to do](#engineering)** | Systems wear, and a well-run ship can be tuned above spec. Work orders, a four-tab panel rebuilt for touch, and eight effectiveness numbers nobody could see before. |
+| **[Engineering has something to do](#engineering)** | Systems wear, and a well-run ship can be tuned above spec. Work orders, a four-tab panel rebuilt for touch, and eight efficiency numbers nobody could see before. |
 | **[New faces](#new-faces)** | Every portrait in the game redrawn - faces that frown, glare, blink and talk, skin in any color you like, and a Randomize button. |
 | **[The console picker](#console-picker)** | The first screen of the night now tells you who you are about to be. |
 | **[Beacons & the Fabricator](#beacons)** | Engineering builds ordnance over a timer and hands it to the tube. The coordination is the gameplay. |
@@ -776,7 +776,7 @@ face that used to hold it (and that was also the thing that collapsed at 1280x72
 - **Orders** — every work order on the ship, highest priority first, with raise and
   close on each row. Only live jobs are listed: one another console has finished is off
   the list before you reach for it.
-- **Systems** — the four pools, and the **eight effectiveness numbers** the grid has
+- **Systems** — the four pools, and the **eight efficiency numbers** the grid has
   always derived and Engineering has never been able to see: beam, tube, impulse,
   warp, turn, sensor, and both shield facings. Each one wears its tier's color, so the
   pool that is hurting is findable without reading all eight.
