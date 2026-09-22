@@ -2916,6 +2916,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#naming-things-in-your-add-ons-python" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Naming things in your add-on's Python
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#declare-what-it-needs" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -10243,6 +10254,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#naming-things-in-your-add-ons-python" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Naming things in your add-on's Python
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#declare-what-it-needs" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -10315,6 +10337,33 @@ it only appears on the v1.4.0 line. See <a href="../../tooling/cli/#release-line
 <div class="highlight"><pre><span></span><code>import panels.mast
 import helpers.py
 </code></pre></div>
+<h2 id="naming-things-in-your-add-ons-python">Naming things in your add-on's Python</h2>
+<p>Every <code>.py</code> your add-on imports can call a helper in any other <code>.py</code> of the mission by
+its bare name — that's what makes one add-on's helpers reachable from another. The
+flip side is that <strong>public names are shared mission-wide</strong>, so two add-ons that both
+define <code>market_price</code> will get whichever loaded last. Prefix public helpers with your
+add-on's name (<code>hangar_get_stats</code>, <code>market_sell_price</code>); <code>sbs lint</code>'s
+<code>ns-duplicate-function</code> tells you when two have claimed the same one.</p>
+<p><strong>A leading underscore makes a name private to its file.</strong> <code>_helper</code>, <code>_CACHE</code> and
+<code>class _Row</code> belong to the file that defines them, so two add-ons can each have a
+<code>_label</code> and never meet, and a private helper needs no prefix. They're also never MAST
+globals, so <code>.mast</code> can't call them.</p>
+<div class="highlight"><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">hangar_launch</span><span class="p">(</span><span class="n">craft</span><span class="p">):</span>   <span class="c1"># public: prefix it, other files can call it</span>
+    <span class="k">return</span> <span class="n">_pick_bay</span><span class="p">(</span><span class="n">craft</span><span class="p">)</span>
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_pick_bay</span><span class="p">(</span><span class="n">craft</span><span class="p">):</span>       <span class="c1"># private: this file&#39;s, whatever anyone else calls theirs</span>
+    <span class="o">...</span>
+</code></pre></div>
+<p>If you actually want another file's private, ask for it by name:</p>
+<div class="highlight"><pre><span></span><code><span class="kn">import</span><span class="w"> </span><span class="nn">hangar_bays</span>
+<span class="n">hangar_bays</span><span class="o">.</span><span class="n">_pick_bay</span><span class="p">(</span><span class="n">craft</span><span class="p">)</span>
+</code></pre></div>
+<div class="admonition note">
+<p class="admonition-title">v1.4.0 and later</p>
+<p>On earlier versions an underscored name was shared like any other, so a same-named
+helper in another add-on could take its place — silently, and depending on load
+order.</p>
+</div>
 <h2 id="declare-what-it-needs">Declare what it needs</h2>
 <p>Add-ons share one global namespace and load in <strong>no fixed order</strong>, so "my add-on uses
 a label from theirs" is only safe if you say so. Three directives at the top of

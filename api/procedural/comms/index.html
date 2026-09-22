@@ -4486,6 +4486,39 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#sbs_utils.procedural.comms.comms_grid_buttons" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;comms_grid_buttons
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#sbs_utils.procedural.comms.comms_grid_press" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;comms_grid_press
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#sbs_utils.procedural.comms.comms_grid_revision" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;comms_grid_revision
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#sbs_utils.procedural.comms.comms_history_add" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -10617,6 +10650,39 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#sbs_utils.procedural.comms.comms_grid_buttons" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;comms_grid_buttons
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#sbs_utils.procedural.comms.comms_grid_press" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;comms_grid_press
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#sbs_utils.procedural.comms.comms_grid_revision" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;comms_grid_revision
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#sbs_utils.procedural.comms.comms_history_add" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -11361,6 +11427,138 @@ so one per line would halve how much log fits on screen.</p>
   <summary>Example</summary>
   <p>comms_broadcast(SHIP_ID, "Red alert!", color="red", severity="danger")</p>
 </details>
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h2 id="sbs_utils.procedural.comms.comms_grid_buttons" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">comms_grid_buttons</span><span class="p">(</span><span class="n">origin_id</span><span class="p">,</span> <span class="n">selected_id</span><span class="p">)</span></code>
+
+</h2>
+
+
+    <div class="doc doc-contents ">
+
+        <p>The buttons the grid menu is currently offering, as row dicts.</p>
+
+
+    <p><span class="doc-section-title">Returns:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Type</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>list[dict]: <code>index</code>, <code>label</code>, <code>color</code> and <code>icon</code> (or None), in the order</p>
+              </div>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>the menu offers them. Empty when no interaction is open for this pair.</p>
+              </div>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+        <p><strong><code>index</code> is the position in the UNFILTERED button list, not the row number.</strong> A
+button hidden by its <code>if</code> or already used (<code>*</code>) is skipped here but still consumes an
+index - <code>set_buttons</code> enumerates before it filters, and the press path looks the
+button up by that index. Pass <code>index</code> back to :func:<code>comms_grid_press</code> and never the
+row's position.</p>
+<p>The conditions and the label are evaluated on the PROMISE's task, not the caller's:
+<code>COMMS_SELECTED_ID</code> and the rest live there.</p>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h2 id="sbs_utils.procedural.comms.comms_grid_press" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">comms_grid_press</span><span class="p">(</span><span class="n">origin_id</span><span class="p">,</span> <span class="n">selected_id</span><span class="p">,</span> <span class="n">index</span><span class="p">,</span> <span class="n">client_id</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span></code>
+
+</h2>
+
+
+    <div class="doc doc-contents ">
+
+        <p>Press a grid button by its <code>index</code> from :func:<code>comms_grid_buttons</code>.</p>
+<p>Takes the same path the engine widget's press takes - the event
+<code>cosmos_event_handler</code> builds for <code>press_grid_button</code>, through
+<code>ConsoleDispatcher.dispatch_message</code>. That is what keeps one-shot buttons marked
+used and the menu redrawn afterwards; pressing the promise's button directly skips
+both.</p>
+
+
+    <p><span class="doc-section-title">Returns:</span></p>
+    <table>
+      <thead>
+        <tr>
+<th>Name</th>          <th>Type</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+<td><code>bool</code></td>            <td>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>True if a press was dispatched. False when no interaction is open or the</p>
+              </div>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+<td></td>            <td>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>index names nothing - a stale row after the list moved, which is ordinary.</p>
+              </div>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h2 id="sbs_utils.procedural.comms.comms_grid_revision" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">comms_grid_revision</span><span class="p">(</span><span class="n">origin_id</span><span class="p">,</span> <span class="n">selected_id</span><span class="p">)</span></code>
+
+</h2>
+
+
+    <div class="doc doc-contents ">
+
+        <p>What an <code>on change</code> watches to know the drawn list would differ.</p>
+<p>Cheap - it re-runs the conditions but never the routes, so it is safe per tick. It
+does NOT see a button that appeared because a route's structure changed; nothing in
+comms rebuilds on a tick, so that still needs a press, a navigate, or
+:func:<code>comms_refresh_open</code>.</p>
+
 
     </div>
 

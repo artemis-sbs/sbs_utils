@@ -5988,6 +5988,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#sbs_utils.procedural.gui.console.gui_screen_revision" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;gui_screen_revision
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#sbs_utils.procedural.gui.console_tab" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -13831,6 +13842,17 @@
     <span class="md-ellipsis">
       
         <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;gui_console_enter
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#sbs_utils.procedural.gui.console.gui_screen_revision" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;gui_screen_revision
       
     </span>
   </a>
@@ -23489,6 +23511,108 @@ mission's own console name.</p>
       </tbody>
     </table>
 
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h2 id="sbs_utils.procedural.gui.console.gui_screen_revision" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">gui_screen_revision</span><span class="p">(</span><span class="n">client_id</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">band</span><span class="o">=</span><span class="n">GUI_SCREEN_BAND_PX</span><span class="p">)</span></code>
+
+</h2>
+
+
+    <div class="doc doc-contents ">
+
+        <p>What an <code>on change</code> watches to rebuild a console after a RESIZE.</p>
+<p>A console that decides anything from the screen - how many rows a box shows, how
+wide a column is - reads it while BUILDING, so the answer is baked into the page.
+<code>screen_size</code> updates the aspect ratio and re-presents, which recomputes
+percentages but does not re-run the builder, so those decisions stay as they were.
+Watching this and jumping back to the console's label rebuilds them.</p>
+<p>COARSE ON PURPOSE. The raw size is reported many times while a window is dragged,
+and a console rebuild per distinct value would thrash. A band rebuilds at most
+once per band crossed.</p>
+
+
+<p><span class="doc-section-title">Parameters:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Type</th>
+          <th>Description</th>
+          <th>Default</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+                <code>client_id</code>
+            </td>
+            <td>
+                  <code><span title="int">int</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>defaults to the current frame's client.</p>
+              </div>
+            </td>
+            <td>
+                  <code>None</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>band</code>
+            </td>
+            <td>
+                  <code><span title="int">int</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>band size in pixels. Defaults to
+:data:<code>GUI_SCREEN_BAND_PX</code>.</p>
+              </div>
+            </td>
+            <td>
+                  <code><span title="sbs_utils.procedural.gui.console.GUI_SCREEN_BAND_PX">GUI_SCREEN_BAND_PX</span></code>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+    <p><span class="doc-section-title">Returns:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Type</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>tuple[int, int]: the banded (width, height). Compare, do not read as pixels.</p>
+              </div>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+<details class="example" open>
+  <summary>Example</summary>
+  <p>on change gui_screen_revision(client_id):
+    jump my_console_label</p>
+</details>
 
     </div>
 

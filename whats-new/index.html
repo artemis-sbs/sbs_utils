@@ -1376,6 +1376,28 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
+  <a href="#grid-buttons" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        🎛️ A console can draw the grid buttons itself
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#py-private" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        🔒 _private helpers in an add-on's Python are private to their file
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#orders-api" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -11828,6 +11850,28 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
+  <a href="#grid-buttons" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        🎛️ A console can draw the grid buttons itself
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#py-private" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        🔒 _private helpers in an add-on's Python are private to their file
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#orders-api" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -11985,7 +12029,7 @@ tools, and finally the library changes. Links go to the relevant docs.</p>
 </tr>
 <tr>
 <td><strong><a href="#engineering">Engineering has something to do</a></strong></td>
-<td>Systems wear, and a well-run ship can be tuned above spec. Work orders, a three-tab panel, and eight effectiveness numbers nobody could see before.</td>
+<td>Systems wear, and a well-run ship can be tuned above spec. Work orders, a four-tab panel rebuilt for touch, and eight effectiveness numbers nobody could see before.</td>
 </tr>
 <tr>
 <td><strong><a href="#new-faces">New faces</a></strong></td>
@@ -12708,7 +12752,7 @@ you wanted buried in them. It is one button, <strong>Repair</strong> or <strong>
 teams are already on it, opening a submenu of who to send, who to call off, and how
 urgent it is. Raise a job to critical and the team turns around <strong>once</strong>: the choice is
 committed, so two orders can never trade a team back and forth.</p>
-<p><strong>Engineering's right column is a three-tab panel</strong>, in place of the oversized crew
+<p><strong>Engineering's right column is a four-tab panel</strong>, in place of the oversized crew
 face that used to hold it (and that was also the thing that collapsed at 1280x720):</p>
 <ul>
 <li><strong>Selected</strong> — the room or team you picked on the interior view, described in full.</li>
@@ -12719,7 +12763,22 @@ face that used to hold it (and that was also the thing that collapsed at 1280x72
   always derived and Engineering has never been able to see: beam, tube, impulse,
   warp, turn, sensor, and both shield facings. Each one wears its tier's color, so the
   pool that is hurting is findable without reading all eight.</li>
+<li><strong>View</strong> — how the interior draws its rooms and systems, icons or shapes, one press
+  each. These used to live on a pad you had to find on the map and open two menus deep;
+  they sit beside the view they change now.</li>
 </ul>
+<p><strong>And the whole console is built for a finger.</strong> Every control you actually press is a
+real target: the orders under your selection, the preset bank along the bottom, the
+panel's own tabs. The orders list <strong>scrolls</strong>, so a room that offers nine things to do
+shows you nine — where a long menu used to simply stop at the bottom of its box with
+nothing to say so. Ship data, the heat bank and the power sliders all grew, because the
+band of empty console between them is gone.</p>
+<p><strong>Your damage-control teams are a row of chips above the interior view</strong> — name, and
+what each one is doing right now, in the team's own color. Tap one to select it; it is
+the same selection as clicking the figure on the map, so the panel and the orders follow
+either way.</p>
+<p>Engineering reads its own screen, so a short display shows three orders at a time and a
+tall one shows five, and the panel above takes whatever is left.</p>
 <p>The cockpit's system lights read the same model, so they show the wear tiers too.</p>
 <p><strong>A mission that never opts in sees no change at all.</strong> An untouched system reads as
 nominal and weighs exactly <code>1.0</code>, so effectiveness comes out identical to the
@@ -13728,6 +13787,57 @@ engine cannot read inside one — which is exactly what the writing was working 
 <h3 id="under-the-hood">Under the hood</h3>
 <p>Library and API changes. Nothing here needs your attention unless a mission of yours
 misbehaves in a way one of them explains.</p>
+<hr />
+<h4 id="grid-buttons">🎛️ A console can draw the grid buttons itself</h4>
+<p>The engineering <strong>grid_control</strong> widget is a rectangle the engine fills: no scroll, no
+row height, no styling, and a menu taller than the box loses the rest. The buttons in it
+are not the engine's, though — they are your <code>//comms/grid</code> routes. Three accessors let
+a console draw them:</p>
+<div class="highlight"><pre><span></span><code><span class="n">comms_grid_buttons</span><span class="p">(</span><span class="n">origin</span><span class="p">,</span> <span class="n">selected</span><span class="p">)</span>    <span class="c1"># [{index, label, color, icon}]</span>
+<span class="n">comms_grid_press</span><span class="p">(</span><span class="n">origin</span><span class="p">,</span> <span class="n">selected</span><span class="p">,</span> <span class="n">index</span><span class="p">,</span> <span class="n">client_id</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span>
+<span class="n">comms_grid_revision</span><span class="p">(</span><span class="n">origin</span><span class="p">,</span> <span class="n">selected</span><span class="p">)</span>   <span class="c1"># for an `on change`</span>
+</code></pre></div>
+<p>Grid comms is unchanged — the routes, the expansion, the one-shot and sticky rules and
+the press handling all behave exactly as they did, and the widget keeps being fed for
+any console still showing it.</p>
+<p><strong><code>index</code> is the position in the unfiltered list</strong>, because that is what the press path
+looks a button up by. A button hidden by its <code>if</code>, or a <code>*</code> already used, is skipped
+when you draw but still consumes one — so pass back the <code>index</code> from the row, never the
+row's position.</p>
+<p><strong>A button can name an icon in its own format block</strong>, which needs no new syntax:</p>
+<div class="highlight"><pre><span></span><code>+ [red icon:wrench] &quot;Fix now&quot;
++ [icon:person] &quot;Workout&quot;
+</code></pre></div>
+<p>It is <code>icon:</code> rather than a comma slot because <code>=$raider red, white</code> already means a
+two-colour format. The engine widget never sees the marker.</p>
+<p>Two more for building consoles that fit the screen they are on:</p>
+<ul>
+<li><strong><code>gui_cycle_button(states, value=, label=)</code></strong> — one target that shows the current
+  state and advances on each press, for a setting with a handful of values. Read
+  <code>.state</code>. Inside a tabbed panel or a listbox row it does not repaint itself — the
+  container does, which for a tab means returning a redraw from its tick.</li>
+<li><strong><code>gui_screen_revision(client_id)</code></strong> — what an <code>on change</code> watches to rebuild a
+  console after a <strong>resize</strong>. A console that decides anything from the screen reads it
+  while building, and <code>screen_size</code> re-presents without re-running the builder, so those
+  decisions used to stay as they were. Banded to 100px so dragging a window rebuilds
+  once per band rather than once per reported size.</li>
+</ul>
+<p>Docs: <a href="../build/addons/">Making add-ons</a>, <a href="../build/damage/">Damage</a>.</p>
+<hr />
+<h4 id="py-private">🔒 <code>_private</code> helpers in an add-on's Python are private to their file</h4>
+<p>Two add-ons can both define <code>_label</code>, <code>_CACHE</code> or <code>class _Row</code> and never meet.</p>
+<p>A leading underscore now scopes a top-level name to the <code>.py</code> file that defines it.
+Only names <em>without</em> one are published for the rest of the mission's Python to call by
+bare name, so a private helper needs no prefix and can't be taken over by a same-named
+helper in an add-on you didn't write. Ask for one explicitly and you still get it:</p>
+<div class="highlight"><pre><span></span><code><span class="kn">import</span><span class="w"> </span><span class="nn">hangar_bays</span>
+<span class="n">hangar_bays</span><span class="o">.</span><span class="n">_pick_bay</span><span class="p">(</span><span class="n">craft</span><span class="p">)</span>
+</code></pre></div>
+<p>Public names are unchanged — shared across the mission's <code>.py</code> files and resolved when
+the call runs, so the cross-file calls add-ons rely on keep working in both directions
+whatever the load order. <code>sbs lint</code>'s <code>ns-duplicate-function</code> is still what tells you
+two add-ons have claimed the same public name.</p>
+<p>Docs: <a href="../build/addons/#naming-things-in-your-add-ons-python">Making add-ons</a>.</p>
 <hr />
 <h4 id="orders-api">🎖️ Orders by capability - one module every menu asks</h4>
 <p>An order is a MAST objective label under <code>objective/orders/</code> that says what it needs and
