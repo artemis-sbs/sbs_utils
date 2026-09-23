@@ -1301,8 +1301,16 @@ class TextArea(Control):
         if style_key is None:
             if previous is None:
                 return "_"
+            # A HEADING ends at its own line. A plain line after `## Title` used to
+            # inherit the heading's font until a blank line, which drew body text
+            # heading-sized three times over (a codex entry, the Admiralty stock, the
+            # handheld's Scan). Other styles - a `$p1` paragraph, a list - still carry.
+            if any(previous is self.styles.get(k) for k in self._HEADING_KEYS):
+                return "_", some_lines
             return previous, some_lines
         return style_key,some_lines
+
+    _HEADING_KEYS = ("t", "h1", "h2", "h3", "h4", "h5", "h6", "nh1", "nh2", "nh3")
             
     def _promote_if_overflowing(self, client_id):
         """A one-line message that does not FIT is not a simple label.

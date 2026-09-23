@@ -124,6 +124,32 @@ class TestFold(_Base):
         self.assertFalse(any(isinstance(ln, FoldLine) for ln in ta.lines))
 
 
+class TestHeadingEndsAtItsLine(_Base):
+    def _fonts(self, text):
+        from sbs_utils.helpers import split_props
+        ta = self._calc(text)
+        out = []
+        for ln in ta.lines:
+            st = ln.style.get("style", "") if isinstance(getattr(ln, "style", None), dict) else ""
+            out.append((ln.text, split_props(st, "font").get("font")))
+        return out
+
+    def test_a_line_after_a_heading_is_body_text(self):
+        f = dict(self._fonts("## Kralien\nSwarm tactics.\n### Orders\nHold."))
+        self.assertEqual(f["Kralien"], "gui-4")
+        self.assertEqual(f["Swarm tactics."], "gui-2")
+        self.assertEqual(f["Orders"], "gui-3")
+        self.assertEqual(f["Hold."], "gui-2")
+
+    def test_an_icon_line_after_a_heading_is_body_text(self):
+        ta = self._calc("## arrival\n![](icon://square) Nominal")
+        self.assertEqual([ln for ln in ta.lines if isinstance(ln, IconLine)][0].font, "gui-2")
+
+    def test_other_styles_still_carry(self):
+        f = dict(self._fonts("$p1 First paragraph line\nsecond line"))
+        self.assertEqual(f["second line"], f["First paragraph line"])
+
+
 class TestTooling(unittest.TestCase):
     def test_fold_heading_is_its_title_and_bullet_is_silent(self):
         blocks = amd_blocks_text("##+ Weapons\n\n[](bullet://check.on)\n- a")
