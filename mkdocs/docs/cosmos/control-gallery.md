@@ -30,13 +30,13 @@ too.
 
 ## What is in it
 
-54 entries in six categories:
+60 entries in six categories:
 
 | Category | Entries | What it holds |
 |---|---|---|
-| **Controls** | 20 | one entry per widget, live — text, buttons, checkbox, dropdown, sliders, list box, table, text area, icons, radio, input, grid, face, ship, image |
-| **Layout** | 4 | `row-height` / `col-width` modes, size arithmetic, `overflow` — every box backgrounded, because the subject is where the edges land |
-| **Recipes** | 4 | composed patterns: watch/repaint, a status line, a reusable style, and a shelf of four `item_template`s switched live |
+| **Controls** | 23 | one entry per widget, live — text, buttons, checkbox, dropdown, sliders, list box, table, text area (with icons, links and callouts), gauges, icons, radio, input, grid, face, ship, image |
+| **Layout** | 6 | `row-height` / `col-width` modes, size arithmetic, `overflow` — every box backgrounded, because the subject is where the edges land |
+| **Recipes** | 5 | composed patterns: watch/repaint, a status line, a reusable style, and a shelf of four `item_template`s switched live |
 | **Traps** | 5 | each runs **BROKEN and FIXED side by side**, with both snippets under the panel that drew them. Only the fix gets a Copy button |
 | **Full page** | 4 | examples that are a whole screen: an embedded engine view, a self-redrawing region, a master/detail console, and a layout playground |
 | **Overlays** | 17 | every overlay kind, `announce()`, and the audience rules — see [Overlays](overlays.md) |
@@ -60,7 +60,7 @@ Python `item_template` it points at, which is how real missions pair the two.
 
 ## Take the tour
 
-**"Take the tour"** in the header walks all 54 entries in order, narrating each one
+**"Take the tour"** in the header walks all 60 entries in order, narrating each one
 through the overlay system's own lower third — the gallery introducing itself with the
 feature the mission was originally built to demo. It stops at either end rather than
 looping, so it tells you when you have seen everything.

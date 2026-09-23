@@ -291,6 +291,22 @@ overlay_register("briefing", _briefing)
 Either way, the builder decides *layout*; the content decides *what shows* — the same
 card can be driven from a wrapper, a signal, AMD, or a quest.
 
+**Changing a live card: `overlay_patch`.** To update what a custom card shows while it
+is up, patch its CONTENT and the slot is rebuilt from it — `overlay_hud_update`, for any
+kind:
+
+```
+overlay_show("status", "ship_status", energy=946, front=120)
+# later, whenever a value moves:
+overlay_patch("status", energy=807, front=45)
+```
+
+Do not hold a widget from inside the builder and set its value: a widget inside an
+overlay slot cannot repaint itself (the engine draws the new text over the old). The
+builder reads `content`; `overlay_patch` changes `content`. A builder can only fill its
+one slot — a `gui_section` inside it is not drawn — so a card that needs two areas
+uses two slots (`overlay_slot_define`).
+
 ## announce() — the overlay AND the record, in one call
 
 An overlay is an **attention** layer: it draws over the view, then it is gone. It keeps

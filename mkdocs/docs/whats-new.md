@@ -1422,6 +1422,17 @@ HUD — that update **without repainting the page underneath**.
 
 #### 📋 Richer GUI — tables, and text that does more
 
+- **[Gauges](cosmos/gui.md#gauges) — the engine's own status-panel look.** A label, a
+  value and a bar that goes green, yellow, then red as it drains, and turns the
+  engineering console's *tuned* cyan when a system runs over 100%. One line of MAST -
+  `gui_gauge(45, 120, "FRNT SHLD")` - and set `.value` to watch it move. They work in
+  text areas too, so a whole ship-status panel, ENGN / WEAP / SHLD / SENS grid included,
+  can be written as a few lines of markdown:
+  ```
+  [Energy](gauge://946?max=1000)
+  [FRNT SHLD](gauge://45?max=120)
+  ```
+
 - **[`gui_table`](cosmos/gui_table.md).** Describe a table as **rows + column
   specs** and get back a real, selectable, scrollable list box with the columns
   **auto-sized to their content**. Cells aren't just text — a column `type` can be a
@@ -1448,9 +1459,15 @@ HUD — that update **without repainting the page underneath**.
   new tricks in its mini-markdown:
     - **GFM pipe tables** — `| Ship | Hull |` with a `|:--|--:|` alignment row —
       render as a real grid, columns sized to fit.
-    - **Hyperlinks** — a `[Torgoth](ref://torgoth)` line becomes a clickable link that
-      **navigates within the same document** (give the area a `link_resolver`), so a
-      Kralien entry can link straight to the Torgoth one. Perfect for a codex.
+    - **Hyperlinks** — a `[Torgoth](ref://torgoth)` line, or a table cell, becomes a
+      clickable link that **navigates within the same document** (give the area a
+      `link_resolver`), so a Kralien entry can link straight to the Torgoth one.
+      Perfect for a codex.
+    - **Icons** — `![](icon://wanted) Bounty posted` puts an icon at the start of a
+      line or a table cell, and at the start of a list item **the icon is the
+      bullet**: a checklist of ticks and crosses is just `- ![](icon://check.on) Done`.
+    - **Grids** — a table with an empty first row has no header, which is how the
+      gauge grid above is written.
     - **`<hr>`** draws a horizontal rule.
 
 - **Text areas use their full width.** A long-standing measuring bug made
@@ -1701,7 +1718,7 @@ See [The races add-on](build/race-addons.md).
 #### 🎛️ The Control Gallery — every widget, running, with its source
 
 Stop guessing what a widget looks like. The **[Control Gallery](cosmos/control-gallery.md)**
-is a mission you start: **54 entries in six categories**, each one live on screen with
+is a mission you start: **60 entries in six categories**, each one live on screen with
 **the code that built it directly underneath**.
 
 - **The snippet cannot be out of date**, because it is not a copy. It is sliced out of

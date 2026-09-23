@@ -98,6 +98,35 @@ has `get_selected()`, `get_selected_index()`, and `set_selected_index(i)`.
     `row-height` used to mean the gap. If you have a list declaring it and meaning
     spacing, rename it to `item-gap`.
 
+## Gauges
+
+**`gui_gauge(value, max, label)`** draws the engine's status-panel look: a label on
+the left, the value on the right, and a bar under both colored by how full it is -
+green, yellow below 50%, red below 25%. Over max the bar is full and turns the
+engineering console's *tuned* cyan.
+
+=== ":mast-icon: {{ab.m}}"
+    ```
+    gui_gauge(946, 1000, "Energy")
+    gui_gauge(45, 120, "FRNT SHLD", show="frac")      # "45 / 120"
+    gui_gauge(120, 100, "WEAP boost", show="pct")     # "120%", full cyan bar
+    shields = gui_gauge(120, 120, "REAR SHLD")
+
+    on change get_data_set_value(ship_id, "shield_val", 1, default=0):
+        shields.value = get_data_set_value(ship_id, "shield_val", 1, default=0)
+    ```
+
+| Option | Meaning |
+|---|---|
+| `show=` | `value` (default with a label), `frac` ("45 / 120"), `pct`, or `none` (default without a label - a bare bar) |
+| `warn=` / `crit=` | where the bar turns yellow / red, as fractions (default 0.5 / 0.25) |
+| `color=` | a fixed bar color, ignoring the thresholds |
+
+A value outside `0..max` clamps the **bar**, never the number: `-45 / 8` shows an
+empty bar and says -45. Keep the handle and set `.value` - only the gauge repaints.
+The same drawing is available inside a text area as `[Energy](gauge://946?max=1000)`
+(below).
+
 ## Rich text areas
 
 `gui_text` is a single styled line. For a **multi-line, formatted block** — help,
@@ -110,18 +139,38 @@ small markdown-like language and **auto-scrolls** when its content overflows.
     gui_text_area(brief)
     ```
 
-- `$t` a title; `#`/`##`/`###` headings (auto-numbered, so use `$t` for a plain
-  title); `-` bullets; `1.` ordered lists; a blank line resets; `^` is a newline;
-  `{var}` interpolates.
+- `$t` a title; `#`/`##`/`###` headings (plain, like markdown; `$nh1`..`$nh3` are
+  the auto-numbered forms); `-` bullets; `1.` ordered lists; a blank line resets;
+  `^` is a newline; `{var}` interpolates.
 - Inline objects by namespace: `![](image://key?scale=0.5)`, `[](ship://hull?...)`,
   `[](face://...)`, `[](style://font:gui-4;color:#8cf)`.
 - **Pipe tables** — `| Ship | Hull |` rows with a `|:--|--:|` alignment row — render
   as a grid, columns sized to fit. (For an *interactive* table with controls, use
   [`gui_table`](gui_table.md) instead.)
-- **Hyperlinks** — a `[Torgoth](ref://torgoth)` line is a clickable link; give the
-  area a `link_resolver` (`fn(key) -> new text`) and it **navigates within the same
-  document** — a Kralien entry can link straight to the Torgoth one (a codex). `<hr>`
-  draws a horizontal rule.
+  A table whose first row is empty (`| | |`) has **no header** - that is how you
+  write a grid of cells.
+- **Gauges** — `[Energy](gauge://946?max=1000)` on its own line, or as a table cell,
+  draws a gauge (see [Gauges](#gauges); the options are URL parameters:
+  `gauge://45?max=120&show=frac`). A grid of bare gauges is the engine's
+  ENGN / WEAP / SHLD / SENS block:
+
+    ```
+    | | |
+    |:--:|:--:|
+    | [ENGN](gauge://1?max=1&show=none) | [WEAP](gauge://0.4?max=1&show=none) |
+    | [SHLD](gauge://0.2?max=1&show=none) | [SENS](gauge://1?max=1&show=none) |
+    ```
+
+- **Icons** — `![](icon://wanted?color=#f66) Bounty posted` at the start of a line
+  draws an icon one line tall with the text beside it. The name is an
+  [icon name](gui_icons.md) or a sheet index (`icon://137`). At the start of a list
+  item **the icon is the bullet**: `- ![](icon://check.on) Hails answered`. A table
+  cell can start with an icon too.
+- **Hyperlinks** — a `[Torgoth](ref://torgoth)` line, or a table cell, is a
+  clickable link. Give the area `link_resolver=` (a function `key -> text`, or a
+  `{key: text}` dict) and it **navigates within the same document** — a Kralien entry
+  can link straight to the Torgoth one (a codex). `on_link=fn(key, widget)` hears
+  every click. `<hr>` draws a horizontal rule.
 - A single unformatted line just renders as plain text; a parse slip shows
   `Document syntax issue line number N` — so a blank/garbled area is usually a
   syntax slip on that line. Engine text is ASCII-only.
@@ -161,6 +210,13 @@ need to rebuild the whole page:
     the_face.value = new_face_string
     on_screen.update(f"image:{get_mission_dir_filename('RedAlert')}")
     ```
+
+!!! warning "Inside a region, the OWNER repaints"
+    A widget inside a sub-region - an overlay slot, a tab of a tabbed panel, a
+    listbox row - cannot repaint itself: the engine draws the new text over the old
+    one instead of replacing it. There, change what the region's owner builds from
+    and let the owner redraw - for an overlay, [`overlay_patch`](overlays.md).
+    `gui_gauge` and `gui_cycle_button` already follow this rule.
 
 !!! note "`gui_represent()` is deprecated"
     Widgets mark themselves dirty when their value changes and re-render on their
