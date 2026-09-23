@@ -165,7 +165,16 @@ small markdown-like language and **auto-scrolls** when its content overflows.
   draws an icon one line tall with the text beside it. The name is an
   [icon name](gui_icons.md) or a sheet index (`icon://137`). At the start of a list
   item **the icon is the bullet**: `- ![](icon://check.on) Hails answered`. A table
-  cell can start with an icon too.
+  cell can start with an icon too. To give a **whole list** one icon, declare it once
+  on the line above - `[](bullet://check.on?color=#8f8)` - and every `-` item below
+  uses it until a blank line (`bullet://none` stops it early; numbered lists keep
+  their numbers).
+- **Collapsible sections** — write a heading as `##+ Weapons` (starts closed) or
+  `##- Hull` (starts open). A click on the heading folds or unfolds everything down
+  to the next heading at the same or a higher level - tables, lists and
+  sub-headings included - and the heading stays in view. What the reader opened
+  stays open when the area's text is updated. The marker touches the hashes, so
+  `## - x` is still an ordinary heading.
 - **Hyperlinks** — a `[Torgoth](ref://torgoth)` line, or a table cell, is a
   clickable link. Give the area `link_resolver=` (a function `key -> text`, or a
   `{key: text}` dict) and it **navigates within the same document** — a Kralien entry

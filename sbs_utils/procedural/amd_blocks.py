@@ -29,7 +29,7 @@ paper on purpose.
 """
 from sbs_utils.procedural.amd import (
     RE_COMMENT, RE_CUE, RE_DIRECTION, RE_CALLOUT, RE_LINK_DEF, RE_LINK_REF,
-    RE_REF_LINK, RE_GAUGE, RE_ICON, RE_STYLE_DEF, amd_body_synopsis, amd_body_transclude,
+    RE_REF_LINK, RE_GAUGE, RE_ICON, RE_BULLET, RE_FOLD_HEADING, RE_STYLE_DEF, amd_body_synopsis, amd_body_transclude,
     amd_body_transition, amd_body_variant, amd_choice, amd_parse_url,
     amd_table_rows, amd_table_scan, amd_wikilinks,
 )
@@ -268,6 +268,17 @@ def _line_block(lineno, raw, text, raws, i, doc, profile, resolve, depth, seen,
     if m is not None:
         return {"type": "link", "line": lineno, "display": m.group("disp").strip(),
                 "target": m.group("key").strip()}, 1
+
+    # `##+ Title` folds in the game; on a page there is nothing to fold, so it is
+    # its title. `[](bullet://..)` only changes how the game draws the next list.
+    m = RE_FOLD_HEADING.match(text)
+    if m is not None:
+        return {"type": "paragraph", "line": lineno, "text": m.group("title"),
+                "links": []}, 1
+    m = RE_BULLET.match(text)
+    if m is not None:
+        return {"type": "style_ref", "line": lineno, "ns": "bullet",
+                "spec": m.group("urn")}, 1
 
     # `![](icon://name) text` is a LINE of prose that starts with a glyph, not art:
     # its own paragraph, so the text after the icon is kept (as `media` it was

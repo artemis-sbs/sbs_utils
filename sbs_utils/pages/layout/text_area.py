@@ -20,6 +20,7 @@ import re
 # below) - exactly the drift this import exists to prevent - so it is gone.
 from ...procedural.amd import (RE_STYLE_DEF, RE_STYLE_REF, RE_LINK_DEF,
                                RE_LINK_REF, RE_REF_LINK, RE_TABLE_SEP, RE_GAUGE, RE_ICON,
+                               RE_BULLET, RE_FOLD_HEADING,
                                amd_parse_url, amd_table_scan, amd_table_rows)
 from .gauge import (gauge_spec_from_url, gauge_height_px, gauge_send, gauge_value_text,
                     gauge_has_text)
@@ -446,6 +447,26 @@ class IconLine:
                               tx, top, right, bottom)
 
 
+class FoldLine(IconLine):
+    """A collapsible heading (`##+ Title` / `##- Title`): the expand or collapse icon,
+    the title in its heading style, and a click region over the whole line that
+    routes back to the owning TextArea to open or close the section."""
+    ICON_OPEN = "list.collapse"       # showing: click to fold it away
+    ICON_CLOSED = "list.expand"       # folded: click to open
+
+    def __init__(self, title, style, is_open, click_tag, ar, pixel_width) -> None:
+        icon = self.ICON_OPEN if is_open else self.ICON_CLOSED
+        super().__init__(f"{icon}?color=#8cf", title, style, ar, pixel_width)
+        self.is_open = is_open
+        self.click_tag = click_tag
+
+    def send_gui(self, SBS, client_id, region_tag, tag, left, top, right, bottom, layer=None):
+        super().send_gui(SBS, client_id, region_tag, tag, left, top, right, bottom, layer)
+        SBS.send_gui_clickregion(client_id, region_tag, self.click_tag,
+                                 "background_color:#00000000;" + _layer_prop(layer),
+                                 left, top, right, bottom)
+
+
 class LinkLine:
     """A whole-line hyperlink `[Display](ref://key)`. Renders as styled clickable
     text plus a transparent clickregion on top whose click_tag routes back to the
@@ -575,6 +596,10 @@ class TextArea(Control):
         self.link_resolver = None   # fn(key) -> new text; drives [x](ref://key) nav
         self.on_link_cb = None      # fn(key, self); notified on any link click
         self._link_map = {}         # click_tag -> target key
+        # Collapsible sections. `_folds` is heading key -> open, and is NOT reset by a
+        # new value: a reader who opened a section keeps it open when the text updates.
+        self._folds = {}
+        self._fold_map = {}         # click_tag -> heading key
         #self.region = None
         #self.local_region_tag = self.tag+"$$"
 
@@ -637,6 +662,9 @@ class TextArea(Control):
 
         self.lines = []
         self._link_map = {}
+        self._fold_map = {}
+        fold_level = None           # inside a CLOSED section of this heading level
+        list_icon = None            # `[](bullet://..)` in force for the current list
         links = {}
         calc_height = 0
         self.scroll_line = 0
@@ -728,6 +756,39 @@ class TextArea(Control):
                 continue
             self.error_line = line
             self.error_line_num = i
+
+            if self.markdown:
+                stripped = line.strip()
+                level = len(stripped) - len(stripped.lstrip("#")) if stripped.startswith("#") else 0
+                # Inside a closed section: skip everything down to the next heading at
+                # the same or a higher level (fewer or equal #).
+                if fold_level is not None:
+                    if level == 0 or level > fold_level:
+                        continue
+                    fold_level = None
+                m_fold = RE_FOLD_HEADING.match(stripped)
+                if m_fold is not None:
+                    hashes, title = m_fold.group("hashes"), m_fold.group("title")
+                    key = f"{hashes}{title}"
+                    is_open = self._folds.setdefault(key, m_fold.group("mark") == "-")
+                    ctag = f"{self.tag}:fold{len(self.lines)}"
+                    self._fold_map[ctag] = key
+                    fl = FoldLine(title, self.get_style(f"h{len(hashes)}"), is_open,
+                                  ctag, ar, pixel_width)
+                    fl.fold_key = key
+                    self.lines.append(fl)
+                    calc_height += fl.height
+                    if not is_open:
+                        fold_level = len(hashes)
+                    style = None            # a heading ends whatever came before it
+                    list_icon = None
+                    continue
+                m_bullet = RE_BULLET.match(stripped)
+                if m_bullet is not None:
+                    urn = m_bullet.group("urn").strip()
+                    list_icon = None if urn.lower().startswith("none") else urn
+                    continue
+
             # EMPTY LINE reset style and prepend
             line_len = len(line.strip())
             if  line_len == 0 or style is None:
@@ -735,6 +796,7 @@ class TextArea(Control):
                 if  line_len == 0:
                     heading_numbers["ol"] = 1
                     heading_numbers["ul"] = 1
+                    list_icon = None        # a blank line ends the list, and its bullet
 
                 style = self.get_style("_")
                 # style = style_default
@@ -835,8 +897,14 @@ class TextArea(Control):
             # An icon at the start of the line (after any list marker): the icon
             # stands in for the bullet or number, and the text wraps beside it.
             m_icon = RE_ICON.match(line.strip()) if self.markdown else None
+            icon_urn = icon_text = None
             if m_icon is not None:
-                il = IconLine(m_icon.group("urn"), m_icon.group("text"), style, ar, pixel_width)
+                icon_urn, icon_text = m_icon.group("urn"), m_icon.group("text")
+            elif list_icon is not None and style_key == "ul":
+                # `[](bullet://..)` declared once for the list: every `-` item gets it.
+                icon_urn, icon_text = list_icon, line
+            if icon_urn is not None:
+                il = IconLine(icon_urn, icon_text, style, ar, pixel_width)
                 self.lines.append(il)
                 calc_height += il.height
                 continue
@@ -1491,7 +1559,36 @@ class TextArea(Control):
 
 
 
+    def toggle_fold(self, key, client_id=None):
+        """Open a closed section or close an open one, by its heading key
+        (`"##" + title`). Returns the new state, or None for an unknown key."""
+        if key not in self._folds:
+            return None
+        self._folds[key] = not self._folds[key]
+        self.recalc = True
+        return self._folds[key]
+
+    def _scroll_to_fold(self, key):
+        """After a toggle, keep the heading that was clicked on screen."""
+        if not self.need_v_scroll:
+            return
+        for idx, ln in enumerate(self.lines):
+            if getattr(ln, "fold_key", None) == key:
+                tail = min(self.last_line + 1, len(self.lines))
+                self.scroll_line = max(0, min(self.last_line - idx, tail))
+                return
+
     def on_message(self, event):
+        # Collapsible heading click: fold / unfold, then redraw this area. The area
+        # owns its sub-region (clear/complete), so repainting itself is safe here.
+        if event.sub_tag in self._fold_map:
+            key = self._fold_map[event.sub_tag]
+            if self.toggle_fold(key) is not None:
+                self.calc(event.client_id)
+                self.recalc = False
+                self._scroll_to_fold(key)
+                self.present(event)
+            return
         # Hyperlink click: resolve the key and navigate within the document.
         if event.sub_tag in self._link_map:
             key = self._link_map[event.sub_tag]

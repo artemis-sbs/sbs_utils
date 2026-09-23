@@ -1465,7 +1465,11 @@ HUD — that update **without repainting the page underneath**.
       Perfect for a codex.
     - **Icons** — `![](icon://wanted) Bounty posted` puts an icon at the start of a
       line or a table cell, and at the start of a list item **the icon is the
-      bullet**: a checklist of ticks and crosses is just `- ![](icon://check.on) Done`.
+      bullet**: a checklist of ticks and crosses is just `- ![](icon://check.on) Done`,
+      or declare `[](bullet://check.on)` once and the whole list follows.
+    - **Sections that fold** — `##+ Weapons` is a heading you click to open; `##- Hull`
+      starts open. A long damage report or codex entry shows its headings first and
+      opens what the reader asks for.
     - **Grids** — a table with an empty first row has no header, which is how the
       gauge grid above is written.
     - **`<hr>`** draws a horizontal rule.
@@ -1718,7 +1722,7 @@ See [The races add-on](build/race-addons.md).
 #### 🎛️ The Control Gallery — every widget, running, with its source
 
 Stop guessing what a widget looks like. The **[Control Gallery](cosmos/control-gallery.md)**
-is a mission you start: **60 entries in six categories**, each one live on screen with
+is a mission you start: **61 entries in six categories**, each one live on screen with
 **the code that built it directly underneath**.
 
 - **The snippet cannot be out of date**, because it is not a copy. It is sliced out of

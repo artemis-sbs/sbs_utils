@@ -360,6 +360,15 @@ RE_GAUGE_ANY = re.compile(r"!?\[(?P<label>[^\]]*)\]\(gauge://(?P<urn>[^)]*)\)")
 RE_ICON = re.compile(r"^!?\[(?P<alt>[^\]]*)\]\(icon://(?P<urn>[^)]*)\)[ \t]*(?P<text>.*)$")
 RE_ICON_ANY = re.compile(r"!?\[(?P<alt>[^\]]*)\]\(icon://(?P<urn>[^)]*)\)")
 
+# `[](bullet://check.on?color=#8f8)` on its own line: every `-` item of the list that
+# follows uses that icon as its bullet, until a blank line. `bullet://none` stops it.
+RE_BULLET = re.compile(r"^!?\[[^\]]*\]\(bullet://(?P<urn>[^)]*)\)[ \t\r]*$")
+
+# `##+ Title` / `##- Title` - a COLLAPSIBLE heading, starting closed (+) or open (-).
+# The section is everything down to the next heading at the same or a higher level.
+# The marker sits hard against the hashes, so `## - x` stays an ordinary heading.
+RE_FOLD_HEADING = re.compile(r"^(?P<hashes>#{1,6})(?P<mark>[+-])[ \t]+(?P<title>.*?)[ \t\r]*$")
+
 # The `|:--|--:|` alignment row of a GFM pipe table.
 RE_TABLE_SEP = re.compile(r"^:?-{2,}:?$")
 
