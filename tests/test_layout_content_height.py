@@ -88,6 +88,16 @@ class TestContentRowHeight(_Base):
         self.assertAlmostEqual(h[0], 2.0, places=3)      # 20px == 2%
         self.assertAlmostEqual(h[1], 98.0, places=3)
 
+    def test_row_padding_is_added_to_a_content_row(self):
+        """The ROW's own vertical padding goes on top of its content. Without it the
+        row's area is shrunk by the padding after sizing, so the text gets less than
+        it measured and spills into the next row (engine-seen: the Boarding Party
+        heading drew over the row under it). 30px top + 10px bottom = 4%."""
+        r = _row([_text("HELLO")], "content")
+        r.padding_style = StyleDefinition.parse("padding: 0, 30px, 0, 10px;")["padding"]
+        h = self.heights([r, _row([_text("x")])])
+        self.assertAlmostEqual(h[0], 6.0, places=3)      # 2% text + 4% padding
+
     def test_rows_sum_to_the_section(self):
         h = self.heights([_row([_text("A")], "content"),
                           _row([_text("B")], "content"),

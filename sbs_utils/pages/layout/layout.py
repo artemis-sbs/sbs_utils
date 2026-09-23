@@ -957,17 +957,38 @@ class Layout(Clickable):
             second pass because square_width changed; converging further is not
             worth the measurements. Documented, not silently approximate.
         """
+        # The row's box model, computed HERE from its styles. `row.margin/padding/
+        # border` are only filled in later in calc(), after the heights are
+        # distributed - so reading them here got nothing on a first layout and the
+        # PREVIOUS layout's values after that.
+        row_font_height = get_font_size(row_font)
+        margin = Bounds(calc_bounds(row.margin_style, aspect_ratio, row_font_height))
+        padding = Bounds(calc_bounds(row.padding_style, aspect_ratio, row_font_height))
+        border = Bounds(calc_bounds(row.border_style, aspect_ratio, row_font_height))
+
         area = Bounds(bounds_area)
-        area.shrink(row.margin)
-        area.shrink(row.padding)
-        area.shrink(row.border)
+        area.shrink(margin)
+        area.shrink(padding)
+        area.shrink(border)
+
+        # The ROW'S OWN vertical box model goes back on top of what its content
+        # measured. The row's area is shrunk by its margin/padding/border when it
+        # is laid out, so a content height without them left the text less room
+        # than it needed and it spilled into the row below - `row-height: content;
+        # padding: 24px, 12px, 24px, 2px;` drew its heading over the next row
+        # (engine-seen on the Boarding Party screen, 2026-09-23). A COLUMN's box
+        # model was already added back in _measure_row_height; the row's never was.
+        box = 0.0
+        for b in (margin, padding, border):
+            box += (b.top or 0) + (b.bottom or 0)
 
         has_square = any(c.square for c in row.columns if not c.is_hidden_by_script)
 
         if not has_square:
             area.height = bounds_area.height     # width is height-independent
-            return self._measure_row_height(row, area, aspect_ratio, row_font,
-                                            mode, client_id)
+            h = self._measure_row_height(row, area, aspect_ratio, row_font,
+                                         mode, client_id)
+            return None if h is None else h + box
 
         area.height = provisional_height
         first = self._measure_row_height(row, area, aspect_ratio, row_font,
@@ -977,7 +998,7 @@ class Layout(Clickable):
         area.height = first
         second = self._measure_row_height(row, area, aspect_ratio, row_font,
                                           mode, client_id)
-        return first if second is None else second
+        return (first if second is None else second) + box
 
     def calc(self, client_id):
         aspect_ratio = get_client_aspect_ratio(client_id)
