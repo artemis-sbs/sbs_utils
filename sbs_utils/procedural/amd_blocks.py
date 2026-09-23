@@ -29,7 +29,7 @@ paper on purpose.
 """
 from sbs_utils.procedural.amd import (
     RE_COMMENT, RE_CUE, RE_DIRECTION, RE_CALLOUT, RE_LINK_DEF, RE_LINK_REF,
-    RE_REF_LINK, RE_GAUGE, RE_STYLE_DEF, amd_body_synopsis, amd_body_transclude,
+    RE_REF_LINK, RE_GAUGE, RE_ICON, RE_STYLE_DEF, amd_body_synopsis, amd_body_transclude,
     amd_body_transition, amd_body_variant, amd_choice, amd_parse_url,
     amd_table_rows, amd_table_scan, amd_wikilinks,
 )
@@ -268,6 +268,14 @@ def _line_block(lineno, raw, text, raws, i, doc, profile, resolve, depth, seen,
     if m is not None:
         return {"type": "link", "line": lineno, "display": m.group("disp").strip(),
                 "target": m.group("key").strip()}, 1
+
+    # `![](icon://name) text` is a LINE of prose that starts with a glyph, not art:
+    # its own paragraph, so the text after the icon is kept (as `media` it was
+    # dropped) and the renderers draw the icon inline.
+    if RE_ICON.match(text) is not None:
+        return {"type": "paragraph", "line": lineno, "text": text,
+                "links": [{"target": t, "alias": a}
+                          for t, a, _s, _e in amd_wikilinks(text)]}, 1
 
     m = RE_STYLE_DEF.match(text)
     if m is not None:

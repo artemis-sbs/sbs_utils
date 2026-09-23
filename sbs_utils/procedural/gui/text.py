@@ -48,7 +48,8 @@ def text_sanitize(text):
     #text = text.replace(":", "_")
     return text
 
-def gui_text_area(props, style=None, markdown=True, line_styles=None):
+def gui_text_area(props, style=None, markdown=True, line_styles=None, on_link=None,
+                  link_resolver=None):
     """Add a rich text area to the current GUI layout.
 
     Supports Markdown-style formatting and inline image references
@@ -69,6 +70,13 @@ def gui_text_area(props, style=None, markdown=True, line_styles=None):
         line_styles (list, optional): One style key per line, applied in order -
             how you colorize text that is no longer being parsed. Pairs with
             ``markdown=False``. Defaults to None.
+        on_link (callable, optional): ``fn(key, widget)``, called when a
+            ``[Text](ref://key)`` link is clicked - a whole-line link or a table
+            cell. Defaults to None.
+        link_resolver (callable | dict, optional): what a link NAVIGATES to -
+            ``fn(key) -> new text`` or a ``{key: text}`` dict. The area swaps to
+            that text in place (back to the top). None, or a key it does not know,
+            leaves the text alone. Defaults to None.
 
     Returns:
         TextArea: The layout item created.
@@ -95,6 +103,12 @@ def gui_text_area(props, style=None, markdown=True, line_styles=None):
     layout_item = TextArea(page.get_tag(), text_sanitize(props),
                            markdown=markdown, line_styles=line_styles)
     apply_control_styles(".textarea", style, layout_item, task)
+    if on_link is not None:
+        layout_item.on_link_cb = on_link
+    if isinstance(link_resolver, dict):
+        layout_item.link_resolver = link_resolver.get
+    elif link_resolver is not None:
+        layout_item.link_resolver = link_resolver
 
     page.add_content(layout_item, None)
     return layout_item

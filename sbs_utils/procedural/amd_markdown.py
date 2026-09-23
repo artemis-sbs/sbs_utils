@@ -531,12 +531,29 @@ def _ref_link(target, ctx, display=None):
     return f"[{_esc(text)}]({href})"
 
 
+def _inline_marks(raw):
+    """Icons and gauges inside prose, list items and table cells, as READABLE text.
+
+    The game draws `![](icon://check.on)` as a glyph and `[WEAP](gauge://0.4?max=1)`
+    as a bar; on a page they would otherwise print as raw markup. An icon becomes
+    `[check.on]`, a gauge `WEAP 0.4/1`."""
+    from .amd import RE_ICON_ANY, RE_GAUGE_ANY, amd_parse_url
+    raw = RE_ICON_ANY.sub(lambda m: f"[{amd_parse_url(m.group('urn')).get('url', '')}]", raw)
+
+    def gauge(m):
+        opts = amd_parse_url(m.group("urn"))
+        label = m.group("label").strip()
+        reading = f"{opts.get('url', '')}/{opts.get('max', '100')}"
+        return f"{label} {reading}" if label else reading
+    return RE_GAUGE_ANY.sub(gauge, raw)
+
+
 def _inline(text, ctx):
     """Escape, then substitute `[[wikilinks]]`.
 
     In that order, and on the ORIGINAL offsets: escaping after substitution would eat
     the markdown this function just produced."""
-    raw = str(text or "")
+    raw = _inline_marks(str(text or ""))
     links = amd_wikilinks(raw)
     if not links:
         return _esc(raw)

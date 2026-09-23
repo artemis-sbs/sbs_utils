@@ -19,7 +19,7 @@ import re
 # and it was a near-miss lookalike of `RE_LINK_REF` (the rule actually applied,
 # below) - exactly the drift this import exists to prevent - so it is gone.
 from ...procedural.amd import (RE_STYLE_DEF, RE_STYLE_REF, RE_LINK_DEF,
-                               RE_LINK_REF, RE_REF_LINK, RE_TABLE_SEP, RE_GAUGE,
+                               RE_LINK_REF, RE_REF_LINK, RE_TABLE_SEP, RE_GAUGE, RE_ICON,
                                amd_parse_url, amd_table_scan, amd_table_rows)
 from .gauge import (gauge_spec_from_url, gauge_height_px, gauge_send, gauge_value_text,
                     gauge_has_text)
@@ -165,10 +165,16 @@ class TableLine:
     HDR_FONT = "gui-3"
     BODY_FONT = "gui-2"
 
+    @staticmethod
+    def _icon_px(font):
+        return measure_line_height(font, "M") or 20
+
     def _font(self, ri):
         return self.HDR_FONT if (ri == 0 and self.has_header) else self.BODY_FONT
 
-    def __init__(self, rows, aligns, ar, pixel_width, sbs) -> None:
+    LINK_COLOR = "#6cf"
+
+    def __init__(self, rows, aligns, ar, pixel_width, sbs, link_map=None, link_prefix="lnk") -> None:
         self.is_sec_end = False
         self.ar = ar
         self.aligns = aligns
@@ -181,14 +187,31 @@ class TableLine:
         if len(self.rows) > 1 and all(c == "" for c in self.rows[0]):
             self.rows = self.rows[1:]
             self.has_header = False
-        # Cells that are only `[Label](gauge://..)` draw as gauges.
+        # Cells that are only `[Label](gauge://..)` draw as gauges; cells that START
+        # with `![](icon://..)` draw the icon and then their text.
         self.gauges = {}
+        self.icons = {}
+        self.links = {}                 # (row, col) -> click tag
         for ri, r in enumerate(self.rows):
             for c in range(ncols):
                 m = RE_GAUGE.match(r[c])
                 if m is not None:
                     self.gauges[(ri, c)] = gauge_spec_from_url(
                         m.group("urn"), m.group("label").strip(), self._font(ri))
+                    continue
+                m = RE_ICON.match(r[c])
+                if m is not None:
+                    # An icon one line tall, then the cell's text beside it.
+                    self.icons[(ri, c)] = (m.group("urn"), m.group("text").strip())
+                    continue
+                m = RE_REF_LINK.match(r[c])
+                if m is not None and link_map is not None:
+                    # A clickable cell. The key goes in the OWNING text area's link
+                    # map, so a click resolves exactly like a whole-line link.
+                    ctag = f"{link_prefix}r{ri}c{c}"
+                    link_map[ctag] = m.group("key").strip()
+                    self.links[(ri, c)] = ctag
+                    r[c] = m.group("disp").strip()      # measured and drawn as its text
         self.col_px = []
         self.row_h_px = []
         self.cell_pad_px = 0
@@ -204,6 +227,11 @@ class TableLine:
                 g = self.gauges.get((ri, c))
                 if g is not None:
                     w = measure_line_width(f, f"{g['label']}  {gauge_value_text(g)}".strip() or "MMMM")
+                    if w > col_px[c]:
+                        col_px[c] = w
+                elif (ri, c) in self.icons:
+                    _, itext = self.icons[(ri, c)]
+                    w = self._icon_px(f) + (ICON_GAP_PX + measure_line_width(f, itext) if itext else 0)
                     if w > col_px[c]:
                         col_px[c] = w
                 elif r[c]:
@@ -241,6 +269,12 @@ class TableLine:
                 g = self.gauges.get((ri, c))
                 if g is not None:
                     bh = gauge_height_px(g)
+                elif (ri, c) in self.icons:
+                    _, itext = self.icons[(ri, c)]
+                    ipx = self._icon_px(f)
+                    tw = int(cw - ipx - ICON_GAP_PX)
+                    th = measure_block_height(f, itext, tw) if (itext and tw > 0) else 0
+                    bh = max(ipx, th)
                 else:
                     bh = (measure_block_height(f, r[c], cw) if (r[c] and cw > 0)
                           else measure_line_height(f, "M"))
@@ -277,10 +311,35 @@ class TableLine:
                                layer, just_map.get(a, "left"))
                     x += col_pct[c] + pad_pct
                     continue
-                style = f"font:{f};justify:{just_map.get(a, 'left')};color:{color};" + lay
+                if (ri, c) in self.icons:
+                    urn, itext = self.icons[(ri, c)]
+                    iw = (self._icon_px(f) / ar.x) * 100
+                    ih = (self._icon_px(f) / ar.y) * 100
+                    ix = x
+                    if not itext and a == "c":
+                        ix = x + (col_pct[c] - iw) / 2
+                    elif not itext and a == "r":
+                        ix = x + col_pct[c] - iw
+                    _icon_send(SBS, client_id, region_tag, f"{tag}:r{ri}c{c}:i", urn,
+                               ix, y, ix + iw, y + ih, layer)
+                    if itext:
+                        tx = x + iw + (ICON_GAP_PX / ar.x) * 100
+                        style = f"font:{f};justify:left;color:{color};" + lay
+                        SBS.send_gui_text(client_id, region_tag, f"{tag}:r{ri}c{c}",
+                                          f"$text:{gui_text_escape(itext)};{style}",
+                                          tx, y, x + col_pct[c], y + row_h)
+                    x += col_pct[c] + pad_pct
+                    continue
+                ctag = self.links.get((ri, c))
+                cell_color = self.LINK_COLOR if ctag else color
+                style = f"font:{f};justify:{just_map.get(a, 'left')};color:{cell_color};" + lay
                 SBS.send_gui_text(client_id, region_tag, f"{tag}:r{ri}c{c}",
                                   f"$text:{gui_text_escape(r[c])};{style}",
                                   x, y, x + col_pct[c], y + row_h)
+                if ctag:
+                    SBS.send_gui_clickregion(client_id, region_tag, ctag,
+                                             "background_color:#00000000;" + lay,
+                                             x, y, x + col_pct[c], y + row_h)
                 x += col_pct[c] + pad_pct
             y += row_h
 
@@ -319,6 +378,74 @@ class GaugeLine:
                    self.spec, self.ar, layer)
 
 
+def _icon_send(SBS, client_id, region_tag, tag, urn, left, top, right, bottom, layer=None):
+    """Draw `icon://` art into a rect. The urn is an icon NAME (`check.on`, `wanted`)
+    or a sheet INDEX (`137`), plus `?color=`. A name is resolved the way
+    `gui_icon_name` resolves it, so a mission that re-skins a name re-skins it here too;
+    a name nobody knows draws nothing (a wrong glyph looks deliberate)."""
+    opts = parse_url(urn)
+    key = (opts.get("url") or "").strip()
+    color = opts.get("color")
+    lay = _layer_prop(layer)
+    if key.isdigit():
+        index, atlas_key = int(key), None
+    else:
+        from ...procedural.gui.icon_sheet import icon_resolve
+        index, atlas_key = icon_resolve(key)
+    if atlas_key is not None:
+        from ...procedural.gui.image import gui_image_get_atlas, IMAGE_KEEP_ASPECT_CENTER
+        atlas = gui_image_get_atlas(atlas_key)
+        if atlas is not None:
+            atlas.send_gui_image(SBS, client_id, region_tag, tag, IMAGE_KEEP_ASPECT_CENTER,
+                                 left, top, right, bottom, color, layer)
+        return
+    if index is None:
+        return
+    props = f"icon_index:{index};" + (f"color:{color};" if color else "") + lay
+    SBS.send_gui_icon(client_id, region_tag, tag, props, left, top, right, bottom)
+
+
+# Gap between an icon and the text beside it, in pixels.
+ICON_GAP_PX = 6
+
+
+class IconLine:
+    """`![](icon://name) text` - an icon one text line tall, the text wrapped beside it.
+
+    Starting a list item with one (`- ![](icon://check.on) Shields up`) makes the icon
+    the item's BULLET: it replaces the `-` or number, and wrapped lines stay aligned
+    under the text, not under the icon."""
+    def __init__(self, urn, text, style, ar, pixel_width) -> None:
+        self.urn = urn
+        self.text = (text or "").replace("`", "").strip()
+        self.style = style
+        self.ar = ar
+        self.is_sec_end = False
+        st = style.get("style", "font:gui-2;") if isinstance(style, dict) else "font:gui-2;"
+        self.font = split_props(st, "font").get("font", "gui-2")
+        self.indent = (style.get("indent", 0) or 0) if isinstance(style, dict) else 0
+        self.indent_px = self.indent * (measure_line_width("gui-2", "X") or 0)
+        self.icon_px = measure_line_height(self.font, "M") or 20
+        text_w = max(1, pixel_width - self.indent_px - self.icon_px - ICON_GAP_PX)
+        text_h = (measure_block_height(self.font, self.text, int(text_w))
+                  if self.text else 0)
+        self.height = (max(self.icon_px, text_h) / ar.y) * 100
+
+    def send_gui(self, SBS, client_id, region_tag, tag, left, top, right, bottom, layer=None):
+        ar = self.ar
+        x = left + (self.indent_px / ar.x) * 100
+        icon_w = (self.icon_px / ar.x) * 100
+        icon_h = (self.icon_px / ar.y) * 100
+        _icon_send(SBS, client_id, region_tag, f"{tag}:i", self.urn,
+                   x, top, x + icon_w, top + icon_h, layer)
+        if self.text:
+            st = self.style.get("style", "font:gui-2;") if isinstance(self.style, dict) else ""
+            tx = x + icon_w + (ICON_GAP_PX / ar.x) * 100
+            SBS.send_gui_text(client_id, region_tag, tag,
+                              f"$text:{gui_text_escape(self.text)};{st}" + _layer_prop(layer),
+                              tx, top, right, bottom)
+
+
 class LinkLine:
     """A whole-line hyperlink `[Display](ref://key)`. Renders as styled clickable
     text plus a transparent clickregion on top whose click_tag routes back to the
@@ -346,7 +473,7 @@ class LinkLine:
 # The schemes that become a WIDGET. `style:` is deliberately absent: it is a directive that
 # changes the active style, not an embed, and promoting a line carrying one buys nothing while
 # putting an otherwise-simple line through the whole rich path.
-EMBED_SCHEMES = ("image", "face", "ship")
+EMBED_SCHEMES = ("image", "face", "ship", "icon")
 
 
 def _line_has_embed(line):
@@ -705,6 +832,15 @@ class TextArea(Control):
                     prepend = ""
                 style_key = "$"
 
+            # An icon at the start of the line (after any list marker): the icon
+            # stands in for the bullet or number, and the text wraps beside it.
+            m_icon = RE_ICON.match(line.strip()) if self.markdown else None
+            if m_icon is not None:
+                il = IconLine(m_icon.group("urn"), m_icon.group("text"), style, ar, pixel_width)
+                self.lines.append(il)
+                calc_height += il.height
+                continue
+
             # If this is a list each line is numbered
             # otherwise just the first line
             if is_a_list is None:
@@ -916,7 +1052,9 @@ class TextArea(Control):
         rows, aligns = amd_table_rows(raw_rows)
         if not rows:
             return None
-        return TableLine(rows, aligns, ar, pixel_width, FrameContext.context.sbs)
+        return TableLine(rows, aligns, ar, pixel_width, FrameContext.context.sbs,
+                         link_map=self._link_map,
+                         link_prefix=f"{self.tag}:lnk{len(self.lines)}")
 
     def line_style_for(self, index):
         """The caller-supplied style for content line `index`, or None.

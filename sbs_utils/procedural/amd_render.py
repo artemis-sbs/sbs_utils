@@ -59,6 +59,28 @@ def esc(text):
     return html.escape("" if text is None else str(text), quote=True)
 
 
+def esc_marks(text):
+    """`esc`, then icons and gauges drawn as HTML instead of printed as markup.
+
+    For list items, table cells and prose - the places the game draws
+    `![](icon://name)` as a glyph and `[Label](gauge://v?max=m)` as a bar. Escaping
+    first means only the markup this function writes can be HTML."""
+    from sbs_utils.procedural.amd import RE_ICON_ANY, RE_GAUGE_ANY, amd_parse_url
+    out = esc(text)
+
+    def icon(m):
+        name = amd_parse_url(m.group("urn")).get("url", "")
+        return f'<span class="icon" title="{name}">[{name}]</span>'
+
+    def gauge(m):
+        opts = amd_parse_url(m.group("urn"))
+        val, mx = opts.get("url", ""), opts.get("max", "100")
+        label = m.group("label").strip()
+        lab = f'<span class="gauge-label">{label}</span> ' if label else ""
+        return f'<span class="gauge">{lab}<meter value="{val}" min="0" max="{mx}">{val} / {mx}</meter></span>'
+    return RE_GAUGE_ANY.sub(gauge, RE_ICON_ANY.sub(icon, out))
+
+
 def slug(text):
     """A stable id fragment. Anchors are PATH-based, never bare keys: 40 of the
     corpus's 374 keys repeat, and one file alone holds three `recover` records."""
@@ -176,7 +198,7 @@ def _block_html(b, ctx, depth):
                 f'<p class="callout-title">{title}</p>{body}</div>')
     if kind == "list":
         tag = "ol" if b.get("ordered") else "ul"
-        items = "".join(f"<li>{esc(x)}</li>" for x in b.get("items", ()))
+        items = "".join(f"<li>{esc_marks(x)}</li>" for x in b.get("items", ()))
         return f"<{tag}>{items}</{tag}>"
     if kind == "table":
         return _table_html(b)
@@ -235,7 +257,7 @@ def _table_html(b):
         a = aligns[i] if i < len(aligns) else "l"
         cls = {"c": "ta-c", "r": "ta-r"}.get(a, "")
         attr = f' class="{cls}"' if cls else ""
-        return f"<{tag}{attr}>{esc(text)}</{tag}>"
+        return f"<{tag}{attr}>{esc_marks(text)}</{tag}>"
 
     head = "".join(cell("th", c, i) for i, c in enumerate(rows[0])) if rows else ""
     body = "".join("<tr>" + "".join(cell("td", c, i) for i, c in enumerate(r))
@@ -267,7 +289,7 @@ def _inline(b, ctx):
 
     # Escape FIRST, then substitute, so a link's replacement HTML survives and
     # nothing in the prose can inject markup.
-    escaped = esc(b.get("text", ""))
+    escaped = esc_marks(b.get("text", ""))
     return RE_WIKILINK.sub(sub, escaped)
 
 

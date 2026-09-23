@@ -350,6 +350,15 @@ RE_REF_LINK = re.compile(r"^\[(?P<disp>[^\]]+)\]\((?:ref|link)://(?P<key>[^)]+)\
 # a labelled bar colored by how full it is, the engine's own status-panel look.
 # The label may be empty (`[](gauge://45?max=120)` is a bare bar).
 RE_GAUGE = re.compile(r"^!?\[(?P<label>[^\]]*)\]\(gauge://(?P<urn>[^)]*)\)$")
+RE_GAUGE_ANY = re.compile(r"!?\[(?P<label>[^\]]*)\]\(gauge://(?P<urn>[^)]*)\)")
+
+# `![](icon://NAME?color=#8cf)` at the START of a line (after any list marker) or
+# of a table cell: an icon one line tall with the rest of the text beside it. NAME
+# is an icon name (`check.on`, `wanted`) or a sheet index (`137`). `text` is what
+# follows. An icon ANYWHERE is found by RE_ICON_ANY, for renderers that only need
+# to show it as a token.
+RE_ICON = re.compile(r"^!?\[(?P<alt>[^\]]*)\]\(icon://(?P<urn>[^)]*)\)[ \t]*(?P<text>.*)$")
+RE_ICON_ANY = re.compile(r"!?\[(?P<alt>[^\]]*)\]\(icon://(?P<urn>[^)]*)\)")
 
 # The `|:--|--:|` alignment row of a GFM pipe table.
 RE_TABLE_SEP = re.compile(r"^:?-{2,}:?$")
