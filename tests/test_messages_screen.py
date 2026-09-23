@@ -522,11 +522,14 @@ class TestAMessageWearsItsSendersFace(ScreenBase):
         self.assertEqual(m.get("face"), "arv #fff 0 0")
 
     def test_the_pane_leads_with_the_face(self):
+        """The portrait opens the body on its own; the sender line still says who, so
+        there is no blank gap under the subject and the name is said once."""
         self._pick("Orders")
         body = "\n".join(self.view["body"].value)
-        self.assertTrue(body.startswith("![](face://%s) From Admiral Harkin" % self.FACE), body)
+        self.assertTrue(body.startswith("![](face://%s?height=" % self.FACE), body)
         self.assertIn("Hold the line.", body)
-        self.assertNotIn("Harkin", self.view["sender"].message, "the name is said twice")
+        self.assertNotIn("Harkin", body, "the name is said twice")
+        self.assertIn("From Admiral Harkin", self.view["sender"].message)
 
     def test_no_face_no_change(self):
         self._pick("Pan")
