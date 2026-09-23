@@ -4,7 +4,7 @@ from ...pages.layout.gauge import Gauge
 
 
 def gui_gauge(value, max=100, label="", style=None, show=None, warn=None,
-              crit=None, color=None):
+              crit=None, color=None, invert=False):
     """Add a gauge - label, value and a bar colored by how full it is - to the
     current GUI layout. The engine's status-panel look (Energy 946 over a green bar).
 
@@ -24,6 +24,8 @@ def gui_gauge(value, max=100, label="", style=None, show=None, warn=None,
         warn (float, optional): Fraction below which the bar is yellow. Default 0.5.
         crit (float, optional): Fraction below which the bar is red. Default 0.25.
         color (str, optional): A fixed bar color, ignoring warn/crit.
+        invert (bool, optional): MORE is WORSE (wear, heat, damage): green while
+            low, yellow then red as it climbs, red past max. Defaults to False.
 
     Returns:
         Gauge: The layout item. ``g.update(value=45)`` or ``g.value = 45`` repaints it.
@@ -38,7 +40,7 @@ def gui_gauge(value, max=100, label="", style=None, show=None, warn=None,
         return None
     if isinstance(label, str) and task is not None:
         label = task.compile_and_format_string(label)
-    layout_item = Gauge(page.get_tag(), value, max, label, show, warn, crit, color)
+    layout_item = Gauge(page.get_tag(), value, max, label, show, warn, crit, color, invert)
     apply_control_styles(".gauge", style, layout_item, task)
     page.add_content(layout_item, None)
     return layout_item

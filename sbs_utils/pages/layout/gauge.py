@@ -58,10 +58,20 @@ def _fmt(v):
     return f"{v:.2f}".rstrip("0").rstrip(".")
 
 
+def _flag(v):
+    if isinstance(v, str):
+        return v.strip().lower() in ("1", "true", "yes", "on")
+    return bool(v)
+
+
 def gauge_spec(value, max=100, label="", show=None, warn=None, crit=None,
-               color=None, font="gui-2"):
+               color=None, font="gui-2", invert=False):
     """Normalise gauge inputs into one dict. Nothing here raises: a bad number
-    costs that number (it falls back to a default), not the whole panel."""
+    costs that number (it falls back to a default), not the whole panel.
+
+    `invert` is for a value where MORE is WORSE - wear, heat, damage taken. The bar
+    still grows with the value; only the colors turn round: green while low, yellow
+    past `1 - warn`, red past `1 - crit`, and over max it is red, not tuned cyan."""
     v = _num(value, 0.0)
     m = _num(max, 100.0)
     label = "" if label is None else str(label)
@@ -71,16 +81,16 @@ def gauge_spec(value, max=100, label="", show=None, warn=None, crit=None,
         show = "value" if label else "none"
     return {"value": v, "max": m, "label": label, "show": show,
             "warn": _num(warn, DEFAULT_WARN), "crit": _num(crit, DEFAULT_CRIT),
-            "color": color or None, "font": font or "gui-2"}
+            "color": color or None, "font": font or "gui-2", "invert": _flag(invert)}
 
 
 def gauge_spec_from_url(urn, label="", font="gui-2"):
-    """`946?max=1000&show=frac&warn=0.4` (the part after `gauge://`) -> spec."""
+    """`946?max=1000&show=frac&warn=0.4&invert=1` (after `gauge://`) -> spec."""
     from ...procedural.amd import amd_parse_url
     opts = amd_parse_url(urn)
     return gauge_spec(opts.get("url"), opts.get("max", 100), label,
                       opts.get("show"), opts.get("warn"), opts.get("crit"),
-                      opts.get("color"), opts.get("font", font))
+                      opts.get("color"), opts.get("font", font), opts.get("invert", False))
 
 
 def gauge_fraction(spec):
@@ -95,9 +105,14 @@ def gauge_fraction(spec):
 def gauge_color(spec):
     if spec["color"]:
         return spec["color"]
-    if spec["max"] > 0 and spec["value"] > spec["max"]:
-        return COLOR_OVER
+    over = spec["max"] > 0 and spec["value"] > spec["max"]
     f = gauge_fraction(spec)
+    if spec.get("invert"):
+        if over:
+            return COLOR_CRIT          # more-is-worse past its max is the worst case
+        f = 1.0 - f                    # the thresholds measure how much is LEFT
+    elif over:
+        return COLOR_OVER
     if f < spec["crit"]:
         return COLOR_CRIT
     if f < spec["warn"]:
@@ -179,11 +194,11 @@ class Gauge(Column):
     re-parse and re-send its whole document for the same change."""
 
     def __init__(self, tag, value, max=100, label="", show=None, warn=None,
-                 crit=None, color=None) -> None:
+                 crit=None, color=None, invert=False) -> None:
         super().__init__()
         self.tag = tag
         self._args = {"value": value, "max": max, "label": label, "show": show,
-                      "warn": warn, "crit": crit, "color": color}
+                      "warn": warn, "crit": crit, "color": color, "invert": invert}
 
     def spec(self):
         return gauge_spec(font=self.get_font() or "gui-2", **self._args)

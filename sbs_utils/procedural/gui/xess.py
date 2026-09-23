@@ -1209,15 +1209,34 @@ def _scan_app(client_id):
     _file(client_id, room)
 
 
+# The grid's own colors for a node's condition (engineering draws the same four), so
+# a room reads the same on the handheld as on the engineer's screen.
+_CONDITION_COLOR = {"damaged": "Crimson", "worn": "Gold", "tuned": "#40E0E0",
+                    "nominal": "springgreen"}
+
+
 def _condition(room):
-    """One line on how a node is doing, in the words the library already uses."""
+    """How a node is doing: its condition as a colored pip and a word, then its wear
+    as a gauge. Text-area markdown - the same text is filed to the survey log, so the
+    ePADD Survey entry draws the same readout."""
     try:
-        from ..internal_damage import grid_node_state, grid_node_wear
+        from ..internal_damage import (grid_node_state, grid_node_wear,
+                                       WEAR_WORN_MIN, WEAR_TUNED_MAX)
         state = grid_node_state(room)
-        wear = grid_node_wear(room)
-        return "Condition %s, wear %d%%." % (state, int(round(float(wear) * 100)))
+        wear = min(1.0, max(0.0, float(grid_node_wear(room))))
     except Exception:                                    # noqa: BLE001
         return "No condition reading."
+    color = _CONDITION_COLOR.get(state, "white")
+    # Wear is more-is-worse, so the gauge is INVERTED: yellow from the worn line,
+    # red when nearly worn out; a tuned node keeps the tuned cyan.
+    bar = "%s?max=1&show=pct&invert=1&warn=%s&crit=0.15" % (
+        round(wear, 3), round(1.0 - WEAR_WORN_MIN, 3))
+    if wear <= WEAR_TUNED_MAX:
+        bar += "&color=#40E0E0"
+    return "\n".join([
+        "![](icon://square?color=%s) %s" % (color, state.capitalize()),
+        "[Wear](gauge://%s)" % bar,
+    ])
 
 
 def _file(client_id, room):

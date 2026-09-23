@@ -44,6 +44,16 @@ class TestGaugeSpec(unittest.TestCase):
         self.assertEqual(gauge_color(gauge_spec(110, 100, color="#fff")), "#fff")
         self.assertEqual(gauge_value_text(gauge_spec(120, 100, show="pct")), "120%")
 
+    def test_invert_more_is_worse(self):
+        from sbs_utils.pages.layout.gauge import gauge_spec_from_url
+        self.assertEqual(gauge_color(gauge_spec(0.1, 1, invert=True)), COLOR_OK)     # little wear
+        self.assertEqual(gauge_color(gauge_spec(0.6, 1, invert=True)), COLOR_WARN)   # 0.4 left
+        self.assertEqual(gauge_color(gauge_spec(0.9, 1, invert=True)), COLOR_CRIT)   # 0.1 left
+        self.assertEqual(gauge_color(gauge_spec(1.2, 1, invert=True)), COLOR_CRIT)   # over: red, not cyan
+        self.assertEqual(gauge_fraction(gauge_spec(0.6, 1, invert=True)), 0.6)       # bar still grows
+        self.assertTrue(gauge_spec_from_url("0.6?max=1&invert=1")["invert"])
+        self.assertFalse(gauge_spec_from_url("0.6?max=1&invert=0")["invert"])
+
     def test_out_of_range_clamps_bar_not_number(self):
         s = gauge_spec(-45, 8, "Homing", show="frac")
         self.assertEqual(gauge_fraction(s), 0.0)
