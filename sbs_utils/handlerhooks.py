@@ -501,6 +501,8 @@ from .procedural.boarding import boarding_team_count as _boarding_team_count
 from .procedural.boarding import boarding_scene_count as _boarding_scene_count
 register_reset_state("boarding party", _boarding_team_count)
 register_reset_state("boarding scene", _boarding_scene_count)
+from .procedural.boarding import boarding_reader_count as _boarding_reader_count
+register_reset_state("boarding readers", _boarding_reader_count)
 from .procedural.standby import standby_cull_parked_count as _standby_parked_count
 register_reset_state("standby parked", _standby_parked_count)
 from .procedural.boarding import boarding_invite_count as _boarding_invite_count

@@ -81,7 +81,7 @@ def gui_list_box(items, style,
                  item_template=None, title_template=None,
                  section_style=None, title_section_style=None,
                  select=False, multi=False, carousel=False,  collapsible=False,read_only=False,
-                 reveal=False, hint=None):
+                 reveal=False, hint=None, signal=None, data=None):
     """Add a listbox to the current GUI layout.
 
     Args:
@@ -129,6 +129,10 @@ def gui_list_box(items, style,
             ``get_selection_hint()``. A repaint builds a DIFFERENT listbox whose
             view starts at the top, so without this the row under the user's
             mouse moves. Do not inspect it; pass it along.
+        signal (str, optional): A signal to emit on each row click, with the
+            selection as ``SIGNAL_VALUE`` (see ``gui_signal``). Defaults to None.
+        data (dict, optional): Extra variables for the ``signal`` route.
+            Defaults to None.
 
     Returns:
         LayoutListbox: The layout object created.
@@ -155,6 +159,9 @@ def gui_list_box(items, style,
     apply_control_styles(".listbox", style, layout_item, task)
     # Last in case tag changed in style
     page.add_content(layout_item, None)
+    if signal:
+        from .message import gui_signal
+        gui_signal(layout_item, signal, data)
     return layout_item
 
 

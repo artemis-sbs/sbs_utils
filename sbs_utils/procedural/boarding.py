@@ -48,7 +48,7 @@ import re
 from ..agent import Agent
 from .query import to_id
 from .roles import has_role, get_role_list
-from .signal import signal_emit
+from .signal import signal_emit, signal_observe, signal_unobserve
 from .inventory import get_inventory_value, set_inventory_value
 
 
@@ -577,9 +577,156 @@ def boarding_scene_count():
     return 1 if _SCENE.get("parsed") is not None else 0
 
 
+# --- The reader: the scene as a document ----------------------------------------------
+#
+# The same beats, read as a transcript instead of a card: each beat's line, then this
+# console's choices as flat buttons (`signal://` lines in a gui_text_area). Picking one
+# leaves the choice in the text and the next beat is added below it, so the console
+# reads as the story so far.
+#
+# The transcript lives HERE, per console, not in the widget: a boarding screen repaints
+# on every beat (`on change boarding_seq()`), and a rebuilt text area starts empty. The
+# widget is only where the transcript is shown.
+BOARDING_PICK_SIGNAL = "boarding_pick"
+_READERS = {}       # client_id -> {"text", "seq", "agent", "area"}
+
+
+def _boarding_beat_text(client_id, agent=None):
+    """This beat as markdown: the line, then this console's choices as signal lines."""
+    from .amd import amd_choice_label
+    if not boarding_is_open():
+        return "The conversation is over."
+    seq = boarding_seq()
+    choices = (boarding_choices_for(client_id, agent) if agent is not None
+               else boarding_choices(client_id))
+    lines = [str(boarding_line() or "")]
+    if choices:
+        lines.append("")
+    agent_q = f"&agent={to_id(agent)}" if agent is not None else ""
+    for i, ch in enumerate(choices):
+        lines.append(f"[{amd_choice_label(ch.get('label'))}]"
+                     f"(signal://{BOARDING_PICK_SIGNAL}?i={i}&seq={seq}{agent_q})")
+    return "\n".join(lines)
+
+
+def _boarding_reader_sync(client_id, chosen=None):
+    """Bring one console's transcript up to the current beat. Returns its text.
+
+    Any choices still live in it are settled first - to `chosen` where that was one of
+    them, otherwise dropped, because the beat they belonged to has moved on.
+    """
+    from .amd import amd_choices_settle
+    state = _READERS.setdefault(client_id, {"text": "", "seq": None, "agent": None,
+                                            "area": None})
+    seq = boarding_seq()
+    if state["seq"] != seq or chosen is not None:
+        text = amd_choices_settle(state["text"], chosen) if state["text"] else ""
+        if state["seq"] != seq:
+            beat = _boarding_beat_text(client_id, state["agent"])
+            text = f"{text}\n\n{beat}" if text else beat
+            state["seq"] = seq
+        state["text"] = text
+    return state["text"]
+
+
+def boarding_reader_text(client_id, agent=None):
+    """The transcript for one console, up to and including the current beat.
+
+    ``agent`` is the character whose choices this console shows, for a console holding
+    several; None shows the console's whole list, as ``boarding_choices`` does.
+    """
+    signal_observe(_boarding_reader_on_pick)
+    state = _READERS.setdefault(client_id, {"text": "", "seq": None, "agent": None,
+                                            "area": None})
+    if agent is not None and to_id(agent) != state["agent"]:
+        # Another character's turn: its choices, not the last one's, from here on.
+        state["agent"] = to_id(agent)
+        state["seq"] = None
+    return _boarding_reader_sync(client_id)
+
+
+def boarding_reader_revision(client_id):
+    """Moves when a reader inside a REGION needs its owner to repaint it (a scroll, a
+    pick). Put it in the revision the owner already polls - see ``in_region``."""
+    return (_READERS.get(client_id) or {}).get("rev", 0)
+
+
+def _boarding_reader_repaint(client_id, area):
+    """The area asked to be redrawn: keep where it is scrolled to, and move the revision
+    so the region's owner rebuilds - the only repaint the engine draws right there."""
+    state = _READERS.get(client_id)
+    if state is None:
+        return
+    state["scroll"] = (area.scroll_line, area.follow_tail)
+    state["rev"] = state.get("rev", 0) + 1
+
+
+def boarding_reader(text_area, client_id, agent=None, in_region=False):
+    """Show the scene as a transcript in ``text_area`` and keep it there.
+
+    Call it each time the screen is built, with the area just made. The area shows the
+    story so far, ending in this console's choices; picking one answers the beat through
+    ``boarding_answer`` - so the same arbitration applies - and every console reading
+    the scene gets the next beat added.
+
+    ``in_region``: the area sits inside a ``gui_region`` (an ePADD or xESS app). A text
+    area there cannot redraw ITSELF - the engine paints the new frame over the old, so a
+    scroll shows both. With this set it leaves the redraw to the region's owner, which
+    must poll :func:`boarding_reader_revision` and rebuild when it moves; the scroll
+    position carries over to the rebuilt area.
+
+    Example (MAST)::
+
+        story = gui_text_area("")
+        boarding_reader(story, client_id, boarding_ui_active)
+    """
+    text = boarding_reader_text(client_id, agent)
+    state = _READERS[client_id]
+    state["area"] = text_area
+    if text_area is not None:
+        text_area.value = text
+        # A transcript grows at the end, so that is the end it follows.
+        text_area.anchor = "bottom"
+        if in_region:
+            text_area.repaint_cb = lambda area, _cid=client_id: _boarding_reader_repaint(_cid, area)
+            text_area.restore_scroll = state.pop("scroll", None)
+    return text_area
+
+
+def _boarding_reader_on_pick(name, data):
+    """A reader's choice: answer the beat, then bring every reader up to date."""
+    if name != BOARDING_PICK_SIGNAL or not isinstance(data, dict):
+        return
+    cid = data.get("SIGNAL_CLIENT_ID")
+    try:
+        index = int(data.get("i"))
+        seq = int(data.get("seq"))
+    except (TypeError, ValueError):
+        return
+    agent = data.get("agent")
+    agent = int(agent) if agent not in (None, "") else None
+    chosen = data.get("SIGNAL_CHOICE")
+    boarding_answer(cid, index, seq, agent=agent)
+    # Every reader, the one that pressed included: whoever answered, the beat moved on
+    # for all of them. A refused press (stale seq) still resyncs, which shows the
+    # presser the beat somebody else moved to.
+    for client_id, state in list(_READERS.items()):
+        text = _boarding_reader_sync(client_id, chosen)
+        area = state.get("area")
+        if area is not None:
+            area.value = text
+
+
+def boarding_reader_count():
+    """Reset-ledger probe: consoles with a transcript."""
+    return len(_READERS)
+
+
 def boarding_clear():
     """The per-mission reset: no team, no beat, resolver handed back."""
     boarding_team_clear()
+    _READERS.clear()
+    signal_unobserve(_boarding_reader_on_pick)
     _SCENE.clear()
     _FACTS.clear()
     boarding_invite_clear()

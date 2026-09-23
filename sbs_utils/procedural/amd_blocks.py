@@ -29,7 +29,7 @@ paper on purpose.
 """
 from sbs_utils.procedural.amd import (
     RE_COMMENT, RE_CUE, RE_DIRECTION, RE_CALLOUT, RE_LINK_DEF, RE_LINK_REF,
-    RE_REF_LINK, RE_GAUGE, RE_ICON, RE_BULLET, RE_FOLD_HEADING, RE_STYLE_DEF, amd_body_synopsis, amd_body_transclude,
+    RE_REF_LINK, RE_SIGNAL_LINK, RE_CHOSEN_LINK, RE_GAUGE, RE_ICON, RE_BULLET, RE_FOLD_HEADING, RE_STYLE_DEF, amd_body_synopsis, amd_body_transclude,
     amd_body_transition, amd_body_variant, amd_choice, amd_parse_url,
     amd_table_rows, amd_table_scan, amd_wikilinks,
 )
@@ -268,6 +268,12 @@ def _line_block(lineno, raw, text, raws, i, doc, profile, resolve, depth, seen,
     if m is not None:
         return {"type": "link", "line": lineno, "display": m.group("disp").strip(),
                 "target": m.group("key").strip()}, 1
+
+    # A choice is a button in the game; on a page it is its words.
+    m = RE_SIGNAL_LINK.match(text) or RE_CHOSEN_LINK.match(text)
+    if m is not None:
+        return {"type": "paragraph", "line": lineno, "text": m.group("disp").strip(),
+                "links": []}, 1
 
     # `##+ Title` folds in the game; on a page there is nothing to fold, so it is
     # its title. `[](bullet://..)` only changes how the game draws the next list.

@@ -89,6 +89,33 @@ changes with `on gui_message(widget):` (fires when the value changes) or
 Read a widget's value with `widget.get_value()` / `widget.value`; a list box also
 has `get_selected()`, `get_selected_index()`, and `set_selected_index(i)`.
 
+### A control can emit a signal
+
+Instead of a handler, a control can emit a signal each time it is used. Pass
+`signal=` to `gui_button`, `gui_icon_button`, `gui_cycle_button`, `gui_checkbox`,
+`gui_drop_down`, `gui_slider` / `gui_int_slider` or `gui_list_box` (on a row click),
+or call `gui_signal(widget, name, data)` on any control. The signal runs alongside
+the widget's other handlers, never in place of them.
+
+| Route variable | What it holds |
+|---|---|
+| each key of `data` | whatever you passed |
+| `SIGNAL_CLIENT_ID` | the console that used the control |
+| `SIGNAL_ITEM` | the control |
+| `SIGNAL_VALUE` | its value after the click: checkbox state, dropdown text, slider value, list box selection, cycle button state; `None` for a plain button |
+
+=== ":mast-icon: {{ab.m}}"
+    ```
+    gui_checkbox("Shields", var="shields_on", signal="shields_toggled")
+
+    //shared/signal/shields_toggled
+        set_shields(SIGNAL_CLIENT_ID, SIGNAL_VALUE)
+    ```
+
+A click is one console's event, so choose the route type for what it does: state
+changes go in `//shared/signal` (runs once, on the server), a repaint of that console
+goes in `//signal`.
+
 !!! note "A list box has two size keys, and they are different things"
     **`row-height`** is the height of ONE item row — a floor, so a two-line item still
     grows past it — and it is also the box each item is hit-tested in, so it is what
@@ -187,6 +214,22 @@ small markdown-like language and **auto-scrolls** when its content overflows.
   `{key: text}` dict) and it **navigates within the same document** — a Kralien entry
   can link straight to the Torgoth one (a codex). `on_link=fn(key, widget)` hears
   every click. `<hr>` draws a horizontal rule.
+- **Choices** — a `[Kneel by the body](signal://lp_pick?pick=kneel)` line is a
+  button. Lines of them next to each other are one group, drawn as flat buttons that
+  share a row while they fit and wrap onto the next row when they do not. Clicking
+  one replaces the group with the choice made, so the area reads as the story so far,
+  and emits the signal with the query as variables (strings), plus `SIGNAL_CHOICE`
+  (the words), `SIGNAL_CLIENT_ID` and `SIGNAL_ITEM` (the area). Continue the story
+  from the route with `gui_text_area_append(SIGNAL_ITEM, text)`; the new text can end
+  in more choices. A `[](choices://?layout=stack&fill=#234)` line restyles the groups
+  after it (`fill`, `text`, `chosen_fill`, `chosen_text`, `font`, `pad_x`, `pad_y`,
+  `gap`, `layout` = `flow` or `stack`). A boarding scene can be read this way with
+  `boarding_reader(area, client_id)`.
+
+    ```
+    //shared/signal/lp_pick
+        gui_text_area_append(SIGNAL_ITEM, lp_scene_text(pick))
+    ```
 - A single unformatted line just renders as plain text; a parse slip shows
   `Document syntax issue line number N` — so a blank/garbled area is usually a
   syntax slip on that line. Engine text is ASCII-only.

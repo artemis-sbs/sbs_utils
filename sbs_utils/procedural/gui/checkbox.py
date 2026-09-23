@@ -1,7 +1,7 @@
 from ...helpers import FrameContext
 from ..style import apply_control_styles
 from ...pages.layout.checkbox import Checkbox
-def gui_checkbox(msg, style=None, var=None, data=None):
+def gui_checkbox(msg, style=None, var=None, data=None, signal=None):
     """Add a checkbox to the current GUI layout.
 
     The current value of ``var`` (expected to be a bool) sets the initial
@@ -15,6 +15,8 @@ def gui_checkbox(msg, style=None, var=None, data=None):
             from and update on toggle. Defaults to None.
         data (object, optional): Arbitrary data passed to the event handler.
             Defaults to None.
+        signal (str, optional): A signal to emit on each toggle, with the new
+            state as ``SIGNAL_VALUE`` (see ``gui_signal``). Defaults to None.
 
     Returns:
         Checkbox: The layout item created.
@@ -42,4 +44,7 @@ def gui_checkbox(msg, style=None, var=None, data=None):
     apply_control_styles(".checkbox", style, layout_item, task)
     # Last in case tag changed in style
     page.add_content(layout_item, None)
+    if signal:
+        from .message import gui_signal
+        gui_signal(layout_item, signal, data)
     return layout_item

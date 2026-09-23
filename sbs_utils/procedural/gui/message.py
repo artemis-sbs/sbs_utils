@@ -194,6 +194,124 @@ def gui_message_callback(layout_item, cb):
     return message_cb_add(layout_item, cb)
 
 
+def _signal_event_is_for(layout_item, event):
+    """Whether a GUI event is aimed at this widget.
+
+    Layout.on_message hands on_message_cb every event delivered to the item during
+    the page's walk of the layout tree, not only its own (see the note in
+    epadd._app_tile), so the callback has to filter. A listbox filters first and
+    only calls back for a row click; its rows carry the listbox's tag prefix.
+    """
+    sub_tag = getattr(event, "sub_tag", None)
+    if sub_tag is None:
+        return False
+    if sub_tag == getattr(layout_item, "tag", None):
+        return True
+    click_tag = getattr(layout_item, "click_tag", None)
+    if click_tag is not None and sub_tag == click_tag:
+        return True
+    prefix = getattr(layout_item, "tag_prefix", None)
+    return bool(prefix) and sub_tag.startswith(prefix)
+
+
+def signal_control_value(layout_item):
+    """What a control holds right now, as a signal payload's ``SIGNAL_VALUE``.
+
+    The value AFTER the click: the widget's own on_message has already run (a
+    checkbox has toggled, a cycle button advanced) by the time a callback fires.
+    A plain button has no value - its ``.value`` is its props string - so None.
+    """
+    from ...pages.layout.button import Button
+    from ...pages.layout.cycle_button import CycleButton
+    if isinstance(layout_item, CycleButton):
+        return layout_item.state
+    get_value = getattr(layout_item, "get_value", None)
+    if callable(get_value):
+        return get_value()
+    if isinstance(layout_item, Button):
+        return None
+    return getattr(layout_item, "value", None)
+
+
+def signal_emit_from_gui(name, data, client_id, item, **extra):
+    """Emit a signal for a GUI interaction.
+
+    The payload is the author's ``data`` (a dict is copied, anything else is
+    passed as ``SIGNAL_DATA``) plus ``SIGNAL_CLIENT_ID`` and ``SIGNAL_ITEM`` and
+    any ``extra`` keys.
+
+    The sender task is whichever task is current when the click arrives, unless
+    it has ended, in which case there is no sender. ``Mast.signal_emit`` drops a
+    signal whose sender is finished, and a widget's builder is often finished by
+    the time anyone clicks (a ``//gui`` route body, a scheduled builder).
+    """
+    from ..signal import signal_emit
+    payload = {}
+    if isinstance(data, dict):
+        payload.update(data)
+    elif data is not None:
+        payload["SIGNAL_DATA"] = data
+    payload["SIGNAL_CLIENT_ID"] = client_id
+    payload["SIGNAL_ITEM"] = item
+    payload.update(extra)
+
+    restore = FrameContext.task
+    if restore is not None and restore.done():
+        FrameContext.task = None
+    try:
+        signal_emit(name, payload)
+    finally:
+        FrameContext.task = restore
+
+
+def gui_signal(layout_item, name, data=None):
+    """Emit a signal whenever a control is used.
+
+    The control does not run anything itself; the signal's routes do. That keeps
+    the widget free of handler plumbing, and lets the SAME control drive a
+    ``//shared/signal`` route (state, once on the server) and a ``//signal``
+    route (a repaint, on each console) - see SIGNAL_ROUTING.md for which is which.
+
+    Works on any control: button, icon button, cycle button, checkbox, dropdown,
+    slider and listbox (on a row click). It is added alongside the widget's other
+    handlers (``on_press``, ``on gui_message``), never in place of them.
+
+    The route gets these variables:
+
+    - every key of ``data``, when it is a dict (anything else is ``SIGNAL_DATA``)
+    - ``SIGNAL_CLIENT_ID``: the console that used the control
+    - ``SIGNAL_ITEM``: the control itself
+    - ``SIGNAL_VALUE``: its value after the click - the checkbox state, the
+      dropdown text, the slider value, the listbox selection, the cycle button's
+      state; None for a plain button
+
+    Args:
+        layout_item: the control, as returned by its ``gui_*`` function.
+        name (str): the signal to emit.
+        data (dict, optional): extra variables for the route. Defaults to None.
+
+    Returns:
+        the layout item, so the call can wrap the builder.
+
+    Example:
+        gui_signal(gui_checkbox("Shields", var="shields_on"), "shields_toggled")
+
+        //shared/signal/shields_toggled
+            set_shields(SIGNAL_CLIENT_ID, SIGNAL_VALUE)
+    """
+    if layout_item is None or not name:
+        return layout_item
+
+    def _emit(event, item, _name=name, _data=data):
+        if not _signal_event_is_for(item, event):
+            return
+        signal_emit_from_gui(_name, _data, getattr(event, "client_id", None), item,
+                             SIGNAL_VALUE=signal_control_value(item))
+
+    message_cb_add(layout_item, _emit)
+    return layout_item
+
+
 def gui_message_label(layout_item, label):
     """Schedule a MAST label as a sub-task when a layout element receives a GUI event.
 

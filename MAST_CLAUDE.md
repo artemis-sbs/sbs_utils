@@ -944,6 +944,25 @@ widget.value = new_value
 # The dirty system automatically re-renders changed widgets — gui_represent() is deprecated (safe but redundant)
 ```
 
+### Controls can emit a signal; text areas can hold choices (2026-09-23)
+
+`signal=` on `gui_button` / `gui_icon_button` / `gui_cycle_button` / `gui_checkbox` /
+`gui_drop_down` / `gui_slider` / `gui_list_box`, or `gui_signal(widget, name, data)` on
+any control, emits the signal on each use, alongside the widget's other handlers. The
+route gets `data`'s keys plus `SIGNAL_CLIENT_ID`, `SIGNAL_ITEM`, `SIGNAL_VALUE`.
+
+In a `gui_text_area`, a whole line `[Words](signal://name?k=v)` is a flat button, and
+lines of them next to each other are one wrapping row. A click replaces the group with
+`[Words](chosen://name)` and emits `name` with the query as STRING variables plus
+`SIGNAL_CHOICE`. Continue with `gui_text_area_append(SIGNAL_ITEM, text)`, never
+`area.value += ...`: `value` reads back as a LIST of lines. `boarding_reader(area,
+client_id, agent)` shows a boarding scene this way; its transcript lives in the library,
+per console, so it survives the screen's repaint on every beat.
+
+A test that wants a `//signal` route to fire must run as the SERVER console (client 0)
+and keep the screen out of top-level code: routes register from commands appended to
+`main`, which a top-level `await gui()` never gets past (see `tests/test_gui_signal.py`).
+
 ### `tag:` names a widget for the SCRIPT, not for the engine
 
 `tag:` in a style gives a widget a name `gui_update` can find it by. The engine keeps

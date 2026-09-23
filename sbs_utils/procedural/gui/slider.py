@@ -1,7 +1,7 @@
 from ...helpers import FrameContext
 from ..style import apply_control_styles
 from ...pages.layout.slider import Slider
-def gui_slider(msg, style=None, var=None, data=None, is_int=False):
+def gui_slider(msg, style=None, var=None, data=None, is_int=False, signal=None):
     """Add a slider control to the current GUI layout.
 
     The current value of ``var`` is used as the initial slider position. When
@@ -17,6 +17,8 @@ def gui_slider(msg, style=None, var=None, data=None, is_int=False):
             Defaults to None.
         is_int (bool, optional): Restrict values to integers. Defaults to
             ``False``.
+        signal (str, optional): A signal to emit on each change, with the new
+            value as ``SIGNAL_VALUE`` (see ``gui_signal``). Defaults to None.
 
     Returns:
         Slider: The layout item created.
@@ -47,9 +49,12 @@ def gui_slider(msg, style=None, var=None, data=None, is_int=False):
         apply_control_styles(".slider", style, layout_item, task)
     # Last in case tag changed in style
     page.add_content(layout_item, None)
+    if signal:
+        from .message import gui_signal
+        gui_signal(layout_item, signal, data)
     return layout_item
 
-def gui_int_slider(msg, style=None, var=None, data=None):
+def gui_int_slider(msg, style=None, var=None, data=None, signal=None):
     """Add an integer-only slider control to the current GUI layout.
 
     Convenience wrapper for ``gui_slider(..., is_int=True)``.
@@ -62,6 +67,7 @@ def gui_int_slider(msg, style=None, var=None, data=None):
             update on change. Defaults to None.
         data (object, optional): Arbitrary data passed to the event handler.
             Defaults to None.
+        signal (str, optional): As ``gui_slider``. Defaults to None.
 
     Returns:
         Slider: The layout item created.
@@ -69,4 +75,4 @@ def gui_int_slider(msg, style=None, var=None, data=None):
     Example:
         gui_int_slider("low:1;high:5;text:int;", var="torp_count")
     """    
-    return gui_slider(msg, style, var,  data, True)
+    return gui_slider(msg, style, var,  data, True, signal=signal)

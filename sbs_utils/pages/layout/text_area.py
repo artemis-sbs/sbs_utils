@@ -21,6 +21,7 @@ import re
 from ...procedural.amd import (RE_STYLE_DEF, RE_STYLE_REF, RE_LINK_DEF,
                                RE_LINK_REF, RE_REF_LINK, RE_TABLE_SEP, RE_GAUGE, RE_ICON, RE_LEAD,
                                RE_BULLET, RE_FOLD_HEADING,
+                               RE_SIGNAL_LINK, RE_CHOSEN_LINK, RE_CHOICES_STYLE,
                                amd_parse_url, amd_table_scan, amd_table_rows)
 from .gauge import (gauge_spec_from_url, gauge_height_px, gauge_send, gauge_value_text,
                     gauge_has_text)
@@ -536,6 +537,126 @@ class LinkLine:
                                  left, top, right, bottom)
 
 
+class ChoiceFlowLine:
+    """A group of `[Display](signal://name?k=v)` lines, drawn as ONE wrapping row of
+    flat buttons - a wrap panel. Clicking one routes back to the owning TextArea,
+    which consumes the group and emits the signal.
+
+    Flat, not `send_gui_button`: each chip is a filled image, its words, and a
+    transparent clickregion the size of the whole chip - the build the ePADD app links
+    and the tab strip use - so it looks like part of the document, not engine chrome.
+
+    Packing happens here, in pixels, at the width the text is drawn at. A chip is as
+    wide as its label plus padding; chips go left to right and a chip that does not
+    fit starts a new row. A label wider than a whole row gets a row to itself and
+    wraps inside its chip. The line is as tall as its rows, so scrolling, `follow_tail`
+    and the rest of the area treat it as one line.
+
+    A chip with no click tag is a CHOSEN one - `[Display](chosen://)`, what a group
+    leaves behind - drawn in the quieter chosen colors with no hit area.
+    """
+    DEFAULTS = {
+        "fill": "#1C3450",          # a chip you can press
+        "text": "#DCE6F5",
+        "chosen_fill": "#101A26",   # the choice that was made
+        "chosen_text": "#8FA8FF",
+        "font": "gui-2",
+        "pad_x": 12,                # PIXELS, inside a chip
+        "pad_y": 5,
+        "gap": 8,                   # PIXELS, between chips and between rows
+        "layout": "flow",           # or "stack": one full-width chip per row
+    }
+    SLACK_PX = 6                    # spare width so a label that fits never wraps
+
+    def __init__(self, choices, ar, pixel_width, options=None) -> None:
+        opts = dict(self.DEFAULTS)
+        opts.update(options or {})
+        for k in ("pad_x", "pad_y", "gap"):
+            opts[k] = to_float(opts.get(k), self.DEFAULTS[k])
+        self.opts = opts
+        self.ar = ar
+        self.is_sec_end = False
+        self.choices = choices
+        self.chips = self.pack(choices, pixel_width, opts)
+        bottom = max((c[1] + c[3] for c in self.chips), default=0)
+        # Half a gap above and below, so a group does not butt against the prose.
+        self.top_px = opts["gap"] / 2
+        self.height = ((bottom + opts["gap"]) / ar.y) * 100
+
+    @staticmethod
+    def pack(choices, pixel_width, opts):
+        """Chips as `(x, y, w, h, choice)` in pixels, packed into rows."""
+        font = opts["font"]
+        pad_x, pad_y, gap = opts["pad_x"], opts["pad_y"], opts["gap"]
+        avail = max(1.0, float(pixel_width))
+        stack = str(opts.get("layout", "flow")).lower() == "stack"
+        line_h = measure_line_height(font, "Xg") or 24
+        sized = []
+        for ch in choices:
+            text_w = measure_line_width(font, ch["display"])
+            if text_w is None:
+                text_w = len(ch["display"]) * line_h * 0.5
+            # SLACK, because the engine breaks a line the moment the text does not fit,
+            # mid-word if need be: a chip exactly as wide as its measured label wrapped
+            # the last word onto a second line in the engine ("Say it out" / "loud").
+            w = text_w + 2 * pad_x + ChoiceFlowLine.SLACK_PX
+            if stack or w > avail:
+                w = avail
+            text_h = line_h
+            if w >= avail and text_w + ChoiceFlowLine.SLACK_PX > avail:
+                text_h = measure_block_height(font, ch["display"],
+                                              int(max(1, avail - 2 * pad_x))) or line_h
+            sized.append((w, text_h + 2 * pad_y, ch))
+
+        chips = []
+        x = y = row_h = 0
+        for w, h, ch in sized:
+            if x > 0 and x + w > avail:
+                y += row_h + gap
+                x = row_h = 0
+            chips.append((x, y, w, h, ch))
+            x += w + gap
+            row_h = max(row_h, h)
+        return chips
+
+    def send_gui(self, SBS, client_id, region_tag, tag, left, top, right, bottom, layer=None):
+        ar = self.ar
+        o = self.opts
+        lay = _layer_prop(layer)
+        bg_layer = 1000 if layer is None else int(layer)
+        top += (self.top_px / ar.y) * 100
+        for j, (x, y, w, h, ch) in enumerate(self.chips):
+            l = left + (x / ar.x) * 100
+            t = top + (y / ar.y) * 100
+            r = min(right, l + (w / ar.x) * 100)
+            b = t + (h / ar.y) * 100
+            chosen = ch.get("click_tag") is None
+            fill = o["chosen_fill"] if chosen else o["fill"]
+            color = o["chosen_text"] if chosen else o["text"]
+            SBS.send_gui_image(client_id, region_tag, f"{tag}:c{j}b",
+                               f"image:smallwhite;color:{fill};draw_layer:{bg_layer};",
+                               l, t, r, b)
+            # The words get the chip's FULL width and are centered in it; the padding
+            # is already in the chip's size. Insetting them by it as well left the text
+            # rect exactly as wide as the label, with no room for rounding.
+            py = (o["pad_y"] / ar.y) * 100
+            SBS.send_gui_text(client_id, region_tag, f"{tag}:c{j}",
+                              f"$text:{gui_text_escape(ch['display'])};justify:center;"
+                              f"color:{color};font:{o['font']};" + lay,
+                              l, t + py, r, b)
+            if not chosen:
+                SBS.send_gui_clickregion(client_id, region_tag, ch["click_tag"],
+                                         "background_color:#00000000;" + lay,
+                                         l, t, r, b)
+
+
+def _choice_options(urn):
+    """`[](choices://?fill=#234&layout=stack)` -> the ChoiceFlowLine options it sets."""
+    opts = parse_url(urn)
+    opts.pop("url", None)
+    return {k: v for k, v in opts.items() if k in ChoiceFlowLine.DEFAULTS}
+
+
 # The schemes that become a WIDGET. `style:` is deliberately absent: it is a directive that
 # changes the active style, not an embed, and promoting a line carrying one buys nothing while
 # putting an otherwise-simple line through the whole rich path.
@@ -553,6 +674,12 @@ def _line_has_embed(line):
         if m is not None and m.groupdict().get("ns") in EMBED_SCHEMES:
             return True
     return False
+
+
+def _line_is_choice(line):
+    """A lone choice is still a button: the fast path would print its markup."""
+    text = str(line).strip()
+    return RE_SIGNAL_LINK.match(text) is not None or RE_CHOSEN_LINK.match(text) is not None
 
 
 class TextArea(Control):
@@ -645,6 +772,14 @@ class TextArea(Control):
         # new value: a reader who opened a section keeps it open when the text updates.
         self._folds = {}
         self._fold_map = {}         # click_tag -> heading key
+        self._choice_map = {}       # click_tag -> a signal choice, see ChoiceFlowLine
+        self.repaint_cb = None      # fn(area): the region owner repaints - see _repaint
+        self.restore_scroll = None  # (scroll_line, follow_tail) for a rebuilt area
+        # Which end "following" sticks to: "top" for a document (the default, and all
+        # there was before), "bottom" for a transcript that grows at the end.
+        self.anchor = "top"
+        self._to_bottom = False     # one shot: the next calc lands on the last page
+        self._held_scroll = 0
         #self.region = None
         #self.local_region_tag = self.tag+"$$"
 
@@ -708,10 +843,17 @@ class TextArea(Control):
         self.lines = []
         self._link_map = {}
         self._fold_map = {}
+        self._choice_map = {}
+        choice_opts = {}            # set by `[](choices://..)`, for the groups after it
         fold_level = None           # inside a CLOSED section of this heading level
         list_icon = None            # `[](bullet://..)` in force for the current list
         links = {}
         calc_height = 0
+        # Where the reader was, before this pass resets it - "hold the reader's place"
+        # below needs it, and read after the reset it was always 0 (the bottom). Only
+        # the OUTER pass records it: the scrollbar re-run starts from the reset value.
+        if _retry:
+            self._held_scroll = self.scroll_line
         self.scroll_line = 0
 
         ar = get_client_aspect_ratio(client_id)
@@ -883,6 +1025,30 @@ class TextArea(Control):
                 self.lines.append(gl)
                 calc_height += gl.height
                 continue
+
+            # A choice group: consecutive `[Display](signal://name?k=v)` lines (and the
+            # `[Display](chosen://)` a used group leaves behind) -> ONE ChoiceFlowLine.
+            # The lines it takes are skipped the way a table's are.
+            if self.markdown:
+                m_cstyle = RE_CHOICES_STYLE.match(line.strip())
+                if m_cstyle is not None:
+                    choice_opts = dict(choice_opts, **_choice_options(m_cstyle.group("urn")))
+                    continue
+                group = self._scan_choice_group(content_lines, i)
+                if group is not None:
+                    choices, end = group
+                    for k, ch in enumerate(choices):
+                        if ch.get("signal") is None:
+                            continue
+                        ctag = f"{self.tag}:ch{i}_{k}"
+                        ch["click_tag"] = ctag
+                        self._choice_map[ctag] = dict(ch, start=i, end=end)
+                    cl = ChoiceFlowLine(choices, ar, pixel_width, choice_opts)
+                    self.lines.append(cl)
+                    calc_height += cl.height
+                    table_skip = end
+                    style = None
+                    continue
 
             # Whole-line hyperlink: [Display](ref://key) -> clickable LinkLine that
             # navigates within the document via the TextArea's link_resolver.
@@ -1128,7 +1294,11 @@ class TextArea(Control):
             self.calc_rich(client_id, _retry=False)
             return
 
-        prev_scroll = self.scroll_line
+        prev_scroll = self._held_scroll
+        if self.restore_scroll is not None:
+            # A rebuilt area picking up where the one it replaced was scrolled to.
+            prev_scroll, self.follow_tail = self.restore_scroll
+            self.restore_scroll = None
         self.last_line = len(self.lines)
         self.scroll_line = self.last_line
         if not self.need_v_scroll:
@@ -1150,8 +1320,14 @@ class TextArea(Control):
         
         self.last_line = min(self.last_line+1, len(self.lines))
         tail = min(self.last_line+1, len(self.lines))
-        if self.follow_tail:
-            self.scroll_line = tail
+        # scroll_line counts UP from the bottom: 0 shows the last page, `tail` the
+        # first. So "following" is `tail` for a document read from the top and 0 for a
+        # transcript read at the bottom - see `anchor`.
+        if self._to_bottom:
+            self.scroll_line = 0
+            self._to_bottom = False
+        elif self.follow_tail:
+            self.scroll_line = 0 if self.anchor == "bottom" else tail
         else:
             # Hold the reader's place. Clamped, because the content that triggered this
             # recalc may be SHORTER than what they were looking at.
@@ -1539,7 +1715,8 @@ class TextArea(Control):
             # those into a widget, and everything else a single line can carry (a heading, a
             # bullet) still renders as readable text on the fast path.
             if not (message_list[0].startswith("=") or message_list[0].startswith("$")
-                    or (self.markdown and _line_has_embed(message_list[0]))):
+                    or (self.markdown and _line_has_embed(message_list[0]))
+                    or (self.markdown and _line_is_choice(message_list[0]))):
                 self.simple_text = True
                 self.content = message_list
                 self.mark_visual_dirty()
@@ -1634,7 +1811,96 @@ class TextArea(Control):
                 self.scroll_line = max(0, min(self.last_line - idx, tail))
                 return
 
+    @staticmethod
+    def _scan_choice_group(lines, i):
+        """The choice group starting at `lines[i]` -> `(choices, next_index)`, else None.
+
+        A group is consecutive `signal://` / `chosen://` lines; anything else, a
+        blank line included, ends it. Each choice is a dict with `display`, and for
+        a live one `signal` (the name) and `data` (the query, as strings)."""
+        choices = []
+        j = i
+        while j < len(lines):
+            text = str(lines[j]).strip()
+            m = RE_SIGNAL_LINK.match(text)
+            if m is not None:
+                opts = parse_url(m.group("urn"))
+                name = opts.pop("url", "").strip()
+                choices.append({"display": m.group("disp").strip(),
+                                "signal": name or None, "data": opts})
+                j += 1
+                continue
+            m = RE_CHOSEN_LINK.match(text)
+            if m is not None:
+                choices.append({"display": m.group("disp").strip(), "signal": None})
+                j += 1
+                continue
+            break
+        if not choices:
+            return None
+        return choices, j
+
+    def append(self, text, sep="\n\n"):
+        """Add text to the end of the document - how a story continues after a choice.
+
+        `value` reads back as a LIST of lines, so `value += "..."` does not do this.
+        A blank line goes between by default, so the new text starts a paragraph.
+        """
+        text = "" if text is None else str(text)
+        if not self.content or self.content == [""]:
+            self.value = text
+        else:
+            self.value = "\n".join(self.content) + sep + text
+        return self
+
+    def choose(self, click_tag, client_id=None):
+        """Make the choice behind `click_tag`: consume its group, then emit its signal.
+
+        The group is replaced by the one choice made, as `[Display](chosen://name)`,
+        so the reader is left with the story so far and a second click finds nothing
+        to press. The signal is emitted AFTER, so a route that appends the next
+        scene appends it below the choice. Returns the choice, or None.
+        """
+        ch = self._choice_map.get(click_tag)
+        if ch is None:
+            return None
+        start, end = ch["start"], ch["end"]
+        # Drop every chip of this group now, not at the next recalc: a double click
+        # arrives before the repaint.
+        for k in [k for k, v in self._choice_map.items() if v["start"] == start]:
+            self._choice_map.pop(k, None)
+        lines = list(self.content)
+        chosen = f"[{ch['display']}](chosen://{ch['signal']})"
+        self.value = "\n".join(lines[:start] + [chosen] + lines[end:])
+        # A pick is answered BELOW it, so go there - whichever end this area follows.
+        self._to_bottom = True
+        self.follow_tail = self.anchor == "bottom"
+
+        from ...procedural.gui.message import signal_emit_from_gui
+        signal_emit_from_gui(ch["signal"], dict(ch.get("data") or {}), client_id, self,
+                             SIGNAL_CHOICE=ch["display"], SIGNAL_VALUE=ch["display"])
+        return ch
+
+    def _repaint(self, event):
+        """Redraw after a click, scroll or fold.
+
+        On its own this area re-sends itself. Inside a REGION that is wrong: the engine
+        draws the new paint over the old one (a scroll showed both). There the region's
+        owner has to repaint, so `repaint_cb(area)` - set by whoever owns it - is asked
+        to, and this area draws nothing itself.
+        """
+        if self.repaint_cb is not None:
+            self.repaint_cb(self)
+        else:
+            self.present(event)
+
     def on_message(self, event):
+        # A choice: consume the group, emit, then repaint - after the emit, so a route
+        # that appended the next scene synchronously is in this one paint.
+        if event.sub_tag in self._choice_map:
+            if self.choose(event.sub_tag, event.client_id) is not None:
+                self._repaint(event)
+            return
         # Collapsible heading click: fold / unfold, then redraw this area. The area
         # owns its sub-region (clear/complete), so repainting itself is safe here.
         if event.sub_tag in self._fold_map:
@@ -1643,7 +1909,7 @@ class TextArea(Control):
                 self.calc(event.client_id)
                 self.recalc = False
                 self._scroll_to_fold(key)
-                self.present(event)
+                self._repaint(event)
             return
         # Hyperlink click: resolve the key and navigate within the document.
         if event.sub_tag in self._link_map:
@@ -1655,7 +1921,7 @@ class TextArea(Control):
                 if new_text is not None:
                     self.value = new_text        # triggers recalc on next present
                     self.scroll_line = 0
-                    self.present(event)
+                    self._repaint(event)
             return
         if event.sub_tag != f"{self.tag}vbar":
             return
@@ -1666,9 +1932,12 @@ class TextArea(Control):
             # Scrolling away from the bottom means "I am reading"; scrolling back to it
             # means "follow along again". The reader opts in and out by doing the obvious
             # thing, with no extra control to find.
-            self.follow_tail = value >= min(self.last_line + 1, len(self.lines))
+            if self.anchor == "bottom":
+                self.follow_tail = value <= 0
+            else:
+                self.follow_tail = value >= min(self.last_line + 1, len(self.lines))
             self.gui_state = "redraw"
-            self.present(event)
+            self._repaint(event)
         
 
 

@@ -2,7 +2,7 @@ from ...helpers import FrameContext
 from ..style import apply_control_styles
 from ...pages.layout.dropdown import Dropdown
 
-def gui_drop_down(props, style=None, var=None, data=None):
+def gui_drop_down(props, style=None, var=None, data=None, signal=None):
     """Add a drop-down list to the current GUI layout.
 
     When the player selects an item, ``var`` is updated. ``var`` is written, not
@@ -21,6 +21,8 @@ def gui_drop_down(props, style=None, var=None, data=None):
             changes. Defaults to None.
         data (object, optional): Arbitrary data passed to the event handler.
             Defaults to None.
+        signal (str, optional): A signal to emit on each selection, with the
+            selected text as ``SIGNAL_VALUE`` (see ``gui_signal``). Defaults to None.
 
     Returns:
         Dropdown: The layout item created.
@@ -43,4 +45,7 @@ def gui_drop_down(props, style=None, var=None, data=None):
     apply_control_styles(".dropdown", style, layout_item, task)
     # Last in case tag changed in style
     page.add_content(layout_item, None)
+    if signal:
+        from .message import gui_signal
+        gui_signal(layout_item, signal, data)
     return layout_item

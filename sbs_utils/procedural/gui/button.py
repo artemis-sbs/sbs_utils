@@ -192,7 +192,7 @@ class MessageHandler:
             FrameContext.task = restore
 
 from ...pages.layout.button import Button
-def gui_button(props, style=None, data=None, on_press=None, is_sub_task=None):
+def gui_button(props, style=None, data=None, on_press=None, is_sub_task=None, signal=None):
     """Add a button to the current GUI layout outside of an ``await gui()`` block.
 
     Unlike buttons declared with ``*`` or ``+`` inside ``await gui()``, this
@@ -231,6 +231,10 @@ def gui_button(props, style=None, data=None, on_press=None, is_sub_task=None):
             **deprecated**. Defaults to None, meaning the library decides; a
             handler that paints a screen and reaches ``await gui()`` sends the
             GUI task there either way, so you should not need this.
+        signal (str, optional): A signal to emit on each press, as
+            ``gui_signal(button, signal, data)``. The route gets ``data``'s keys
+            plus ``SIGNAL_CLIENT_ID`` and ``SIGNAL_ITEM``. Runs alongside
+            ``on_press``. Defaults to None.
 
     Valid Styles:
         area: 
@@ -273,4 +277,7 @@ def gui_button(props, style=None, data=None, on_press=None, is_sub_task=None):
     runtime_item = MessageHandler(layout_item, task, on_press, is_sub_task)
 
     page.add_content(layout_item, runtime_item)
+    if signal:
+        from .message import gui_signal
+        gui_signal(layout_item, signal, data)
     return layout_item

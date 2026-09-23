@@ -255,7 +255,8 @@ def gui_icon_add_atlas_grid(image, cols, rows=None, names=None, cell=None, color
 
 
 from ...pages.layout.icon_button import IconButton
-def gui_icon_button(props, style=None, data=None, on_press=None, is_sub_task=None):
+def gui_icon_button(props, style=None, data=None, on_press=None, is_sub_task=None,
+                    signal=None):
     """Add a clickable icon button to the current GUI layout.
 
     Like ``gui_icon`` but the rendered item accepts click events. Takes
@@ -281,6 +282,8 @@ def gui_icon_button(props, style=None, data=None, on_press=None, is_sub_task=Non
             **deprecated**. Defaults to None, meaning the library decides; a
             handler that paints a screen and reaches ``await gui()`` sends the
             GUI task there either way, so you should not need this.
+        signal (str, optional): A signal to emit on each press (see
+            ``gui_signal``). Defaults to None.
 
     Returns:
         IconButton: The layout item created.
@@ -311,5 +314,8 @@ def gui_icon_button(props, style=None, data=None, on_press=None, is_sub_task=Non
         from .button import MessageHandler
         runtime_item = MessageHandler(layout_item, task, on_press, is_sub_task)
     page.add_content(layout_item, runtime_item)
+    if signal:
+        from .message import gui_signal
+        gui_signal(layout_item, signal, data)
     return layout_item
 

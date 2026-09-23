@@ -60,6 +60,18 @@ def gui_text_area(props, style=None, markdown=True, line_styles=None, on_link=No
     the text beside it, and at the start of a ``-`` item it is the bullet. Use for
     multi-line or formatted text blocks.
 
+    **Choices.** A line that is only ``[Display](signal://name?key=value)`` is a
+    button. Lines of them next to each other are one group, drawn as flat buttons
+    that share a row while they fit and wrap when they do not. Clicking one
+    replaces the whole group with the choice made (so the document reads as the
+    story so far) and emits ``name`` with the query as variables, plus
+    ``SIGNAL_CHOICE`` (the words), ``SIGNAL_CLIENT_ID`` and ``SIGNAL_ITEM`` (this
+    area). Continue the story from the route with
+    ``gui_text_area_append(SIGNAL_ITEM, text)``. A line
+    ``[](choices://?layout=stack&fill=#234)`` above a group restyles the groups
+    after it (``fill``, ``text``, ``chosen_fill``, ``chosen_text``, ``font``,
+    ``pad_x``, ``pad_y``, ``gap``, ``layout`` = ``flow`` | ``stack``).
+
     Args:
         props (str): Text content or Markdown string. Supports ``{var}``
             interpolation.
@@ -118,3 +130,28 @@ def gui_text_area(props, style=None, markdown=True, line_styles=None, on_link=No
 
     page.add_content(layout_item, None)
     return layout_item
+
+
+def gui_text_area_append(text_area, text, sep="\n\n"):
+    """Add text to the end of a text area - how a story continues after a choice.
+
+    The area repaints itself and, when the reader is at the bottom, stays there.
+    Use this rather than ``area.value += text``: ``value`` reads back as a list of
+    lines. The text is not ``{var}``-formatted here; format it before passing it.
+
+    Args:
+        text_area (TextArea): the area, e.g. ``SIGNAL_ITEM`` in a choice's route.
+        text (str): markdown to add, choices included.
+        sep (str, optional): what goes between. A blank line by default, so the
+            new text starts a paragraph.
+
+    Returns:
+        TextArea: the area.
+
+    Example:
+        //shared/signal/lp_pick
+            gui_text_area_append(SIGNAL_ITEM, next_scene_text(pick))
+    """
+    if text_area is None:
+        return None
+    return text_area.append(text, sep)

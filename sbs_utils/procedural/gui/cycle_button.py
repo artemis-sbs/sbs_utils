@@ -5,7 +5,7 @@ from .button import MessageHandler
 
 
 def gui_cycle_button(states, value=None, style=None, data=None, on_press=None,
-                     glyph=CYCLE_GLYPH, is_sub_task=None):
+                     glyph=CYCLE_GLYPH, is_sub_task=None, signal=None):
     """Add a cycle button: one press shows the next state, and the last wraps.
 
     The control for a setting with a handful of states. A radio group or a chip rail
@@ -48,6 +48,9 @@ def gui_cycle_button(states, value=None, style=None, data=None, on_press=None,
             ASCII only - it reaches an engine-rendered string. Defaults to ``">"``.
         is_sub_task (bool, optional): how an ``on_press`` LABEL runs. As
             ``gui_button``. Defaults to None (the library decides).
+        signal (str, optional): A signal to emit on each press, with the NEW state
+            as ``SIGNAL_VALUE`` (see ``gui_signal``) - the simplest way to read the
+            state, with no callback to write. Defaults to None.
 
     Returns:
         CycleButton | None: the layout object. Read ``.state`` for the state;
@@ -79,4 +82,7 @@ def gui_cycle_button(states, value=None, style=None, data=None, on_press=None,
     apply_control_styles(".button", style, layout_item, task)
     runtime_item = MessageHandler(layout_item, task, on_press, is_sub_task)
     page.add_content(layout_item, runtime_item)
+    if signal:
+        from .message import gui_signal
+        gui_signal(layout_item, signal, data)
     return layout_item

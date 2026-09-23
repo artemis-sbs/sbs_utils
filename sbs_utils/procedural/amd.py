@@ -346,6 +346,57 @@ RE_LINK_REF = re.compile(r"!?\[(?P<link_name>\w+)?\](\((?P<ns>\w+):(//)?(?P<urn>
 # as opposed to a media reference that sits inside a sentence.
 RE_REF_LINK = re.compile(r"^\[(?P<disp>[^\]]+)\]\((?:ref|link)://(?P<key>[^)]+)\)$")
 
+# A whole line that is only `[Display](signal://name?key=value&...)` - a CHOICE.
+# Clicking it emits the named signal with the query as data. Lines of these next
+# to each other are one choice group, drawn as a wrapping row of flat buttons.
+# `[Display](chosen://)` is what a group leaves behind once a choice is made.
+RE_SIGNAL_LINK = re.compile(r"^\[(?P<disp>[^\]]+)\]\(signal://(?P<urn>[^)]+)\)$")
+RE_CHOSEN_LINK = re.compile(r"^\[(?P<disp>[^\]]+)\]\(chosen://(?P<urn>[^)]*)\)$")
+# `[](choices://?fill=#234&layout=stack)` - how the choice groups after it are drawn,
+# the way `[](bullet://..)` sets how a list is drawn.
+RE_CHOICES_STYLE = re.compile(r"^\[\]\(choices://(?P<urn>[^)]*)\)$")
+
+
+def amd_choice_label(text):
+    """Words made safe to sit in `[...]` of a choice line: no brackets, one line."""
+    text = " ".join(str(text or "").split())
+    return text.replace("[", "(").replace("]", ")")
+
+
+def amd_choices_settle(text, chosen=None):
+    """Every live choice group in `text` settled: the one choice made, or nothing.
+
+    A group containing a choice whose words are `chosen` becomes that one choice as
+    `[words](chosen://name)`; a group without it is dropped, since nobody took it here.
+    `chosen://` lines already settled stay as they are. Returns the new text.
+    """
+    out = []
+    group = []
+
+    def flush():
+        if not group:
+            return
+        pick = None
+        if chosen is not None:
+            for m in group:
+                if m.group("disp").strip() == str(chosen).strip():
+                    pick = m
+                    break
+        if pick is not None:
+            name = pick.group("urn").split("?")[0]
+            out.append(f"[{pick.group('disp').strip()}](chosen://{name})")
+        group.clear()
+
+    for line in str(text or "").split("\n"):
+        m = RE_SIGNAL_LINK.match(line.strip())
+        if m is not None:
+            group.append(m)
+            continue
+        flush()
+        out.append(line)
+    flush()
+    return "\n".join(out)
+
 # A whole line (or whole table cell) that is only `[Label](gauge://value?max=..)` -
 # a labelled bar colored by how full it is, the engine's own status-panel look.
 # The label may be empty (`[](gauge://45?max=120)` is a bare bar).

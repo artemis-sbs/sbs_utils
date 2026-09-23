@@ -424,12 +424,14 @@ def xess_revision(client_id=None, surface=SURFACE_BOARDING):
 
 def _boarding_revision(client_id):
     """The handheld's own half of the revision - see :func:`xess_revision`."""
-    from ..boarding import boarding_seq
+    from ..boarding import boarding_seq, boarding_reader_revision
     from ..boarding_site import boarding_armed, boarding_setting
     from ..eva_tools import eva_armed
     # _team_health: the Crew app shows each member's HP, which nothing else here moves.
+    # boarding_reader_revision: Act's transcript scrolled or was picked from, and a text
+    # area in this region cannot redraw itself - the rebuild here is its repaint.
     return (boarding_seq(), boarding_armed(client_id), boarding_setting(client_id),
-            eva_armed(client_id), _team_health())
+            eva_armed(client_id), _team_health(), boarding_reader_revision(client_id))
 
 
 def xess_panel_revision(client_id=None, surface=SURFACE_BOARDING):
@@ -849,6 +851,10 @@ def _tile(client_id, app, surface=SURFACE_BOARDING):
 
 # --- ACT: the beat, then one button per choice ---------------------------------------------
 
+#: Act shows the scene as a running transcript with choice buttons in the text. False
+#: goes back to this beat's line over a list of choices.
+ACT_AS_STORY = True
+
 def _act_app(client_id):
     """The scene's line, and what this character can do about it.
 
@@ -865,9 +871,19 @@ def _act_app(client_id):
     from .text import gui_text, gui_text_area
     from .listbox import gui_list_box
     from .message import gui_message_callback
-    from ..boarding import boarding_line, boarding_choices, boarding_seq, boarding_answer
+    from ..boarding import (boarding_line, boarding_choices, boarding_seq, boarding_answer,
+                            boarding_reader, boarding_is_open)
 
     gui_xess_head(client_id, "Act")
+
+    if ACT_AS_STORY and boarding_is_open():
+        # THE SCENE AS A DOCUMENT: every beat so far, each pick left where it was made,
+        # ending in this character's choices as flat buttons. The transcript is kept by
+        # `boarding_reader`, per console, so a repaint of this app loses nothing; picks
+        # go through `boarding_answer`, the same arbitration as the list below.
+        gui_row("row-height: 1fr; padding: 4px, 8px, 4px, 8px;")
+        boarding_reader(gui_text_area(""), client_id, in_region=True)
+        return
 
     line = boarding_line() or ""
     if line:

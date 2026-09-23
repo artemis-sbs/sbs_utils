@@ -107,7 +107,7 @@ from .options_button import gui_options_button, gui_options_button_flag, gui_opt
 from .radio import gui_radio, gui_vradio
 from .ship import gui_ship
 from .slider import gui_int_slider, gui_slider
-from .text import gui_text, gui_text_area, gui_text_escape
+from .text import gui_text, gui_text_area, gui_text_area_append, gui_text_escape
 
 from .listbox import gui_list_box, gui_list_box_header,gui_listbox_items_convert_headers, gui_list_box_is_header
 from .table import gui_table
@@ -142,7 +142,7 @@ else:
     gui_clipboard_put = _gui_win_only("gui_clipboard_put")
 from .client_string import gui_request_client_string
 
-from .message import gui_message, gui_message_label, gui_message_callback, gui_message_clear
+from .message import gui_message, gui_message_label, gui_message_callback, gui_message_clear, gui_signal
 from .change import gui_change
 
 
