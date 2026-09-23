@@ -214,6 +214,21 @@ class MastGlobals:
             except AttributeError:
                 raise NameError(f"name '{key}' is not defined")
 
+        # `name in globals()` and `globals().get(name)` must see the shared namespace
+        # too - a bare lookup does (through __missing__), and a file that asks the other
+        # way is asking the same question. dict's own `in`/`get` never call __missing__,
+        # so they only saw this file's names: OpenUniverse's `admiral_present()` is
+        # `"admiralty_configure" in globals()`, answered False, and the whole Admiral
+        # economy - console included - silently never switched on (engine-seen
+        # 2026-09-23). Builtins stay out: `in globals()` never meant builtins.
+        def __contains__(self, key):
+            return dict.__contains__(self, key) or key in self.shared
+
+        def get(self, key, default=None):
+            if dict.__contains__(self, key):
+                return dict.__getitem__(self, key)
+            return self.shared.get(key, default)
+
     class FileModule:
         """What `import sibling` binds for one of a mission's .py files.
 
