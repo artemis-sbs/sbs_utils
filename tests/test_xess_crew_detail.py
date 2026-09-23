@@ -49,6 +49,27 @@ class TestCrewDetail(unittest.TestCase):
         with mock.patch("sbs_utils.faces.get_face", return_value=""):
             self.assertTrue(X._caller_detail_text(item, None).startswith("Vex - pilot"))
 
+    def test_health_is_a_gauge_when_they_have_a_body(self):
+        from sbs_utils.pages.layout.text_area import GaugeLine
+        item = {"id": "ship", "name": "A", "job": "b", "room": "Bridge", "hp": 4, "max_hp": 6}
+        ta = self._parse(X._caller_detail_text(item, None))
+        grid = [ln for ln in ta.lines if isinstance(ln, TableLine)][0]
+        self.assertEqual([r[0] for r in grid.rows], ["Room", "Health"])
+        spec = grid.gauges[(1, 1)]
+        self.assertEqual((spec["value"], spec["max"], spec["show"]), (4.0, 6.0, "frac"))
+
+    def test_no_body_no_health_row(self):
+        item = {"id": "ship", "name": "A", "job": "b", "room": "", "hp": None, "max_hp": None}
+        self.assertNotIn("Health", X._caller_detail_text(item, None))
+
+    def test_crew_health_reads_the_figure_not_the_person(self):
+        with mock.patch("sbs_utils.procedural.boarding_site.boarding_figure_of", return_value=None):
+            self.assertEqual(X._crew_health(123), (None, None))
+        with mock.patch("sbs_utils.procedural.boarding_site.boarding_figure_of", return_value=55), \
+             mock.patch("sbs_utils.procedural.internal_damage.grid_get_max_hp", return_value=6), \
+             mock.patch("sbs_utils.procedural.inventory.get_inventory_value", return_value=2):
+            self.assertEqual(X._crew_health(123), (2, 6))
+
     def test_a_pipe_cannot_split_the_room_row(self):
         item = {"id": "ship", "name": "A", "job": "b", "room": "Cargo | Bay"}
         self.assertIn("| Room | Cargo / Bay |", X._caller_detail_text(item, None))

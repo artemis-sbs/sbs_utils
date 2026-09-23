@@ -439,7 +439,7 @@ def _crew_names(tokens):
 
 
 def message_send(text, to="*", sender=None, subject=None, kind="crew",
-                 choices=None, scene=None):
+                 choices=None, scene=None, face=None):
     """Put a message in an inbox.
 
     Args:
@@ -456,6 +456,10 @@ def message_send(text, to="*", sender=None, subject=None, kind="crew",
         scene (str, optional): an away scene key. Marks this message as that beat, so
             the inbox asks `away.py` for the replies instead of carrying its own -
             they differ per character and away already arbitrates them.
+        face (str, optional): the sender's face string, drawn beside their name when
+            the message is read. When not given, a LIFEFORM of the sender's name is
+            looked up and its face used - kept on the message, so it still shows after
+            that character has gone.
 
     Returns:
         dict: the stored message.
@@ -484,6 +488,7 @@ def message_send(text, to="*", sender=None, subject=None, kind="crew",
         # of away.py at draw time, because they are per character and it already
         # arbitrates them. Two arbitration paths over one scene is a bug waiting.
         "scene": scene,
+        "face": face if face else _sender_face(sender),
     }
     msg["choices"] = msg["choices"][:MAX_CHOICES]
     msgs.append(msg)
@@ -494,10 +499,28 @@ def message_send(text, to="*", sender=None, subject=None, kind="crew",
     return msg
 
 
-def message_mail(text, to="*", sender=None, subject=None):
+def message_mail(text, to="*", sender=None, subject=None, face=None):
     """A message from content - a letter from family, a friend, an admiral. Exactly
     `message_send(kind="mail")`, named so a story reads as what it is."""
-    return message_send(text, to=to, sender=sender, subject=subject, kind="mail")
+    return message_send(text, to=to, sender=sender, subject=subject, kind="mail", face=face)
+
+
+def _sender_face(sender):
+    """The face of the lifeform called `sender`, or "" - never raises. A letter from
+    "Admiral Harkin" wears Harkin's face when a lifeform of that name exists."""
+    if not sender:
+        return ""
+    try:
+        from .query import to_object_list
+        from .roles import role
+        from ..faces import get_face
+        want = str(sender).strip().lower()
+        for lf in to_object_list(role("lifeform")) or []:
+            if str(getattr(lf, "name", "") or "").strip().lower() == want:
+                return get_face(lf.id) or ""
+    except Exception:                                    # noqa: BLE001
+        pass
+    return ""
 
 
 def _next_id(msgs):

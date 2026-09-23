@@ -489,5 +489,50 @@ class TestAnEmptyInbox(ScreenBase):
         self.assertTrue(self.page.pending_layouts)
 
 
+class TestAMessageWearsItsSendersFace(ScreenBase):
+    """A message from a lifeform carries that lifeform's face, and the reading pane
+    leads the sender line with it. Without a face the pane is exactly as it was."""
+
+    FACE = "ter #ffffff 1 2"
+
+    def setUp(self):
+        super().setUp()
+        from sbs_utils.procedural.lifeform import lifeform_spawn
+        lifeform_spawn("Admiral Harkin", self.FACE, "crew")
+        message_send("Hold the line.", to="boarding", sender="Admiral Harkin",
+                     subject="Orders")
+        message_send("Did you take the good pan", to="boarding", sender="Devi",
+                     subject="Pan")
+        self.inbox = message_inbox()
+        self.build()
+        self.view = getattr(self.page, messages_gui.VIEW_ATTR)
+
+    def _pick(self, subject):
+        msg = next(m for m in self.inbox if m.get("subject") == subject)
+        message_select(msg.get("id"))
+        messages_gui.gui_messages_tick()
+        return msg
+
+    def test_the_face_is_kept_on_the_message(self):
+        msg = next(m for m in self.inbox if m.get("subject") == "Orders")
+        self.assertEqual(msg.get("face"), self.FACE)
+
+    def test_an_explicit_face_wins(self):
+        m = message_send("x", to="boarding", sender="Admiral Harkin", face="arv #fff 0 0")
+        self.assertEqual(m.get("face"), "arv #fff 0 0")
+
+    def test_the_pane_leads_with_the_face(self):
+        self._pick("Orders")
+        body = "\n".join(self.view["body"].value)
+        self.assertTrue(body.startswith("![](face://%s) From Admiral Harkin" % self.FACE), body)
+        self.assertIn("Hold the line.", body)
+        self.assertNotIn("Harkin", self.view["sender"].message, "the name is said twice")
+
+    def test_no_face_no_change(self):
+        self._pick("Pan")
+        self.assertNotIn("face://", "\n".join(self.view["body"].value))
+        self.assertIn("From Devi", self.view["sender"].message)
+
+
 if __name__ == "__main__":
     unittest.main()

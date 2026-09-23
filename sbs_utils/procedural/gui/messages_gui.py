@@ -536,8 +536,15 @@ def _reading_pane_update(view, reading):
 
     subject.update(f"$text:{_esc(reading.get('subject') or '')};font:gui-4;"
                    f"overflow:shrink;")
-    sender.update(f"$text:{_esc('From ' + (reading.get('from') or 'unknown'))};"
-                  f"font:gui-1;color:{ACCENT};")
+    # WITH A FACE, the sender line moves into the body and leads with that face - a
+    # letter reads as coming from somebody. Without one the pane is exactly as it was.
+    # The sender widget keeps a space either way, so the pane's SHAPE never moves.
+    from_line = "From " + (reading.get("from") or "unknown")
+    face = _message_face(reading)
+    if face:
+        sender.update(f"$text:` `;font:gui-1;color:{ACCENT};")
+    else:
+        sender.update(f"$text:{_esc(from_line)};font:gui-1;color:{ACCENT};")
     # Mail for an empty post is forwarded here rather than lost. Say so, or a letter
     # addressed to somebody else reads as a mistake. Empty when there is nothing to
     # say, so the pane's SHAPE does not depend on which message is open.
@@ -547,8 +554,19 @@ def _reading_pane_update(view, reading):
         f"font:gui-1;color:{DIM};")
     # A text area clears its own sub-region every time it draws, so this assignment
     # could never have ghosted - as long as it is the same text area.
-    body.value = reading.get("text") or " "
+    text = reading.get("text") or " "
+    if face:
+        text = "![](face://%s) %s%s%s" % (face, from_line.replace(chr(10), " "),
+                                          chr(10) * 2, text)
+    body.value = text
     return True
+
+
+def _message_face(reading):
+    """The face a message carries, made safe to sit inside `face://...)`: a `)` or `?`
+    in it would end the reference or start its options."""
+    face = str(reading.get("face") or "").strip() if hasattr(reading, "get") else ""
+    return face.replace(")", "").replace("?", "").replace("]", "")
 
 
 def _reading_replies_fill(reading):

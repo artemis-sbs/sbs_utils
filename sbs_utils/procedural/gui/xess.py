@@ -427,8 +427,9 @@ def _boarding_revision(client_id):
     from ..boarding import boarding_seq
     from ..boarding_site import boarding_armed, boarding_setting
     from ..eva_tools import eva_armed
+    # _team_health: the Crew app shows each member's HP, which nothing else here moves.
     return (boarding_seq(), boarding_armed(client_id), boarding_setting(client_id),
-            eva_armed(client_id))
+            eva_armed(client_id), _team_health())
 
 
 def xess_panel_revision(client_id=None, surface=SURFACE_BOARDING):
@@ -1023,14 +1024,41 @@ def _callers(client_id):
             node = boarding_room_at(boarding_my_host(cid), at[0], at[1],
                                     boarding_room_roles())
             room = boarding_room_name(node.name) if node is not None else "a corridor"
+        hp, max_hp = _crew_health(lf)
         people.append({"id": to_id(lf), "name": who.name,
                        "job": boarding_job_text(who, default="aboard"),
                        "room": room, "to": message_crew_token(lf),
-                       "you": to_id(lf) == mine})
+                       "you": to_id(lf) == mine, "hp": hp, "max_hp": max_hp})
     out.extend(sorted(people, key=lambda p: str(p["name"]).lower()))
     out.append({"id": "all", "name": "Everyone", "job": "all channels", "room": "",
                 "to": "*", "you": False})
     return out
+
+
+def _crew_health(lifeform):
+    """(hp, max_hp) for a party member, read off the BODY they walk around in - the
+    figure on the grid carries the HP, not the person. (None, None) when they have no
+    body on this interior, so nothing is shown rather than a made-up full bar."""
+    try:
+        from ..boarding_site import boarding_figure_of
+        from ..internal_damage import grid_get_max_hp
+        from ..inventory import get_inventory_value
+        fig = boarding_figure_of(lifeform)
+        if fig is None:
+            return None, None
+        max_hp = int(grid_get_max_hp() or 0)
+        return int(get_inventory_value(fig, "HP", max_hp) or 0), max_hp
+    except Exception:                                    # noqa: BLE001
+        return None, None
+
+
+def _team_health():
+    """Every party member's HP, for the revision - a hit repaints the Crew app."""
+    try:
+        from ..boarding import boarding_team
+        return tuple(sorted((to_id(lf), _crew_health(lf)[0]) for lf in (boarding_team() or ())))
+    except Exception:                                    # noqa: BLE001
+        return ()
 
 
 def _ship_name(client_id):
@@ -1139,8 +1167,14 @@ def _caller_detail_text(item, last):
             face = ""
     face = face.replace(")", "").replace("]", "").replace("?", "")
     lines = ["![](face://%s) %s" % (face, head) if face else head]
+    facts = []
     if item.get("room"):
-        lines += ["", "| | |", "|:--|:--|", "| Room | %s |" % _safe(item["room"])]
+        facts.append("| Room | %s |" % _safe(item["room"]))
+    if item.get("max_hp"):
+        facts.append("| Health | [HP](gauge://%d?max=%d&show=frac) |"
+                     % (int(item.get("hp") or 0), int(item["max_hp"])))
+    if facts:
+        lines += ["", "| | |", "|:--|:--|"] + facts
     said = str(last.get("text") or "") if last is not None else "Nothing said yet."
     lines += ["", said]
     return chr(10).join(lines)
