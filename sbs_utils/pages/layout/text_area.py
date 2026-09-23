@@ -210,6 +210,11 @@ class TableLine:
                     w = measure_line_width(f, r[c])
                     if w > col_px[c]:
                         col_px[c] = w
+        # Slack on every natural width. A cell rect exactly as wide as its measured
+        # text is clipped by the engine: "System" in a gui-3 header drew as "Syste"
+        # (engine-seen 2026-09-23). One M of slack, before fit-to-width shrinks it.
+        slack = measure_line_width(self.BODY_FONT, "M") or 0
+        col_px = [w + slack if w > 0 else w for w in col_px]
         self.cell_pad_px = measure_line_width(self.BODY_FONT, "MM")        # gutter
         avail = max(1.0, pixel_width - self.cell_pad_px * (ncols - 1))
         natural = sum(col_px)

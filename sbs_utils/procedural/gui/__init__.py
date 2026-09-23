@@ -162,5 +162,5 @@ from .overlay import overlay_clear_console
 from .overlay import overlay_kind, consoles_of
 from .overlay import overlay_signal_show, overlay_signal_clear
 from .overlay import overlay_toast, overlay_banner, overlay_lower_third, overlay_lower_third_portrait, overlay_credits, overlay_choice
-from .overlay import overlay_hud, overlay_hud_update, overlay_letterbox, overlay_flash
+from .overlay import overlay_hud, overlay_hud_update, overlay_patch, overlay_letterbox, overlay_flash
 from .icon_sheet import ICON_DOMAIN, icon_resolve, icon_names, ICON_INDEX, ICON_ALIAS

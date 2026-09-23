@@ -185,8 +185,16 @@ class Gauge(Column):
             if v is not None and self._args[k] != v:
                 self._args[k] = v
                 changed = True
-        if changed and not self.is_hidden_by_script:
-            self.mark_visual_dirty()
+        if not changed or self.is_hidden_by_script:
+            return
+        # Inside a sub-region (overlay slot, tab, listbox row) a widget CANNOT repaint
+        # itself: the engine draws the re-sent value text OVER the old one instead of
+        # replacing it - engine-seen here as "1" plus two overstruck digits while the
+        # bar (an image) moved correctly. The region owner repaints (an overlay:
+        # `overlay_patch`); see CycleButton.mark_value_dirty, the same rule.
+        if self.region_tag:
+            return
+        self.mark_visual_dirty()
 
     @property
     def value(self):

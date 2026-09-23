@@ -1837,6 +1837,24 @@ def overlay_hud_update(rows=None, title=None, to=None, consoles=None, slot="hud"
         _on_page(page, lambda ov: ov.patch(slot, patch))
 
 
+def overlay_patch(slot, to=None, consoles=None, **fields):
+    """Merge ``fields`` into a live overlay's content and redraw the slot.
+
+    The general form of ``overlay_hud_update``, for any kind: the builder runs
+    again with the patched content and the slot region is re-filled between its
+    own clear/complete. That is the ONLY safe way to change what an overlay shows
+    live - a widget inside a slot cannot repaint itself (the engine overdraws
+    re-sent text). No-op for a slot that is not showing.
+
+    Example:
+        overlay_patch("status", energy=807, front=45)
+    """
+    if not fields:
+        return
+    for page in _pages_for(to, consoles):
+        _on_page(page, lambda ov: ov.patch(slot, dict(fields)))
+
+
 # --- Fullscreen cinematic (letterbox, flash) ---------------------------------
 def _letterbox_builder(client_id, content):
     from .text import gui_text

@@ -77,6 +77,33 @@ class TestGaugeDraw(unittest.TestCase):
         self.assertEqual(tags, ["g:f"])                       # bare bar, full: one rect
 
 
+class TestGaugeWidgetDirty(unittest.TestCase):
+    """A gauge repaints itself only at top level. In a sub-region the engine overdraws
+    re-sent text (engine-seen 2026-09-23), so it must leave the repaint to the owner."""
+    def setUp(self):
+        from sbs_utils.pages.layout.dirty import Dirty
+        self.Dirty = Dirty
+        Dirty.dirty = {}
+
+    def _gauge(self, region_tag):
+        from sbs_utils.pages.layout.gauge import Gauge
+        g = Gauge("g", 10, 100, "Energy")
+        g.client_id = 0
+        g.region_tag = region_tag
+        return g
+
+    def test_top_level_marks_itself(self):
+        g = self._gauge("")
+        g.value = 50
+        self.assertIn(g, self.Dirty.dirty.get(0, set()))
+
+    def test_in_region_sends_nothing(self):
+        g = self._gauge("ovl_status$$")
+        g.value = 50
+        self.assertEqual(self.Dirty.dirty.get(0, set()), set())
+        self.assertEqual(g.spec()["value"], 50.0)          # the value still changed
+
+
 class TestTextAreaGauge(unittest.TestCase):
     def setUp(self):
         sbs.create_new_sim()
