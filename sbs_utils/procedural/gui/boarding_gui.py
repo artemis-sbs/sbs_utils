@@ -267,6 +267,8 @@ def _who_is_down():
     """The rest of the party, so nobody is alone down there by accident."""
     from .row import gui_row
     from .text import gui_text
+    from .face import gui_face
+    from ...faces import get_face
     team = sorted(boarding_team())
     if not team:
         return
@@ -274,7 +276,13 @@ def _who_is_down():
     gui_text(f"$text:On the surface;font:gui-1;color:{DIM};")
     for member in team:
         name, job = boarding_label(member)
-        gui_row("row-height: content; padding: 24px, 2px, 24px, 0;")
+        # A FACE leads each name, as it does on the roster above - "who is down there"
+        # is a question about people, and a face is how a crew recognizes one. A fixed
+        # row, not `content`: a face is square and takes its size from the row.
+        face = get_face(member)
+        gui_row("row-height: 2.2em; padding: 24px, 2px, 24px, 0;")
+        if face:
+            gui_face(face, style="col-width: square;")
         gui_text(f"$text:{_esc(name)};font:gui-2;", style="col-width: 34;")
         gui_text(f"$text:{_esc(job)};font:gui-1;color:{DIM};overflow:ellipsis;")
 

@@ -1083,18 +1083,11 @@ def _caller_detail(client_id, item):
     from ..boarding import boarding_me
 
     last = _last_from(item)
-    gui_row("row-height: 1.4em; font:gui-1; padding: 8px, 4px, 0, 8px;")
-    gui_text("$text:%s;font:gui-1;color:%s;"
-             % (_esc("%s - %s" % (item["name"], item["job"])), ACCENT))
-    if item.get("room"):
-        gui_text("$text:%s;font:gui-1;color:%s;col-width: content;"
-                 % (_esc(item["room"]), DIM))
-
-    gui_row("row-height: 1fr; padding: 0, 8px, 0, 8px;")
-    if last is not None:
-        gui_text_area(str(last.get("text") or ""))
-    else:
-        gui_text_area("Nothing said yet.")
+    # ONE text area: the caller's FACE leading their name and job, where they are, then
+    # what they last said. It was a colored text line, a room word squeezed beside it,
+    # and the message below - three widgets, no face.
+    gui_row("row-height: 1fr; padding: 8px, 8px, 0, 8px;")
+    gui_text_area(_caller_detail_text(item, last))
 
     more = _older_count(item)
     if more:
@@ -1124,6 +1117,33 @@ def _caller_detail(client_id, item):
         gui_row("row-height: 2.2em; font:gui-2;")
         gui_button(_leave_label(client_id),
                    on_press=lambda _cid=client_id: _leave(_cid))
+
+
+def _caller_detail_text(item, last):
+    """The Crew detail as text-area markdown - see :func:`_caller_detail`.
+
+    A person's line leads with their face (two text lines tall); the ship and "Everyone"
+    have no face and lead with nothing. Values are made safe for a table cell and a
+    lead line: a `|` would split the row, a `]` or `)` would end the face reference.
+    """
+    def _safe(text):
+        return str(text if text is not None else "").replace("|", "/").replace(chr(10), " ").strip()
+
+    head = "%s - %s" % (_safe(item.get("name")), _safe(item.get("job")))
+    face = ""
+    if isinstance(item.get("id"), int):
+        try:
+            from ...faces import get_face
+            face = get_face(item["id"]) or ""
+        except Exception:                                # noqa: BLE001
+            face = ""
+    face = face.replace(")", "").replace("]", "").replace("?", "")
+    lines = ["![](face://%s) %s" % (face, head) if face else head]
+    if item.get("room"):
+        lines += ["", "| | |", "|:--|:--|", "| Room | %s |" % _safe(item["room"])]
+    said = str(last.get("text") or "") if last is not None else "Nothing said yet."
+    lines += ["", said]
+    return chr(10).join(lines)
 
 
 def _last_from(item):
