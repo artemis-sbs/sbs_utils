@@ -928,7 +928,10 @@ under both, in the same look as the engine's own ship-status panel.
 - **An upgrade's effect drains** as a bar while it lasts, labelled with the time left.
 - **The handheld's Scan** reads a room's condition as a colored pip and its wear as a bar,
   and the same reading lands in the Survey log. **Crew** shows the face of whoever you
-  pick, and the "On the surface" list puts a face beside every name.
+  pick and how hurt they are, as a health bar, and the "On the surface" list puts a face
+  beside every name.
+- **Letters come from someone.** A message from a character in the story - the admiral,
+  a crewmate - opens with that person's face beside their name.
 
 Mission writers get all of this in their own text: see [Gauges](cosmos/gui.md#gauges) and
 [Rich text areas](cosmos/gui.md#rich-text-areas).
