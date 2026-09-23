@@ -134,6 +134,11 @@ def _aspect(w, h):
     return "%d:%d" % (int(w) // g, int(h) // g)
 
 
+def _sizzle_root(args):
+    """Where output goes: `_sizzle` beside the Cosmos install, not inside data/missions."""
+    return os.path.join(os.path.dirname(os.path.abspath(args.cosmos_dir)), "_sizzle")
+
+
 def _engine_window_size(cosmos_dir):
     """The engine window's client size, measured live. None when nothing is running.
 
@@ -603,7 +608,7 @@ def cmd_contact(args):
                 print("FAIL: the engine stopped answering at shot %d" % i)
                 break
 
-        out = args.out or os.path.join(missions, "_sizzle", "contact")
+        out = args.out or os.path.join(_sizzle_root(args), "contact")
         path = sheet.write_sheet(out, tiles, shots, cols=args.cols, width=args.width)
         print("\nsheet: %s" % path)
     finally:
@@ -744,7 +749,7 @@ def cmd_shoot(args):
 
     missions = args.missions_dir or os.path.join(args.cosmos_dir, "data", "missions")
     stamp = time.strftime("%Y%m%d-%H%M%S")
-    out_dir = args.out or os.path.join(missions, "_sizzle", stamp, "takes", args.scene)
+    out_dir = args.out or os.path.join(_sizzle_root(args), stamp, "takes", args.scene)
     print("staging mission -> %s" % _sync_stage_mission(missions))
 
     drv = EngineDriver(cosmos_dir=args.cosmos_dir, mission="SizzleReel",
@@ -1008,8 +1013,7 @@ def cmd_reel(args):
 
     takes = REEL.load(args.manifest)
     missions = args.missions_dir or os.path.join(args.cosmos_dir, "data", "missions")
-    root = args.out or os.path.join(missions, "_sizzle",
-                                    time.strftime("%Y%m%d-%H%M%S"))
+    root = args.out or os.path.join(_sizzle_root(args), time.strftime("%Y%m%d-%H%M%S"))
     os.makedirs(root, exist_ok=True)
     REEL.save(takes, os.path.join(root, "reel.json"))
     print("reel: %d take(s) -> %s" % (len(takes), root))
