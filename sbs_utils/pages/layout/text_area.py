@@ -19,8 +19,10 @@ import re
 # and it was a near-miss lookalike of `RE_LINK_REF` (the rule actually applied,
 # below) - exactly the drift this import exists to prevent - so it is gone.
 from ...procedural.amd import (RE_STYLE_DEF, RE_STYLE_REF, RE_LINK_DEF,
-                               RE_LINK_REF, RE_REF_LINK, RE_TABLE_SEP,
+                               RE_LINK_REF, RE_REF_LINK, RE_TABLE_SEP, RE_GAUGE,
                                amd_parse_url, amd_table_scan, amd_table_rows)
+from .gauge import (gauge_spec_from_url, gauge_height_px, gauge_send, gauge_value_text,
+                    gauge_has_text)
 
 
 from ..widgets.control import Control
@@ -163,6 +165,9 @@ class TableLine:
     HDR_FONT = "gui-3"
     BODY_FONT = "gui-2"
 
+    def _font(self, ri):
+        return self.HDR_FONT if (ri == 0 and self.has_header) else self.BODY_FONT
+
     def __init__(self, rows, aligns, ar, pixel_width, sbs) -> None:
         self.is_sec_end = False
         self.ar = ar
@@ -170,6 +175,20 @@ class TableLine:
         ncols = max((len(r) for r in rows), default=0)
         self.ncols = ncols
         self.rows = [r + [""] * (ncols - len(r)) for r in rows]
+        # An all-empty first row means "no header": `| | |` then the separator is
+        # how a grid of cells (the ENGN/WEAP/SHLD/SENS block) is written.
+        self.has_header = True
+        if len(self.rows) > 1 and all(c == "" for c in self.rows[0]):
+            self.rows = self.rows[1:]
+            self.has_header = False
+        # Cells that are only `[Label](gauge://..)` draw as gauges.
+        self.gauges = {}
+        for ri, r in enumerate(self.rows):
+            for c in range(ncols):
+                m = RE_GAUGE.match(r[c])
+                if m is not None:
+                    self.gauges[(ri, c)] = gauge_spec_from_url(
+                        m.group("urn"), m.group("label").strip(), self._font(ri))
         self.col_px = []
         self.row_h_px = []
         self.cell_pad_px = 0
@@ -180,9 +199,14 @@ class TableLine:
         # Natural column widths (px) — measure real glyphs (header in header font).
         col_px = [0.0] * ncols
         for ri, r in enumerate(self.rows):
-            f = self.HDR_FONT if ri == 0 else self.BODY_FONT
+            f = self._font(ri)
             for c in range(ncols):
-                if r[c]:
+                g = self.gauges.get((ri, c))
+                if g is not None:
+                    w = measure_line_width(f, f"{g['label']}  {gauge_value_text(g)}".strip() or "MMMM")
+                    if w > col_px[c]:
+                        col_px[c] = w
+                elif r[c]:
                     w = measure_line_width(f, r[c])
                     if w > col_px[c]:
                         col_px[c] = w
@@ -193,16 +217,28 @@ class TableLine:
             col_px = [w * (avail / natural) for w in col_px]
         floor = min(measure_line_width(self.BODY_FONT, "MMM"), avail / ncols)
         col_px = [max(w, floor) for w in col_px]                           # min column
+        # A bar has no natural width - it is as long as it is given. So the width a
+        # table does not use goes to the columns holding gauges; otherwise a bar is
+        # only as long as its label ("ENGN") and reads as a stub.
+        gauge_cols = sorted({c for (_, c) in self.gauges})
+        spare = avail - sum(col_px)
+        if gauge_cols and spare > 0:
+            for c in gauge_cols:
+                col_px[c] += spare / len(gauge_cols)
         self.col_px = col_px
 
         # Row heights (px) from the tallest wrapped cell in each row.
         for ri, r in enumerate(self.rows):
-            f = self.HDR_FONT if ri == 0 else self.BODY_FONT
+            f = self._font(ri)
             h = 0
             for c in range(ncols):
                 cw = int(col_px[c])
-                bh = (measure_block_height(f, r[c], cw) if (r[c] and cw > 0)
-                      else measure_line_height(f, "M"))
+                g = self.gauges.get((ri, c))
+                if g is not None:
+                    bh = gauge_height_px(g)
+                else:
+                    bh = (measure_block_height(f, r[c], cw) if (r[c] and cw > 0)
+                          else measure_line_height(f, "M"))
                 if bh > h:
                     h = bh
             self.row_h_px.append(h)
@@ -218,12 +254,24 @@ class TableLine:
         just_map = {"l": "left", "c": "center", "r": "right"}
         y = top
         for ri, r in enumerate(self.rows):
-            f = TableLine.HDR_FONT if ri == 0 else TableLine.BODY_FONT
+            f = self._font(ri)
             row_h = (self.row_h_px[ri] / ar.y) * 100
-            color = "#bbb" if ri == 0 else "white"
+            color = "#bbb" if (ri == 0 and self.has_header) else "white"
             x = left
             for c in range(self.ncols):
                 a = self.aligns[c] if c < len(self.aligns) else "l"
+                g = self.gauges.get((ri, c))
+                if g is not None:
+                    # A gauge with text is bottom-aligned, so gauges in one row share
+                    # a baseline. A bare bar is centred, so it sits BESIDE the text in
+                    # its row rather than under it.
+                    gh = (gauge_height_px(g) / ar.y) * 100
+                    gt = y + row_h - gh if gauge_has_text(g) else y + (row_h - gh) / 2
+                    gauge_send(SBS, client_id, region_tag, f"{tag}:r{ri}c{c}",
+                               x, gt, x + col_pct[c], gt + gh, g, ar,
+                               layer, just_map.get(a, "left"))
+                    x += col_pct[c] + pad_pct
+                    continue
                 style = f"font:{f};justify:{just_map.get(a, 'left')};color:{color};" + lay
                 SBS.send_gui_text(client_id, region_tag, f"{tag}:r{ri}c{c}",
                                   f"$text:{gui_text_escape(r[c])};{style}",
@@ -249,6 +297,21 @@ class HrLine:
         SBS.send_gui_image(client_id, region_tag, tag,
                            f"image:smallwhite;color:#888;draw_layer:{rule_layer};",
                            left, mid - half, right, mid + half)
+
+
+class GaugeLine:
+    """A whole-line gauge `[Energy](gauge://946?max=1000)`: label left, value right,
+    a bar colored by fraction underneath. The drawing is `layout/gauge.py`'s, shared
+    with the `gui_gauge` widget."""
+    def __init__(self, label, urn, ar) -> None:
+        self.spec = gauge_spec_from_url(urn, label)
+        self.ar = ar
+        self.is_sec_end = False
+        self.height = (gauge_height_px(self.spec) / ar.y) * 100
+
+    def send_gui(self, SBS, client_id, region_tag, tag, left, top, right, bottom, layer=None):
+        gauge_send(SBS, client_id, region_tag, tag, left, top, right, bottom,
+                   self.spec, self.ar, layer)
 
 
 class LinkLine:
@@ -572,6 +635,14 @@ class TextArea(Control):
                 # `^` is what the engine reads as a newline.
                 self.lines.append(TextLine("^", br_style, self.bounds.width, br_height, False))
                 calc_height += br_height
+                continue
+
+            # Whole-line gauge: [Label](gauge://value?max=..) -> GaugeLine.
+            m_gauge = RE_GAUGE.match(line.strip()) if self.markdown else None
+            if m_gauge is not None:
+                gl = GaugeLine(m_gauge.group("label").strip(), m_gauge.group("urn"), ar)
+                self.lines.append(gl)
+                calc_height += gl.height
                 continue
 
             # Whole-line hyperlink: [Display](ref://key) -> clickable LinkLine that

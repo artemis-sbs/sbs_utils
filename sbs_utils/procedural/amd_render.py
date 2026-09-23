@@ -185,6 +185,12 @@ def _block_html(b, ctx, depth):
     if kind == "link":
         return (f'<p class="xref"><a href="#{esc(_target_anchor(b["target"], ctx))}">'
                 f'{esc(b["display"])}</a></p>')
+    if kind == "gauge":
+        label = esc(b.get("label") or "")
+        val, mx = esc(str(b.get("value", ""))), esc(str(b.get("max", "")))
+        return (f'<p class="gauge"><span class="gauge-label">{label}</span> '
+                f'<meter value="{val}" min="0" max="{mx}">{val} / {mx}</meter> '
+                f'<span class="gauge-value">{val} / {mx}</span></p>')
     if kind == "rule":
         return "<hr>"
     if kind == "break":

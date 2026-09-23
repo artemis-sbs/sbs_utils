@@ -99,6 +99,7 @@ from .clickable import gui_click
 from .content import gui_content
 from .dropdown import gui_drop_down
 from .face import gui_face
+from .gauge import gui_gauge
 from .icon import gui_icon_name, gui_icon_name_button, gui_icon_add_atlas, gui_icon_add_atlas_grid, gui_icon, gui_icon_button, gui_icon_recolor, gui_icon_rename
 from .image import gui_image_add_atlas_grid, gui_image, gui_image_button, gui_image_absolute, gui_image_keep_aspect_ratio, gui_image_keep_aspect_ratio_center, gui_image_stretch, gui_image_add_atlas,gui_image_size,gui_image_get_atlas
 from .input import gui_input

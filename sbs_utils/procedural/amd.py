@@ -346,6 +346,11 @@ RE_LINK_REF = re.compile(r"!?\[(?P<link_name>\w+)?\](\((?P<ns>\w+):(//)?(?P<urn>
 # as opposed to a media reference that sits inside a sentence.
 RE_REF_LINK = re.compile(r"^\[(?P<disp>[^\]]+)\]\((?:ref|link)://(?P<key>[^)]+)\)$")
 
+# A whole line (or whole table cell) that is only `[Label](gauge://value?max=..)` -
+# a labelled bar colored by how full it is, the engine's own status-panel look.
+# The label may be empty (`[](gauge://45?max=120)` is a bare bar).
+RE_GAUGE = re.compile(r"^!?\[(?P<label>[^\]]*)\]\(gauge://(?P<urn>[^)]*)\)$")
+
 # The `|:--|--:|` alignment row of a GFM pipe table.
 RE_TABLE_SEP = re.compile(r"^:?-{2,}:?$")
 

@@ -442,6 +442,12 @@ def _b_link(block, ctx, _depth):
     return _ref_link(block.get("target") or "", ctx, block.get("display"))
 
 
+def _b_gauge(block, _ctx, _depth):
+    label = block.get("label") or ""
+    reading = f"{block.get('value', '')} / {block.get('max', '')}"
+    return f"**{_esc(label)}** {_esc(reading)}" if label else _esc(reading)
+
+
 def _b_media(block, ctx, _depth):
     fn = ctx.get("media")
     rendered = fn(block, ctx) if fn else None
@@ -473,7 +479,7 @@ _BLOCKS = {
     "paragraph": _b_paragraph, "rule": _b_rule, "synopsis": _b_synopsis,
     "callout": _b_callout, "list": _b_list, "table": _b_table, "cue": _b_cue,
     "direction": _b_direction, "transition": _b_transition, "speech": _b_speech,
-    "choice": _b_choice, "link": _b_link, "media": _b_media,
+    "choice": _b_choice, "link": _b_link, "media": _b_media, "gauge": _b_gauge,
     "transclude": _b_transclude,
 }
 

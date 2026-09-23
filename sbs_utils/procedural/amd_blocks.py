@@ -29,7 +29,7 @@ paper on purpose.
 """
 from sbs_utils.procedural.amd import (
     RE_COMMENT, RE_CUE, RE_DIRECTION, RE_CALLOUT, RE_LINK_DEF, RE_LINK_REF,
-    RE_REF_LINK, RE_STYLE_DEF, amd_body_synopsis, amd_body_transclude,
+    RE_REF_LINK, RE_GAUGE, RE_STYLE_DEF, amd_body_synopsis, amd_body_transclude,
     amd_body_transition, amd_body_variant, amd_choice, amd_parse_url,
     amd_table_rows, amd_table_scan, amd_wikilinks,
 )
@@ -256,6 +256,13 @@ def _line_block(lineno, raw, text, raws, i, doc, profile, resolve, depth, seen,
         return {"type": "rule", "line": lineno}, 1
     if text in ("<br>", "<br/>"):
         return {"type": "break", "line": lineno}, 1
+
+    m = RE_GAUGE.match(text)
+    if m is not None:
+        opts = amd_parse_url(m.group("urn"))
+        return {"type": "gauge", "line": lineno, "label": m.group("label").strip(),
+                "value": opts.pop("url", ""), "max": opts.pop("max", "100"),
+                "options": opts}, 1
 
     m = RE_REF_LINK.match(text)
     if m is not None:
