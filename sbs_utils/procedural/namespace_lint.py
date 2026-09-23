@@ -387,3 +387,83 @@ def namespace_lint_project(py_sources, mast_sources=(), lib_globals=(), mast_glo
             findings.append((path, f))
 
     return findings
+
+
+def _words(text):
+    """Every identifier-shaped token in `text`, as a set."""
+    return set(_WORD.findall(text or ""))
+
+
+_WORD = re.compile(r"[A-Za-z_]\w*")
+
+
+def _decorated(content, def_start):
+    """True when the def starting at `def_start` carries a decorator.
+
+    A decorator can register the function BY ITS NAME - PyMAST's `@label()` makes the
+    function name the label name - so renaming it is not a private change.
+    """
+    before = content[:def_start].rstrip().splitlines()
+    return bool(before) and before[-1].lstrip().startswith("@")
+
+
+def namespace_lint_private_candidates(py_sources, ref_sources=(), lib_words=()):
+    """Public addon functions nothing outside their own file uses - a work list.
+
+    Every public top-level def in an addon `.py` is a MAST global, one flat namespace,
+    last-loaded-wins. One that only its own file calls gains nothing from being public
+    and claims a name for the whole mission; a leading underscore makes it private to
+    its file (MastGlobals.PrivateFileNamespace, 2026-09-22).
+
+    NOT part of namespace_lint_project: a mature mission has hundreds of these, all
+    harmless today, and a rule that fires hundreds of times stops being read. `sbs lint
+    --private` prints it on request.
+
+    Conservative on purpose - skipped rather than flagged:
+    - a name appearing in ANY other source (`.py`, `.mast`, `.amd`, `.yaml`, `.json`)
+      or in the library (`lib_words`) - it may be called or looked up from there;
+    - a name its own file QUOTES (`"x"` / `'x'`) - a by-name lookup, which the underscore
+      would break;
+    - a decorated def - the decorator may register it by name (`@label()`).
+    Still blind to a name BUILT at runtime (`f"admiral_app_{k}_draw"`); check before
+    renaming.
+
+    Args:
+        py_sources: iterable of ``(path, content)`` for addon-imported `.py` helpers.
+        ref_sources: iterable of ``(path, content)`` for everything else in the mission
+            that could name a function (.mast, .amd, .yaml, .json, other .py).
+        lib_words: identifiers used anywhere in the library.
+
+    Returns:
+        list: ``(path, AmdFinding)`` WARNINGs, code ``ns-could-be-private``.
+    """
+    py_sources = list(py_sources)
+    words_by_path = {}
+    for path, content in list(ref_sources) + py_sources:
+        words_by_path.setdefault(path, set()).update(_words(content))
+    seen_in = {}
+    for path, ws in words_by_path.items():
+        for w in ws:
+            seen_in.setdefault(w, set()).add(path)
+    lib = set(lib_words or ())
+
+    findings = []
+    for path, content in py_sources:
+        rows = content.splitlines()
+        for m in _DEF.finditer(content):
+            name = m.group("name")
+            if name in lib or seen_in.get(name, set()) - {path}:
+                continue
+            if ('"' + name + '"') in content or ("'" + name + "'") in content:
+                continue
+            if _decorated(content, m.start()):
+                continue
+            line = content.count("\n", 0, m.start()) + 1
+            if _allowed(rows[line - 1] if line <= len(rows) else "", "ns-could-be-private"):
+                continue
+            findings.append((path, AmdFinding(
+                line, WARNING, "ns-could-be-private",
+                "\"" + name + "\" is only used in this file, but as a public def it is a "
+                "MAST global for the whole mission. Rename it _" + name + " to keep it "
+                "here - unless something builds its name at runtime.")))
+    return findings

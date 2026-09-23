@@ -265,5 +265,41 @@ class TestNamespaceLint(unittest.TestCase):
         self.assertEqual(found[0].line, 5)
 
 
+class TestPrivateCandidates(unittest.TestCase):
+    """`sbs lint --private`: public addon defs nothing outside their file uses."""
+
+    def run_it(self, py, refs=(), lib=()):
+        from sbs_utils.procedural.namespace_lint import namespace_lint_private_candidates
+        return namespace_lint_private_candidates(py, refs, lib)
+
+    def names(self, findings):
+        return sorted(f.message.split('"')[1] for _, f in findings)
+
+    def test_own_file_only_is_flagged(self):
+        py = [("a/a.py", "def clamp01(x):\n    return x\n\ndef a_api():\n    return clamp01(2)\n")]
+        refs = [("a/a.mast", "    v = a_api()\n")]
+        f = self.run_it(py, refs)
+        self.assertEqual(self.names(f), ["clamp01"])
+        self.assertEqual(f[0][1].code, "ns-could-be-private")
+        self.assertEqual(f[0][1].line, 1)
+
+    def test_used_by_another_py_or_the_library_is_not(self):
+        py = [("a/a.py", "def helper():\n    pass\n\ndef lib_used():\n    pass\n"),
+              ("b/b.py", "import a\na.helper()\n")]
+        self.assertEqual(self.names(self.run_it(py, lib={"lib_used"})), [])
+
+    def test_quoted_name_is_a_lookup_not_flagged(self):
+        py = [("a/a.py", "def row_template(i):\n    pass\n\nT = 'row_template'\n")]
+        self.assertEqual(self.run_it(py), [])
+
+    def test_decorated_def_is_not_flagged(self):
+        py = [("a/a.py", "@label()\ndef start_gui():\n    yield\n")]
+        self.assertEqual(self.run_it(py), [])
+
+    def test_underscore_and_allow_are_skipped(self):
+        py = [("a/a.py", "def _x():\n    pass\n\ndef y():  # lint: allow ns-could-be-private\n    pass\n")]
+        self.assertEqual(self.run_it(py), [])
+
+
 if __name__ == "__main__":
     unittest.main()
