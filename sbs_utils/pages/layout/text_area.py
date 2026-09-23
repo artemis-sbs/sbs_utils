@@ -19,7 +19,7 @@ import re
 # and it was a near-miss lookalike of `RE_LINK_REF` (the rule actually applied,
 # below) - exactly the drift this import exists to prevent - so it is gone.
 from ...procedural.amd import (RE_STYLE_DEF, RE_STYLE_REF, RE_LINK_DEF,
-                               RE_LINK_REF, RE_REF_LINK, RE_TABLE_SEP, RE_GAUGE, RE_ICON,
+                               RE_LINK_REF, RE_REF_LINK, RE_TABLE_SEP, RE_GAUGE, RE_ICON, RE_LEAD,
                                RE_BULLET, RE_FOLD_HEADING,
                                amd_parse_url, amd_table_scan, amd_table_rows)
 from .gauge import (gauge_spec_from_url, gauge_height_px, gauge_send, gauge_value_text,
@@ -200,10 +200,10 @@ class TableLine:
                     self.gauges[(ri, c)] = gauge_spec_from_url(
                         m.group("urn"), m.group("label").strip(), self._font(ri))
                     continue
-                m = RE_ICON.match(r[c])
+                m = RE_LEAD.match(r[c])
                 if m is not None:
-                    # An icon one line tall, then the cell's text beside it.
-                    self.icons[(ri, c)] = (m.group("urn"), m.group("text").strip())
+                    # A picture (icon, image, face or ship), then the cell's text beside it.
+                    self.icons[(ri, c)] = (m.group("ns"), m.group("urn"), m.group("text").strip())
                     continue
                 m = RE_REF_LINK.match(r[c])
                 if m is not None and link_map is not None:
@@ -231,8 +231,8 @@ class TableLine:
                     if w > col_px[c]:
                         col_px[c] = w
                 elif (ri, c) in self.icons:
-                    _, itext = self.icons[(ri, c)]
-                    w = self._icon_px(f) + (ICON_GAP_PX + measure_line_width(f, itext) if itext else 0)
+                    ins, iurn, itext = self.icons[(ri, c)]
+                    w = _lead_px(ins, iurn, f) + (ICON_GAP_PX + measure_line_width(f, itext) if itext else 0)
                     if w > col_px[c]:
                         col_px[c] = w
                 elif r[c]:
@@ -271,8 +271,8 @@ class TableLine:
                 if g is not None:
                     bh = gauge_height_px(g)
                 elif (ri, c) in self.icons:
-                    _, itext = self.icons[(ri, c)]
-                    ipx = self._icon_px(f)
+                    ins, iurn, itext = self.icons[(ri, c)]
+                    ipx = _lead_px(ins, iurn, f)
                     tw = int(cw - ipx - ICON_GAP_PX)
                     th = measure_block_height(f, itext, tw) if (itext and tw > 0) else 0
                     bh = max(ipx, th)
@@ -313,15 +313,16 @@ class TableLine:
                     x += col_pct[c] + pad_pct
                     continue
                 if (ri, c) in self.icons:
-                    urn, itext = self.icons[(ri, c)]
-                    iw = (self._icon_px(f) / ar.x) * 100
-                    ih = (self._icon_px(f) / ar.y) * 100
+                    ins, urn, itext = self.icons[(ri, c)]
+                    ipx = _lead_px(ins, urn, f)
+                    iw = (ipx / ar.x) * 100
+                    ih = (ipx / ar.y) * 100
                     ix = x
                     if not itext and a == "c":
                         ix = x + (col_pct[c] - iw) / 2
                     elif not itext and a == "r":
                         ix = x + col_pct[c] - iw
-                    _icon_send(SBS, client_id, region_tag, f"{tag}:r{ri}c{c}:i", urn,
+                    _lead_send(SBS, client_id, region_tag, f"{tag}:r{ri}c{c}:i", ins, urn,
                                ix, y, ix + iw, y + ih, layer)
                     if itext:
                         tx = x + iw + (ICON_GAP_PX / ar.x) * 100
@@ -406,6 +407,49 @@ def _icon_send(SBS, client_id, region_tag, tag, urn, left, top, right, bottom, l
     SBS.send_gui_icon(client_id, region_tag, tag, props, left, top, right, bottom)
 
 
+def _lead_send(SBS, client_id, region_tag, tag, ns, urn, left, top, right, bottom, layer=None):
+    """Draw a lead picture of any kind into a square rect."""
+    if ns == "icon":
+        _icon_send(SBS, client_id, region_tag, tag, urn, left, top, right, bottom, layer)
+        return
+    opts = parse_url(urn)
+    key = (opts.get("url") or "").strip()
+    if not key:
+        return
+    if ns == "image":
+        from ...procedural.gui.image import gui_image_get_atlas, IMAGE_KEEP_ASPECT_CENTER
+        atlas = gui_image_get_atlas(key)
+        if atlas is not None:
+            atlas.send_gui_image(SBS, client_id, region_tag, tag, IMAGE_KEEP_ASPECT_CENTER,
+                                 left, top, right, bottom, opts.get("color"), layer)
+    elif ns == "face":
+        # No draw layer is possible on a face (see FaceLine): in a RAISED container
+        # the backdrop can cover it.
+        SBS.send_gui_face(client_id, region_tag, tag, key, left, top, right, bottom)
+    elif ns == "ship":
+        SBS.send_gui_3dship(client_id, region_tag, tag, f"hull_tag:{key};" + _layer_prop(layer),
+                            left, top, right, bottom)
+
+
+# How many text lines tall a lead picture is by default. A face one line tall is a
+# smudge; a 3D ship needs more again - at two lines the engine drew it as a speck
+# (engine-seen 2026-09-23). `size=` overrides either way.
+LEAD_DEFAULT_LINES = {"icon": 1.0, "image": 1.0, "face": 2.0, "ship": 4.0}
+
+
+def _lead_px(ns, urn, font):
+    lines = to_float(parse_url(urn).get("size"), LEAD_DEFAULT_LINES.get(ns, 1.0))
+    return max(1.0, lines) * (measure_line_height(font, "M") or 20)
+
+
+def _split_scheme(urn):
+    """`image://arrow` -> ("image", "arrow"); a bare `check.on` is an icon."""
+    head, sep, rest = (urn or "").partition("://")
+    if sep and head in ("icon", "image", "face", "ship"):
+        return head, rest
+    return "icon", urn
+
+
 # Gap between an icon and the text beside it, in pixels.
 ICON_GAP_PX = 6
 
@@ -416,7 +460,8 @@ class IconLine:
     Starting a list item with one (`- ![](icon://check.on) Shields up`) makes the icon
     the item's BULLET: it replaces the `-` or number, and wrapped lines stay aligned
     under the text, not under the icon."""
-    def __init__(self, urn, text, style, ar, pixel_width) -> None:
+    def __init__(self, urn, text, style, ar, pixel_width, ns="icon") -> None:
+        self.ns = ns
         self.urn = urn
         self.text = (text or "").replace("`", "").strip()
         self.style = style
@@ -426,7 +471,7 @@ class IconLine:
         self.font = split_props(st, "font").get("font", "gui-2")
         self.indent = (style.get("indent", 0) or 0) if isinstance(style, dict) else 0
         self.indent_px = self.indent * (measure_line_width("gui-2", "X") or 0)
-        self.icon_px = measure_line_height(self.font, "M") or 20
+        self.icon_px = _lead_px(ns, urn, self.font)
         text_w = max(1, pixel_width - self.indent_px - self.icon_px - ICON_GAP_PX)
         text_h = (measure_block_height(self.font, self.text, int(text_w))
                   if self.text else 0)
@@ -437,7 +482,7 @@ class IconLine:
         x = left + (self.indent_px / ar.x) * 100
         icon_w = (self.icon_px / ar.x) * 100
         icon_h = (self.icon_px / ar.y) * 100
-        _icon_send(SBS, client_id, region_tag, f"{tag}:i", self.urn,
+        _lead_send(SBS, client_id, region_tag, f"{tag}:i", self.ns, self.urn,
                    x, top, x + icon_w, top + icon_h, layer)
         if self.text:
             st = self.style.get("style", "font:gui-2;") if isinstance(self.style, dict) else ""
@@ -896,15 +941,18 @@ class TextArea(Control):
 
             # An icon at the start of the line (after any list marker): the icon
             # stands in for the bullet or number, and the text wraps beside it.
-            m_icon = RE_ICON.match(line.strip()) if self.markdown else None
-            icon_urn = icon_text = None
-            if m_icon is not None:
-                icon_urn, icon_text = m_icon.group("urn"), m_icon.group("text")
+            m_lead = RE_LEAD.match(line.strip()) if self.markdown else None
+            if m_lead is not None and m_lead.group("ns") != "icon" and not m_lead.group("text").strip():
+                m_lead = None       # a picture ALONE keeps its full-size block form
+            icon_ns = icon_urn = icon_text = None
+            if m_lead is not None:
+                icon_ns, icon_urn, icon_text = m_lead.group("ns"), m_lead.group("urn"), m_lead.group("text")
             elif list_icon is not None and style_key == "ul":
                 # `[](bullet://..)` declared once for the list: every `-` item gets it.
-                icon_urn, icon_text = list_icon, line
+                icon_ns, icon_urn = _split_scheme(list_icon)
+                icon_text = line
             if icon_urn is not None:
-                il = IconLine(icon_urn, icon_text, style, ar, pixel_width)
+                il = IconLine(icon_urn, icon_text, style, ar, pixel_width, ns=icon_ns)
                 self.lines.append(il)
                 calc_height += il.height
                 continue

@@ -169,6 +169,12 @@ small markdown-like language and **auto-scrolls** when its content overflows.
   on the line above - `[](bullet://check.on?color=#8f8)` - and every `-` item below
   uses it until a blank line (`bullet://none` stops it early; numbered lists keep
   their numbers).
+- **Faces, images and ships lead a line too** — `- ![](face://{face}) Lt Marek`
+  puts a portrait beside the name, which makes a crew roster a few lines of
+  markdown. A face is two text lines tall, a ship four (the engine frames a 3D ship
+  small), an icon or image one; `size=N` sets it. The list-wide form takes the same
+  kinds: `[](bullet://image://arrow)`. A picture with **no** text after it is still
+  drawn full size, as before.
 - **Collapsible sections** — write a heading as `##+ Weapons` (starts closed) or
   `##- Hull` (starts open). A click on the heading folds or unfolds everything down
   to the next heading at the same or a higher level - tables, lists and

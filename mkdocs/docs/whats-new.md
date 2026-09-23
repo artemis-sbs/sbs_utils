@@ -1466,7 +1466,9 @@ HUD — that update **without repainting the page underneath**.
     - **Icons** — `![](icon://wanted) Bounty posted` puts an icon at the start of a
       line or a table cell, and at the start of a list item **the icon is the
       bullet**: a checklist of ticks and crosses is just `- ![](icon://check.on) Done`,
-      or declare `[](bullet://check.on)` once and the whole list follows.
+      or declare `[](bullet://check.on)` once and the whole list follows. A **face**,
+      image or ship can lead a line the same way, so a crew roster with a portrait
+      beside every name is just `- ![](face://...) Lt Marek - injured`.
     - **Sections that fold** — `##+ Weapons` is a heading you click to open; `##- Hull`
       starts open. A long damage report or codex entry shows its headings first and
       opens what the reader asks for.

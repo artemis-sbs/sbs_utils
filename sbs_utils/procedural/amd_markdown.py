@@ -537,8 +537,12 @@ def _inline_marks(raw):
     The game draws `![](icon://check.on)` as a glyph and `[WEAP](gauge://0.4?max=1)`
     as a bar; on a page they would otherwise print as raw markup. An icon becomes
     `[check.on]`, a gauge `WEAP 0.4/1`."""
-    from .amd import RE_ICON_ANY, RE_GAUGE_ANY, amd_parse_url
-    raw = RE_ICON_ANY.sub(lambda m: f"[{amd_parse_url(m.group('urn')).get('url', '')}]", raw)
+    from .amd import RE_LEAD_ANY, RE_GAUGE_ANY, amd_parse_url
+
+    def lead(m):
+        ns, key = m.group("ns"), amd_parse_url(m.group("urn")).get("url", "")
+        return f"[{key}]" if ns == "icon" else ("[face]" if ns == "face" else f"[{ns}: {key}]")
+    raw = RE_LEAD_ANY.sub(lead, raw)
 
     def gauge(m):
         opts = amd_parse_url(m.group("urn"))

@@ -76,6 +76,56 @@ class TestIconLine(_Base):
         self.assertFalse(ta.simple_text)
 
 
+class TestLeadPictures(_Base):
+    """Faces, images and ships lead a line the same way an icon does."""
+    FACE = "ter #ffffff 1 2"
+
+    def _draw(self, line):
+        rec = _Rec()
+        line.send_gui(rec, 0, "r", "x", 0, 0, 40, 10)
+        return rec.calls
+
+    def test_face_with_text_is_a_lead_line(self):
+        ta = self._calc(f"![](face://{self.FACE}) Admiral Harkin\nnext")
+        lead = [ln for ln in ta.lines if isinstance(ln, IconLine)][0]
+        self.assertEqual((lead.ns, lead.text), ("face", "Admiral Harkin"))
+        calls = self._draw(lead)
+        self.assertEqual([n for n, _ in calls], ["send_gui_face", "send_gui_text"])
+        self.assertEqual(calls[0][1][3], self.FACE)
+
+    def test_face_is_two_lines_and_ship_four(self):
+        ta = self._calc(f"![](face://{self.FACE}) A\n![](icon://137) B\n[](ship://tsn_battle_cruiser) C")
+        face, icon, ship = [ln for ln in ta.lines if isinstance(ln, IconLine)]
+        self.assertAlmostEqual(face.icon_px, 2 * icon.icon_px)
+        self.assertAlmostEqual(ship.icon_px, 4 * icon.icon_px)
+        self.assertEqual([n for n, _ in self._draw(ship)][0], "send_gui_3dship")
+
+    def test_size_option(self):
+        ta = self._calc("![](icon://137?size=3) Big\n![](icon://137) Small")
+        big, small = [ln for ln in ta.lines if isinstance(ln, IconLine)]
+        self.assertAlmostEqual(big.icon_px, 3 * small.icon_px)
+
+    def test_a_picture_alone_keeps_its_block_form(self):
+        from sbs_utils.pages.layout.text_area import FaceLine
+        ta = self._calc(f"![](face://{self.FACE})\nnext")
+        self.assertTrue(any(isinstance(ln, FaceLine) for ln in ta.lines))
+        self.assertFalse(any(isinstance(ln, IconLine) for ln in ta.lines))
+
+    def test_list_bullet_of_another_kind(self):
+        ta = self._calc(f"[](bullet://face://{self.FACE})\n- Harkin\n- Vex")
+        leads = [ln for ln in ta.lines if isinstance(ln, IconLine)]
+        self.assertEqual([(l.ns, l.urn, l.text) for l in leads],
+                         [("face", self.FACE, "Harkin"), ("face", self.FACE, "Vex")])
+
+    def test_face_in_a_cell(self):
+        md = f"| Who | Post |\n|:--|:--|\n| ![](face://{self.FACE}) Harkin | Admiral |"
+        t = [ln for ln in self._calc(md).lines if isinstance(ln, TableLine)][0]
+        self.assertEqual(t.icons[(1, 0)][0], "face")
+        rec = _Rec()
+        t.send_gui(rec, 0, "r", "tb", 0, 0, 40, 20)
+        self.assertTrue(any(n == "send_gui_face" for n, _ in rec.calls))
+
+
 class TestTableCells(_Base):
     def test_icon_cells(self):
         md = ("| Station | Crew |\n|:--|:--:|\n"

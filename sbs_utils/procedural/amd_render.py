@@ -65,12 +65,13 @@ def esc_marks(text):
     For list items, table cells and prose - the places the game draws
     `![](icon://name)` as a glyph and `[Label](gauge://v?max=m)` as a bar. Escaping
     first means only the markup this function writes can be HTML."""
-    from sbs_utils.procedural.amd import RE_ICON_ANY, RE_GAUGE_ANY, amd_parse_url
+    from sbs_utils.procedural.amd import RE_LEAD_ANY, RE_GAUGE_ANY, amd_parse_url
     out = esc(text)
 
     def icon(m):
-        name = amd_parse_url(m.group("urn")).get("url", "")
-        return f'<span class="icon" title="{name}">[{name}]</span>'
+        ns, name = m.group("ns"), amd_parse_url(m.group("urn")).get("url", "")
+        shown = name if ns == "icon" else ("face" if ns == "face" else f"{ns}: {name}")
+        return f'<span class="{ns}" title="{name}">[{shown}]</span>'
 
     def gauge(m):
         opts = amd_parse_url(m.group("urn"))
@@ -78,7 +79,7 @@ def esc_marks(text):
         label = m.group("label").strip()
         lab = f'<span class="gauge-label">{label}</span> ' if label else ""
         return f'<span class="gauge">{lab}<meter value="{val}" min="0" max="{mx}">{val} / {mx}</meter></span>'
-    return RE_GAUGE_ANY.sub(gauge, RE_ICON_ANY.sub(icon, out))
+    return RE_GAUGE_ANY.sub(gauge, RE_LEAD_ANY.sub(icon, out))
 
 
 def slug(text):

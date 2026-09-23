@@ -360,6 +360,15 @@ RE_GAUGE_ANY = re.compile(r"!?\[(?P<label>[^\]]*)\]\(gauge://(?P<urn>[^)]*)\)")
 RE_ICON = re.compile(r"^!?\[(?P<alt>[^\]]*)\]\(icon://(?P<urn>[^)]*)\)[ \t]*(?P<text>.*)$")
 RE_ICON_ANY = re.compile(r"!?\[(?P<alt>[^\]]*)\]\(icon://(?P<urn>[^)]*)\)")
 
+# The general form: a LEAD picture - an icon, an image, a face or a ship - at the start
+# of a line or cell, with text beside it. `size=N` is its height in text lines. A
+# picture ALONE on a line (no text) is still the full-size block it always was, except
+# `icon://`, which has no block form.
+LEAD_SCHEMES = ("icon", "image", "face", "ship")
+RE_LEAD = re.compile(r"^!?\[(?P<alt>[^\]]*)\]\((?P<ns>icon|image|face|ship)://(?P<urn>[^)]*)\)"
+                     r"[ \t]*(?P<text>.*)$")
+RE_LEAD_ANY = re.compile(r"!?\[(?P<alt>[^\]]*)\]\((?P<ns>icon|image|face|ship)://(?P<urn>[^)]*)\)")
+
 # `[](bullet://check.on?color=#8f8)` on its own line: every `-` item of the list that
 # follows uses that icon as its bullet, until a blank line. `bullet://none` stops it.
 RE_BULLET = re.compile(r"^!?\[[^\]]*\]\(bullet://(?P<urn>[^)]*)\)[ \t\r]*$")
