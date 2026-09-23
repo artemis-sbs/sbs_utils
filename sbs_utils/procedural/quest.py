@@ -1297,15 +1297,12 @@ def quest_log_parent_summary(row):
         if st == int(QuestState.SECRET) or _quest_show(kid) == "never":
             hidden = True
             continue
-        if st == int(QuestState.COMPLETE):
-            mark = "[x]"
-        elif st == int(QuestState.FAILED):
-            mark = "[!]"
-        elif st == int(QuestState.ACTIVE):
-            mark = "[>]"
-        else:
-            mark = "[ ]"
-        lines.append(mark + " " + str(kid.get("display_text", cid)))
+        # Each step is a list item whose ICON is its bullet - the shape says done /
+        # failed / under way / not yet, in the same colors as the log's own pips. It
+        # used to be `[x]` / `[!]` / `[>]` / `[ ]` typed into the text.
+        icon = _QUEST_STEP_ICON.get(st, "check.off")
+        lines.append(f"- ![](icon://{icon}?color={quest_log_state_icon_color(st)}) "
+                     + _pane_safe(kid.get("display_text", cid)))
     if not lines and not hidden:
         return out
     if hidden:
@@ -1314,6 +1311,59 @@ def quest_log_parent_summary(row):
     if out:
         return out + chr(10) + chr(10) + steps
     return steps
+
+
+#: The bullet a step of an arc wears, by state. Colored by quest_log_state_icon_color.
+_QUEST_STEP_ICON = {
+    int(QuestState.COMPLETE): "check.on",
+    int(QuestState.FAILED): "ban",
+    int(QuestState.ACTIVE): "list.next",
+}
+
+
+def _pane_safe(text):
+    """Authored text going into a CELL or a list item of the pane: a `|` would split
+    the table, and a newline would end the item."""
+    return str(text if text is not None else "").replace("|", "/").replace(chr(10), " ").strip()
+
+
+def quest_log_pane_text(row):
+    """The detail pane for a selected quest, as text-area markdown.
+
+    An ARC (a header row) is `quest_log_parent_summary` - its description and a step
+    checklist. A single quest gets the facts first, where they are read at a glance:
+
+    * how far along, as a GAUGE, when the quest counts something (`3 / 5`);
+    * a small grid - its state (the log's own pip: shape by kind, color by state, and the
+      word), what it pays, how long is left - listing only what the quest actually has;
+    * then its description, exactly as authored.
+
+    Returns "" for a row that is not a quest.
+    """
+    if row is None or not hasattr(row, "get"):
+        return ""
+    if gui_list_box_is_header(row):
+        return quest_log_parent_summary(row)
+    if row.get("key") is None:
+        return ""
+    desc = (row.get("desc") or "").strip()
+    state = int(row.get("state") or 0)
+    lines = []
+    need = row.get("need") or 0
+    if need:
+        done = min(int(row.get("progress") or 0), int(need))
+        lines.append(f"[Progress](gauge://{done}?max={int(need)}&show=frac)")
+    facts = [("State", f"![](icon://{quest_log_icon(row)}?color={quest_log_state_icon_color(state)}) "
+              + _pane_safe(row.get("state_label") or quest_log_state_label(state)))]
+    if row.get("reward"):
+        facts.append(("Reward", _pane_safe(row.get("reward"))))
+    if row.get("remaining"):
+        facts.append(("Time left", _pane_safe(row.get("remaining"))))
+    # A header-less grid: the empty first row says "no header", the second aligns.
+    lines += ["| | |", "|:--|:--|"] + [f"| {k} | {v} |" for k, v in facts]
+    if desc:
+        lines += ["", desc]
+    return chr(10).join(lines)
 
 
 _QUEST_LOG_MAX_DEPTH = 5

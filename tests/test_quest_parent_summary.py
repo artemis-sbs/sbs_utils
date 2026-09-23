@@ -44,12 +44,14 @@ class ParentSummaryTests(unittest.TestCase):
     def test_parent_description_is_shown(self):
         self.assertIn("Recover the derelict.", quest_log_parent_summary(self._row()))
 
-    def test_steps_are_listed_with_state_marks(self):
+    def test_steps_are_listed_with_state_icons(self):
+        """Each step's bullet is an icon: done / under way / failed / not yet."""
         self._step("hail", "Hail the Derelict", QuestState.COMPLETE)
         self._step("scan", "Scan the Hull", QuestState.ACTIVE)
         out = quest_log_parent_summary(self._row())
-        self.assertIn("[x] Hail the Derelict", out)
-        self.assertIn("[>] Scan the Hull", out)
+        self.assertRegex(out, r"- !\[\]\(icon://check\.on\?color=[^)]*\) Hail the Derelict")
+        self.assertRegex(out, r"- !\[\]\(icon://list\.next\?color=[^)]*\) Scan the Hull")
+        self.assertNotIn("[x]", out)
 
     def test_secret_steps_are_not_listed(self):
         self._step("hail", "Hail the Derelict", QuestState.COMPLETE)
@@ -75,4 +77,77 @@ class ParentSummaryTests(unittest.TestCase):
 
     def test_failed_step_is_marked(self):
         self._step("hail", "Hail the Derelict", QuestState.FAILED)
-        self.assertIn("[!] Hail the Derelict", quest_log_parent_summary(self._row()))
+        self.assertRegex(quest_log_parent_summary(self._row()),
+                         r"icon://ban\?color=[^)]*\) Hail the Derelict")
+
+    def test_the_checklist_draws_as_icon_bullets(self):
+        """Parsed the way the pane parses it: one IconLine per visible step."""
+        from sbs_utils.helpers import FrameContext, Context, FakeEvent
+        from sbs_utils.pages.layout.text_area import TextArea, IconLine
+        from sbs_utils.pages.layout.layout import Bounds
+        FrameContext.context = Context(sbs.sim, sbs, FakeEvent())
+        self._step("hail", "Hail the Derelict", QuestState.COMPLETE)
+        self._step("scan", "Scan the Hull", QuestState.IDLE)
+        ta = TextArea("t", quest_log_parent_summary(self._row()))
+        ta.bounds = Bounds(0, 0, 40, 80)
+        ta.calc_rich(0)
+        steps = [ln for ln in ta.lines if isinstance(ln, IconLine)]
+        self.assertEqual([s.text for s in steps], ["Hail the Derelict", "Scan the Hull"])
+        self.assertEqual(steps[1].urn.split("?")[0], "check.off")
+
+
+class PaneTextTests(unittest.TestCase):
+    """quest_log_pane_text: a single quest's facts first, then its story."""
+
+    def setUp(self):
+        from sbs_utils.helpers import FrameContext, Context, FakeEvent
+        reset_mock(sbs)
+        FrameContext.context = Context(sbs.sim, sbs, FakeEvent())
+
+    def _parse(self, text):
+        from sbs_utils.pages.layout.text_area import TextArea
+        from sbs_utils.pages.layout.layout import Bounds
+        ta = TextArea("t", text)
+        ta.bounds = Bounds(0, 0, 40, 80)
+        ta.calc_rich(0)
+        return ta
+
+    def _row(self, **kw):
+        base = {"agent_id": 1, "key": "job1", "state": int(QuestState.ACTIVE),
+                "state_label": "Active", "desc": "Salvage the wreck.", "kind": "job"}
+        base.update(kw)
+        return MastDataObject(base)
+
+    def test_progress_is_a_gauge_and_facts_a_grid(self):
+        from sbs_utils.procedural.quest import quest_log_pane_text
+        from sbs_utils.pages.layout.text_area import GaugeLine, TableLine, TextLine
+        text = quest_log_pane_text(self._row(need=5, progress=3, reward="120 credits",
+                                             remaining="4:30"))
+        ta = self._parse(text)
+        gauge = [ln for ln in ta.lines if isinstance(ln, GaugeLine)][0]
+        self.assertEqual((gauge.spec["value"], gauge.spec["max"], gauge.spec["show"]),
+                         (3.0, 5.0, "frac"))
+        grid = [ln for ln in ta.lines if isinstance(ln, TableLine)][0]
+        self.assertFalse(grid.has_header)
+        self.assertEqual([r[0] for r in grid.rows], ["State", "Reward", "Time left"])
+        self.assertIn((0, 1), grid.icons)                     # the state pip
+        self.assertTrue(any(isinstance(ln, TextLine) and "Salvage" in ln.text for ln in ta.lines))
+
+    def test_only_what_the_quest_has(self):
+        from sbs_utils.procedural.quest import quest_log_pane_text
+        text = quest_log_pane_text(self._row())
+        self.assertNotIn("gauge://", text)
+        self.assertNotIn("Reward", text)
+        self.assertNotIn("Time left", text)
+
+    def test_a_pipe_in_authored_text_cannot_split_the_grid(self):
+        from sbs_utils.procedural.quest import quest_log_pane_text
+        from sbs_utils.pages.layout.text_area import TableLine
+        ta = self._parse(quest_log_pane_text(self._row(reward="10 | 20 credits")))
+        grid = [ln for ln in ta.lines if isinstance(ln, TableLine)][0]
+        self.assertEqual(grid.ncols, 2)
+
+    def test_not_a_quest(self):
+        from sbs_utils.procedural.quest import quest_log_pane_text
+        self.assertEqual(quest_log_pane_text(None), "")
+        self.assertEqual(quest_log_pane_text(MastDataObject({"agent_id": 1})), "")
