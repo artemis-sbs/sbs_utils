@@ -1255,7 +1255,9 @@ def _scan_app(client_id):
     host = boarding_my_host(client_id)
     room = boarding_room_at(host, at[0], at[1], boarding_room_roles())
     if room is not None:
-        lines = ["## %s" % boarding_room_name(room.name), _condition(room)]
+        # A BLANK line after the heading: its style carries onto the next line until
+        # one, so the condition word came out heading-sized (engine-seen).
+        lines = ["## %s" % boarding_room_name(room.name), "", _condition(room)]
     else:
         lines = ["## A corridor", "Nothing here but the way through."]
     gui_row("row-height: 1fr;")

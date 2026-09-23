@@ -49,6 +49,23 @@ class TestScanReadout(unittest.TestCase):
         self.assertEqual(gauge_color(gauge.spec), "#40E0E0")
         self.assertEqual(pip.text, "Tuned")
 
+    def test_the_condition_word_is_not_heading_sized(self):
+        """`## Room` then the pip line: without a blank line between them the pip line
+        inherits the heading's font (engine-seen). The pip line must use body text."""
+        from sbs_utils.helpers import split_props
+        with mock.patch.object(D, "grid_node_state", return_value="nominal"), \
+             mock.patch.object(D, "grid_node_wear", return_value=0.25):
+            text = "\n".join(["## arrival", "", X._condition(object())])
+        ta = TextArea("t", text)
+        ta.bounds = Bounds(0, 0, 40, 60)
+        ta.calc_rich(0)
+        pip = [ln for ln in ta.lines if isinstance(ln, IconLine)][0]
+        self.assertEqual(pip.font, "gui-2")
+
+    def test_the_scan_app_puts_a_blank_line_after_the_heading(self):
+        import inspect
+        self.assertIn('boarding_room_name(room.name), "", _condition(room)', inspect.getsource(X._scan_app))
+
     def test_no_reading(self):
         with mock.patch.object(D, "grid_node_state", side_effect=RuntimeError):
             self.assertEqual(X._condition(object()), "No condition reading.")
