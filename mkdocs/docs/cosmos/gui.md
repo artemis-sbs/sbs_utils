@@ -121,6 +121,7 @@ engineering console's *tuned* cyan.
 | `show=` | `value` (default with a label), `frac` ("45 / 120"), `pct`, or `none` (default without a label - a bare bar) |
 | `warn=` / `crit=` | where the bar turns yellow / red, as fractions (default 0.5 / 0.25) |
 | `color=` | a fixed bar color, ignoring the thresholds |
+| `invert=` | more is WORSE (wear, heat, damage): green while low, yellow then red as it climbs, and red rather than cyan past max. In markup: `gauge://0.7?max=1&invert=1` |
 
 A value outside `0..max` clamps the **bar**, never the number: `-45 / 8` shows an
 empty bar and says -45. Keep the handle and set `.value` - only the gauge repaints.

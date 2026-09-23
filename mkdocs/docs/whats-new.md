@@ -27,6 +27,7 @@ tools, and finally the library changes. Links go to the relevant docs.
 | **[New faces](#new-faces)** | Every portrait in the game redrawn - faces that frown, glare, blink and talk, skin in any color you like, and a Randomize button. |
 | **[The console picker](#console-picker)** | The first screen of the night now tells you who you are about to be. |
 | **[Beacons & the Fabricator](#beacons)** | Engineering builds ordnance over a timer and hands it to the tube. The coordination is the gameplay. |
+| **[Readouts at a glance](#glance)** | Efficiency, shields, quest progress and what a build still needs are drawn as bars, the way the engine's own panels are - and Help pages link to each other. |
 | **[Write the mission, don't program it](#amd)** | Quests, dialogue, drops, markers and whole missions as readable AMD documents. |
 | **[The Casino](#casino)** | Eight games, a bar with rumors, and a grey market for anyone the regulars come to trust. |
 | **[The Director](#director)** | Cut your stream like a broadcast: rundowns, preview and program, titles that write themselves. |
@@ -903,6 +904,34 @@ state *is* the news.
 Quests written before kinds existed still render; they just say less. And because every
 glyph is asked for by name, a mission that ships its own icon sheet re-skins the whole
 log without touching a line of it.
+
+---
+
+#### 📊 Readouts you can read at a glance { #glance }
+
+Numbers that were really *levels* are now drawn as levels: a label, the value, and a bar
+under both, in the same look as the engine's own ship-status panel.
+
+- **Engineering's Efficiency** is eight bars, in the grid's own colors - cyan when a
+  system is tuned above 100, green, gold, then crimson - so the system that is hurting is
+  the short red one, not the fifth number down.
+- **Science** (the new Science console) shows shields as bars that still say the number
+  you read out loud, the enemy's four systems as a two-by-two block of bars, and each
+  shield frequency as its own bar - with the weakest still called **WEAK** in words.
+- **Quests.** Pick one and its facts come first: how far along as a bar, its state, what
+  it pays, how long is left - then the story. A story arc's steps are ticked, crossed or
+  marked in progress, and steps the story has not revealed still stay hidden.
+- **Help links to itself.** "Ask Engineering" now *goes* to Engineering: follow a link in
+  a Help page and the page and the topic list both move there.
+- **Fabricate says why you can't build.** Each material shows what you have against what
+  the recipe needs - red when you are short - and a running build has a progress bar.
+- **An upgrade's effect drains** as a bar while it lasts, labelled with the time left.
+- **The handheld's Scan** reads a room's condition as a colored pip and its wear as a bar,
+  and the same reading lands in the Survey log. **Crew** shows the face of whoever you
+  pick, and the "On the surface" list puts a face beside every name.
+
+Mission writers get all of this in their own text: see [Gauges](cosmos/gui.md#gauges) and
+[Rich text areas](cosmos/gui.md#rich-text-areas).
 
 ---
 
