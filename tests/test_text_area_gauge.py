@@ -34,6 +34,16 @@ class TestGaugeSpec(unittest.TestCase):
         self.assertEqual(gauge_color(gauge_spec(12, 120)), COLOR_CRIT)   # 0.1
         self.assertEqual(gauge_color(gauge_spec(12, 120, color="#fff")), "#fff")
 
+    def test_over_max_is_the_tuned_cyan(self):
+        from sbs_utils.pages.layout.gauge import COLOR_OVER
+        from sbs_utils.procedural.grid import GRID_TUNED_COLOR
+        self.assertEqual(COLOR_OVER, GRID_TUNED_COLOR)        # one color, two places
+        self.assertEqual(gauge_color(gauge_spec(110, 100)), COLOR_OVER)
+        self.assertEqual(gauge_fraction(gauge_spec(110, 100)), 1.0)
+        self.assertEqual(gauge_color(gauge_spec(100, 100)), COLOR_OK)   # AT max is green
+        self.assertEqual(gauge_color(gauge_spec(110, 100, color="#fff")), "#fff")
+        self.assertEqual(gauge_value_text(gauge_spec(120, 100, show="pct")), "120%")
+
     def test_out_of_range_clamps_bar_not_number(self):
         s = gauge_spec(-45, 8, "Homing", show="frac")
         self.assertEqual(gauge_fraction(s), 0.0)

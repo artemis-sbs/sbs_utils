@@ -13,6 +13,9 @@ ONE drawer, two hosts:
 * `gui_gauge` (`Gauge` below) is a layout widget that repaints only itself through
   the dirty system - the host for a value that changes every tick.
 
+Above max the bar is full and turns the engineering console's TUNED cyan, and
+the number (value, frac or pct - "120%") is the real one, not the clamped one.
+
 The fill and the track are drawn SIDE BY SIDE, never stacked: the engine's order
 between two images on the same layer is not something to rely on, and rects that
 do not overlap have no order to get wrong.
@@ -30,6 +33,10 @@ COLOR_OK = "#2c2"
 COLOR_WARN = "#e80"
 COLOR_CRIT = "#e22"
 COLOR_TRACK = "#333"
+# Over max - the engineering console's TUNED cyan (procedural.grid.GRID_TUNED_COLOR),
+# so a boosted system reads the same on a gauge as on the grid. Copied rather than
+# imported to keep layout free of the procedural grid module; a test pins them equal.
+COLOR_OVER = "#40E0E0"
 
 DEFAULT_WARN = 0.5
 DEFAULT_CRIT = 0.25
@@ -88,6 +95,8 @@ def gauge_fraction(spec):
 def gauge_color(spec):
     if spec["color"]:
         return spec["color"]
+    if spec["max"] > 0 and spec["value"] > spec["max"]:
+        return COLOR_OVER
     f = gauge_fraction(spec)
     if f < spec["crit"]:
         return COLOR_CRIT
@@ -103,7 +112,9 @@ def gauge_value_text(spec):
     if show == "frac":
         return f"{_fmt(spec['value'])} / {_fmt(spec['max'])}"
     if show == "pct":
-        return f"{int(round(gauge_fraction(spec) * 100))}%"
+        # The RAW ratio, not the clamped bar: a boosted system reads "120%".
+        m = spec["max"]
+        return f"{int(round(spec['value'] / m * 100)) if m > 0 else 0}%"
     return ""
 
 

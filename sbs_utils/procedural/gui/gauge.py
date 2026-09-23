@@ -14,7 +14,8 @@ def gui_gauge(value, max=100, label="", style=None, show=None, warn=None,
 
     Args:
         value (float): Current value. Out-of-range values clamp the bar, and the
-            number shown is still the raw value.
+            number shown is still the raw value. Above max the bar is full and
+            cyan, the engineering console's TUNED color.
         max (float, optional): Full-scale value. Defaults to 100.
         label (str, optional): Text on the left. Defaults to "" (bar only).
         style (str, optional): Style overrides (e.g. ``font:gui-3;``).
