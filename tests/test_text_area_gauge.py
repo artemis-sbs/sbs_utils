@@ -90,11 +90,14 @@ class TestGaugeDraw(unittest.TestCase):
         self.assertTrue(any("FRNT SHLD" in t and "justify:left" in t for t in texts))
         self.assertTrue(any("45" in t and "justify:right" in t for t in texts))
 
-    def test_full_bar_sends_no_track(self):
-        rec = _Rec()
-        gauge_send(rec, 0, "r", "g", 0, 0, 50, 4, gauge_spec(8, 8), self.ar)
-        tags = [a[2] for n, a in rec.calls]
-        self.assertEqual(tags, ["g:f"])                       # bare bar, full: one rect
+    def test_both_rects_are_sent_even_at_zero_width(self):
+        """A self-updating gauge re-sends out of band, where the engine only updates
+        widgets that were in the build - so an empty fill must still be SENT at build
+        time, or it can never appear (engine-seen: a build bar that never filled)."""
+        for value in (0, 8):                                   # empty, and full
+            rec = _Rec()
+            gauge_send(rec, 0, "r", "g", 0, 0, 50, 4, gauge_spec(value, 8), self.ar)
+            self.assertEqual(sorted(a[2] for n, a in rec.calls), ["g:f", "g:t"])
 
 
 class TestGaugeWidgetDirty(unittest.TestCase):

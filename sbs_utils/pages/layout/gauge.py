@@ -177,14 +177,17 @@ def gauge_send(SBS, client_id, region_tag, tag, left, top, right, bottom, spec,
     # Images default under text (1000 vs the engine's 1001), as HrLine does.
     img_layer = 1000 if layer is None else int(layer)
     split = left + (right - left) * gauge_fraction(spec)
-    if split > left:
-        SBS.send_gui_image(client_id, region_tag, f"{tag}:f",
-                           f"image:smallwhite;color:{gauge_color(spec)};draw_layer:{img_layer};",
-                           left, bar_top, split, bottom)
-    if split < right:
-        SBS.send_gui_image(client_id, region_tag, f"{tag}:t",
-                           f"image:smallwhite;color:{COLOR_TRACK};draw_layer:{img_layer};",
-                           split, bar_top, right, bottom)
+    # BOTH RECTS, ALWAYS - a zero-width one included. A gauge that updates itself (a
+    # countdown) re-sends out of band, and out of band the engine only UPDATES widgets
+    # that were in the build; it does not add new ones. So a build bar drawn at 0 with
+    # no fill never grew one: the track shrank and the bar stayed empty (engine-seen
+    # 2026-09-23). Sending the empty rect at build time is what lets it grow later.
+    SBS.send_gui_image(client_id, region_tag, f"{tag}:f",
+                       f"image:smallwhite;color:{gauge_color(spec)};draw_layer:{img_layer};",
+                       left, bar_top, split, bottom)
+    SBS.send_gui_image(client_id, region_tag, f"{tag}:t",
+                       f"image:smallwhite;color:{COLOR_TRACK};draw_layer:{img_layer};",
+                       split, bar_top, right, bottom)
 
 
 class Gauge(Column):
