@@ -52,8 +52,13 @@ def gui_text_area(props, style=None, markdown=True, line_styles=None, on_link=No
                   link_resolver=None):
     """Add a rich text area to the current GUI layout.
 
-    Supports Markdown-style formatting and inline image references
-    (``![](image://key)``). Use for multi-line or formatted text blocks.
+    Supports Markdown-style formatting: headings (``##+``/``##-`` fold), lists,
+    pipe tables, gauges (``[Energy](gauge://946?max=1000)``), links
+    (``[Text](ref://key)``) and pictures. A picture ALONE on its line
+    (``![](image://key?scale=0.5)``, ``face://``, ``ship://``) is drawn full size;
+    followed by text it LEADS the line - a square ``size=N`` text lines tall with
+    the text beside it, and at the start of a ``-`` item it is the bullet. Use for
+    multi-line or formatted text blocks.
 
     Args:
         props (str): Text content or Markdown string. Supports ``{var}``
@@ -83,7 +88,8 @@ def gui_text_area(props, style=None, markdown=True, line_styles=None, on_link=No
 
     Example:
         gui_text_area("## Status\\nAll systems nominal.")
-        gui_text_area("![](image://logo?scale=0.5) Mission active")
+        gui_text_area("![](image://logo?scale=0.5)")
+        gui_text_area("![](icon://check.on?color=#8f8) Mission active")
         gui_text_area(source, markdown=False, line_styles=per_line_keys)
     """
     page = FrameContext.page

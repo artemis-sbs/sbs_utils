@@ -242,6 +242,15 @@ Authoritative parser + built-in styles: `pages/layout/text_area.py`.
   `[](face://FACESTRING?height=50&align=..)`,
   `[](style://font:gui-4;color:#8cf;background:#123)` (inline style switch).
   Define once / reference later: `[name]: image://KEY` … then `[name]`.
+  **ALONE on its line, a picture is a full-size block** (`scale`/`height`/`align` apply).
+  **Followed by TEXT, it is a LEAD picture**: a square `size=N` text lines tall (icon/image
+  1, face 2, ship 4) with the text wrapped beside it - `scale` does not apply. At the
+  start of a `-` item it IS the bullet; `[](bullet://NAME)` / `bullet://face://..` sets
+  one for the whole list until a blank line. `icon://NAME|INDEX` is lead-only.
+- **Gauges** `[Energy](gauge://946?max=1000&show=frac)` (line or table cell); a table
+  with an empty first row `| | |` has no header (a grid). **Links** `[Text](ref://key)`
+  as a line or a cell + `gui_text_area(..., link_resolver=fn|dict, on_link=fn)`.
+  **Folding** `##+ Title` (closed) / `##- Title` (open). Reference: `cosmos/gui.md`.
 - **Custom / per-line styles:** built-in keys `t h1 h2 h3 p1 ul ol _`(default), each
   with font/color/prepend/indent/height. New styles via `=$name font:..;color:..` or
   `[name]: style://font:..;`; per-line override `$stylekey text…` or `$$font:..; text…`.
@@ -257,7 +266,8 @@ Authoritative parser + built-in styles: `pages/layout/text_area.py`.
 
 ```
 gui_text_area("## Status\nAll systems nominal.\n- shields up\n- 1 contact")
-gui_text_area("![](image://logo?scale=0.5) Mission active")
+gui_text_area("![](image://logo?scale=0.5)")                 # alone: the image, half size
+gui_text_area("![](icon://check.on?color=#8f8) Mission active")  # lead: icon beside the text
 ```
 
 ### Showing SOURCE, code or raw log text — turn the markdown OFF
