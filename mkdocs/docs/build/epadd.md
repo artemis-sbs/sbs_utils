@@ -225,8 +225,8 @@ message_mail("Made it to the outer colonies. Mum sends her love.",
 **A letter wears its sender's face.** Pass `face=` with a face string, or leave it out:
 when a lifeform exists with the sender's name (`lifeform_spawn("Admiral Harkin", ...)`),
 its face is used. The face is kept on the message, so it still shows after that
-character has left the story. The reading pane then leads with the face beside
-"From <name>"; a message with no face reads exactly as before.
+character has left the story. The reading pane then opens the body with that face,
+under the usual "From <name>" line; a message with no face reads exactly as before.
 
 **Addressed to a console, not to a person.** A console is what the PADD knows, what a
 client is sitting at, and what survives a player disconnecting and coming back; a crew
