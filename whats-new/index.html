@@ -962,6 +962,17 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#glance" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        📊 Readouts you can read at a glance
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#quests-stories" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -11436,6 +11447,17 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#glance" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        📊 Readouts you can read at a glance
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#quests-stories" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -12042,6 +12064,10 @@ tools, and finally the library changes. Links go to the relevant docs.</p>
 <tr>
 <td><strong><a href="#beacons">Beacons &amp; the Fabricator</a></strong></td>
 <td>Engineering builds ordnance over a timer and hands it to the tube. The coordination is the gameplay.</td>
+</tr>
+<tr>
+<td><strong><a href="#glance">Readouts at a glance</a></strong></td>
+<td>Efficiency, shields, quest progress and what a build still needs are drawn as bars, the way the engine's own panels are - and Help pages link to each other.</td>
 </tr>
 <tr>
 <td><strong><a href="#amd">Write the mission, don't program it</a></strong></td>
@@ -12862,6 +12888,34 @@ state <em>is</em> the news.</p>
 glyph is asked for by name, a mission that ships its own icon sheet re-skins the whole
 log without touching a line of it.</p>
 <hr />
+<h4 id="glance">📊 Readouts you can read at a glance</h4>
+<p>Numbers that were really <em>levels</em> are now drawn as levels: a label, the value, and a bar
+under both, in the same look as the engine's own ship-status panel.</p>
+<ul>
+<li><strong>Engineering's Efficiency</strong> is eight bars, in the grid's own colors - cyan when a
+  system is tuned above 100, green, gold, then crimson - so the system that is hurting is
+  the short red one, not the fifth number down.</li>
+<li><strong>Science</strong> (the new Science console) shows shields as bars that still say the number
+  you read out loud, the enemy's four systems as a two-by-two block of bars, and each
+  shield frequency as its own bar - with the weakest still called <strong>WEAK</strong> in words.</li>
+<li><strong>Quests.</strong> Pick one and its facts come first: how far along as a bar, its state, what
+  it pays, how long is left - then the story. A story arc's steps are ticked, crossed or
+  marked in progress, and steps the story has not revealed still stay hidden.</li>
+<li><strong>Help links to itself.</strong> "Ask Engineering" now <em>goes</em> to Engineering: follow a link in
+  a Help page and the page and the topic list both move there.</li>
+<li><strong>Fabricate says why you can't build.</strong> Each material shows what you have against what
+  the recipe needs - red when you are short - and a running build has a progress bar.</li>
+<li><strong>An upgrade's effect drains</strong> as a bar while it lasts, labelled with the time left.</li>
+<li><strong>The handheld's Scan</strong> reads a room's condition as a colored pip and its wear as a bar,
+  and the same reading lands in the Survey log. <strong>Crew</strong> shows the face of whoever you
+  pick and how hurt they are, as a health bar, and the "On the surface" list puts a face
+  beside every name.</li>
+<li><strong>Letters come from someone.</strong> A message from a character in the story - the admiral,
+  a crewmate - opens with that person's face beside their name.</li>
+</ul>
+<p>Mission writers get all of this in their own text: see <a href="../cosmos/gui/#gauges">Gauges</a> and
+<a href="../cosmos/gui/#rich-text-areas">Rich text areas</a>.</p>
+<hr />
 <h4 id="quests-stories">🧭 Quests &amp; Stories</h4>
 <ul>
 <li><strong>A signal-driven quest engine</strong> with kill / collect / scan / dock / reach /
@@ -13282,6 +13336,17 @@ HUD — that update <strong>without repainting the page underneath</strong>.</p>
 <h4 id="richer-gui-tables-and-text-that-does-more">📋 Richer GUI — tables, and text that does more</h4>
 <ul>
 <li>
+<p><strong><a href="../cosmos/gui/#gauges">Gauges</a> — the engine's own status-panel look.</strong> A label, a
+  value and a bar that goes green, yellow, then red as it drains, and turns the
+  engineering console's <em>tuned</em> cyan when a system runs over 100%. One line of MAST -
+  <code>gui_gauge(45, 120, "FRNT SHLD")</code> - and set <code>.value</code> to watch it move. They work in
+  text areas too, so a whole ship-status panel, ENGN / WEAP / SHLD / SENS grid included,
+  can be written as a few lines of markdown:
+  <div class="highlight"><pre><span></span><code>[Energy](gauge://946?max=1000)
+[FRNT SHLD](gauge://45?max=120)
+</code></pre></div></p>
+</li>
+<li>
 <p><strong><a href="../cosmos/gui_table/"><code>gui_table</code></a>.</strong> Describe a table as <strong>rows + column
   specs</strong> and get back a real, selectable, scrollable list box with the columns
   <strong>auto-sized to their content</strong>. Cells aren't just text — a column <code>type</code> can be a
@@ -13311,9 +13376,21 @@ HUD — that update <strong>without repainting the page underneath</strong>.</p>
 <ul>
 <li><strong>GFM pipe tables</strong> — <code>| Ship | Hull |</code> with a <code>|:--|--:|</code> alignment row —
   render as a real grid, columns sized to fit.</li>
-<li><strong>Hyperlinks</strong> — a <code>[Torgoth](ref://torgoth)</code> line becomes a clickable link that
-  <strong>navigates within the same document</strong> (give the area a <code>link_resolver</code>), so a
-  Kralien entry can link straight to the Torgoth one. Perfect for a codex.</li>
+<li><strong>Hyperlinks</strong> — a <code>[Torgoth](ref://torgoth)</code> line, or a table cell, becomes a
+  clickable link that <strong>navigates within the same document</strong> (give the area a
+  <code>link_resolver</code>), so a Kralien entry can link straight to the Torgoth one.
+  Perfect for a codex.</li>
+<li><strong>Icons</strong> — <code>![](icon://wanted) Bounty posted</code> puts an icon at the start of a
+  line or a table cell, and at the start of a list item <strong>the icon is the
+  bullet</strong>: a checklist of ticks and crosses is just <code>- ![](icon://check.on) Done</code>,
+  or declare <code>[](bullet://check.on)</code> once and the whole list follows. A <strong>face</strong>,
+  image or ship can lead a line the same way, so a crew roster with a portrait
+  beside every name is just <code>- ![](face://...) Lt Marek - injured</code>.</li>
+<li><strong>Sections that fold</strong> — <code>##+ Weapons</code> is a heading you click to open; <code>##- Hull</code>
+  starts open. A long damage report or codex entry shows its headings first and
+  opens what the reader asks for.</li>
+<li><strong>Grids</strong> — a table with an empty first row has no header, which is how the
+  gauge grid above is written.</li>
 <li><strong><code>&lt;hr&gt;</code></strong> draws a horizontal rule.</li>
 </ul>
 </li>
@@ -13528,7 +13605,7 @@ console for the first time.</p>
 <hr />
 <h4 id="the-control-gallery-every-widget-running-with-its-source">🎛️ The Control Gallery — every widget, running, with its source</h4>
 <p>Stop guessing what a widget looks like. The <strong><a href="../cosmos/control-gallery/">Control Gallery</a></strong>
-is a mission you start: <strong>54 entries in six categories</strong>, each one live on screen with
+is a mission you start: <strong>61 entries in six categories</strong>, each one live on screen with
 <strong>the code that built it directly underneath</strong>.</p>
 <ul>
 <li><strong>The snippet cannot be out of date</strong>, because it is not a copy. It is sliced out of

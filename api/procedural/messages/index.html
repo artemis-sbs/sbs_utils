@@ -11155,7 +11155,7 @@ everyone.</p>
 
 
 <h2 id="sbs_utils.procedural.messages.message_mail" class="doc doc-heading">
-            <code class="highlight language-python"><span class="n">message_mail</span><span class="p">(</span><span class="n">text</span><span class="p">,</span> <span class="n">to</span><span class="o">=</span><span class="s1">&#39;*&#39;</span><span class="p">,</span> <span class="n">sender</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">subject</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span></code>
+            <code class="highlight language-python"><span class="n">message_mail</span><span class="p">(</span><span class="n">text</span><span class="p">,</span> <span class="n">to</span><span class="o">=</span><span class="s1">&#39;*&#39;</span><span class="p">,</span> <span class="n">sender</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">subject</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">face</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span></code>
 
 </h2>
 
@@ -11287,7 +11287,7 @@ reading pane would snap back to the newest message every time anything arrived.<
 
 
 <h2 id="sbs_utils.procedural.messages.message_send" class="doc doc-heading">
-            <code class="highlight language-python"><span class="n">message_send</span><span class="p">(</span><span class="n">text</span><span class="p">,</span> <span class="n">to</span><span class="o">=</span><span class="s1">&#39;*&#39;</span><span class="p">,</span> <span class="n">sender</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">subject</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">kind</span><span class="o">=</span><span class="s1">&#39;crew&#39;</span><span class="p">,</span> <span class="n">choices</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">scene</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span></code>
+            <code class="highlight language-python"><span class="n">message_send</span><span class="p">(</span><span class="n">text</span><span class="p">,</span> <span class="n">to</span><span class="o">=</span><span class="s1">&#39;*&#39;</span><span class="p">,</span> <span class="n">sender</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">subject</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">kind</span><span class="o">=</span><span class="s1">&#39;crew&#39;</span><span class="p">,</span> <span class="n">choices</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">scene</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">face</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span></code>
 
 </h2>
 
@@ -11420,6 +11420,25 @@ with none behaves exactly as it always did.</p>
                 <p>an away scene key. Marks this message as that beat, so
 the inbox asks <code>away.py</code> for the replies instead of carrying its own -
 they differ per character and away already arbitrates them.</p>
+              </div>
+            </td>
+            <td>
+                  <code>None</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>face</code>
+            </td>
+            <td>
+                  <code><span title="str">str</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>the sender's face string, drawn beside their name when
+the message is read. When not given, a LIFEFORM of the sender's name is
+looked up and its face used - kept on the message, so it still shows after
+that character has gone.</p>
               </div>
             </td>
             <td>

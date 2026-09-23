@@ -5701,6 +5701,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#sbs_utils.procedural.quest.quest_log_pane_text" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;quest_log_pane_text
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#sbs_utils.procedural.quest.quest_log_parent_summary" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -11101,6 +11112,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#sbs_utils.procedural.quest.quest_log_pane_text" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;quest_log_pane_text
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#sbs_utils.procedural.quest.quest_log_parent_summary" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -13494,6 +13516,33 @@ what it pays while it is still a choice, how long is left, and only then the sta
 one glyph, where before every row was the same square and the kind was invisible. The
 name resolves through the icon sheet, so a mission that ships its own art re-skins
 every quest log without touching this.</p>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h2 id="sbs_utils.procedural.quest.quest_log_pane_text" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">quest_log_pane_text</span><span class="p">(</span><span class="n">row</span><span class="p">)</span></code>
+
+</h2>
+
+
+    <div class="doc doc-contents ">
+
+        <p>The detail pane for a selected quest, as text-area markdown.</p>
+<p>An ARC (a header row) is <code>quest_log_parent_summary</code> - its description and a step
+checklist. A single quest gets the facts first, where they are read at a glance:</p>
+<ul>
+<li>how far along, as a GAUGE, when the quest counts something (<code>3 / 5</code>);</li>
+<li>a small grid - its state (the log's own pip: shape by kind, color by state, and the
+  word), what it pays, how long is left - listing only what the quest actually has;</li>
+<li>then its description, exactly as authored.</li>
+</ul>
+<p>Returns "" for a row that is not a quest.</p>
 
 
     </div>

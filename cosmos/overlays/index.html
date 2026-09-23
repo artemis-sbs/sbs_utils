@@ -10837,6 +10837,18 @@ registration call:</p>
 </code></pre></div>
 <p>Either way, the builder decides <em>layout</em>; the content decides <em>what shows</em> — the same
 card can be driven from a wrapper, a signal, AMD, or a quest.</p>
+<p><strong>Changing a live card: <code>overlay_patch</code>.</strong> To update what a custom card shows while it
+is up, patch its CONTENT and the slot is rebuilt from it — <code>overlay_hud_update</code>, for any
+kind:</p>
+<div class="highlight"><pre><span></span><code>overlay_show(&quot;status&quot;, &quot;ship_status&quot;, energy=946, front=120)
+# later, whenever a value moves:
+overlay_patch(&quot;status&quot;, energy=807, front=45)
+</code></pre></div>
+<p>Do not hold a widget from inside the builder and set its value: a widget inside an
+overlay slot cannot repaint itself (the engine draws the new text over the old). The
+builder reads <code>content</code>; <code>overlay_patch</code> changes <code>content</code>. A builder can only fill its
+one slot — a <code>gui_section</code> inside it is not drawn — so a card that needs two areas
+uses two slots (<code>overlay_slot_define</code>).</p>
 <h2 id="announce-the-overlay-and-the-record-in-one-call">announce() — the overlay AND the record, in one call</h2>
 <p>An overlay is an <strong>attention</strong> layer: it draws over the view, then it is gone. It keeps
 no history, and a console that connects a second later never saw it. So the house rule

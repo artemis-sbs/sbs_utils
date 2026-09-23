@@ -2018,6 +2018,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#gauges" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Gauges
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#rich-text-areas" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -10320,6 +10331,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#gauges" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Gauges
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#rich-text-areas" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -10562,11 +10584,77 @@ items. Declare neither and an item is exactly as tall as its template's rows, fl
 <p><code>row-height</code> used to mean the gap. If you have a list declaring it and meaning
 spacing, rename it to <code>item-gap</code>.</p>
 </div>
+<h2 id="gauges">Gauges</h2>
+<p><strong><code>gui_gauge(value, max, label)</code></strong> draws the engine's status-panel look: a label on
+the left, the value on the right, and a bar under both colored by how full it is -
+green, yellow below 50%, red below 25%. Over max the bar is full and turns the
+engineering console's <em>tuned</em> cyan.</p>
+<div class="tabbed-set tabbed-alternate" data-tabs="5:1"><input checked="checked" id="__tabbed_5_1" name="__tabbed_5" type="radio" /><div class="tabbed-labels"><label for="__tabbed_5_1"><span class="twemoji"><?xml version="1.0" encoding="iso-8859-1"?>
+<!-- Uploaded to: SVG Repo, www.svgrepo.com, Generator: SVG Repo Mixer Tools -->
+<svg fill="#000000" height="800px" width="800px" version="1.1" id="Layer_1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" 
+	 viewBox="0 0 512 512" xml:space="preserve">
+<g>
+	<g>
+		<path d="M353.178,91.779h-77.512v-6.556c0-25.304,20.586-45.89,45.89-45.89V0c-46.992,0-85.224,38.231-85.224,85.224v6.556
+			h-77.512c-58.475,0-106.047,47.573-106.047,106.047c0,13.456,2.532,26.328,7.129,38.178h392.194
+			c4.597-11.85,7.129-24.721,7.129-38.178C459.226,139.352,411.654,91.779,353.178,91.779z"/>
+	</g>
+</g>
+<g>
+	<g>
+		<path d="M78.997,275.338v41.412h0c0,61.516,30.155,114.727,87.206,153.882c41.691,28.614,83.09,39.617,84.833,40.072L256,512
+			l4.964-1.295c1.742-0.455,43.141-11.458,84.833-40.072c57.051-39.156,87.206-92.367,87.206-153.882v-41.412H78.997z"/>
+	</g>
+</g>
+</svg></span> MAST</label></div>
+<div class="tabbed-content">
+<div class="tabbed-block">
+<div class="highlight"><pre><span></span><code>gui_gauge(946, 1000, &quot;Energy&quot;)
+gui_gauge(45, 120, &quot;FRNT SHLD&quot;, show=&quot;frac&quot;)      # &quot;45 / 120&quot;
+gui_gauge(120, 100, &quot;WEAP boost&quot;, show=&quot;pct&quot;)     # &quot;120%&quot;, full cyan bar
+shields = gui_gauge(120, 120, &quot;REAR SHLD&quot;)
+
+on change get_data_set_value(ship_id, &quot;shield_val&quot;, 1, default=0):
+    shields.value = get_data_set_value(ship_id, &quot;shield_val&quot;, 1, default=0)
+</code></pre></div>
+</div>
+</div>
+</div>
+<table>
+<thead>
+<tr>
+<th>Option</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>show=</code></td>
+<td><code>value</code> (default with a label), <code>frac</code> ("45 / 120"), <code>pct</code>, or <code>none</code> (default without a label - a bare bar)</td>
+</tr>
+<tr>
+<td><code>warn=</code> / <code>crit=</code></td>
+<td>where the bar turns yellow / red, as fractions (default 0.5 / 0.25)</td>
+</tr>
+<tr>
+<td><code>color=</code></td>
+<td>a fixed bar color, ignoring the thresholds</td>
+</tr>
+<tr>
+<td><code>invert=</code></td>
+<td>more is WORSE (wear, heat, damage): green while low, yellow then red as it climbs, and red rather than cyan past max. In markup: <code>gauge://0.7?max=1&amp;invert=1</code></td>
+</tr>
+</tbody>
+</table>
+<p>A value outside <code>0..max</code> clamps the <strong>bar</strong>, never the number: <code>-45 / 8</code> shows an
+empty bar and says -45. Keep the handle and set <code>.value</code> - only the gauge repaints.
+The same drawing is available inside a text area as <code>[Energy](gauge://946?max=1000)</code>
+(below).</p>
 <h2 id="rich-text-areas">Rich text areas</h2>
 <p><code>gui_text</code> is a single styled line. For a <strong>multi-line, formatted block</strong> — help,
 briefings, a log, a comms transcript — use <strong><code>gui_text_area</code></strong>, which parses a
 small markdown-like language and <strong>auto-scrolls</strong> when its content overflows.</p>
-<div class="tabbed-set tabbed-alternate" data-tabs="5:1"><input checked="checked" id="__tabbed_5_1" name="__tabbed_5" type="radio" /><div class="tabbed-labels"><label for="__tabbed_5_1"><span class="twemoji"><?xml version="1.0" encoding="iso-8859-1"?>
+<div class="tabbed-set tabbed-alternate" data-tabs="6:1"><input checked="checked" id="__tabbed_6_1" name="__tabbed_6" type="radio" /><div class="tabbed-labels"><label for="__tabbed_6_1"><span class="twemoji"><?xml version="1.0" encoding="iso-8859-1"?>
 <!-- Uploaded to: SVG Repo, www.svgrepo.com, Generator: SVG Repo Mixer Tools -->
 <svg fill="#000000" height="800px" width="800px" version="1.1" id="Layer_1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" 
 	 viewBox="0 0 512 512" xml:space="preserve">
@@ -10593,18 +10681,54 @@ gui_text_area(brief)
 </div>
 </div>
 <ul>
-<li><code>$t</code> a title; <code>#</code>/<code>##</code>/<code>###</code> headings (auto-numbered, so use <code>$t</code> for a plain
-  title); <code>-</code> bullets; <code>1.</code> ordered lists; a blank line resets; <code>^</code> is a newline;
-  <code>{var}</code> interpolates.</li>
+<li><code>$t</code> a title; <code>#</code>/<code>##</code>/<code>###</code> headings (plain, like markdown; <code>$nh1</code>..<code>$nh3</code> are
+  the auto-numbered forms); <code>-</code> bullets; <code>1.</code> ordered lists; a blank line resets;
+  <code>^</code> is a newline; <code>{var}</code> interpolates.</li>
 <li>Inline objects by namespace: <code>![](image://key?scale=0.5)</code>, <code>[](ship://hull?...)</code>,
   <code>[](face://...)</code>, <code>[](style://font:gui-4;color:#8cf)</code>.</li>
 <li><strong>Pipe tables</strong> — <code>| Ship | Hull |</code> rows with a <code>|:--|--:|</code> alignment row — render
   as a grid, columns sized to fit. (For an <em>interactive</em> table with controls, use
-  <a href="../gui_table/"><code>gui_table</code></a> instead.)</li>
-<li><strong>Hyperlinks</strong> — a <code>[Torgoth](ref://torgoth)</code> line is a clickable link; give the
-  area a <code>link_resolver</code> (<code>fn(key) -&gt; new text</code>) and it <strong>navigates within the same
-  document</strong> — a Kralien entry can link straight to the Torgoth one (a codex). <code>&lt;hr&gt;</code>
-  draws a horizontal rule.</li>
+  <a href="../gui_table/"><code>gui_table</code></a> instead.)
+  A table whose first row is empty (<code>| | |</code>) has <strong>no header</strong> - that is how you
+  write a grid of cells.</li>
+<li>
+<p><strong>Gauges</strong> — <code>[Energy](gauge://946?max=1000)</code> on its own line, or as a table cell,
+  draws a gauge (see <a href="#gauges">Gauges</a>; the options are URL parameters:
+  <code>gauge://45?max=120&amp;show=frac</code>). A grid of bare gauges is the engine's
+  ENGN / WEAP / SHLD / SENS block:</p>
+<div class="highlight"><pre><span></span><code>| | |
+|:--:|:--:|
+| [ENGN](gauge://1?max=1&amp;show=none) | [WEAP](gauge://0.4?max=1&amp;show=none) |
+| [SHLD](gauge://0.2?max=1&amp;show=none) | [SENS](gauge://1?max=1&amp;show=none) |
+</code></pre></div>
+</li>
+<li>
+<p><strong>Icons</strong> — <code>![](icon://wanted?color=#f66) Bounty posted</code> at the start of a line
+  draws an icon one line tall with the text beside it. The name is an
+  <a href="../gui_icons/">icon name</a> or a sheet index (<code>icon://137</code>). At the start of a list
+  item <strong>the icon is the bullet</strong>: <code>- ![](icon://check.on) Hails answered</code>. A table
+  cell can start with an icon too. To give a <strong>whole list</strong> one icon, declare it once
+  on the line above - <code>[](bullet://check.on?color=#8f8)</code> - and every <code>-</code> item below
+  uses it until a blank line (<code>bullet://none</code> stops it early; numbered lists keep
+  their numbers).</p>
+</li>
+<li><strong>Faces, images and ships lead a line too</strong> — <code>- ![](face://{face}) Lt Marek</code>
+  puts a portrait beside the name, which makes a crew roster a few lines of
+  markdown. A face is two text lines tall, a ship four (the engine frames a 3D ship
+  small), an icon or image one; <code>size=N</code> sets it. The list-wide form takes the same
+  kinds: <code>[](bullet://image://arrow)</code>. A picture with <strong>no</strong> text after it is still
+  drawn full size, as before.</li>
+<li><strong>Collapsible sections</strong> — write a heading as <code>##+ Weapons</code> (starts closed) or
+  <code>##- Hull</code> (starts open). A click on the heading folds or unfolds everything down
+  to the next heading at the same or a higher level - tables, lists and
+  sub-headings included - and the heading stays in view. What the reader opened
+  stays open when the area's text is updated. The marker touches the hashes, so
+  <code>## - x</code> is still an ordinary heading.</li>
+<li><strong>Hyperlinks</strong> — a <code>[Torgoth](ref://torgoth)</code> line, or a table cell, is a
+  clickable link. Give the area <code>link_resolver=</code> (a function <code>key -&gt; text</code>, or a
+  <code>{key: text}</code> dict) and it <strong>navigates within the same document</strong> — a Kralien entry
+  can link straight to the Torgoth one (a codex). <code>on_link=fn(key, widget)</code> hears
+  every click. <code>&lt;hr&gt;</code> draws a horizontal rule.</li>
 <li>A single unformatted line just renders as plain text; a parse slip shows
   <code>Document syntax issue line number N</code> — so a blank/garbled area is usually a
   syntax slip on that line. Engine text is ASCII-only.</li>
@@ -10612,7 +10736,7 @@ gui_text_area(brief)
 <h2 id="reacting-while-the-gui-is-up">Reacting while the GUI is up</h2>
 <p><code>on</code> handlers belong to the task that <strong>built the widget</strong>, and live until
 the next GUI build replaces them:</p>
-<div class="tabbed-set tabbed-alternate" data-tabs="6:1"><input checked="checked" id="__tabbed_6_1" name="__tabbed_6" type="radio" /><div class="tabbed-labels"><label for="__tabbed_6_1"><span class="twemoji"><?xml version="1.0" encoding="iso-8859-1"?>
+<div class="tabbed-set tabbed-alternate" data-tabs="7:1"><input checked="checked" id="__tabbed_7_1" name="__tabbed_7" type="radio" /><div class="tabbed-labels"><label for="__tabbed_7_1"><span class="twemoji"><?xml version="1.0" encoding="iso-8859-1"?>
 <!-- Uploaded to: SVG Repo, www.svgrepo.com, Generator: SVG Repo Mixer Tools -->
 <svg fill="#000000" height="800px" width="800px" version="1.1" id="Layer_1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" 
 	 viewBox="0 0 512 512" xml:space="preserve">
@@ -10654,7 +10778,7 @@ in a handler kills the console.</p>
 <h2 id="updating-without-a-rebuild">Updating without a rebuild</h2>
 <p>Set a widget's value and the dirty system re-renders it automatically &mdash; no
 need to rebuild the whole page:</p>
-<div class="tabbed-set tabbed-alternate" data-tabs="7:1"><input checked="checked" id="__tabbed_7_1" name="__tabbed_7" type="radio" /><div class="tabbed-labels"><label for="__tabbed_7_1"><span class="twemoji"><?xml version="1.0" encoding="iso-8859-1"?>
+<div class="tabbed-set tabbed-alternate" data-tabs="8:1"><input checked="checked" id="__tabbed_8_1" name="__tabbed_8" type="radio" /><div class="tabbed-labels"><label for="__tabbed_8_1"><span class="twemoji"><?xml version="1.0" encoding="iso-8859-1"?>
 <!-- Uploaded to: SVG Repo, www.svgrepo.com, Generator: SVG Repo Mixer Tools -->
 <svg fill="#000000" height="800px" width="800px" version="1.1" id="Layer_1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" 
 	 viewBox="0 0 512 512" xml:space="preserve">
@@ -10680,6 +10804,14 @@ on_screen.update(f&quot;image:{get_mission_dir_filename(&#39;RedAlert&#39;)}&quo
 </div>
 </div>
 </div>
+<div class="admonition warning">
+<p class="admonition-title">Inside a region, the OWNER repaints</p>
+<p>A widget inside a sub-region - an overlay slot, a tab of a tabbed panel, a
+listbox row - cannot repaint itself: the engine draws the new text over the old
+one instead of replacing it. There, change what the region's owner builds from
+and let the owner redraw - for an overlay, <a href="../overlays/"><code>overlay_patch</code></a>.
+<code>gui_gauge</code> and <code>gui_cycle_button</code> already follow this rule.</p>
+</div>
 <div class="admonition note">
 <p class="admonition-title"><code>gui_represent()</code> is deprecated</p>
 <p>Widgets mark themselves dirty when their value changes and re-render on their
@@ -10687,7 +10819,7 @@ own. Calling <code>gui_represent()</code> is harmless but redundant.</p>
 </div>
 <h2 id="consoles">Consoles</h2>
 <p>Route a client to a standard console, or build one widget by widget:</p>
-<div class="tabbed-set tabbed-alternate" data-tabs="8:1"><input checked="checked" id="__tabbed_8_1" name="__tabbed_8" type="radio" /><div class="tabbed-labels"><label for="__tabbed_8_1"><span class="twemoji"><?xml version="1.0" encoding="iso-8859-1"?>
+<div class="tabbed-set tabbed-alternate" data-tabs="9:1"><input checked="checked" id="__tabbed_9_1" name="__tabbed_9" type="radio" /><div class="tabbed-labels"><label for="__tabbed_9_1"><span class="twemoji"><?xml version="1.0" encoding="iso-8859-1"?>
 <!-- Uploaded to: SVG Repo, www.svgrepo.com, Generator: SVG Repo Mixer Tools -->
 <svg fill="#000000" height="800px" width="800px" version="1.1" id="Layer_1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" 
 	 viewBox="0 0 512 512" xml:space="preserve">
@@ -10716,7 +10848,7 @@ gui_layout_widget(&quot;2dview&quot;)          # size a gameplay view (2dview / 
 </div>
 <h2 id="full-rebuild-reroute">Full rebuild / reroute</h2>
 <p>To rebuild a page, jump back to its label; to move clients between pages:</p>
-<div class="tabbed-set tabbed-alternate" data-tabs="9:1"><input checked="checked" id="__tabbed_9_1" name="__tabbed_9" type="radio" /><div class="tabbed-labels"><label for="__tabbed_9_1"><span class="twemoji"><?xml version="1.0" encoding="iso-8859-1"?>
+<div class="tabbed-set tabbed-alternate" data-tabs="10:1"><input checked="checked" id="__tabbed_10_1" name="__tabbed_10" type="radio" /><div class="tabbed-labels"><label for="__tabbed_10_1"><span class="twemoji"><?xml version="1.0" encoding="iso-8859-1"?>
 <!-- Uploaded to: SVG Repo, www.svgrepo.com, Generator: SVG Repo Mixer Tools -->
 <svg fill="#000000" height="800px" width="800px" version="1.1" id="Layer_1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" 
 	 viewBox="0 0 512 512" xml:space="preserve">

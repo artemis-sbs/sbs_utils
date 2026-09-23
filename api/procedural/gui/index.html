@@ -21957,7 +21957,7 @@ gui_text("$text:WARNING;color:red;")</p>
 
 
 <h2 id="sbs_utils.procedural.gui.text.gui_text_area" class="doc doc-heading">
-            <code class="highlight language-python"><span class="n">gui_text_area</span><span class="p">(</span><span class="n">props</span><span class="p">,</span> <span class="n">style</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">markdown</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">line_styles</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span></code>
+            <code class="highlight language-python"><span class="n">gui_text_area</span><span class="p">(</span><span class="n">props</span><span class="p">,</span> <span class="n">style</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">markdown</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">line_styles</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">on_link</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">link_resolver</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span></code>
 
 </h2>
 
@@ -21965,8 +21965,13 @@ gui_text("$text:WARNING;color:red;")</p>
     <div class="doc doc-contents ">
 
         <p>Add a rich text area to the current GUI layout.</p>
-<p>Supports Markdown-style formatting and inline image references
-(<code>![](image://key)</code>). Use for multi-line or formatted text blocks.</p>
+<p>Supports Markdown-style formatting: headings (<code>##+</code>/<code>##-</code> fold), lists,
+pipe tables, gauges (<code>[Energy](gauge://946?max=1000)</code>), links
+(<code>[Text](ref://key)</code>) and pictures. A picture ALONE on its line
+(<code>![](image://key?scale=0.5)</code>, <code>face://</code>, <code>ship://</code>) is drawn full size;
+followed by text it LEADS the line - a square <code>size=N</code> text lines tall with
+the text beside it, and at the start of a <code>-</code> item it is the bullet. Use for
+multi-line or formatted text blocks.</p>
 
 
 <p><span class="doc-section-title">Parameters:</span></p>
@@ -22054,6 +22059,43 @@ how you colorize text that is no longer being parsed. Pairs with
                   <code>None</code>
             </td>
           </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>on_link</code>
+            </td>
+            <td>
+                  <code><span title="callable">callable</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p><code>fn(key, widget)</code>, called when a
+<code>[Text](ref://key)</code> link is clicked - a whole-line link or a table
+cell. Defaults to None.</p>
+              </div>
+            </td>
+            <td>
+                  <code>None</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>link_resolver</code>
+            </td>
+            <td>
+                  <code><span title="callable">callable</span> | <span title="dict">dict</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>what a link NAVIGATES to -
+<code>fn(key) -&gt; new text</code> or a <code>{key: text}</code> dict. The area swaps to
+that text in place (back to the top). None, or a key it does not know,
+leaves the text alone. Defaults to None.</p>
+              </div>
+            </td>
+            <td>
+                  <code>None</code>
+            </td>
+          </tr>
       </tbody>
     </table>
 
@@ -22083,7 +22125,8 @@ how you colorize text that is no longer being parsed. Pairs with
 <details class="example" open>
   <summary>Example</summary>
   <p>gui_text_area("## Status\nAll systems nominal.")
-gui_text_area("<img alt="" src="image://logo?scale=0.5" /> Mission active")
+gui_text_area("<img alt="" src="image://logo?scale=0.5" />")
+gui_text_area("<img alt="" src="icon://check.on?color=#8f8" /> Mission active")
 gui_text_area(source, markdown=False, line_styles=per_line_keys)</p>
 </details>
 

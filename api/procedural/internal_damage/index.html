@@ -4981,6 +4981,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#sbs_utils.procedural.internal_damage.grid_node_icon_index" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;grid_node_icon_index
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#sbs_utils.procedural.internal_damage.grid_node_is_system" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -10969,6 +10980,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#sbs_utils.procedural.internal_damage.grid_node_icon_index" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;grid_node_icon_index
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#sbs_utils.procedural.internal_damage.grid_node_is_system" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -12524,6 +12546,84 @@ disagrees with its condition:</p>
 is what makes the whole idea inert until something writes wear, and why
 set_damage_coefficients produces numbers identical to the old undamaged/total
 fraction on a ship that has never worn anything.</p>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h2 id="sbs_utils.procedural.internal_damage.grid_node_icon_index" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">grid_node_icon_index</span><span class="p">(</span><span class="n">id_or_obj</span><span class="p">)</span></code>
+
+</h2>
+
+
+    <div class="doc doc-contents ">
+
+        <p>The sheet index this node is DRAWN with on the interior view.</p>
+<p>A panel that names a node beside a generic cog is asking the engineer to hold two
+pictures of one room. This is the index the node actually wears, so a header glyph
+and the node under the cursor are the same shape.</p>
+<p>Written to inventory at spawn (<code>_grid_spawn_chunk</code>), which is also what the View
+tab re-applies, so inventory is the unscaled source of truth. Falls back to asking
+the theme for the node's roles - a node built by something other than
+<code>grid_rebuild</code> still answers - and finally to None, which a caller draws as
+nothing rather than as an arbitrary glyph.</p>
+
+
+<p><span class="doc-section-title">Parameters:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Type</th>
+          <th>Description</th>
+          <th>Default</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+                <code>id_or_obj</code>
+            </td>
+            <td>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>the grid node.</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+    <p><span class="doc-section-title">Returns:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Type</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>int | None: the icon index, or None if neither source has one.</p>
+              </div>
+            </td>
+          </tr>
+      </tbody>
+    </table>
 
 
     </div>
