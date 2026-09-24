@@ -42,6 +42,11 @@ The new things to *do* — whole systems that were not there before. Start here.
 
 #### 📟 The ePADD — every console gets apps { #epadd }
 
+<figure markdown="span">
+  ![The ePADD home screen on Engineering](media/whats-new/epadd.webp){ loading=lazy }
+  <figcaption>Engineering's ePADD. The counts on the tiles are live.</figcaption>
+</figure>
+
 A console used to offer three tabs along the top — `help`, `library`, `upgrade` — each
 labeled with the raw lowercase name of whatever wrote it, and nowhere to put anything
 else.
@@ -129,6 +134,11 @@ See [On screen](cosmos/viewscreen.md).
 ---
 
 #### 📞 Incoming hails — the mission calls *you* { #incoming-hails }
+
+<figure markdown="span">
+  ![A hail open on the comms console, with three replies](media/whats-new/incoming-hails.webp){ loading=lazy }
+  <figcaption>The admiral calls. Comms picks a reply - and the last hail is logged above, with the answer it got.</figcaption>
+</figure>
 
 Comms has always been something the crew starts: pick a contact, a menu opens. An
 **incoming hail** is the other direction. It arrives in an **Incoming Hails** list on the
@@ -251,6 +261,11 @@ the port, rather than quietly guessed at.
 
 #### 🐙 A Living Bestiary { #a-living-bestiary }
 
+<figure markdown="span">
+  ![The seven new species, one frame each](media/whats-new/bestiary.webp){ loading=lazy }
+  <figcaption>The seven new species. Each frame is scaled to its subject, so sizes are not comparable - the Bulwark is the biggest thing here.</figcaption>
+</figure>
+
 Space monsters are no longer just one hostile Typhon. The **Monsters** map option
 now seeds a **weighted mix of species** — some deadly, some harmless, some that
 actually *help* you — and a Game Master can drop any of them from the spawn menu.
@@ -364,6 +379,11 @@ Porting Probes: [Porting from Artemis 2.x](mast/porting-2x.md).
 ---
 
 #### 🎰 The Casino is open { #casino }
+
+<figure markdown="span">
+  ![A KoraTa hand in progress](media/whats-new/casino-korata.webp){ loading=lazy }
+  <figcaption>KoraTa, one round in: your run below, the apprentice's above - and now you pick which gate to drop on theirs.</figcaption>
+</figure>
 
 Dock in the hangar bay and step into the **Casino** — a self-contained hangout
 that adds a **Casino** tab to the bay (leave it out and nothing changes). It runs
@@ -647,6 +667,11 @@ your game looks like whether you ask for them or not.
 
 #### 😐 New faces, and faces that move { #new-faces }
 
+<figure markdown="span">
+  ![Six rows of redrawn portraits, one per species](media/whats-new/faces-species.webp){ loading=lazy }
+  <figcaption>Terran, Skaraan, Kralien, Torgoth, Ximni and Arvonian - each one rolled at random.</figcaption>
+</figure>
+
 Every character portrait in the game has been redrawn. All six species - Terran,
 Torgoth, Skaraan, Kralien, Ximni, Arvonian - are new art: more hairstyles, far more
 clothing, glasses, headsets, rank insignia, breathing masks, and eight painted Arvonian
@@ -656,6 +681,11 @@ busts instead of one.
 mouths - angry, worried, a sideways glance, an eye-roll, gritted teeth, a smile, eyes
 shut - so the officer on your comms screen can look like they mean it. A mission can ask
 for one by name, and everything else about the person stays exactly as it was.
+
+<figure markdown="span">
+  ![One officer in seven expressions](media/whats-new/faces-expressions.webp){ loading=lazy }
+  <figcaption>The same officer, seven ways.</figcaption>
+</figure>
 
 **And they can talk.** The mouths include the shapes speech is made of, so a face can be
 animated while a line is delivered, and blink while it is not.
@@ -734,6 +764,11 @@ Docs: [Crew rosters](build/crew.md).
 ---
 
 #### 🔧 Engineering has something to do between the hits { #engineering }
+
+<figure markdown="span">
+  ![Engineering's interior view beside the Systems tab](media/whats-new/engineering.webp){ loading=lazy }
+  <figcaption>After a patch-up: every repaired system is back in service, but worn (gold), and the Systems tab says by how much.</figcaption>
+</figure>
 
 Damage control was binary: a room was broken or it was fine, and the only thing that
 ever changed it was taking a hit. Systems now have **condition** as well as damage —
@@ -975,6 +1010,11 @@ Docs: [Items & Upgrades](build/items-upgrades.md).
 ---
 
 #### 🏆 Game Results & Scorekeeping
+
+<figure markdown="span">
+  ![The results board's Summary tab](media/whats-new/game-results.webp){ loading=lazy }
+  <figcaption>Sixteen minutes of Siege, scored: kills, tonnage and damage, with Fleet, Air Wing, Quests and Enemies a tab away.</figcaption>
+</figure>
 
 The end-of-game screen is now a **tabbed results board** with real scorekeeping —
 built for bragging rights, and for running a scored event.
