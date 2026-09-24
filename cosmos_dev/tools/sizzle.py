@@ -2,8 +2,11 @@
 
     python -m cosmos_dev.tools.sizzle doctor
 
-`doctor` is the only subcommand implemented so far (M0/M1). It answers the one question
-worth answering before anything is built: is this machine actually able to shoot?
+`doctor` answers the one question worth answering before anything is built: is this
+machine actually able to shoot? `reel` shoots and bakes a cut; `blend` turns the
+recorded takes into an editable Blender VSE timeline:
+
+    python -m cosmos_dev.tools.sizzle blend E:\\a\\_sizzle\\<stamp> --xfade 8 --title "..." --render
 
 Shaped after cosmos_dev/tools/mission_soak.py - stdlib only, argparse, exit codes:
     0  everything the checked scope needs is present
@@ -1000,6 +1003,67 @@ def cmd_assemble(args):
     return 0
 
 
+def cmd_blend(args):
+    """Build the reel as an editable Blender VSE timeline, optionally rendered."""
+    from ..sizzle import blend as B
+    from ..sizzle import contact as sheet
+
+    blender = args.blender or B.blender_exe()
+    if not blender:
+        print("FAIL: no Blender found (pass --blender)")
+        return 1
+    print("blender: %s" % blender)
+
+    shots, size, problems = B.shots_from(args.path)
+    for p in problems:
+        print("  WARNING: %s" % p)
+    if not shots:
+        print("FAIL: no shots under %s" % args.path)
+        return 1
+
+    out = os.path.abspath(args.out or os.path.join(args.path, "edit"))
+    os.makedirs(out, exist_ok=True)
+    plan = {"blend": os.path.join(out, "sizzle.blend"),
+            "render": os.path.join(out, "sizzle.mp4") if args.render else None,
+            "stills": None if args.no_sheet else os.path.join(out, "stills"),
+            # Default is the recording's own size, read in Blender - `size` here is the
+            # engine WINDOW, which OBS usually scaled down.
+            "size": [args.width, args.height] if args.width and args.height else None,
+            "fps": args.fps, "xfade": args.xfade,
+            "title": args.title, "title_seconds": args.title_seconds,
+            "audio": os.path.abspath(args.audio) if args.audio else None,
+            "shots": shots}
+    print("shots:   %d from %d take(s)%s"
+          % (len(shots), len({s["group"] for s in shots}),
+             "  (rendering - this takes a while)" if args.render else ""))
+    ok, log = B.build(blender, plan, os.path.join(out, "plan.json"))
+    for line in log.splitlines():
+        if line.startswith("SIZZLE") or "Error" in line or "Traceback" in line:
+            print("  " + line)
+    if not ok:
+        print(log[-2000:])
+        print("FAIL: Blender did not build the edit")
+        return 1
+
+    if plan["stills"]:
+        tiles, recs = [], []
+        for i, s in enumerate(shots):
+            p = os.path.join(plan["stills"], "shot_%02d.png" % i)
+            raw = None
+            if os.path.isfile(p):
+                with open(p, "rb") as f:
+                    raw = f.read()
+            tiles.append(raw)
+            recs.append({"label": s["label"],
+                         "framing": "%s  %.1fs" % (s["group"], s["t_end"] - s["t"])})
+        print("sheet:   %s" % sheet.write_sheet(plan["stills"], tiles, recs,
+                                                 cols=args.cols, width=480))
+    print("blend:   %s" % plan["blend"])
+    if plan["render"]:
+        print("video:   %s" % plan["render"])
+    return 0
+
+
 def cmd_reel(args):
     """M7: shoot every take in the manifest, then assemble them into one reel."""
     from ..engine_driver.driver import EngineDriver
@@ -1226,7 +1290,23 @@ def main(argv=None):
     asm.add_argument("--out", default=None)
     asm.set_defaults(func=cmd_assemble)
 
-    rl = sub.add_parser("reel", help="M7: shoot every take in the manifest and cut them")
+    bl = sub.add_parser("blend", help="build the reel as an editable Blender VSE .blend")
+    bl.add_argument("path", help="a reel root (reel.json + takes/) or one takes/<name>/")
+    bl.add_argument("--render", action="store_true", help="also render sizzle.mp4")
+    bl.add_argument("--xfade", type=int, default=0, help="crossfade length in frames")
+    bl.add_argument("--title", default=None, help="a title card over the opening")
+    bl.add_argument("--title-seconds", type=float, default=2.5)
+    bl.add_argument("--audio", default=None, help="a music track (faded out at the end)")
+    bl.add_argument("--fps", type=float, default=None, help="default: the first take's")
+    bl.add_argument("--width", type=int, default=None)
+    bl.add_argument("--height", type=int, default=None)
+    bl.add_argument("--cols", type=int, default=4)
+    bl.add_argument("--no-sheet", action="store_true")
+    bl.add_argument("--blender", default=None, help="blender.exe; default: newest installed")
+    bl.add_argument("--out", default=None, help="default: <path>/edit")
+    bl.set_defaults(func=cmd_blend)
+
+    rl = sub.add_parser("reel",help="M7: shoot every take in the manifest and cut them")
     rl.add_argument("--manifest", default=None, help="reel.json; omit for the default")
     rl.add_argument("--bpm", type=float, default=120.0)
     rl.add_argument("--audio", default=None)
