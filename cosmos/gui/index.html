@@ -2015,6 +2015,23 @@
     </span>
   </a>
   
+    <nav class="md-nav" aria-label="Widgets">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#a-control-can-emit-a-signal" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        A control can emit a signal
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
       
         <li class="md-nav__item">
@@ -10328,6 +10345,23 @@
     </span>
   </a>
   
+    <nav class="md-nav" aria-label="Widgets">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#a-control-can-emit-a-signal" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        A control can emit a signal
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
       
         <li class="md-nav__item">
@@ -10575,6 +10609,69 @@ on gui_click(ib):
 </div>
 <p>Read a widget's value with <code>widget.get_value()</code> / <code>widget.value</code>; a list box also
 has <code>get_selected()</code>, <code>get_selected_index()</code>, and <code>set_selected_index(i)</code>.</p>
+<h3 id="a-control-can-emit-a-signal">A control can emit a signal</h3>
+<p>Instead of a handler, a control can emit a signal each time it is used. Pass
+<code>signal=</code> to <code>gui_button</code>, <code>gui_icon_button</code>, <code>gui_cycle_button</code>, <code>gui_checkbox</code>,
+<code>gui_drop_down</code>, <code>gui_slider</code> / <code>gui_int_slider</code> or <code>gui_list_box</code> (on a row click),
+or call <code>gui_signal(widget, name, data)</code> on any control. The signal runs alongside
+the widget's other handlers, never in place of them.</p>
+<table>
+<thead>
+<tr>
+<th>Route variable</th>
+<th>What it holds</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>each key of <code>data</code></td>
+<td>whatever you passed</td>
+</tr>
+<tr>
+<td><code>SIGNAL_CLIENT_ID</code></td>
+<td>the console that used the control</td>
+</tr>
+<tr>
+<td><code>SIGNAL_ITEM</code></td>
+<td>the control</td>
+</tr>
+<tr>
+<td><code>SIGNAL_VALUE</code></td>
+<td>its value after the click: checkbox state, dropdown text, slider value, list box selection, cycle button state; <code>None</code> for a plain button</td>
+</tr>
+</tbody>
+</table>
+<div class="tabbed-set tabbed-alternate" data-tabs="5:1"><input checked="checked" id="__tabbed_5_1" name="__tabbed_5" type="radio" /><div class="tabbed-labels"><label for="__tabbed_5_1"><span class="twemoji"><?xml version="1.0" encoding="iso-8859-1"?>
+<!-- Uploaded to: SVG Repo, www.svgrepo.com, Generator: SVG Repo Mixer Tools -->
+<svg fill="#000000" height="800px" width="800px" version="1.1" id="Layer_1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" 
+	 viewBox="0 0 512 512" xml:space="preserve">
+<g>
+	<g>
+		<path d="M353.178,91.779h-77.512v-6.556c0-25.304,20.586-45.89,45.89-45.89V0c-46.992,0-85.224,38.231-85.224,85.224v6.556
+			h-77.512c-58.475,0-106.047,47.573-106.047,106.047c0,13.456,2.532,26.328,7.129,38.178h392.194
+			c4.597-11.85,7.129-24.721,7.129-38.178C459.226,139.352,411.654,91.779,353.178,91.779z"/>
+	</g>
+</g>
+<g>
+	<g>
+		<path d="M78.997,275.338v41.412h0c0,61.516,30.155,114.727,87.206,153.882c41.691,28.614,83.09,39.617,84.833,40.072L256,512
+			l4.964-1.295c1.742-0.455,43.141-11.458,84.833-40.072c57.051-39.156,87.206-92.367,87.206-153.882v-41.412H78.997z"/>
+	</g>
+</g>
+</svg></span> MAST</label></div>
+<div class="tabbed-content">
+<div class="tabbed-block">
+<div class="highlight"><pre><span></span><code>gui_checkbox(&quot;Shields&quot;, var=&quot;shields_on&quot;, signal=&quot;shields_toggled&quot;)
+
+//shared/signal/shields_toggled
+    set_shields(SIGNAL_CLIENT_ID, SIGNAL_VALUE)
+</code></pre></div>
+</div>
+</div>
+</div>
+<p>A click is one console's event, so choose the route type for what it does: state
+changes go in <code>//shared/signal</code> (runs once, on the server), a repaint of that console
+goes in <code>//signal</code>.</p>
 <div class="admonition note">
 <p class="admonition-title">A list box has two size keys, and they are different things</p>
 <p><strong><code>row-height</code></strong> is the height of ONE item row — a floor, so a two-line item still
@@ -10589,7 +10686,7 @@ spacing, rename it to <code>item-gap</code>.</p>
 the left, the value on the right, and a bar under both colored by how full it is -
 green, yellow below 50%, red below 25%. Over max the bar is full and turns the
 engineering console's <em>tuned</em> cyan.</p>
-<div class="tabbed-set tabbed-alternate" data-tabs="5:1"><input checked="checked" id="__tabbed_5_1" name="__tabbed_5" type="radio" /><div class="tabbed-labels"><label for="__tabbed_5_1"><span class="twemoji"><?xml version="1.0" encoding="iso-8859-1"?>
+<div class="tabbed-set tabbed-alternate" data-tabs="6:1"><input checked="checked" id="__tabbed_6_1" name="__tabbed_6" type="radio" /><div class="tabbed-labels"><label for="__tabbed_6_1"><span class="twemoji"><?xml version="1.0" encoding="iso-8859-1"?>
 <!-- Uploaded to: SVG Repo, www.svgrepo.com, Generator: SVG Repo Mixer Tools -->
 <svg fill="#000000" height="800px" width="800px" version="1.1" id="Layer_1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" 
 	 viewBox="0 0 512 512" xml:space="preserve">
@@ -10654,7 +10751,7 @@ The same drawing is available inside a text area as <code>[Energy](gauge://946?m
 <p><code>gui_text</code> is a single styled line. For a <strong>multi-line, formatted block</strong> — help,
 briefings, a log, a comms transcript — use <strong><code>gui_text_area</code></strong>, which parses a
 small markdown-like language and <strong>auto-scrolls</strong> when its content overflows.</p>
-<div class="tabbed-set tabbed-alternate" data-tabs="6:1"><input checked="checked" id="__tabbed_6_1" name="__tabbed_6" type="radio" /><div class="tabbed-labels"><label for="__tabbed_6_1"><span class="twemoji"><?xml version="1.0" encoding="iso-8859-1"?>
+<div class="tabbed-set tabbed-alternate" data-tabs="7:1"><input checked="checked" id="__tabbed_7_1" name="__tabbed_7" type="radio" /><div class="tabbed-labels"><label for="__tabbed_7_1"><span class="twemoji"><?xml version="1.0" encoding="iso-8859-1"?>
 <!-- Uploaded to: SVG Repo, www.svgrepo.com, Generator: SVG Repo Mixer Tools -->
 <svg fill="#000000" height="800px" width="800px" version="1.1" id="Layer_1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" 
 	 viewBox="0 0 512 512" xml:space="preserve">
@@ -10729,14 +10826,30 @@ gui_text_area(brief)
   <code>{key: text}</code> dict) and it <strong>navigates within the same document</strong> — a Kralien entry
   can link straight to the Torgoth one (a codex). <code>on_link=fn(key, widget)</code> hears
   every click. <code>&lt;hr&gt;</code> draws a horizontal rule.</li>
-<li>A single unformatted line just renders as plain text; a parse slip shows
+<li>
+<p><strong>Choices</strong> — a <code>[Kneel by the body](signal://lp_pick?pick=kneel)</code> line is a
+  button. Lines of them next to each other are one group, drawn as flat buttons that
+  share a row while they fit and wrap onto the next row when they do not. Clicking
+  one replaces the group with the choice made, so the area reads as the story so far,
+  and emits the signal with the query as variables (strings), plus <code>SIGNAL_CHOICE</code>
+  (the words), <code>SIGNAL_CLIENT_ID</code> and <code>SIGNAL_ITEM</code> (the area). Continue the story
+  from the route with <code>gui_text_area_append(SIGNAL_ITEM, text)</code>; the new text can end
+  in more choices. A <code>[](choices://?layout=stack&amp;fill=#234)</code> line restyles the groups
+  after it (<code>fill</code>, <code>text</code>, <code>chosen_fill</code>, <code>chosen_text</code>, <code>font</code>, <code>pad_x</code>, <code>pad_y</code>,
+  <code>gap</code>, <code>layout</code> = <code>flow</code> or <code>stack</code>). A boarding scene can be read this way with
+  <code>boarding_reader(area, client_id)</code>.</p>
+<p><div class="highlight"><pre><span></span><code>//shared/signal/lp_pick
+    gui_text_area_append(SIGNAL_ITEM, lp_scene_text(pick))
+</code></pre></div>
+- A single unformatted line just renders as plain text; a parse slip shows
   <code>Document syntax issue line number N</code> — so a blank/garbled area is usually a
-  syntax slip on that line. Engine text is ASCII-only.</li>
+  syntax slip on that line. Engine text is ASCII-only.</p>
+</li>
 </ul>
 <h2 id="reacting-while-the-gui-is-up">Reacting while the GUI is up</h2>
 <p><code>on</code> handlers belong to the task that <strong>built the widget</strong>, and live until
 the next GUI build replaces them:</p>
-<div class="tabbed-set tabbed-alternate" data-tabs="7:1"><input checked="checked" id="__tabbed_7_1" name="__tabbed_7" type="radio" /><div class="tabbed-labels"><label for="__tabbed_7_1"><span class="twemoji"><?xml version="1.0" encoding="iso-8859-1"?>
+<div class="tabbed-set tabbed-alternate" data-tabs="8:1"><input checked="checked" id="__tabbed_8_1" name="__tabbed_8" type="radio" /><div class="tabbed-labels"><label for="__tabbed_8_1"><span class="twemoji"><?xml version="1.0" encoding="iso-8859-1"?>
 <!-- Uploaded to: SVG Repo, www.svgrepo.com, Generator: SVG Repo Mixer Tools -->
 <svg fill="#000000" height="800px" width="800px" version="1.1" id="Layer_1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" 
 	 viewBox="0 0 512 512" xml:space="preserve">
@@ -10778,7 +10891,7 @@ in a handler kills the console.</p>
 <h2 id="updating-without-a-rebuild">Updating without a rebuild</h2>
 <p>Set a widget's value and the dirty system re-renders it automatically &mdash; no
 need to rebuild the whole page:</p>
-<div class="tabbed-set tabbed-alternate" data-tabs="8:1"><input checked="checked" id="__tabbed_8_1" name="__tabbed_8" type="radio" /><div class="tabbed-labels"><label for="__tabbed_8_1"><span class="twemoji"><?xml version="1.0" encoding="iso-8859-1"?>
+<div class="tabbed-set tabbed-alternate" data-tabs="9:1"><input checked="checked" id="__tabbed_9_1" name="__tabbed_9" type="radio" /><div class="tabbed-labels"><label for="__tabbed_9_1"><span class="twemoji"><?xml version="1.0" encoding="iso-8859-1"?>
 <!-- Uploaded to: SVG Repo, www.svgrepo.com, Generator: SVG Repo Mixer Tools -->
 <svg fill="#000000" height="800px" width="800px" version="1.1" id="Layer_1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" 
 	 viewBox="0 0 512 512" xml:space="preserve">
@@ -10819,7 +10932,7 @@ own. Calling <code>gui_represent()</code> is harmless but redundant.</p>
 </div>
 <h2 id="consoles">Consoles</h2>
 <p>Route a client to a standard console, or build one widget by widget:</p>
-<div class="tabbed-set tabbed-alternate" data-tabs="9:1"><input checked="checked" id="__tabbed_9_1" name="__tabbed_9" type="radio" /><div class="tabbed-labels"><label for="__tabbed_9_1"><span class="twemoji"><?xml version="1.0" encoding="iso-8859-1"?>
+<div class="tabbed-set tabbed-alternate" data-tabs="10:1"><input checked="checked" id="__tabbed_10_1" name="__tabbed_10" type="radio" /><div class="tabbed-labels"><label for="__tabbed_10_1"><span class="twemoji"><?xml version="1.0" encoding="iso-8859-1"?>
 <!-- Uploaded to: SVG Repo, www.svgrepo.com, Generator: SVG Repo Mixer Tools -->
 <svg fill="#000000" height="800px" width="800px" version="1.1" id="Layer_1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" 
 	 viewBox="0 0 512 512" xml:space="preserve">
@@ -10848,7 +10961,7 @@ gui_layout_widget(&quot;2dview&quot;)          # size a gameplay view (2dview / 
 </div>
 <h2 id="full-rebuild-reroute">Full rebuild / reroute</h2>
 <p>To rebuild a page, jump back to its label; to move clients between pages:</p>
-<div class="tabbed-set tabbed-alternate" data-tabs="10:1"><input checked="checked" id="__tabbed_10_1" name="__tabbed_10" type="radio" /><div class="tabbed-labels"><label for="__tabbed_10_1"><span class="twemoji"><?xml version="1.0" encoding="iso-8859-1"?>
+<div class="tabbed-set tabbed-alternate" data-tabs="11:1"><input checked="checked" id="__tabbed_11_1" name="__tabbed_11" type="radio" /><div class="tabbed-labels"><label for="__tabbed_11_1"><span class="twemoji"><?xml version="1.0" encoding="iso-8859-1"?>
 <!-- Uploaded to: SVG Repo, www.svgrepo.com, Generator: SVG Repo Mixer Tools -->
 <svg fill="#000000" height="800px" width="800px" version="1.1" id="Layer_1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" 
 	 viewBox="0 0 512 512" xml:space="preserve">

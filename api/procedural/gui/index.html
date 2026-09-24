@@ -5063,10 +5063,43 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#sbs_utils.procedural.gui.message.gui_signal" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;gui_signal
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#sbs_utils.procedural.gui.message.host_handler_sub_task" class="md-nav__link">
     <span class="md-ellipsis">
       
         <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;host_handler_sub_task
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#sbs_utils.procedural.gui.message.signal_control_value" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;signal_control_value
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#sbs_utils.procedural.gui.message.signal_emit_from_gui" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;signal_emit_from_gui
       
     </span>
   </a>
@@ -5794,6 +5827,17 @@
     <span class="md-ellipsis">
       
         <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;gui_text_area
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#sbs_utils.procedural.gui.text.gui_text_area_append" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;gui_text_area_append
       
     </span>
   </a>
@@ -12924,10 +12968,43 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#sbs_utils.procedural.gui.message.gui_signal" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;gui_signal
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#sbs_utils.procedural.gui.message.host_handler_sub_task" class="md-nav__link">
     <span class="md-ellipsis">
       
         <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;host_handler_sub_task
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#sbs_utils.procedural.gui.message.signal_control_value" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;signal_control_value
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#sbs_utils.procedural.gui.message.signal_emit_from_gui" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;signal_emit_from_gui
       
     </span>
   </a>
@@ -13655,6 +13732,17 @@
     <span class="md-ellipsis">
       
         <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;gui_text_area
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#sbs_utils.procedural.gui.text.gui_text_area_append" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;gui_text_area_append
       
     </span>
   </a>
@@ -17035,6 +17123,131 @@ gui_message_label(section, handle_section_click)</p>
 <div class="doc doc-object doc-function">
 
 
+<h2 id="sbs_utils.procedural.gui.message.gui_signal" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">gui_signal</span><span class="p">(</span><span class="n">layout_item</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">data</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span></code>
+
+</h2>
+
+
+    <div class="doc doc-contents ">
+
+        <p>Emit a signal whenever a control is used.</p>
+<p>The control does not run anything itself; the signal's routes do. That keeps
+the widget free of handler plumbing, and lets the SAME control drive a
+<code>//shared/signal</code> route (state, once on the server) and a <code>//signal</code>
+route (a repaint, on each console) - see SIGNAL_ROUTING.md for which is which.</p>
+<p>Works on any control: button, icon button, cycle button, checkbox, dropdown,
+slider and listbox (on a row click). It is added alongside the widget's other
+handlers (<code>on_press</code>, <code>on gui_message</code>), never in place of them.</p>
+<p>The route gets these variables:</p>
+<ul>
+<li>every key of <code>data</code>, when it is a dict (anything else is <code>SIGNAL_DATA</code>)</li>
+<li><code>SIGNAL_CLIENT_ID</code>: the console that used the control</li>
+<li><code>SIGNAL_ITEM</code>: the control itself</li>
+<li><code>SIGNAL_VALUE</code>: its value after the click - the checkbox state, the
+  dropdown text, the slider value, the listbox selection, the cycle button's
+  state; None for a plain button</li>
+</ul>
+
+
+<p><span class="doc-section-title">Parameters:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Type</th>
+          <th>Description</th>
+          <th>Default</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+                <code>layout_item</code>
+            </td>
+            <td>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>the control, as returned by its <code>gui_*</code> function.</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>name</code>
+            </td>
+            <td>
+                  <code><span title="str">str</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>the signal to emit.</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>data</code>
+            </td>
+            <td>
+                  <code><span title="dict">dict</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>extra variables for the route. Defaults to None.</p>
+              </div>
+            </td>
+            <td>
+                  <code>None</code>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+    <p><span class="doc-section-title">Returns:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Type</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>the layout item, so the call can wrap the builder.</p>
+              </div>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+<details class="example" open>
+  <summary>Example</summary>
+  <p>gui_signal(gui_checkbox("Shields", var="shields_on"), "shields_toggled")</p>
+<p>//shared/signal/shields_toggled
+    set_shields(SIGNAL_CLIENT_ID, SIGNAL_VALUE)</p>
+</details>
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
 <h2 id="sbs_utils.procedural.gui.message.host_handler_sub_task" class="doc doc-heading">
             <code class="highlight language-python"><span class="n">host_handler_sub_task</span><span class="p">(</span><span class="n">builder</span><span class="p">,</span> <span class="n">sub_task</span><span class="p">)</span></code>
 
@@ -17054,6 +17267,52 @@ anything that awaited did not.</p>
 left pointing at the builder, so the handler's variable scope is exactly
 what it is when the builder is alive.</p>
 <p>Returns True when the sub-task was re-hosted.</p>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h2 id="sbs_utils.procedural.gui.message.signal_control_value" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">signal_control_value</span><span class="p">(</span><span class="n">layout_item</span><span class="p">)</span></code>
+
+</h2>
+
+
+    <div class="doc doc-contents ">
+
+        <p>What a control holds right now, as a signal payload's <code>SIGNAL_VALUE</code>.</p>
+<p>The value AFTER the click: the widget's own on_message has already run (a
+checkbox has toggled, a cycle button advanced) by the time a callback fires.
+A plain button has no value - its <code>.value</code> is its props string - so None.</p>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h2 id="sbs_utils.procedural.gui.message.signal_emit_from_gui" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">signal_emit_from_gui</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">data</span><span class="p">,</span> <span class="n">client_id</span><span class="p">,</span> <span class="n">item</span><span class="p">,</span> <span class="o">**</span><span class="n">extra</span><span class="p">)</span></code>
+
+</h2>
+
+
+    <div class="doc doc-contents ">
+
+        <p>Emit a signal for a GUI interaction.</p>
+<p>The payload is the author's <code>data</code> (a dict is copied, anything else is
+passed as <code>SIGNAL_DATA</code>) plus <code>SIGNAL_CLIENT_ID</code> and <code>SIGNAL_ITEM</code> and
+any <code>extra</code> keys.</p>
+<p>The sender task is whichever task is current when the click arrives, unless
+it has ended, in which case there is no sender. <code>Mast.signal_emit</code> drops a
+signal whose sender is finished, and a widget's builder is often finished by
+the time anyone clicks (a <code>//gui</code> route body, a scheduled builder).</p>
 
 
     </div>
@@ -17437,7 +17696,7 @@ purpose.</p>
 
 
 <h2 id="sbs_utils.procedural.gui.button.gui_button" class="doc doc-heading">
-            <code class="highlight language-python"><span class="n">gui_button</span><span class="p">(</span><span class="n">props</span><span class="p">,</span> <span class="n">style</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">data</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">on_press</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">is_sub_task</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span></code>
+            <code class="highlight language-python"><span class="n">gui_button</span><span class="p">(</span><span class="n">props</span><span class="p">,</span> <span class="n">style</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">data</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">on_press</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">is_sub_task</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">signal</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span></code>
 
 </h2>
 
@@ -17560,6 +17819,25 @@ the console back -- this is the historical behavior and is
 <strong>deprecated</strong>. Defaults to None, meaning the library decides; a
 handler that paints a screen and reaches <code>await gui()</code> sends the
 GUI task there either way, so you should not need this.</p>
+              </div>
+            </td>
+            <td>
+                  <code>None</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>signal</code>
+            </td>
+            <td>
+                  <code><span title="str">str</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>A signal to emit on each press, as
+<code>gui_signal(button, signal, data)</code>. The route gets <code>data</code>'s keys
+plus <code>SIGNAL_CLIENT_ID</code> and <code>SIGNAL_ITEM</code>. Runs alongside
+<code>on_press</code>. Defaults to None.</p>
               </div>
             </td>
             <td>
@@ -17708,7 +17986,7 @@ be read is never a reason to change how it is called.</p>
 
 
 <h2 id="sbs_utils.procedural.gui.checkbox.gui_checkbox" class="doc doc-heading">
-            <code class="highlight language-python"><span class="n">gui_checkbox</span><span class="p">(</span><span class="n">msg</span><span class="p">,</span> <span class="n">style</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">var</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">data</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span></code>
+            <code class="highlight language-python"><span class="n">gui_checkbox</span><span class="p">(</span><span class="n">msg</span><span class="p">,</span> <span class="n">style</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">var</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">data</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">signal</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span></code>
 
 </h2>
 
@@ -17792,6 +18070,23 @@ from and update on toggle. Defaults to None.</p>
               <div class="doc-md-description">
                 <p>Arbitrary data passed to the event handler.
 Defaults to None.</p>
+              </div>
+            </td>
+            <td>
+                  <code>None</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>signal</code>
+            </td>
+            <td>
+                  <code><span title="str">str</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>A signal to emit on each toggle, with the new
+state as <code>SIGNAL_VALUE</code> (see <code>gui_signal</code>). Defaults to None.</p>
               </div>
             </td>
             <td>
@@ -18235,7 +18530,7 @@ gui_content(picker, var="selected_ship")</p>
 
 
 <h2 id="sbs_utils.procedural.gui.dropdown.gui_drop_down" class="doc doc-heading">
-            <code class="highlight language-python"><span class="n">gui_drop_down</span><span class="p">(</span><span class="n">props</span><span class="p">,</span> <span class="n">style</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">var</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">data</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span></code>
+            <code class="highlight language-python"><span class="n">gui_drop_down</span><span class="p">(</span><span class="n">props</span><span class="p">,</span> <span class="n">style</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">var</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">data</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">signal</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span></code>
 
 </h2>
 
@@ -18324,6 +18619,23 @@ changes. Defaults to None.</p>
               <div class="doc-md-description">
                 <p>Arbitrary data passed to the event handler.
 Defaults to None.</p>
+              </div>
+            </td>
+            <td>
+                  <code>None</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>signal</code>
+            </td>
+            <td>
+                  <code><span title="str">str</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>A signal to emit on each selection, with the
+selected text as <code>SIGNAL_VALUE</code> (see <code>gui_signal</code>). Defaults to None.</p>
               </div>
             </td>
             <td>
@@ -18692,7 +19004,7 @@ domain. Names are laid out row-major; a <code>None</code> entry skips a cell.</p
 
 
 <h2 id="sbs_utils.procedural.gui.icon.gui_icon_button" class="doc doc-heading">
-            <code class="highlight language-python"><span class="n">gui_icon_button</span><span class="p">(</span><span class="n">props</span><span class="p">,</span> <span class="n">style</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">data</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">on_press</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">is_sub_task</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span></code>
+            <code class="highlight language-python"><span class="n">gui_icon_button</span><span class="p">(</span><span class="n">props</span><span class="p">,</span> <span class="n">style</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">data</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">on_press</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">is_sub_task</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">signal</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span></code>
 
 </h2>
 
@@ -18803,6 +19115,23 @@ the console back -- this is the historical behavior and is
 <strong>deprecated</strong>. Defaults to None, meaning the library decides; a
 handler that paints a screen and reaches <code>await gui()</code> sends the
 GUI task there either way, so you should not need this.</p>
+              </div>
+            </td>
+            <td>
+                  <code>None</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>signal</code>
+            </td>
+            <td>
+                  <code><span title="str">str</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>A signal to emit on each press (see
+<code>gui_signal</code>). Defaults to None.</p>
               </div>
             </td>
             <td>
@@ -21554,7 +21883,7 @@ or <code>"$type:cruiser;angle:45;"</code>.</p>
 
 
 <h2 id="sbs_utils.procedural.gui.slider.gui_int_slider" class="doc doc-heading">
-            <code class="highlight language-python"><span class="n">gui_int_slider</span><span class="p">(</span><span class="n">msg</span><span class="p">,</span> <span class="n">style</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">var</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">data</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span></code>
+            <code class="highlight language-python"><span class="n">gui_int_slider</span><span class="p">(</span><span class="n">msg</span><span class="p">,</span> <span class="n">style</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">var</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">data</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">signal</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span></code>
 
 </h2>
 
@@ -21643,6 +21972,22 @@ Defaults to None.</p>
                   <code>None</code>
             </td>
           </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>signal</code>
+            </td>
+            <td>
+                  <code><span title="str">str</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>As <code>gui_slider</code>. Defaults to None.</p>
+              </div>
+            </td>
+            <td>
+                  <code>None</code>
+            </td>
+          </tr>
       </tbody>
     </table>
 
@@ -21682,7 +22027,7 @@ Defaults to None.</p>
 
 
 <h2 id="sbs_utils.procedural.gui.slider.gui_slider" class="doc doc-heading">
-            <code class="highlight language-python"><span class="n">gui_slider</span><span class="p">(</span><span class="n">msg</span><span class="p">,</span> <span class="n">style</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">var</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">data</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">is_int</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span></code>
+            <code class="highlight language-python"><span class="n">gui_slider</span><span class="p">(</span><span class="n">msg</span><span class="p">,</span> <span class="n">style</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">var</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">data</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">is_int</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">signal</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span></code>
 
 </h2>
 
@@ -21787,6 +22132,23 @@ Defaults to None.</p>
             </td>
             <td>
                   <code>False</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>signal</code>
+            </td>
+            <td>
+                  <code><span title="str">str</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>A signal to emit on each change, with the new
+value as <code>SIGNAL_VALUE</code> (see <code>gui_signal</code>). Defaults to None.</p>
+              </div>
+            </td>
+            <td>
+                  <code>None</code>
             </td>
           </tr>
       </tbody>
@@ -21972,6 +22334,17 @@ pipe tables, gauges (<code>[Energy](gauge://946?max=1000)</code>), links
 followed by text it LEADS the line - a square <code>size=N</code> text lines tall with
 the text beside it, and at the start of a <code>-</code> item it is the bullet. Use for
 multi-line or formatted text blocks.</p>
+<p><strong>Choices.</strong> A line that is only <code>[Display](signal://name?key=value)</code> is a
+button. Lines of them next to each other are one group, drawn as flat buttons
+that share a row while they fit and wrap when they do not. Clicking one
+replaces the whole group with the choice made (so the document reads as the
+story so far) and emits <code>name</code> with the query as variables, plus
+<code>SIGNAL_CHOICE</code> (the words), <code>SIGNAL_CLIENT_ID</code> and <code>SIGNAL_ITEM</code> (this
+area). Continue the story from the route with
+<code>gui_text_area_append(SIGNAL_ITEM, text)</code>. A line
+<code>[](choices://?layout=stack&amp;fill=#234)</code> above a group restyles the groups
+after it (<code>fill</code>, <code>text</code>, <code>chosen_fill</code>, <code>chosen_text</code>, <code>font</code>,
+<code>pad_x</code>, <code>pad_y</code>, <code>gap</code>, <code>layout</code> = <code>flow</code> | <code>stack</code>).</p>
 
 
 <p><span class="doc-section-title">Parameters:</span></p>
@@ -22137,6 +22510,119 @@ gui_text_area(source, markdown=False, line_styles=per_line_keys)</p>
 <div class="doc doc-object doc-function">
 
 
+<h2 id="sbs_utils.procedural.gui.text.gui_text_area_append" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">gui_text_area_append</span><span class="p">(</span><span class="n">text_area</span><span class="p">,</span> <span class="n">text</span><span class="p">,</span> <span class="n">sep</span><span class="o">=</span><span class="s1">&#39;</span><span class="se">\n\n</span><span class="s1">&#39;</span><span class="p">)</span></code>
+
+</h2>
+
+
+    <div class="doc doc-contents ">
+
+        <p>Add text to the end of a text area - how a story continues after a choice.</p>
+<p>The area repaints itself and, when the reader is at the bottom, stays there.
+Use this rather than <code>area.value += text</code>: <code>value</code> reads back as a list of
+lines. The text is not <code>{var}</code>-formatted here; format it before passing it.</p>
+
+
+<p><span class="doc-section-title">Parameters:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Type</th>
+          <th>Description</th>
+          <th>Default</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+                <code>text_area</code>
+            </td>
+            <td>
+                  <code><span title="sbs_utils.pages.layout.text_area.TextArea">TextArea</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>the area, e.g. <code>SIGNAL_ITEM</code> in a choice's route.</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>text</code>
+            </td>
+            <td>
+                  <code><span title="str">str</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>markdown to add, choices included.</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>sep</code>
+            </td>
+            <td>
+                  <code><span title="str">str</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>what goes between. A blank line by default, so the
+new text starts a paragraph.</p>
+              </div>
+            </td>
+            <td>
+                  <code>&#39;\n\n&#39;</code>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+    <p><span class="doc-section-title">Returns:</span></p>
+    <table>
+      <thead>
+        <tr>
+<th>Name</th>          <th>Type</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+<td><code>TextArea</code></td>            <td>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>the area.</p>
+              </div>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+<details class="example" open>
+  <summary>Example</summary>
+  <p>//shared/signal/lp_pick
+    gui_text_area_append(SIGNAL_ITEM, next_scene_text(pick))</p>
+</details>
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
 <h2 id="sbs_utils.procedural.gui.text.gui_text_escape" class="doc doc-heading">
             <code class="highlight language-python"><span class="n">gui_text_escape</span><span class="p">(</span><span class="n">s</span><span class="p">)</span></code>
 
@@ -22200,7 +22686,7 @@ styling is left untouched.</p>
 
 
 <h2 id="sbs_utils.procedural.gui.listbox.gui_list_box" class="doc doc-heading">
-            <code class="highlight language-python"><span class="n">gui_list_box</span><span class="p">(</span><span class="n">items</span><span class="p">,</span> <span class="n">style</span><span class="p">,</span> <span class="n">item_template</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">title_template</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">section_style</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">title_section_style</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">select</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">multi</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">carousel</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">collapsible</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">read_only</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">reveal</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">hint</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span></code>
+            <code class="highlight language-python"><span class="n">gui_list_box</span><span class="p">(</span><span class="n">items</span><span class="p">,</span> <span class="n">style</span><span class="p">,</span> <span class="n">item_template</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">title_template</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">section_style</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">title_section_style</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">select</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">multi</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">carousel</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">collapsible</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">read_only</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">reveal</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">hint</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">signal</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">data</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span></code>
 
 </h2>
 
@@ -22451,6 +22937,40 @@ mission. Defaults to <code>False</code>.</p>
 <code>get_selection_hint()</code>. A repaint builds a DIFFERENT listbox whose
 view starts at the top, so without this the row under the user's
 mouse moves. Do not inspect it; pass it along.</p>
+              </div>
+            </td>
+            <td>
+                  <code>None</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>signal</code>
+            </td>
+            <td>
+                  <code><span title="str">str</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>A signal to emit on each row click, with the
+selection as <code>SIGNAL_VALUE</code> (see <code>gui_signal</code>). Defaults to None.</p>
+              </div>
+            </td>
+            <td>
+                  <code>None</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>data</code>
+            </td>
+            <td>
+                  <code><span title="dict">dict</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Extra variables for the <code>signal</code> route.
+Defaults to None.</p>
               </div>
             </td>
             <td>

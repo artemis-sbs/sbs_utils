@@ -4384,6 +4384,28 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#sbs_utils.procedural.amd.amd_choice_label" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;amd_choice_label
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#sbs_utils.procedural.amd.amd_choices_settle" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;amd_choices_settle
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#sbs_utils.procedural.amd.amd_coords" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -10872,6 +10894,28 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#sbs_utils.procedural.amd.amd_choice_label" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;amd_choice_label
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#sbs_utils.procedural.amd.amd_choices_settle" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;amd_choices_settle
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#sbs_utils.procedural.amd.amd_coords" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -11655,6 +11699,45 @@ choice is unconditional; <code>outcomes</code> is <code>amd_outcomes</code>' lis
 guard is free text and would otherwise swallow the whole tail - <code>if standing &gt;
 10 ; earns kind 5</code> would become the guard <code>standing &gt; 10 ; earns kind 5</code>,
 which no evaluator can answer and which loses the outcome without a word.</p>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h2 id="sbs_utils.procedural.amd.amd_choice_label" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">amd_choice_label</span><span class="p">(</span><span class="n">text</span><span class="p">)</span></code>
+
+</h2>
+
+
+    <div class="doc doc-contents ">
+
+        <p>Words made safe to sit in <code>[...]</code> of a choice line: no brackets, one line.</p>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h2 id="sbs_utils.procedural.amd.amd_choices_settle" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">amd_choices_settle</span><span class="p">(</span><span class="n">text</span><span class="p">,</span> <span class="n">chosen</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span></code>
+
+</h2>
+
+
+    <div class="doc doc-contents ">
+
+        <p>Every live choice group in <code>text</code> settled: the one choice made, or nothing.</p>
+<p>A group containing a choice whose words are <code>chosen</code> becomes that one choice as
+<code>[words](chosen://name)</code>; a group without it is dropped, since nobody took it here.
+<code>chosen://</code> lines already settled stay as they are. Returns the new text.</p>
 
 
     </div>
