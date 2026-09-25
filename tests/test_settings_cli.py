@@ -44,6 +44,10 @@ class _Base(unittest.TestCase):
         FrameContext.context = _Ctx()
         mock.set_command_line([])
         S.setting_defaults = None          # the merge is cached; each test re-merges
+        # the warn-once set is module state: an earlier test's drop must not pre-empt
+        # (or hide) this test's warnings
+        from sbs_utils.procedural.command_line import command_line_scope_reset
+        command_line_scope_reset()
         self._warnings = []
         from sbs_utils.procedural import execution
         self._real_log = execution.log
@@ -107,6 +111,10 @@ class TestVarOverrides(_Base):
         self.assertEqual(self._warnings, [])
 
     def test_other_arguments_are_ignored(self):
+        from sbs_utils import fs
+        saved = fs.mission_name
+        fs.mission_name = "y"               # the launched mission IS the running one
+        self.addCleanup(lambda: setattr(fs, "mission_name", saved))
         mock.set_command_line(["autostartserver", "map=x", "defaultmission=y"])
         s = S.settings_get_defaults()
         self.assertNotIn("map", s)

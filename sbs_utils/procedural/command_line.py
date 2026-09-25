@@ -33,9 +33,18 @@ from ..helpers import FrameContext
 
 
 def _sbs():
-    """The sbs module for this frame, or None outside a frame (import time, tests)."""
+    """The sbs module for this frame, else the loaded `sbs` module, else None.
+
+    The command line belongs to the PROCESS, not a frame. Answering None outside a frame
+    meant the first `settings_get_defaults()` - which runs at story compile, before any
+    event - never saw `profile=`, and cached settings without it for the whole mission.
+    """
     context = FrameContext.context
-    return getattr(context, "sbs", None) if context is not None else None
+    sbs = getattr(context, "sbs", None) if context is not None else None
+    if sbs is None:
+        import sys
+        sbs = sys.modules.get("sbs")
+    return sbs
 
 
 def command_line_list():

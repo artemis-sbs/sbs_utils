@@ -146,9 +146,31 @@ class TestDegrading(unittest.TestCase):
         self.assertEqual(command_line_get("map", "d"), "d", why)
         self.assertFalse(command_line_has("autostartserver"), why)
 
-    def test_no_frame_context(self):
+    def test_no_frame_context_and_no_sbs(self):
+        import sys
         FrameContext.context = None
-        self._expect_empty("outside a frame - import time, tests")
+        saved = sys.modules.pop("sbs", None)
+        try:
+            self._expect_empty("outside a frame, no sbs module loaded")
+        finally:
+            if saved is not None:
+                sys.modules["sbs"] = saved
+
+    def test_no_frame_context_reads_the_process(self):
+        """The command line belongs to the PROCESS. Settings are first read at story
+        compile, before any event - answering empty there cached settings without
+        `profile=` for the whole mission (mission_runner --profile did nothing)."""
+        import sys
+        FrameContext.context = None
+        saved = sys.modules.get("sbs")
+        sys.modules["sbs"] = _FakeSbs(["profile=soak"])
+        try:
+            self.assertEqual(command_line_get("profile"), "soak")
+        finally:
+            if saved is None:
+                sys.modules.pop("sbs", None)
+            else:
+                sys.modules["sbs"] = saved
 
     def test_engine_older_than_1_3_5(self):
         FrameContext.context = _Ctx(_FakeSbs(missing=True))
