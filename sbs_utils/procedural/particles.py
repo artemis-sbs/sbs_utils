@@ -212,8 +212,25 @@ def particle_presets_mission_count():
 def _descriptor_for(preset, kw):
     """Shared resolution: a preset name plus overrides, or bare kwargs."""
     if preset is not None:
-        return particle_preset(preset, **kw)
-    return particle_descriptor(**kw)
+        return _with_image_cell(particle_preset(preset, **kw))
+    return _with_image_cell(particle_descriptor(**kw))
+
+
+def _with_image_cell(desc):
+    """A descriptor the ENGINE is about to receive, given an image_cell if it has none.
+
+    image_cell is not optional to the engine, whatever the grammar suggests: a burst sent
+    without one crashed the CLIENT in Render3DObject::EmitAt (a null deref, engine-measured
+    2026-09-25) while the server carried on. Every preset sets one; a hand-built
+    descriptor gets the same defaults the presets use - 4 (the smoke puff) for smoke, 0..3
+    (the glow cells) otherwise. Applied HERE, at the send, not in particle_descriptor:
+    that also builds override fragments merged over presets, where a default would
+    replace the preset's own cell.
+    """
+    if not desc or "image_cell" in desc:
+        return desc
+    smoke = "smoke: True" in desc
+    return desc + "; image_cell: " + ("4" if smoke else "0,3")
 
 
 # ---------------------------------------------------------------------------

@@ -127,6 +127,26 @@ class TestParticles(unittest.TestCase):
             sbs.particle_at, sbs.particle_on = at, on
         self.assertEqual([k for k, _ in seen], ["at", "at", "on"])
 
+    def test_every_sent_descriptor_has_an_image_cell(self):
+        """A burst without image_cell crashed the CLIENT in Render3DObject::EmitAt
+        (engine-measured 2026-09-25: the Venus mod's Boiler Vent). What reaches the
+        engine always carries one; a preset's own cell is never replaced."""
+        seen = []
+        on = sbs.particle_on
+        sbs.particle_on = lambda eo, desc: seen.append(desc)
+        try:
+            P.particle_burst(self.a.id, shape="hull", smoke=True, count=40)
+            P.particle_burst(self.a.id, shape="hull", color="#6f8", count=40)
+            P.particle_burst(self.a.id, "sparks")
+            P.particle_burst(self.a.id, shape="hull", image_cell=9)
+        finally:
+            sbs.particle_on = on
+        self.assertIn("image_cell: 4", seen[0])            # smoke -> the smoke puff
+        self.assertIn("image_cell: 0,3", seen[1])          # else -> the glow cells
+        self.assertEqual(seen[2], P.particle_preset("sparks"))   # preset untouched
+        self.assertEqual(seen[3].count("image_cell"), 1)   # an explicit one is kept
+        self.assertIn("image_cell: 9", seen[3])
+
     # --- the slot registry -----------------------------------------------------
 
     def test_effect_lifecycle(self):
