@@ -111,9 +111,7 @@ and sbs_utils at that one file, with nothing written. See
   were already; a **skybox** was confirmed in the engine on 2026-08-16 by running
   LegendaryMissions with `profile=a28_skies`, which drops the stock skies and draws the
   Artemis 2.8 ones straight out of `__lib__/media/…/skybox/`.
-- **Music cannot come from a pack, and that is the engine's limit, not a gap here.**
-  `set_music_folder` takes a bare folder name under `data/audio/music`; hand it a path in
-  any spelling and the engine **segfaults** (an absolute one hangs instead). sbs_utils
-  resolves a pack's bank, declines to hand the path over, warns, and plays `default`. A
-  player who wants a mod's bank copies it into `data/audio/music/<name>`. Gated behind
-  `MUSIC_ENGINE_ACCEPTS_PATHS` for the day that changes.
+- **Music plays from a pack on current engine builds** (2026-09-20 and later). On 1.3.6
+  and older, `set_music_folder` given a path **segfaults** (an absolute one hangs), so a
+  mission on an old exe sets `MUSIC_ENGINE_ACCEPTS_PATHS: false` - sbs_utils then resolves
+  a pack's bank, declines to hand the path over, warns, and plays `default`.

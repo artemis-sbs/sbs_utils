@@ -335,9 +335,10 @@ for tng_plan in tng_interiors_enabled(tng_manifest):
   string names sheet/column/row, so **never repack a shipped sheet** - add new sheets instead,
   and regenerate `allFaceFiles.txt` lines from what is INSTALLED, not from the new build output.
 - **Music:** `@media/music/<Bank> "Name"` declares a bank; `settings_set_mod_default` makes it a
-  default that loses to the mission. The engine's `set_music_folder` takes only a bare name
-  under `data/audio/music` and HANGS on a path, so a pack bank plays `default` until
-  `MUSIC_ENGINE_ACCEPTS_PATHS` is on. **Skyboxes** load from the pack with no restriction.
+  default that loses to the mission. Since the 2026-09-20 engine build a pack bank plays
+  straight from the pack (`MUSIC_ENGINE_ACCEPTS_PATHS` defaults True); on 1.3.6 and older a
+  path crashes `set_music_folder`, so set it False there. **Skyboxes** load from the pack
+  with no restriction.
 - **Taunts** have no mod registry; TNG updates LM's `taunt_data` shared variable via
   `get_shared_variable` (read it that way - a bare name is a NameError without LM).
 - Still engine-owned and undeclarable from a mod: SFX/font names (`preferences.json`), face

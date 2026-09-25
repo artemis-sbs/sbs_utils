@@ -453,10 +453,11 @@ def settings_get_defaults():
         # It is the one part of the crew system that changes what an EXISTING mission shows.
         # Set false for a mission that wants a seat nobody claimed to read as empty.
         "CREW_AUTONAME": True,
-        # Whether set_music_folder may be handed a PATH. Leave it False: on engine 1.3.6 a
-        # path HANGS the engine (data/missions/music_probe). Exists so that probe can test a
-        # newer build without a library rebuild.
-        "MUSIC_ENGINE_ACCEPTS_PATHS": False,
+        # Whether set_music_folder may be handed a PATH, so a mod's bank plays straight from
+        # its media pack. On since 2026-09-25: the 2026-09-20 engine build survives every
+        # spelling data/missions/music_probe tries, and opens the pack's .ogg files. On
+        # 1.3.6 and older a path SEGFAULTS or hangs the engine - set this False to run one.
+        "MUSIC_ENGINE_ACCEPTS_PATHS": True,
         # Which races a player ship may be. Comma separated, matched against a hull's
         # shipData "side" (case and spacing are ignored).
         #

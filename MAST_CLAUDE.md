@@ -619,9 +619,10 @@ End-of-game stings come from the SELECTED bank: `music_play_sting("victory")` /
 hardcoded the bank, so a game scored to anything else ended on the stock sting. Falls back
 to `default` per FILE, so a bank missing one stinger keeps the rest of its music.
 
-`set_music_folder` takes a **bare name** under `data/audio/music/` - a path HANGS the
-engine, so a bank in a media pack is found, withheld, and reported until
-`MUSIC_ENGINE_ACCEPTS_PATHS` is turned on.
+A bank in a media pack plays from the pack: `set_music_folder` takes a path on engine
+builds from 2026-09-20 on, and `MUSIC_ENGINE_ACCEPTS_PATHS` defaults True. On 1.3.6 and
+older a path crashes or hangs the engine - set it False there and a pack bank is withheld
+with a warning.
 
 ### Console labels
 

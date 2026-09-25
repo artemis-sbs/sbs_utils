@@ -14,20 +14,19 @@ import os.path as path
 def music_engine_accepts_paths():
     """Whether `set_music_folder` may be handed a PATH rather than a bare name.
 
-    False, and it must stay false until an engine build is measured to survive it. On
-    1.3.6 a path does not raise or fall back: an exe-relative one SEGFAULTS the engine
-    (rc 139) and an absolute one hangs it. Measured across all four spellings with a
-    working control - see `true_path` for the matrix, and
+    True by default since 2026-09-25. On 1.3.6 a path did not raise or fall back: an
+    exe-relative one SEGFAULTED the engine (rc 139) and an absolute one hung it. The
+    2026-09-20 build survives all six `music_probe` cases, including a mod's pack folder
+    under `__lib__/media` in both spellings, and was seen opening that pack's .ogg files
+    (access times) - see `true_path` for the matrix, and
     `data/missions/music_probe/music.txt` for the log.
 
-    A setting rather than a constant so `music_probe` can flip it on a build under test
-    without rebuilding the library. Re-run all four cases before flipping it: the case
-    that matters is 4, `data/audio/music/default`, because it proves the engine objects
-    to the PATH and not to where the folder lives.
+    Still a setting rather than a constant, so a mission run on an older exe can set it
+    False and keep the bare-name-only behavior without a library rebuild.
     """
     try:
         from ...procedural.settings import settings_get_defaults
-        return bool(settings_get_defaults().get("MUSIC_ENGINE_ACCEPTS_PATHS", False))
+        return bool(settings_get_defaults().get("MUSIC_ENGINE_ACCEPTS_PATHS", True))
     except Exception:
         return False
 
@@ -170,7 +169,13 @@ class MediaLabel(DecoratorLabel):
           folder that works as the bare name in case 3 - so this is not about WHERE the
           folder is, and no amount of putting a mod's music in the right place helps. It
           is the presence of a path at all. Case 1 is the shape `engine_file()` produces,
-          which is why `music_engine_accepts_paths()` stays False.
+          which is why `music_engine_accepts_paths()` was False.
+
+          Re-measured 2026-09-25 on the 2026-09-20 build: cases 1-4 all return normally,
+          as do two new ones, 5 and 6 - a mod's bank in its unpacked `__lib__/media` pack,
+          exe-relative and absolute. The engine opened the pack's .ogg files during case
+          5. So the gate is now ON by default; the 1.3.6 matrix above is kept because an
+          older exe still dies this way.
 
         That is why this used to be a live bug rather than a limitation: the music branch
         returned an ABSOLUTE path whenever it found the folder in the mission or in a

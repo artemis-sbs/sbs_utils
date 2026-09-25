@@ -73,14 +73,14 @@ wrong trade — so only that one file falls back to `default`.
 
 ## Music must be a bare name, and that is the engine's rule
 
-`set_sky_box` takes a path in any spelling. **`set_music_folder` does not**: it resolves a
-bare name under `data/audio/music/`, and handing it a path does not fail — it **hangs the
-engine**. The call never returns (measured in `missions/music_probe`, engine 1.3.6).
+`set_sky_box` takes a path in any spelling, and so does `set_music_folder` on current
+engine builds (measured in `missions/music_probe` on the 2026-09-20 build). A bank shipped
+in a mod's media pack plays straight from the pack; `data/audio/music/<name>` is still
+checked first and wins when both exist.
 
-So a bank shipped in a mod's media pack is found by sbs_utils, and then deliberately *not*
-handed over: the label logs a warning naming the folder it found and plays `default`. Copy
-the folder into `data/audio/music/` to use it today. When an engine build is measured to
-survive a path, set `MUSIC_ENGINE_ACCEPTS_PATHS: true` and packs work directly.
+**Engine 1.3.6 and older crash on a music path** - an exe-relative one segfaults, an
+absolute one hangs. To run on one, set `MUSIC_ENGINE_ACCEPTS_PATHS: false`: a pack's bank
+is then found, withheld with a warning naming the folder, and `default` plays instead.
 
 ## Quick example
 
