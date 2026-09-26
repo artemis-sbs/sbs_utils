@@ -3,8 +3,8 @@
   "what": "engine is_grid_point_open, captured - NOT derived from art",
   "why": "the art-derived rule agrees with the engine only 0.79; see GRID_REFERENCE.md s2",
   "regenerate": "run LM_TestRange map test_hullmap_probe IN ENGINE, then python -m cosmos_dev.mock.hull_capture <hullmap_probe.txt>",
-  "source": "hullmap_probe.txt",
-  "hulls": 63
+  "source": "Venus_TestRange/venus_hullmap.txt (engine, 2026-09-25)",
+  "hulls": 158
  },
  "arvonian_carrier": {
   "art": "ArvoCarrier2",
@@ -1349,6 +1349,1913 @@
    "#######",
    "#######",
    "#.....#"
+  ]
+ },
+ "venus_atom_cargo_barge": {
+  "art": "data/missions/__lib__/media/artemis-sbs.VenusClouds-Mod.media.v0.2.0/ships/atompunk/cargo_barge",
+  "w": 12,
+  "h": 20,
+  "grid_scale": 1.0,
+  "symmetry": 1,
+  "open": [
+   "............",
+   "....####....",
+   "....####....",
+   "....####....",
+   ".##########.",
+   ".##########.",
+   ".##########.",
+   ".##########.",
+   ".##########.",
+   ".##########.",
+   ".##########.",
+   ".##########.",
+   ".##########.",
+   ".##########.",
+   ".##########.",
+   ".##########.",
+   ".##########.",
+   "..##....##..",
+   "..##....##..",
+   "..#......#.."
+  ]
+ },
+ "venus_atom_carrier": {
+  "art": "data/missions/__lib__/media/artemis-sbs.VenusClouds-Mod.media.v0.2.0/ships/atompunk/carrier",
+  "w": 18,
+  "h": 28,
+  "grid_scale": 1.0,
+  "symmetry": 1,
+  "open": [
+   "..................",
+   "........##........",
+   "........##........",
+   ".......####.......",
+   ".....########.....",
+   ".....########.....",
+   ".....########.....",
+   ".....########.....",
+   ".....########.....",
+   "....##########....",
+   "....##########....",
+   "...############...",
+   "...############...",
+   "..##.########.##..",
+   ".###.########.###.",
+   ".##..########..##.",
+   "##...########...##",
+   "#....########....#",
+   "#....########....#",
+   ".....########.....",
+   ".....########.....",
+   ".....########.....",
+   ".....########.....",
+   ".....########.....",
+   ".....########.....",
+   "....##########....",
+   "....##......##....",
+   ".................."
+  ]
+ },
+ "venus_atom_cruiser": {
+  "art": "data/missions/__lib__/media/artemis-sbs.VenusClouds-Mod.media.v0.2.0/ships/atompunk/cruiser",
+  "w": 14,
+  "h": 24,
+  "grid_scale": 1.0,
+  "symmetry": 1,
+  "open": [
+   "..............",
+   "..............",
+   "......##......",
+   ".....####.....",
+   ".....####.....",
+   ".....####.....",
+   "....######....",
+   "....######....",
+   "....######....",
+   "....######....",
+   "..#.######.#..",
+   "..##########..",
+   "..##########..",
+   "..##########..",
+   "..##########..",
+   "..##########..",
+   "..##########..",
+   "..##########..",
+   ".##.######.##.",
+   "....######....",
+   "...########...",
+   "..##########..",
+   ".##...##...##.",
+   ".............."
+  ]
+ },
+ "venus_atom_destroyer": {
+  "art": "data/missions/__lib__/media/artemis-sbs.VenusClouds-Mod.media.v0.2.0/ships/atompunk/destroyer",
+  "w": 8,
+  "h": 20,
+  "grid_scale": 1.0,
+  "symmetry": 1,
+  "open": [
+   "........",
+   "........",
+   "........",
+   "........",
+   "...##...",
+   "...##...",
+   "...##...",
+   "..####..",
+   "..####..",
+   "..####..",
+   "..####..",
+   "..####..",
+   "..####..",
+   "...##...",
+   "...##...",
+   "...##...",
+   "..####..",
+   "..####..",
+   ".#....#.",
+   "........"
+  ]
+ },
+ "venus_atom_fighter": {
+  "art": "data/missions/__lib__/media/artemis-sbs.VenusClouds-Mod.media.v0.2.0/ships/atompunk/fighter",
+  "w": 7,
+  "h": 7,
+  "grid_scale": 1.0,
+  "symmetry": 1,
+  "open": [
+   ".......",
+   "...#...",
+   "...#...",
+   "..###..",
+   "...#...",
+   "..###..",
+   "...#..."
+  ]
+ },
+ "venus_atom_frigate": {
+  "art": "data/missions/__lib__/media/artemis-sbs.VenusClouds-Mod.media.v0.2.0/ships/atompunk/frigate",
+  "w": 8,
+  "h": 14,
+  "grid_scale": 1.0,
+  "symmetry": 1,
+  "open": [
+   "........",
+   "........",
+   "...##...",
+   "...##...",
+   "..####..",
+   "..####..",
+   "..####..",
+   "..####..",
+   "..####..",
+   "..####..",
+   "..####..",
+   ".######.",
+   ".#....#.",
+   "........"
+  ]
+ },
+ "venus_atom_launch": {
+  "art": "data/missions/__lib__/media/artemis-sbs.VenusClouds-Mod.media.v0.2.0/ships/atompunk/launch",
+  "w": 5,
+  "h": 9,
+  "grid_scale": 1.0,
+  "symmetry": 1,
+  "open": [
+   "..#..",
+   ".###.",
+   ".###.",
+   "#####",
+   "#####",
+   ".###.",
+   ".###.",
+   "..#..",
+   "....."
+  ]
+ },
+ "venus_atom_station_civil": {
+  "art": "data/missions/__lib__/media/artemis-sbs.VenusClouds-Mod.media.v0.2.0/ships/atompunk/station_civil",
+  "w": 4,
+  "h": 4,
+  "grid_scale": 1.0,
+  "symmetry": 1,
+  "open": [
+   ".##.",
+   ".##.",
+   ".##.",
+   ".##."
+  ]
+ },
+ "venus_atom_station_command": {
+  "art": "data/missions/__lib__/media/artemis-sbs.VenusClouds-Mod.media.v0.2.0/ships/atompunk/station_command",
+  "w": 4,
+  "h": 4,
+  "grid_scale": 1.0,
+  "symmetry": 1,
+  "open": [
+   "....",
+   ".##.",
+   ".##.",
+   "...."
+  ]
+ },
+ "venus_atom_station_industrial": {
+  "art": "data/missions/__lib__/media/artemis-sbs.VenusClouds-Mod.media.v0.2.0/ships/atompunk/station_industrial",
+  "w": 4,
+  "h": 4,
+  "grid_scale": 1.0,
+  "symmetry": 1,
+  "open": [
+   "....",
+   "####",
+   "####",
+   "...."
+  ]
+ },
+ "venus_atom_station_science": {
+  "art": "data/missions/__lib__/media/artemis-sbs.VenusClouds-Mod.media.v0.2.0/ships/atompunk/station_science",
+  "w": 4,
+  "h": 4,
+  "grid_scale": 1.0,
+  "symmetry": 1,
+  "open": [
+   ".##.",
+   "####",
+   "####",
+   ".##."
+  ]
+ },
+ "venus_atom_steam_tender": {
+  "art": "data/missions/__lib__/media/artemis-sbs.VenusClouds-Mod.media.v0.2.0/ships/atompunk/steam_tender",
+  "w": 10,
+  "h": 18,
+  "grid_scale": 1.0,
+  "symmetry": 1,
+  "open": [
+   "..........",
+   "....##....",
+   "....##....",
+   "....##....",
+   "....##....",
+   "..........",
+   "....##....",
+   "....##....",
+   "....##....",
+   "....##....",
+   "....##....",
+   "....##....",
+   "..........",
+   "....##....",
+   "....##....",
+   "....##....",
+   "....##....",
+   ".........."
+  ]
+ },
+ "venus_atom_tug": {
+  "art": "data/missions/__lib__/media/artemis-sbs.VenusClouds-Mod.media.v0.2.0/ships/atompunk/tug",
+  "w": 6,
+  "h": 8,
+  "grid_scale": 1.0,
+  "symmetry": 1,
+  "open": [
+   "......",
+   "......",
+   "..##..",
+   "..##..",
+   ".####.",
+   "..##..",
+   "..##..",
+   "......"
+  ]
+ },
+ "venus_atom_turret": {
+  "art": "data/missions/__lib__/media/artemis-sbs.VenusClouds-Mod.media.v0.2.0/ships/atompunk/turret",
+  "w": 4,
+  "h": 4,
+  "grid_scale": 1.0,
+  "symmetry": 1,
+  "open": [
+   "....",
+   "....",
+   ".##.",
+   ".##."
+  ]
+ },
+ "venus_bio_cargo_barge": {
+  "art": "data/missions/__lib__/media/artemis-sbs.VenusClouds-Mod.media.v0.2.0/ships/biopunk/cargo_barge",
+  "w": 12,
+  "h": 20,
+  "grid_scale": 1.0,
+  "symmetry": 1,
+  "open": [
+   "............",
+   ".....##.....",
+   "....####....",
+   "...######...",
+   "...######...",
+   "..########..",
+   ".##########.",
+   ".##########.",
+   ".##########.",
+   ".##########.",
+   ".##########.",
+   ".##########.",
+   ".##########.",
+   ".##########.",
+   ".##########.",
+   ".##########.",
+   "..########..",
+   "...######...",
+   ".....##.....",
+   "............"
+  ]
+ },
+ "venus_bio_carrier": {
+  "art": "data/missions/__lib__/media/artemis-sbs.VenusClouds-Mod.media.v0.2.0/ships/biopunk/carrier",
+  "w": 18,
+  "h": 28,
+  "grid_scale": 1.0,
+  "symmetry": 1,
+  "open": [
+   "..................",
+   "..................",
+   ".......####.......",
+   ".......####.......",
+   ".......####.......",
+   "......######......",
+   "......######......",
+   ".....########.....",
+   "....##########....",
+   "...############...",
+   "..##############..",
+   ".################.",
+   "##################",
+   ".################.",
+   "..##############..",
+   "....##########....",
+   "......######......",
+   ".......####.......",
+   "........##........",
+   "........##........",
+   "..................",
+   "..................",
+   "..................",
+   "..................",
+   "..................",
+   "..................",
+   "..................",
+   ".................."
+  ]
+ },
+ "venus_bio_cruiser": {
+  "art": "data/missions/__lib__/media/artemis-sbs.VenusClouds-Mod.media.v0.2.0/ships/biopunk/cruiser",
+  "w": 14,
+  "h": 24,
+  "grid_scale": 1.0,
+  "symmetry": 1,
+  "open": [
+   "..............",
+   "..............",
+   "..............",
+   "..............",
+   "......##......",
+   "....######....",
+   "....######....",
+   "...########...",
+   "..##########..",
+   ".############.",
+   ".############.",
+   ".############.",
+   "##############",
+   "##############",
+   "##############",
+   "##############",
+   "##############",
+   ".############.",
+   ".############.",
+   ".############.",
+   "..##########..",
+   "...########...",
+   "....######....",
+   "......##......"
+  ]
+ },
+ "venus_bio_destroyer": {
+  "art": "data/missions/__lib__/media/artemis-sbs.VenusClouds-Mod.media.v0.2.0/ships/biopunk/destroyer",
+  "w": 8,
+  "h": 20,
+  "grid_scale": 1.0,
+  "symmetry": 1,
+  "open": [
+   "........",
+   "........",
+   "........",
+   "...##...",
+   "...##...",
+   "..####..",
+   "..####..",
+   "..####..",
+   "..####..",
+   "..####..",
+   "..####..",
+   "..####..",
+   "..####..",
+   "..####..",
+   "...##...",
+   "...##...",
+   "........",
+   "........",
+   "........",
+   "........"
+  ]
+ },
+ "venus_bio_fighter": {
+  "art": "data/missions/__lib__/media/artemis-sbs.VenusClouds-Mod.media.v0.2.0/ships/biopunk/fighter",
+  "w": 7,
+  "h": 7,
+  "grid_scale": 1.0,
+  "symmetry": 1,
+  "open": [
+   ".......",
+   "...#...",
+   "...#...",
+   "...#...",
+   "...#...",
+   "...#...",
+   "......."
+  ]
+ },
+ "venus_bio_frigate": {
+  "art": "data/missions/__lib__/media/artemis-sbs.VenusClouds-Mod.media.v0.2.0/ships/biopunk/frigate",
+  "w": 8,
+  "h": 14,
+  "grid_scale": 1.0,
+  "symmetry": 1,
+  "open": [
+   "........",
+   "........",
+   "........",
+   "........",
+   "...##...",
+   "...##...",
+   "...##...",
+   "..####..",
+   ".######.",
+   "..####..",
+   "..####..",
+   "...##...",
+   "...##...",
+   "........"
+  ]
+ },
+ "venus_bio_launch": {
+  "art": "data/missions/__lib__/media/artemis-sbs.VenusClouds-Mod.media.v0.2.0/ships/biopunk/launch",
+  "w": 5,
+  "h": 9,
+  "grid_scale": 1.0,
+  "symmetry": 1,
+  "open": [
+   "..#..",
+   ".###.",
+   ".###.",
+   "#####",
+   ".###.",
+   ".###.",
+   "..#..",
+   ".....",
+   "....."
+  ]
+ },
+ "venus_bio_station_civil": {
+  "art": "data/missions/__lib__/media/artemis-sbs.VenusClouds-Mod.media.v0.2.0/ships/biopunk/station_civil",
+  "w": 4,
+  "h": 4,
+  "grid_scale": 1.0,
+  "symmetry": 1,
+  "open": [
+   ".##.",
+   ".##.",
+   ".##.",
+   "#..#"
+  ]
+ },
+ "venus_bio_station_command": {
+  "art": "data/missions/__lib__/media/artemis-sbs.VenusClouds-Mod.media.v0.2.0/ships/biopunk/station_command",
+  "w": 4,
+  "h": 4,
+  "grid_scale": 1.0,
+  "symmetry": 1,
+  "open": [
+   "....",
+   ".##.",
+   ".##.",
+   "...."
+  ]
+ },
+ "venus_bio_station_industrial": {
+  "art": "data/missions/__lib__/media/artemis-sbs.VenusClouds-Mod.media.v0.2.0/ships/biopunk/station_industrial",
+  "w": 4,
+  "h": 4,
+  "grid_scale": 1.0,
+  "symmetry": 1,
+  "open": [
+   "....",
+   ".##.",
+   "####",
+   "...."
+  ]
+ },
+ "venus_bio_station_science": {
+  "art": "data/missions/__lib__/media/artemis-sbs.VenusClouds-Mod.media.v0.2.0/ships/biopunk/station_science",
+  "w": 4,
+  "h": 4,
+  "grid_scale": 1.0,
+  "symmetry": 1,
+  "open": [
+   "....",
+   ".##.",
+   ".##.",
+   "...."
+  ]
+ },
+ "venus_bio_steam_tender": {
+  "art": "data/missions/__lib__/media/artemis-sbs.VenusClouds-Mod.media.v0.2.0/ships/biopunk/steam_tender",
+  "w": 10,
+  "h": 18,
+  "grid_scale": 1.0,
+  "symmetry": 1,
+  "open": [
+   "..........",
+   "..........",
+   "....##....",
+   "....##....",
+   "....##....",
+   "....##....",
+   "....##....",
+   "....##....",
+   "....##....",
+   "....##....",
+   "....##....",
+   "....##....",
+   "....##....",
+   "....##....",
+   "....##....",
+   "..........",
+   "..........",
+   ".........."
+  ]
+ },
+ "venus_bio_tug": {
+  "art": "data/missions/__lib__/media/artemis-sbs.VenusClouds-Mod.media.v0.2.0/ships/biopunk/tug",
+  "w": 6,
+  "h": 8,
+  "grid_scale": 1.0,
+  "symmetry": 1,
+  "open": [
+   "......",
+   "......",
+   "......",
+   "..##..",
+   ".####.",
+   ".####.",
+   "......",
+   "......"
+  ]
+ },
+ "venus_bio_turret": {
+  "art": "data/missions/__lib__/media/artemis-sbs.VenusClouds-Mod.media.v0.2.0/ships/biopunk/turret",
+  "w": 4,
+  "h": 4,
+  "grid_scale": 1.0,
+  "symmetry": 1,
+  "open": [
+   "....",
+   "....",
+   ".##.",
+   ".##."
+  ]
+ },
+ "venus_cloud_aether_vein": {
+  "art": "data/missions/__lib__/media/artemis-sbs.VenusClouds-Mod.media.v0.2.0/ships/clouds/aether_vein",
+  "w": 4,
+  "h": 4,
+  "grid_scale": 1.0,
+  "symmetry": 1,
+  "open": [
+   "....",
+   "....",
+   "....",
+   "...."
+  ]
+ },
+ "venus_cloud_cumulonimbus_tower": {
+  "art": "data/missions/__lib__/media/artemis-sbs.VenusClouds-Mod.media.v0.2.0/ships/clouds/cumulonimbus_tower",
+  "w": 4,
+  "h": 4,
+  "grid_scale": 1.0,
+  "symmetry": 1,
+  "open": [
+   "....",
+   ".##.",
+   ".##.",
+   "...."
+  ]
+ },
+ "venus_cloud_cumulus_large": {
+  "art": "data/missions/__lib__/media/artemis-sbs.VenusClouds-Mod.media.v0.2.0/ships/clouds/cumulus_large",
+  "w": 4,
+  "h": 4,
+  "grid_scale": 1.0,
+  "symmetry": 1,
+  "open": [
+   ".##.",
+   "####",
+   ".##.",
+   ".##."
+  ]
+ },
+ "venus_cloud_cumulus_small": {
+  "art": "data/missions/__lib__/media/artemis-sbs.VenusClouds-Mod.media.v0.2.0/ships/clouds/cumulus_small",
+  "w": 4,
+  "h": 4,
+  "grid_scale": 1.0,
+  "symmetry": 1,
+  "open": [
+   "....",
+   "####",
+   ".##.",
+   ".##."
+  ]
+ },
+ "venus_cloud_ice_crystal": {
+  "art": "data/missions/__lib__/media/artemis-sbs.VenusClouds-Mod.media.v0.2.0/ships/clouds/ice_crystal",
+  "w": 4,
+  "h": 4,
+  "grid_scale": 1.0,
+  "symmetry": 1,
+  "open": [
+   "....",
+   "....",
+   "....",
+   "...."
+  ]
+ },
+ "venus_cloud_ore_dust": {
+  "art": "data/missions/__lib__/media/artemis-sbs.VenusClouds-Mod.media.v0.2.0/ships/clouds/ore_dust",
+  "w": 4,
+  "h": 4,
+  "grid_scale": 1.0,
+  "symmetry": 1,
+  "open": [
+   "....",
+   "....",
+   "....",
+   "...."
+  ]
+ },
+ "venus_cloud_spore_drift": {
+  "art": "data/missions/__lib__/media/artemis-sbs.VenusClouds-Mod.media.v0.2.0/ships/clouds/spore_drift",
+  "w": 4,
+  "h": 4,
+  "grid_scale": 1.0,
+  "symmetry": 1,
+  "open": [
+   "....",
+   "....",
+   "....",
+   "...."
+  ]
+ },
+ "venus_cloud_storm_cell": {
+  "art": "data/missions/__lib__/media/artemis-sbs.VenusClouds-Mod.media.v0.2.0/ships/clouds/storm_core",
+  "w": 4,
+  "h": 4,
+  "grid_scale": 1.0,
+  "symmetry": 1,
+  "open": [
+   "....",
+   ".##.",
+   ".##.",
+   "...."
+  ]
+ },
+ "venus_cloud_stratus_bank": {
+  "art": "data/missions/__lib__/media/artemis-sbs.VenusClouds-Mod.media.v0.2.0/ships/clouds/stratus_bank",
+  "w": 4,
+  "h": 4,
+  "grid_scale": 1.0,
+  "symmetry": 1,
+  "open": [
+   "....",
+   "####",
+   ".##.",
+   "...."
+  ]
+ },
+ "venus_cloud_sulfur_bloom": {
+  "art": "data/missions/__lib__/media/artemis-sbs.VenusClouds-Mod.media.v0.2.0/ships/clouds/sulfur_bloom",
+  "w": 4,
+  "h": 4,
+  "grid_scale": 1.0,
+  "symmetry": 1,
+  "open": [
+   "....",
+   "....",
+   "....",
+   "...."
+  ]
+ },
+ "venus_cloud_wreck_haze": {
+  "art": "data/missions/__lib__/media/artemis-sbs.VenusClouds-Mod.media.v0.2.0/ships/clouds/wreck_haze",
+  "w": 4,
+  "h": 4,
+  "grid_scale": 1.0,
+  "symmetry": 1,
+  "open": [
+   "....",
+   "....",
+   "....",
+   "...."
+  ]
+ },
+ "venus_deco_cargo_barge": {
+  "art": "data/missions/__lib__/media/artemis-sbs.VenusClouds-Mod.media.v0.2.0/ships/decopunk/cargo_barge",
+  "w": 12,
+  "h": 20,
+  "grid_scale": 1.0,
+  "symmetry": 1,
+  "open": [
+   "............",
+   "............",
+   ".....##.....",
+   ".....##.....",
+   "..##.##.##..",
+   "..##.##.##..",
+   "..##.##.##..",
+   "..########..",
+   ".##########.",
+   ".##########.",
+   ".##########.",
+   ".##########.",
+   ".##########.",
+   ".##########.",
+   "..########..",
+   "..########..",
+   "############",
+   ".##########.",
+   ".####..####.",
+   "............"
+  ]
+ },
+ "venus_deco_carrier": {
+  "art": "data/missions/__lib__/media/artemis-sbs.VenusClouds-Mod.media.v0.2.0/ships/decopunk/carrier",
+  "w": 18,
+  "h": 28,
+  "grid_scale": 1.0,
+  "symmetry": 1,
+  "open": [
+   "........##........",
+   "......######......",
+   ".....########.....",
+   ".....########.....",
+   "....##########....",
+   "...############...",
+   "...############...",
+   "...############...",
+   "...############...",
+   "...############...",
+   "...############...",
+   "...############...",
+   "...############...",
+   "...############...",
+   "...############...",
+   "...############...",
+   "...############...",
+   "...############...",
+   "...############...",
+   "...############...",
+   "...############...",
+   "...############...",
+   "..##############..",
+   ".################.",
+   "##################",
+   "##################",
+   "##################",
+   "###............###"
+  ]
+ },
+ "venus_deco_cruiser": {
+  "art": "data/missions/__lib__/media/artemis-sbs.VenusClouds-Mod.media.v0.2.0/ships/decopunk/cruiser",
+  "w": 14,
+  "h": 24,
+  "grid_scale": 1.0,
+  "symmetry": 1,
+  "open": [
+   "..............",
+   "...##....##...",
+   "...##....##...",
+   "..###....###..",
+   "..###.##.###..",
+   "..##########..",
+   "..##########..",
+   "..##########..",
+   "..##########..",
+   "..##########..",
+   "##############",
+   "..##########..",
+   "..##########..",
+   "..##########..",
+   "..##########..",
+   "..##########..",
+   "..##########..",
+   "..##########..",
+   "..##########..",
+   "##############",
+   ".############.",
+   ".############.",
+   ".############.",
+   ".#....##....#."
+  ]
+ },
+ "venus_deco_destroyer": {
+  "art": "data/missions/__lib__/media/artemis-sbs.VenusClouds-Mod.media.v0.2.0/ships/decopunk/destroyer",
+  "w": 8,
+  "h": 20,
+  "grid_scale": 1.0,
+  "symmetry": 1,
+  "open": [
+   "........",
+   "...##...",
+   "...##...",
+   "...##...",
+   "...##...",
+   "..####..",
+   "..####..",
+   "..####..",
+   "..####..",
+   "..####..",
+   "..####..",
+   "..####..",
+   "..####..",
+   "..####..",
+   "...##...",
+   "..####..",
+   "..####..",
+   ".######.",
+   ".######.",
+   "........"
+  ]
+ },
+ "venus_deco_fighter": {
+  "art": "data/missions/__lib__/media/artemis-sbs.VenusClouds-Mod.media.v0.2.0/ships/decopunk/fighter",
+  "w": 7,
+  "h": 7,
+  "grid_scale": 1.0,
+  "symmetry": 1,
+  "open": [
+   "...#...",
+   "...#...",
+   "...#...",
+   "..###..",
+   "...#...",
+   "...#...",
+   "...#..."
+  ]
+ },
+ "venus_deco_frigate": {
+  "art": "data/missions/__lib__/media/artemis-sbs.VenusClouds-Mod.media.v0.2.0/ships/decopunk/frigate",
+  "w": 8,
+  "h": 14,
+  "grid_scale": 1.0,
+  "symmetry": 1,
+  "open": [
+   "........",
+   "........",
+   "...##...",
+   "..####..",
+   "..####..",
+   "..####..",
+   "..####..",
+   "..####..",
+   "..####..",
+   "..####..",
+   "..####..",
+   ".######.",
+   "########",
+   "........"
+  ]
+ },
+ "venus_deco_launch": {
+  "art": "data/missions/__lib__/media/artemis-sbs.VenusClouds-Mod.media.v0.2.0/ships/decopunk/launch",
+  "w": 5,
+  "h": 9,
+  "grid_scale": 1.0,
+  "symmetry": 1,
+  "open": [
+   "..#..",
+   ".###.",
+   ".###.",
+   ".###.",
+   ".###.",
+   ".###.",
+   ".###.",
+   ".###.",
+   "#...#"
+  ]
+ },
+ "venus_deco_station_civil": {
+  "art": "data/missions/__lib__/media/artemis-sbs.VenusClouds-Mod.media.v0.2.0/ships/decopunk/station_civil",
+  "w": 4,
+  "h": 4,
+  "grid_scale": 1.0,
+  "symmetry": 1,
+  "open": [
+   "....",
+   "....",
+   "####",
+   ".##."
+  ]
+ },
+ "venus_deco_station_command": {
+  "art": "data/missions/__lib__/media/artemis-sbs.VenusClouds-Mod.media.v0.2.0/ships/decopunk/station_command",
+  "w": 4,
+  "h": 4,
+  "grid_scale": 1.0,
+  "symmetry": 1,
+  "open": [
+   "....",
+   ".##.",
+   ".##.",
+   "...."
+  ]
+ },
+ "venus_deco_station_industrial": {
+  "art": "data/missions/__lib__/media/artemis-sbs.VenusClouds-Mod.media.v0.2.0/ships/decopunk/station_industrial",
+  "w": 4,
+  "h": 4,
+  "grid_scale": 1.0,
+  "symmetry": 1,
+  "open": [
+   ".##.",
+   "####",
+   "####",
+   ".##."
+  ]
+ },
+ "venus_deco_station_science": {
+  "art": "data/missions/__lib__/media/artemis-sbs.VenusClouds-Mod.media.v0.2.0/ships/decopunk/station_science",
+  "w": 4,
+  "h": 4,
+  "grid_scale": 1.0,
+  "symmetry": 1,
+  "open": [
+   ".##.",
+   "####",
+   "####",
+   ".##."
+  ]
+ },
+ "venus_deco_steam_tender": {
+  "art": "data/missions/__lib__/media/artemis-sbs.VenusClouds-Mod.media.v0.2.0/ships/decopunk/steam_tender",
+  "w": 10,
+  "h": 18,
+  "grid_scale": 1.0,
+  "symmetry": 1,
+  "open": [
+   "..........",
+   "....##....",
+   "...####...",
+   "...####...",
+   "...####...",
+   "...####...",
+   "...####...",
+   "...####...",
+   "...####...",
+   "...####...",
+   "...####...",
+   "...####...",
+   "...####...",
+   "...####...",
+   "..######..",
+   "..######..",
+   "..######..",
+   ".........."
+  ]
+ },
+ "venus_deco_tug": {
+  "art": "data/missions/__lib__/media/artemis-sbs.VenusClouds-Mod.media.v0.2.0/ships/decopunk/tug",
+  "w": 6,
+  "h": 8,
+  "grid_scale": 1.0,
+  "symmetry": 1,
+  "open": [
+   "..##..",
+   ".####.",
+   ".####.",
+   ".####.",
+   ".####.",
+   ".####.",
+   "......",
+   "..##.."
+  ]
+ },
+ "venus_deco_turret": {
+  "art": "data/missions/__lib__/media/artemis-sbs.VenusClouds-Mod.media.v0.2.0/ships/decopunk/turret",
+  "w": 4,
+  "h": 4,
+  "grid_scale": 1.0,
+  "symmetry": 1,
+  "open": [
+   "....",
+   "....",
+   ".##.",
+   ".##."
+  ]
+ },
+ "venus_diesel_cargo_barge": {
+  "art": "data/missions/__lib__/media/artemis-sbs.VenusClouds-Mod.media.v0.2.0/ships/dieselpunk/cargo_barge",
+  "w": 12,
+  "h": 20,
+  "grid_scale": 1.0,
+  "symmetry": 1,
+  "open": [
+   ".....##.....",
+   "....####....",
+   "...######...",
+   "...######...",
+   ".#.######.#.",
+   "...######...",
+   "...######...",
+   "...######...",
+   "...######...",
+   "...######...",
+   "...######...",
+   "...######...",
+   "...######...",
+   "...######...",
+   ".#.######.#.",
+   "...######...",
+   "...######...",
+   "...######...",
+   "...#....#...",
+   "............"
+  ]
+ },
+ "venus_diesel_carrier": {
+  "art": "data/missions/__lib__/media/artemis-sbs.VenusClouds-Mod.media.v0.2.0/ships/dieselpunk/carrier",
+  "w": 18,
+  "h": 28,
+  "grid_scale": 1.0,
+  "symmetry": 1,
+  "open": [
+   "...############...",
+   "...############...",
+   "...############...",
+   "...############...",
+   "...############...",
+   "...############...",
+   "...############...",
+   "...############...",
+   ".#.############.#.",
+   ".################.",
+   "...############...",
+   "...############...",
+   "...############...",
+   "...############...",
+   ".#.############.#.",
+   ".################.",
+   "...############...",
+   "...############...",
+   "...############...",
+   "...############...",
+   "...############...",
+   ".################.",
+   ".#.############.#.",
+   "...############...",
+   "...############...",
+   "...############...",
+   "....##########....",
+   "........##........"
+  ]
+ },
+ "venus_diesel_cruiser": {
+  "art": "data/missions/__lib__/media/artemis-sbs.VenusClouds-Mod.media.v0.2.0/ships/dieselpunk/cruiser",
+  "w": 14,
+  "h": 24,
+  "grid_scale": 1.0,
+  "symmetry": 1,
+  "open": [
+   "......##......",
+   "......##......",
+   ".....####.....",
+   ".....####.....",
+   "....######....",
+   "....######....",
+   "....######....",
+   "...########...",
+   "...########...",
+   "...########...",
+   "...########...",
+   "...########...",
+   "...########...",
+   "...########...",
+   "...########...",
+   "...########...",
+   "...########...",
+   "...########...",
+   "...########...",
+   "....######....",
+   "....######....",
+   "....#....#....",
+   "...##....##...",
+   "...##....##..."
+  ]
+ },
+ "venus_diesel_destroyer": {
+  "art": "data/missions/__lib__/media/artemis-sbs.VenusClouds-Mod.media.v0.2.0/ships/dieselpunk/destroyer",
+  "w": 8,
+  "h": 20,
+  "grid_scale": 1.0,
+  "symmetry": 1,
+  "open": [
+   "........",
+   "........",
+   "........",
+   "...##...",
+   "...##...",
+   "...##...",
+   "...##...",
+   "...##...",
+   "...##...",
+   "...##...",
+   "..####..",
+   ".######.",
+   "...##...",
+   "...##...",
+   "...##...",
+   "...##...",
+   "...##...",
+   "...##...",
+   "...##...",
+   "........"
+  ]
+ },
+ "venus_diesel_fighter": {
+  "art": "data/missions/__lib__/media/artemis-sbs.VenusClouds-Mod.media.v0.2.0/ships/dieselpunk/fighter",
+  "w": 7,
+  "h": 7,
+  "grid_scale": 1.0,
+  "symmetry": 1,
+  "open": [
+   ".......",
+   ".......",
+   "...#...",
+   ".#####.",
+   "...#...",
+   "...#...",
+   "......."
+  ]
+ },
+ "venus_diesel_frigate": {
+  "art": "data/missions/__lib__/media/artemis-sbs.VenusClouds-Mod.media.v0.2.0/ships/dieselpunk/frigate",
+  "w": 8,
+  "h": 14,
+  "grid_scale": 1.0,
+  "symmetry": 1,
+  "open": [
+   "........",
+   "...##...",
+   "...##...",
+   "...##...",
+   "...##...",
+   "...##...",
+   "...##...",
+   "...##...",
+   "...##...",
+   "...##...",
+   "...##...",
+   "...##...",
+   "...##...",
+   "........"
+  ]
+ },
+ "venus_diesel_launch": {
+  "art": "data/missions/__lib__/media/artemis-sbs.VenusClouds-Mod.media.v0.2.0/ships/dieselpunk/launch",
+  "w": 5,
+  "h": 9,
+  "grid_scale": 1.0,
+  "symmetry": 1,
+  "open": [
+   ".###.",
+   ".###.",
+   "#####",
+   "#####",
+   "#####",
+   "#####",
+   "#####",
+   ".....",
+   "..#.."
+  ]
+ },
+ "venus_diesel_station_civil": {
+  "art": "data/missions/__lib__/media/artemis-sbs.VenusClouds-Mod.media.v0.2.0/ships/dieselpunk/station_civil",
+  "w": 4,
+  "h": 4,
+  "grid_scale": 1.0,
+  "symmetry": 1,
+  "open": [
+   ".##.",
+   ".##.",
+   ".##.",
+   "...."
+  ]
+ },
+ "venus_diesel_station_command": {
+  "art": "data/missions/__lib__/media/artemis-sbs.VenusClouds-Mod.media.v0.2.0/ships/dieselpunk/station_command",
+  "w": 4,
+  "h": 4,
+  "grid_scale": 1.0,
+  "symmetry": 1,
+  "open": [
+   "....",
+   ".##.",
+   ".##.",
+   "...."
+  ]
+ },
+ "venus_diesel_station_industrial": {
+  "art": "data/missions/__lib__/media/artemis-sbs.VenusClouds-Mod.media.v0.2.0/ships/dieselpunk/station_industrial",
+  "w": 4,
+  "h": 4,
+  "grid_scale": 1.0,
+  "symmetry": 1,
+  "open": [
+   ".##.",
+   "####",
+   "####",
+   ".##."
+  ]
+ },
+ "venus_diesel_station_science": {
+  "art": "data/missions/__lib__/media/artemis-sbs.VenusClouds-Mod.media.v0.2.0/ships/dieselpunk/station_science",
+  "w": 4,
+  "h": 4,
+  "grid_scale": 1.0,
+  "symmetry": 1,
+  "open": [
+   ".##.",
+   "####",
+   "####",
+   ".##."
+  ]
+ },
+ "venus_diesel_steam_tender": {
+  "art": "data/missions/__lib__/media/artemis-sbs.VenusClouds-Mod.media.v0.2.0/ships/dieselpunk/steam_tender",
+  "w": 10,
+  "h": 18,
+  "grid_scale": 1.0,
+  "symmetry": 1,
+  "open": [
+   "..........",
+   "....##....",
+   "....##....",
+   "....##....",
+   "....##....",
+   "....##....",
+   "....##....",
+   "....##....",
+   "....##....",
+   "....##....",
+   "....##....",
+   "....##....",
+   "....##....",
+   "....##....",
+   "....##....",
+   "....##....",
+   "...####...",
+   "...#..#..."
+  ]
+ },
+ "venus_diesel_tug": {
+  "art": "data/missions/__lib__/media/artemis-sbs.VenusClouds-Mod.media.v0.2.0/ships/dieselpunk/tug",
+  "w": 6,
+  "h": 8,
+  "grid_scale": 1.0,
+  "symmetry": 1,
+  "open": [
+   "......",
+   ".####.",
+   ".####.",
+   ".####.",
+   ".####.",
+   ".####.",
+   "......",
+   "..##.."
+  ]
+ },
+ "venus_diesel_turret": {
+  "art": "data/missions/__lib__/media/artemis-sbs.VenusClouds-Mod.media.v0.2.0/ships/dieselpunk/turret",
+  "w": 4,
+  "h": 4,
+  "grid_scale": 1.0,
+  "symmetry": 1,
+  "open": [
+   "....",
+   "....",
+   "....",
+   ".##."
+  ]
+ },
+ "venus_solar_cargo_barge": {
+  "art": "data/missions/__lib__/media/artemis-sbs.VenusClouds-Mod.media.v0.2.0/ships/solarpunk/cargo_barge",
+  "w": 12,
+  "h": 20,
+  "grid_scale": 1.0,
+  "symmetry": 1,
+  "open": [
+   "............",
+   "..########..",
+   ".##########.",
+   ".##########.",
+   ".##########.",
+   ".##########.",
+   "############",
+   ".##########.",
+   ".##########.",
+   ".##########.",
+   ".##########.",
+   ".##########.",
+   ".##########.",
+   ".##########.",
+   ".##########.",
+   "############",
+   ".##########.",
+   ".##########.",
+   ".##########.",
+   ".....##....."
+  ]
+ },
+ "venus_solar_carrier": {
+  "art": "data/missions/__lib__/media/artemis-sbs.VenusClouds-Mod.media.v0.2.0/ships/solarpunk/carrier",
+  "w": 18,
+  "h": 28,
+  "grid_scale": 1.0,
+  "symmetry": 1,
+  "open": [
+   "..................",
+   "..................",
+   "........##........",
+   "........##........",
+   "........##........",
+   "......######......",
+   "......######......",
+   "......######......",
+   "......######......",
+   "......######......",
+   ".....########.....",
+   "....##########....",
+   "..##############..",
+   ".################.",
+   "#####.######.#####",
+   "###...######...###",
+   "......######......",
+   "......######......",
+   "......######......",
+   "......######......",
+   "......######......",
+   "......######......",
+   "......######......",
+   "......######......",
+   "......######......",
+   "......######......",
+   "........##........",
+   ".................."
+  ]
+ },
+ "venus_solar_cruiser": {
+  "art": "data/missions/__lib__/media/artemis-sbs.VenusClouds-Mod.media.v0.2.0/ships/solarpunk/cruiser",
+  "w": 14,
+  "h": 24,
+  "grid_scale": 1.0,
+  "symmetry": 1,
+  "open": [
+   "..............",
+   "..............",
+   "......##......",
+   "......##......",
+   "......##......",
+   "......##......",
+   "......##......",
+   "......##......",
+   "......##......",
+   ".....####.....",
+   "....######....",
+   "...########...",
+   "..##########..",
+   ".####.##.####.",
+   "###...##...###",
+   "#.....##.....#",
+   "......##......",
+   "......##......",
+   "......##......",
+   "......##......",
+   "......##......",
+   "......##......",
+   "..............",
+   ".............."
+  ]
+ },
+ "venus_solar_destroyer": {
+  "art": "data/missions/__lib__/media/artemis-sbs.VenusClouds-Mod.media.v0.2.0/ships/solarpunk/destroyer",
+  "w": 8,
+  "h": 20,
+  "grid_scale": 1.0,
+  "symmetry": 1,
+  "open": [
+   "........",
+   "........",
+   "........",
+   "........",
+   "........",
+   "........",
+   "...##...",
+   "..####..",
+   "#......#",
+   "........",
+   "........",
+   "...##...",
+   "........",
+   "........",
+   "........",
+   "........",
+   "........",
+   "........",
+   "........",
+   "........"
+  ]
+ },
+ "venus_solar_fighter": {
+  "art": "data/missions/__lib__/media/artemis-sbs.VenusClouds-Mod.media.v0.2.0/ships/solarpunk/fighter",
+  "w": 7,
+  "h": 7,
+  "grid_scale": 1.0,
+  "symmetry": 1,
+  "open": [
+   ".......",
+   ".......",
+   "...#...",
+   "#######",
+   "...#...",
+   "...#...",
+   "......."
+  ]
+ },
+ "venus_solar_frigate": {
+  "art": "data/missions/__lib__/media/artemis-sbs.VenusClouds-Mod.media.v0.2.0/ships/solarpunk/frigate",
+  "w": 8,
+  "h": 14,
+  "grid_scale": 1.0,
+  "symmetry": 1,
+  "open": [
+   "........",
+   "...##...",
+   "..####..",
+   "..####..",
+   ".######.",
+   ".######.",
+   ".######.",
+   ".######.",
+   ".######.",
+   ".######.",
+   ".######.",
+   "..####..",
+   "...##...",
+   "........"
+  ]
+ },
+ "venus_solar_launch": {
+  "art": "data/missions/__lib__/media/artemis-sbs.VenusClouds-Mod.media.v0.2.0/ships/solarpunk/launch",
+  "w": 5,
+  "h": 9,
+  "grid_scale": 1.0,
+  "symmetry": 1,
+  "open": [
+   "..#..",
+   ".###.",
+   ".###.",
+   ".###.",
+   ".###.",
+   ".###.",
+   ".###.",
+   ".###.",
+   "..#.."
+  ]
+ },
+ "venus_solar_station_civil": {
+  "art": "data/missions/__lib__/media/artemis-sbs.VenusClouds-Mod.media.v0.2.0/ships/solarpunk/station_civil",
+  "w": 4,
+  "h": 4,
+  "grid_scale": 1.0,
+  "symmetry": 1,
+  "open": [
+   ".##.",
+   "####",
+   ".##.",
+   "...."
+  ]
+ },
+ "venus_solar_station_command": {
+  "art": "data/missions/__lib__/media/artemis-sbs.VenusClouds-Mod.media.v0.2.0/ships/solarpunk/station_command",
+  "w": 4,
+  "h": 4,
+  "grid_scale": 1.0,
+  "symmetry": 1,
+  "open": [
+   "....",
+   ".##.",
+   ".##.",
+   "...."
+  ]
+ },
+ "venus_solar_station_industrial": {
+  "art": "data/missions/__lib__/media/artemis-sbs.VenusClouds-Mod.media.v0.2.0/ships/solarpunk/station_industrial",
+  "w": 4,
+  "h": 4,
+  "grid_scale": 1.0,
+  "symmetry": 1,
+  "open": [
+   ".##.",
+   "####",
+   "####",
+   ".##."
+  ]
+ },
+ "venus_solar_station_science": {
+  "art": "data/missions/__lib__/media/artemis-sbs.VenusClouds-Mod.media.v0.2.0/ships/solarpunk/station_science",
+  "w": 4,
+  "h": 4,
+  "grid_scale": 1.0,
+  "symmetry": 1,
+  "open": [
+   ".##.",
+   "####",
+   "####",
+   ".##."
+  ]
+ },
+ "venus_solar_steam_tender": {
+  "art": "data/missions/__lib__/media/artemis-sbs.VenusClouds-Mod.media.v0.2.0/ships/solarpunk/steam_tender",
+  "w": 10,
+  "h": 18,
+  "grid_scale": 1.0,
+  "symmetry": 1,
+  "open": [
+   "..........",
+   "..........",
+   "....##....",
+   "....##....",
+   "....##....",
+   "....##....",
+   "....##....",
+   "....##....",
+   "....##....",
+   "....##....",
+   "....##....",
+   "....##....",
+   "....##....",
+   "....##....",
+   "....##....",
+   "....##....",
+   "....##....",
+   ".........."
+  ]
+ },
+ "venus_solar_tug": {
+  "art": "data/missions/__lib__/media/artemis-sbs.VenusClouds-Mod.media.v0.2.0/ships/solarpunk/tug",
+  "w": 6,
+  "h": 8,
+  "grid_scale": 1.0,
+  "symmetry": 1,
+  "open": [
+   "..##..",
+   ".####.",
+   ".####.",
+   ".####.",
+   ".####.",
+   ".####.",
+   ".####.",
+   "..##.."
+  ]
+ },
+ "venus_solar_turret": {
+  "art": "data/missions/__lib__/media/artemis-sbs.VenusClouds-Mod.media.v0.2.0/ships/solarpunk/turret",
+  "w": 4,
+  "h": 4,
+  "grid_scale": 1.0,
+  "symmetry": 1,
+  "open": [
+   "....",
+   "....",
+   ".##.",
+   ".##."
+  ]
+ },
+ "venus_steam_cargo_barge": {
+  "art": "data/missions/__lib__/media/artemis-sbs.VenusClouds-Mod.media.v0.2.0/ships/steampunk/cargo_barge",
+  "w": 12,
+  "h": 20,
+  "grid_scale": 1.0,
+  "symmetry": 1,
+  "open": [
+   "...######...",
+   "..########..",
+   "..########..",
+   "..########..",
+   "..########..",
+   "..########..",
+   "..########..",
+   "..########..",
+   "..########..",
+   "..########..",
+   "..########..",
+   "..########..",
+   "..########..",
+   "..########..",
+   "..########..",
+   "..########..",
+   "..########..",
+   "............",
+   "...######...",
+   "...######..."
+  ]
+ },
+ "venus_steam_carrier": {
+  "art": "data/missions/__lib__/media/artemis-sbs.VenusClouds-Mod.media.v0.2.0/ships/steampunk/carrier",
+  "w": 18,
+  "h": 28,
+  "grid_scale": 1.0,
+  "symmetry": 1,
+  "open": [
+   "..#............#..",
+   "..##############..",
+   "..##############..",
+   "..##############..",
+   ".################.",
+   ".################.",
+   ".################.",
+   "##################",
+   "##################",
+   "##################",
+   "##################",
+   "##################",
+   "##################",
+   "##################",
+   "##################",
+   "##################",
+   "##################",
+   "##################",
+   "##################",
+   "##################",
+   "##################",
+   "##################",
+   "##################",
+   "##################",
+   "##################",
+   "#####........#####",
+   ".####........####.",
+   ".................."
+  ]
+ },
+ "venus_steam_cruiser": {
+  "art": "data/missions/__lib__/media/artemis-sbs.VenusClouds-Mod.media.v0.2.0/ships/steampunk/cruiser",
+  "w": 14,
+  "h": 24,
+  "grid_scale": 1.0,
+  "symmetry": 1,
+  "open": [
+   "..............",
+   "......##......",
+   "......##......",
+   "......##......",
+   ".....####.....",
+   "....######....",
+   "....######....",
+   "#...######...#",
+   "#...######...#",
+   "#...######...#",
+   "#...######...#",
+   "#..########..#",
+   "#..########..#",
+   "....######....",
+   "....######....",
+   "....######....",
+   "....######....",
+   "....######....",
+   "....######....",
+   ".....####.....",
+   "..............",
+   "..............",
+   ".....####.....",
+   ".............."
+  ]
+ },
+ "venus_steam_destroyer": {
+  "art": "data/missions/__lib__/media/artemis-sbs.VenusClouds-Mod.media.v0.2.0/ships/steampunk/destroyer",
+  "w": 8,
+  "h": 20,
+  "grid_scale": 1.0,
+  "symmetry": 1,
+  "open": [
+   "........",
+   "........",
+   "........",
+   "...##...",
+   "...##...",
+   "...##...",
+   "...##...",
+   "...##...",
+   "...##...",
+   "...##...",
+   "...##...",
+   "...##...",
+   "...##...",
+   "...##...",
+   "...##...",
+   "...##...",
+   "...##...",
+   "........",
+   "...##...",
+   "...##..."
+  ]
+ },
+ "venus_steam_fighter": {
+  "art": "data/missions/__lib__/media/artemis-sbs.VenusClouds-Mod.media.v0.2.0/ships/steampunk/fighter",
+  "w": 7,
+  "h": 7,
+  "grid_scale": 1.0,
+  "symmetry": 1,
+  "open": [
+   "...#...",
+   "...#...",
+   "#######",
+   "...#...",
+   "...#...",
+   ".......",
+   "......."
+  ]
+ },
+ "venus_steam_frigate": {
+  "art": "data/missions/__lib__/media/artemis-sbs.VenusClouds-Mod.media.v0.2.0/ships/steampunk/frigate",
+  "w": 8,
+  "h": 14,
+  "grid_scale": 1.0,
+  "symmetry": 1,
+  "open": [
+   "........",
+   "...##...",
+   "...##...",
+   "..####..",
+   "..####..",
+   "..####..",
+   "..####..",
+   "..####..",
+   "..####..",
+   "..####..",
+   "..####..",
+   "..####..",
+   "..####..",
+   "........"
+  ]
+ },
+ "venus_steam_launch": {
+  "art": "data/missions/__lib__/media/artemis-sbs.VenusClouds-Mod.media.v0.2.0/ships/steampunk/launch",
+  "w": 5,
+  "h": 9,
+  "grid_scale": 1.0,
+  "symmetry": 1,
+  "open": [
+   ".....",
+   "..#..",
+   ".###.",
+   ".###.",
+   ".###.",
+   ".###.",
+   ".###.",
+   "..#..",
+   "..#.."
+  ]
+ },
+ "venus_steam_station_civil": {
+  "art": "data/missions/__lib__/media/artemis-sbs.VenusClouds-Mod.media.v0.2.0/ships/steampunk/station_civil",
+  "w": 4,
+  "h": 4,
+  "grid_scale": 1.0,
+  "symmetry": 1,
+  "open": [
+   ".##.",
+   "####",
+   ".##.",
+   "...."
+  ]
+ },
+ "venus_steam_station_command": {
+  "art": "data/missions/__lib__/media/artemis-sbs.VenusClouds-Mod.media.v0.2.0/ships/steampunk/station_command",
+  "w": 4,
+  "h": 4,
+  "grid_scale": 1.0,
+  "symmetry": 1,
+  "open": [
+   "....",
+   ".##.",
+   ".##.",
+   "...."
+  ]
+ },
+ "venus_steam_station_industrial": {
+  "art": "data/missions/__lib__/media/artemis-sbs.VenusClouds-Mod.media.v0.2.0/ships/steampunk/station_industrial",
+  "w": 4,
+  "h": 4,
+  "grid_scale": 1.0,
+  "symmetry": 1,
+  "open": [
+   "....",
+   "####",
+   "....",
+   "...."
+  ]
+ },
+ "venus_steam_station_science": {
+  "art": "data/missions/__lib__/media/artemis-sbs.VenusClouds-Mod.media.v0.2.0/ships/steampunk/station_science",
+  "w": 4,
+  "h": 4,
+  "grid_scale": 1.0,
+  "symmetry": 1,
+  "open": [
+   ".##.",
+   ".##.",
+   ".##.",
+   ".##."
+  ]
+ },
+ "venus_steam_steam_tender": {
+  "art": "data/missions/__lib__/media/artemis-sbs.VenusClouds-Mod.media.v0.2.0/ships/steampunk/steam_tender",
+  "w": 10,
+  "h": 18,
+  "grid_scale": 1.0,
+  "symmetry": 1,
+  "open": [
+   "..........",
+   "....##....",
+   "....##....",
+   "..######..",
+   "..######..",
+   "..######..",
+   "..######..",
+   "..######..",
+   "..######..",
+   "..######..",
+   "..######..",
+   "..######..",
+   "..######..",
+   "..######..",
+   "...####...",
+   "..........",
+   "...####...",
+   ".........."
+  ]
+ },
+ "venus_steam_tug": {
+  "art": "data/missions/__lib__/media/artemis-sbs.VenusClouds-Mod.media.v0.2.0/ships/steampunk/tug",
+  "w": 6,
+  "h": 8,
+  "grid_scale": 1.0,
+  "symmetry": 1,
+  "open": [
+   ".####.",
+   ".####.",
+   ".####.",
+   ".####.",
+   ".####.",
+   "......",
+   ".####.",
+   "......"
+  ]
+ },
+ "venus_steam_turret": {
+  "art": "data/missions/__lib__/media/artemis-sbs.VenusClouds-Mod.media.v0.2.0/ships/steampunk/turret",
+  "w": 4,
+  "h": 4,
+  "grid_scale": 1.0,
+  "symmetry": 1,
+  "open": [
+   "....",
+   "....",
+   "####",
+   ".##."
   ]
  },
  "xim_avenger": {
