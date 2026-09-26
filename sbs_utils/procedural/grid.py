@@ -272,23 +272,25 @@ def grid_clear_target(grid_obj_or_set):
         remove_role(grid_obj, "_moving_")
 
         
-def get_open_grid_points(id_or_obj) -> set[Vec3]:
+def get_open_grid_points(id_or_obj) -> list[Vec3]:
     """Gets a list of open grid locations
 
     Args:
         id_or_obj (agent): agent id or object to check
 
     Returns:
-        set: a set of Vec3 with x and y set
-    """    
-    the_set = []
+        list: a Vec3 per open cell, with x and y set. Each cell appears once.
+    """
+    # A LIST: this used to build set(Vec3...), which raised on every call (Vec3 is not
+    # hashable), and walked y over the WIDTH, dropping every row past it on a tall hull.
+    points = []
     hull_map = FrameContext.context.sbs.get_hull_map(to_id(id_or_obj))
     if hull_map is not None:
         for x in range(hull_map.w):
-            for y in range(hull_map.w):
+            for y in range(hull_map.h):
                 if hull_map.is_grid_point_open(x,y) != 0:
-                    the_set.append(Vec3(x,y,0))
-    return set(the_set)
+                    points.append(Vec3(x,y,0))
+    return points
 
 
 def grid_speech_bubble(id_or_obj, status, color=None, seconds=0, minutes=0):

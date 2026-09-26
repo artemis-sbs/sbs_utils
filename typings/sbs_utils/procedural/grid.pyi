@@ -59,14 +59,14 @@ def get_mission_dir_filename (filename):
     
     Returns:
         str: The full path to the file in the mission directory."""
-def get_open_grid_points (id_or_obj) -> set[sbs_utils.vec.Vec3]:
+def get_open_grid_points (id_or_obj) -> list[sbs_utils.vec.Vec3]:
     """Gets a list of open grid locations
-    
+
     Args:
         id_or_obj (agent): agent id or object to check
-    
+
     Returns:
-        set: a set of Vec3 with x and y set"""
+        list: a Vec3 per open cell, with x and y set. Each cell appears once."""
 def grid_clear_detailed_status (id_or_obj):
     """Clear the detailed status (info text) of a grid object.
     
