@@ -1,4 +1,10 @@
-# OSC control panels (TouchOSC)
+# OSC control panels (TouchOSC) - experimental
+
+!!! warning "Experimental"
+    New in v1.4.0 and still settling. The addresses may change, the generated TouchOSC
+    layouts have only been tried on the helm so far, and some controls the consoles have
+    are out of reach (see [What a panel cannot do](#what-a-panel-cannot-do)). Try it,
+    and report what works and what does not.
 
 A tablet running [TouchOSC](https://hexler.net/touchosc) (or any app that speaks Open
 Sound Control) can sit beside a console as an extra control panel: a throttle lever, a
@@ -12,7 +18,13 @@ script at all (see [What a panel cannot do](#what-a-panel-cannot-do)).
 
 The listener runs **inside the game server** - there is nothing extra to launch.
 
-**LegendaryMissions** - in `settings.yaml` (or a profile):
+**LegendaryMissions** - launch with the ready-made profile:
+
+```
+Artemis3-x64-release.exe profile=osc
+```
+
+or turn it on in `settings.yaml` (or your own profile):
 
 ```yaml
 OSC:

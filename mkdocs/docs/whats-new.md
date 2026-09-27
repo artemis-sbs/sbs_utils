@@ -658,6 +658,30 @@ Docs: [The Director](cosmos/director.md).
 
 ---
 
+#### 🎛️ Tablet control panels — a real throttle lever *(experimental)* { #osc-panels }
+
+Put a tablet beside the helm and give it a throttle you can grab. With **TouchOSC** (or
+any app that speaks Open Sound Control), a phone or tablet becomes an extra panel for a
+console: an impulse lever with a REV switch and warp in four steps, a big red-alert
+button, shield and dock buttons, power faders for engineering, torpedo fire buttons for
+weapons — and live gauges for shields, energy, heat and torpedoes left.
+
+- **It follows the ship.** Move the throttle at the real helm and the lever on the tablet
+  moves with it. The gauges update a few times a second.
+- **It sits beside the consoles, not instead of them.** The consoles stay the main
+  screens; the tablet adds the physical feel.
+- **Ready-made panels.** `sbs osc layout all` writes a TouchOSC layout for each of the
+  five consoles.
+- **Off unless you turn it on** - it opens a network port. Launch LegendaryMissions with
+  `profile=osc`, point the tablet at the server machine, and play.
+
+Experimental: only the helm panel has been tried on a tablet so far, and a few console
+controls — loading tubes, starting a scan, jumping — are out of a panel's reach for now.
+
+Docs: [OSC control panels](cosmos/osc.md).
+
+---
+
 ### The things you already do, done better
 
 Everything in this part is something you already had, met again. A few change what

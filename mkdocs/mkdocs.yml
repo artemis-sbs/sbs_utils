@@ -94,7 +94,7 @@ nav:
     - Cinematics (camera, cutscenes, rundowns): cosmos/cinematics.md
     - Director (stream your game): cosmos/director.md
     - On screen (the main screen from science): cosmos/viewscreen.md
-    - OSC control panels (TouchOSC): cosmos/osc.md
+    - OSC control panels (TouchOSC, experimental): cosmos/osc.md
     - Comms: cosmos/comms.md
     - Science: cosmos/science.md
     - AI:
