@@ -1626,6 +1626,8 @@
       
         
       
+        
+      
     
     
     
@@ -2250,6 +2252,34 @@
   
   
     <li class="md-nav__item">
+      <a href="../../cosmos/osc/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    OSC control panels (TouchOSC, experimental)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../cosmos/comms/" class="md-nav__link">
         
   
@@ -2330,7 +2360,7 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5_24" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5_25" >
         
           
           <div class="md-nav__link md-nav__container">
@@ -2352,14 +2382,14 @@
             </a>
             
               
-              <label class="md-nav__link " for="__nav_5_24" id="__nav_5_24_label" tabindex="">
+              <label class="md-nav__link " for="__nav_5_25" id="__nav_5_25_label" tabindex="">
                 <span class="md-nav__icon md-icon"></span>
               </label>
             
           </div>
         
-        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_5_24_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_5_24">
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_5_25_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5_25">
             <span class="md-nav__icon md-icon"></span>
             
   
@@ -10409,12 +10439,10 @@ and sbs_utils at that one file, with nothing written. See
   were already; a <strong>skybox</strong> was confirmed in the engine on 2026-08-16 by running
   LegendaryMissions with <code>profile=a28_skies</code>, which drops the stock skies and draws the
   Artemis 2.8 ones straight out of <code>__lib__/media/…/skybox/</code>.</li>
-<li><strong>Music cannot come from a pack, and that is the engine's limit, not a gap here.</strong>
-  <code>set_music_folder</code> takes a bare folder name under <code>data/audio/music</code>; hand it a path in
-  any spelling and the engine <strong>segfaults</strong> (an absolute one hangs instead). sbs_utils
-  resolves a pack's bank, declines to hand the path over, warns, and plays <code>default</code>. A
-  player who wants a mod's bank copies it into <code>data/audio/music/&lt;name&gt;</code>. Gated behind
-  <code>MUSIC_ENGINE_ACCEPTS_PATHS</code> for the day that changes.</li>
+<li><strong>Music plays from a pack on current engine builds</strong> (2026-09-20 and later). On 1.3.6
+  and older, <code>set_music_folder</code> given a path <strong>segfaults</strong> (an absolute one hangs), so a
+  mission on an old exe sets <code>MUSIC_ENGINE_ACCEPTS_PATHS: false</code> - sbs_utils then resolves
+  a pack's bank, declines to hand the path over, warns, and plays <code>default</code>.</li>
 </ul>
 
 

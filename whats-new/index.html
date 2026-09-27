@@ -878,6 +878,17 @@
   
 </li>
         
+          <li class="md-nav__item">
+  <a href="#osc-panels" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        🎛️ Tablet control panels — a real throttle lever (experimental)
+      
+    </span>
+  </a>
+  
+</li>
+        
       </ul>
     </nav>
   
@@ -2577,6 +2588,8 @@
       
         
       
+        
+      
     
     
     
@@ -3198,6 +3211,34 @@
   
   
     <li class="md-nav__item">
+      <a href="../cosmos/osc/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    OSC control panels (TouchOSC, experimental)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../cosmos/comms/" class="md-nav__link">
         
   
@@ -3275,7 +3316,7 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5_24" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5_25" >
         
           
           <div class="md-nav__link md-nav__container">
@@ -3297,14 +3338,14 @@
             </a>
             
               
-              <label class="md-nav__link " for="__nav_5_24" id="__nav_5_24_label" tabindex="0">
+              <label class="md-nav__link " for="__nav_5_25" id="__nav_5_25_label" tabindex="0">
                 <span class="md-nav__icon md-icon"></span>
               </label>
             
           </div>
         
-        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_5_24_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_5_24">
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_5_25_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5_25">
             <span class="md-nav__icon md-icon"></span>
             
   
@@ -11363,6 +11404,17 @@
   
 </li>
         
+          <li class="md-nav__item">
+  <a href="#osc-panels" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        🎛️ Tablet control panels — a real throttle lever (experimental)
+      
+    </span>
+  </a>
+  
+</li>
+        
       </ul>
     </nav>
   
@@ -12671,6 +12723,26 @@ line:  &lt;&lt;class&gt;&gt;         -&gt;   Light Cruiser
 with <code>&lt;&lt;class|contact&gt;&gt;</code> to say what to fall back to when there is nothing to give. Each
 row has presets, and a <strong>Save</strong> to add your own.</p>
 <p>Docs: <a href="../cosmos/director/">The Director</a>.</p>
+<hr />
+<h4 id="osc-panels">🎛️ Tablet control panels — a real throttle lever <em>(experimental)</em></h4>
+<p>Put a tablet beside the helm and give it a throttle you can grab. With <strong>TouchOSC</strong> (or
+any app that speaks Open Sound Control), a phone or tablet becomes an extra panel for a
+console: an impulse lever with a REV switch and warp in four steps, a big red-alert
+button, shield and dock buttons, power faders for engineering, torpedo fire buttons for
+weapons — and live gauges for shields, energy, heat and torpedoes left.</p>
+<ul>
+<li><strong>It follows the ship.</strong> Move the throttle at the real helm and the lever on the tablet
+  moves with it. The gauges update a few times a second.</li>
+<li><strong>It sits beside the consoles, not instead of them.</strong> The consoles stay the main
+  screens; the tablet adds the physical feel.</li>
+<li><strong>Ready-made panels.</strong> <code>sbs osc layout all</code> writes a TouchOSC layout for each of the
+  five consoles.</li>
+<li><strong>Off unless you turn it on</strong> - it opens a network port. Launch LegendaryMissions with
+  <code>profile=osc</code>, point the tablet at the server machine, and play.</li>
+</ul>
+<p>Experimental: only the helm panel has been tried on a tablet so far, and a few console
+controls — loading tubes, starting a scan, jumping — are out of a panel's reach for now.</p>
+<p>Docs: <a href="../cosmos/osc/">OSC control panels</a>.</p>
 <hr />
 <h3 id="the-things-you-already-do-done-better">The things you already do, done better</h3>
 <p>Everything in this part is something you already had, met again. A few change what
