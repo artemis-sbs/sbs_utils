@@ -170,6 +170,8 @@ MastGlobals.import_python_module('sbs_utils.procedural.orders')
 MastGlobals.import_python_module('sbs_utils.procedural.mount')
 MastGlobals.import_python_module('sbs_utils.procedural.orbit')
 MastGlobals.import_python_module('sbs_utils.procedural.helm')
+# Tablets (TouchOSC) driving a player ship over UDP - osc_listen / osc_stop.
+MastGlobals.import_python_module('sbs_utils.procedural.osc')
 
 # Load, but so far no functions to export
 from ..procedural import popup

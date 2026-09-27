@@ -195,6 +195,10 @@ def reset_mission_state():
     # the reused-interpreter trap, which only shows from run 2 onward.
     from .procedural.gui.eva_console import eva_camera_mode, CAMERA_MODE_DEFAULT
     eva_camera_mode(CAMERA_MODE_DEFAULT)
+    # The OSC listener: an open UDP socket is a "port in use" for the next mission's
+    # osc_listen in a reused interpreter, and its tablets are bound to ships that are gone.
+    from .procedural.osc import osc_stop
+    osc_stop()
     # The survey log, which is SHARED state and therefore survives a sim swap: a new
     # mission would otherwise open with the last one's readings already filed.
     from .procedural.survey_log import xess_log_clear
@@ -460,6 +464,9 @@ register_reset_state("quest dispatch voice",
                      lambda: 1 if _QUEST_DISPATCH_VOICE[0] is not None else 0)
 from .procedural.amd_drops import drops_size as _drops_size
 register_reset_state("drop tables", _drops_size)
+from .procedural.osc import _OSC as _OSC_STATE
+register_reset_state("OSC listener", lambda: (1 if _OSC_STATE["sock"] is not None else 0)
+                     + len(_OSC_STATE["senders"]))
 from .procedural.gui.message import dead_handler_site_count as _dead_handler_sites
 register_reset_state("dead GUI handler warnings", _dead_handler_sites)
 from .procedural.gui.gui import await_gui_site_count as _await_gui_sites

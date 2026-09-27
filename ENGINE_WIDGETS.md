@@ -88,7 +88,10 @@ written and/or the route/event fired) - **Selection** (UID set, if any) - **Proc
 
 ### [I] weap_beam_freq - set beam frequency
 - Actions: pick frequency A/B/C/D/E (tune to target's weak frequency).
-- Delivery: data_set `scan_type_for_shld_freq` (0.0-1.0). *(confirmed)*
+- Delivery: **unknown.** This said data_set `scan_type_for_shld_freq` (0.0-1.0) *(confirmed)*,
+  and that is wrong: `object_data_documentation.txt` lists it as a **string** (which scan tab
+  shows shield frequencies), and the live engine returned `'status'` for it (2026-09-27, OSC
+  work). Reading it as a number raised. The field the widget really writes is not yet found.
 - Shot: `weap_beam_frea.png`
 
 ### [I] weap_beam_speed - set beam fire rate
