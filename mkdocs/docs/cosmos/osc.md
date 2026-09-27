@@ -131,6 +131,27 @@ sbs osc layout all -o my_panels/        # helm, weapons, science, comms, enginee
 first. In Git Bash, prefix the command with `MSYS_NO_PATHCONV=1` - otherwise Git Bash
 rewrites `/helm/throttle` into a Windows path before it reaches `sbs`.
 
+## Browser panels (no app) - experimental
+
+Any phone, tablet or PC browser can be a panel too, with nothing to install on it.
+Run the bridge on the server machine:
+
+```
+sbs osc web
+```
+
+and open `http://<server-pc>:8770/?ship=1` on the tablet (`?ship=2` for the second
+ship). The page is a helm panel: impulse lever, REV, warp 1-4, red alert, shields, all
+stop, dock, heading, and gauges for shields, energy and warp.
+
+The bridge keeps the game fast however many browsers are open: the browsers talk to the
+bridge, and the game sees **one** OSC sender per ship. Each browser that joins late gets
+the whole state at once. It uses the same OSC listener as TouchOSC, so turn OSC on first
+(`profile=osc`), and both can be used at once.
+
+Options: `--engine host:port` if the game runs on another machine, `--port` for the web
+port, `--host 127.0.0.1` to keep it to this PC.
+
 ## What a panel cannot do
 
 These have no script-side control in the engine yet, so no panel can drive them:

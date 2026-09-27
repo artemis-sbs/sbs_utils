@@ -222,6 +222,8 @@ class ListenerTests(ShipBase):
         self.assertEqual(O.osc_status()["received"], 0)
 
     def test_a_flood_is_spread_over_updates(self):
+        # The COUNT cap on its own - a generous budget, so time is not what stops it.
+        O._OSC["budget"] = 10.0
         for _ in range(O.MAX_PACKETS_PER_TICK + 10):
             self.tx.sendto(O.osc_encode("/helm/red_alert", 1), ("127.0.0.1", self.port))
         self.tick()
@@ -248,6 +250,48 @@ class ListenerTests(ShipBase):
         self.fb.settimeout(0.2)
         with self.assertRaises(socket.timeout):
             self.fb.recvfrom(4096)
+
+    def test_the_budget_stops_reading_and_the_rest_waits_for_the_next_update(self):
+        """Tablets must never take time from brains: past the budget, stop."""
+        import time as _t
+        O.osc_listen(self.port, feedback_port=self.fb.getsockname()[1], host="127.0.0.1",
+                     rate=1000, budget_ms=0.2)
+        real = O.osc_dispatch
+        O.osc_dispatch = lambda *a, **k: (_t.sleep(0.002), real(*a, **k))[1]
+        try:
+            for _ in range(3):
+                self.tx.sendto(O.osc_encode("/helm/red_alert", 1), ("127.0.0.1", self.port))
+            _t.sleep(0.05)
+            self.tick()
+            self.assertEqual(O.osc_status()["received"], 1)     # one handler blew the budget
+            self.assertGreaterEqual(O.osc_status()["deferred_ticks"], 1)
+            self.tick()
+            self.tick()
+            self.assertEqual(O.osc_status()["received"], 3)     # nothing lost, just later
+        finally:
+            O.osc_dispatch = real
+
+    def test_feedback_zero_replies_to_the_sending_socket(self):
+        """A bridge sends and receives on ONE socket and must not need port 9000."""
+        bridge = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        bridge.bind(("127.0.0.1", 0))
+        bridge.settimeout(0.5)
+        try:
+            bridge.sendto(O.osc_encode("/feedback", 0), ("127.0.0.1", self.port))
+            bridge.sendto(O.osc_encode("/helm/throttle", 0.4), ("127.0.0.1", self.port))
+            self.tick()
+            got = {}
+            try:
+                while True:
+                    for address, args in O.osc_decode(bridge.recvfrom(4096)[0]):
+                        got[address] = args[0]
+            except socket.timeout:
+                pass
+            self.assertAlmostEqual(got["/helm/throttle"], 0.4, places=5)
+            key = f"127.0.0.1:{bridge.getsockname()[1]}"
+            self.assertEqual(O.osc_status()["senders"][key]["reply_port"], 0)
+        finally:
+            bridge.close()
 
     def test_nothing_escapes_the_update(self):
         """The engine found this: one bad read in the feedback raised out of the tick and

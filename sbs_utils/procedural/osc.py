@@ -153,7 +153,7 @@ def osc_decode(data):
 # "port in use" on run 2 of the dev runner's reused interpreter.
 _OSC = {"sock": None, "task": None, "port": None, "feedback_port": None, "allow": None,
         "rate": 5.0, "next_feedback": 0.0, "senders": {}, "reported": set(),
-        "received": 0, "dropped": 0}
+        "received": 0, "dropped": 0, "budget": 0.0005, "deferred_ticks": 0}
 
 MAX_PACKETS_PER_TICK = 64       # a flood is served over several updates, never one
 SENDER_TIMEOUT = 600.0          # seconds without a packet before feedback stops.
@@ -169,7 +169,8 @@ def _report_once(key, message, level="warning"):
     log(message, "osc", level)
 
 
-def osc_listen(port=8000, feedback_port=9000, host="0.0.0.0", allow=None, rate=5.0):
+def osc_listen(port=8000, feedback_port=9000, host="0.0.0.0", allow=None, rate=5.0,
+               budget_ms=0.5):
     """Start listening for OSC on UDP ``port``. Server only; call once.
 
     Args:
@@ -183,6 +184,10 @@ def osc_listen(port=8000, feedback_port=9000, host="0.0.0.0", allow=None, rate=5
             ``["192.168.1."]``. None accepts anyone who can reach the port.
         rate (float, optional): Feedback sends per second. 0 turns feedback off.
             Defaults to 5.
+        budget_ms (float, optional): The most one update may spend on OSC. Reading
+            stops when it is spent and the rest waits in the socket for the next update,
+            so tablets can never take time from brains and the rest of the script.
+            Defaults to 0.5 ms - normal use measures ~0.03 ms.
 
     Returns:
         bool: True when listening. False (with the reason logged) if the port could not
@@ -198,7 +203,8 @@ def osc_listen(port=8000, feedback_port=9000, host="0.0.0.0", allow=None, rate=5
         return False
     _OSC.update(sock=sock, port=int(port), feedback_port=feedback_port,
                 allow=list(allow) if allow else None, rate=float(rate or 0),
-                next_feedback=0.0, received=0, dropped=0)
+                next_feedback=0.0, received=0, dropped=0, deferred_ticks=0,
+                budget=max(0.00005, float(budget_ms) / 1000.0))
     # delay 0 fires on EVERY dispatch_tick, and dispatch_tick runs on every engine event
     # including the paused mission_tick - so tablets work at the lobby and while paused.
     _OSC["task"] = TickDispatcher.do_interval(_osc_tick, 0)
@@ -235,7 +241,10 @@ def osc_status():
     now = time.time()
     return {"listening": osc_is_listening(), "port": _OSC["port"],
             "received": _OSC["received"], "dropped": _OSC["dropped"],
-            "senders": {f"{ip}:{p}": {"slot": s.get("slot"), "seen": round(now - s["seen"], 1)}
+            "budget_ms": round(_OSC["budget"] * 1000, 3),
+            "deferred_ticks": _OSC["deferred_ticks"],
+            "senders": {f"{ip}:{p}": {"slot": s.get("slot"), "reply_port": s.get("reply_port"),
+                                      "seen": round(now - s["seen"], 1)}
                         for (ip, p), s in _OSC["senders"].items()}}
 
 
@@ -254,7 +263,13 @@ def _osc_tick_body():
     sock = _OSC["sock"]
     if sock is None:
         return
+    # The budget: past it, stop and leave the rest for the next update. Unread packets
+    # wait in the socket's receive buffer; nothing is lost unless a flood is sustained.
+    deadline = time.perf_counter() + _OSC["budget"]
     for _ in range(MAX_PACKETS_PER_TICK):
+        if time.perf_counter() >= deadline:
+            _OSC["deferred_ticks"] += 1
+            return
         try:
             data, addr = sock.recvfrom(RECV_BUFFER)
         except BlockingIOError:
@@ -271,8 +286,11 @@ def _osc_tick_body():
     if _OSC["rate"] > 0:
         now = time.time()
         if now >= _OSC["next_feedback"]:
+            if time.perf_counter() >= deadline:
+                _OSC["deferred_ticks"] += 1     # feedback waits one update
+                return
             _OSC["next_feedback"] = now + 1.0 / _OSC["rate"]
-            _osc_feedback(now)
+            _osc_feedback(now, deadline)
 
 
 def _osc_packet(data, addr):
@@ -563,6 +581,13 @@ def osc_dispatch(address, args, sender=None):
     if address == "/bind":
         _h_bind(sender, args)
         return True
+    if address == "/feedback":
+        # Where THIS sender's state goes: 0 = back to the port it sends from (a bridge
+        # sending and receiving on one socket), N = port N. Lets a bridge and TouchOSC
+        # share one PC without fighting over the global feedback port.
+        sender["reply_port"] = max(0, int(_num(args, 0)))
+        sender["last"] = {}             # resend everything to the new destination
+        return True
     slot = sender.get("slot")
     parts = address.split("/")
     # /ship/<n>/<rest>: aim this one message at another slot.
@@ -636,7 +661,7 @@ def osc_state(ship):
     return state
 
 
-def _osc_feedback(now):
+def _osc_feedback(now, deadline=None):
     sock = _OSC["sock"]
     for addr, sender in list(_OSC["senders"].items()):
         if now - sender.get("seen", 0) > SENDER_TIMEOUT:
@@ -645,7 +670,15 @@ def _osc_feedback(now):
         ship = _osc_ship(sender.get("slot"))
         if ship is None:
             continue
-        dest = (addr[0], _OSC["feedback_port"] or addr[1])
+        if deadline is not None and time.perf_counter() >= deadline:
+            # Out of budget between tablets: the rest go next update. Each tablet's
+            # `last` means nothing already sent is sent again.
+            _OSC["deferred_ticks"] += 1
+            _OSC["next_feedback"] = 0.0
+            return
+        reply = sender.get("reply_port")
+        port = addr[1] if reply == 0 else (reply or _OSC["feedback_port"] or addr[1])
+        dest = (addr[0], port)
         last = sender["last"]
         for address, value in osc_state(ship).items():
             if last.get(address) == value:
