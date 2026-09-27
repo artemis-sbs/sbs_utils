@@ -2356,6 +2356,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#browser-panels-no-app-experimental" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Browser panels (no app) - experimental
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#what-a-panel-cannot-do" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -10317,6 +10328,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#browser-panels-no-app-experimental" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Browser panels (no app) - experimental
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#what-a-panel-cannot-do" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -10577,6 +10599,20 @@ one in the TouchOSC editor before relying on it, and report back if it does not 
 <p><code>monitor</code> only receives once the game has heard from this machine, so send something
 first. In Git Bash, prefix the command with <code>MSYS_NO_PATHCONV=1</code> - otherwise Git Bash
 rewrites <code>/helm/throttle</code> into a Windows path before it reaches <code>sbs</code>.</p>
+<h2 id="browser-panels-no-app-experimental">Browser panels (no app) - experimental</h2>
+<p>Any phone, tablet or PC browser can be a panel too, with nothing to install on it.
+Run the bridge on the server machine:</p>
+<div class="highlight"><pre><span></span><code>sbs osc web
+</code></pre></div>
+<p>and open <code>http://&lt;server-pc&gt;:8770/?ship=1</code> on the tablet (<code>?ship=2</code> for the second
+ship). The page is a helm panel: impulse lever, REV, warp 1-4, red alert, shields, all
+stop, dock, heading, and gauges for shields, energy and warp.</p>
+<p>The bridge keeps the game fast however many browsers are open: the browsers talk to the
+bridge, and the game sees <strong>one</strong> OSC sender per ship. Each browser that joins late gets
+the whole state at once. It uses the same OSC listener as TouchOSC, so turn OSC on first
+(<code>profile=osc</code>), and both can be used at once.</p>
+<p>Options: <code>--engine host:port</code> if the game runs on another machine, <code>--port</code> for the web
+port, <code>--host 127.0.0.1</code> to keep it to this PC.</p>
 <h2 id="what-a-panel-cannot-do">What a panel cannot do</h2>
 <p>These have no script-side control in the engine yet, so no panel can drive them:</p>
 <ul>
