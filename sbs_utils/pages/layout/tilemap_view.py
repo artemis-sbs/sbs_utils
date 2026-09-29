@@ -33,6 +33,9 @@ ACTOR_SLOTS = 40
 HINT_SLOTS = 24
 #: A badge covers this share of its tile, in the top-right corner.
 HINT_SIZE = 0.5
+#: How far outside the view (in cells) an actor may stand and still reach into it - a
+#: landed ship anchored off the bottom edge, a tall figure one row below it.
+FOOT_REACH = 3
 HOVER = "background_color:#fff2;"
 
 
@@ -55,6 +58,7 @@ class TileView(Column):
         self._geometry = None        # (rows, tile_w%, tile_h%, x0%, y0%)
         self._sent = {}              # widget tag -> (props, rect) this console has
         self._slots = {}             # actor id -> figure slot
+        self._order = []             # figure slots in the order last sent (row order)
         self._listening = False
 
     # --- where the view is looking ----------------------------------------------------
@@ -121,7 +125,7 @@ class TileView(Column):
         color = spec.get("color") or "white"
         if self.fog and (x, y) not in visible:
             color = "#777"
-        return gui_image_get_atlas(tilemap_cell_look(spec, x, y)).get_props(color=color)
+        return gui_image_get_atlas(tilemap_cell_look(spec, x, y, area)).get_props(color=color)
 
     def _void_props(self, area):
         """Any cell of the area's tileset, tinted black: how nothing is drawn."""
@@ -158,7 +162,7 @@ class TileView(Column):
 
     def _present(self, event):
         from ...procedural.tilemap import (tilemap_actors, tilemap_actor, tilemap_visible,
-                                           tilemap_area, tilemap_listen)
+                                           tilemap_area, tilemap_listen, tilemap_sprite_look)
         from ...procedural.gui.image import gui_image_get_atlas
         ctx = FrameContext.context
         cid = event.client_id
@@ -171,6 +175,7 @@ class TileView(Column):
         if self._geometry != (rows, tw, th, x0, y0):
             self._geometry = (rows, tw, th, x0, y0)
             self._sent.clear()
+            self._order = []
         if rec is None:
             return
         left, top = self._aim(area, rows)
@@ -195,16 +200,21 @@ class TileView(Column):
                 self._send(ctx.sbs, cid, f"{self.tag}:c{vx}_{vy}", HOVER, rect(vx, vy),
                            kind="click")
 
-        # Figures ON TOP: every slot re-sent after any tile, because send order is draw
-        # order.
-        if tiles_sent:
-            for i in range(ACTOR_SLOTS):
-                self._sent.pop(f"{self.tag}:a{i}", None)
-        shown = {}
+        # FIGURES, drawn after the ground, in ROW ORDER. A sprite may be taller than its
+        # cell (a figure seen in 3/4) or several cells wide (a landed ship), so it
+        # overlaps the cells above it - and whatever stands further SOUTH must be drawn
+        # over it. Send order is draw order, so whenever any figure changes, every shown
+        # figure is re-sent, north to south.
+        view = (x0, y0, x0 + self.cols * tw, y0 + rows * th)
+        shown = {}                      # slot -> (props, rect, sort key)
+        tops = {}                       # cell -> top of the tallest sprite on it
         for aid in tilemap_actors(area):
             a = tilemap_actor(aid)
+            if not a.get("sprite"):
+                continue
             vx, vy = a["x"] - left, a["y"] - top
-            if not (0 <= vx < self.cols and 0 <= vy < rows) or not a.get("sprite"):
+            if not (-FOOT_REACH <= vx < self.cols + FOOT_REACH and
+                    0 <= vy < rows + FOOT_REACH):
                 continue
             if self.fog and not a["party"]:
                 # Never show what the crew cannot see: a mover only in sight, a fixed
@@ -212,27 +222,71 @@ class TileView(Column):
                 seen = explored if a.get("fixed") else visible
                 if (a["x"], a["y"]) not in seen:
                     continue
+            look = tilemap_sprite_look(a)
+            drawn = self._figure(look, a.get("color"), vx, vy, tw, th, x0, y0, view)
+            if drawn is None:
+                continue
             slot = self._slot_for(aid)
             if slot is None:
                 continue
-            shown[slot] = (gui_image_get_atlas(a["sprite"]).get_props(color=a.get("color")),
-                           rect(vx, vy))
+            shown[slot] = (drawn[0], drawn[1], (a["y"], a.get("fixed") is not True, a["x"]))
+            cell = (a["x"], a["y"])
+            tops[cell] = min(tops.get(cell, drawn[1][1]), drawn[1][1])
         # Slots nobody is in are parked, and forgotten so the next actor can take them.
         self._slots = {aid: s for aid, s in self._slots.items() if s in shown}
-        figures_sent = tiles_sent
+        order = sorted(shown, key=lambda s: shown[s][2])
+        changed = tiles_sent or order != self._order or any(
+            self._sent.get(f"{self.tag}:a{s}") != (shown[s][0], shown[s][1]) for s in shown)
+        figures_sent = False
+        if changed:
+            for s in order:
+                self._sent.pop(f"{self.tag}:a{s}", None)
+                figures_sent |= self._send(ctx.sbs, cid, f"{self.tag}:a{s}",
+                                           shown[s][0], shown[s][1])
+        self._order = order
         for i in range(ACTOR_SLOTS):
-            tag = f"{self.tag}:a{i}"
-            if i in shown:
-                figures_sent |= self._send(ctx.sbs, cid, tag, shown[i][0], shown[i][1])
-            elif void is not None:
-                figures_sent |= self._send(ctx.sbs, cid, tag, void, parked)
+            if i not in shown and void is not None:
+                self._send(ctx.sbs, cid, f"{self.tag}:a{i}", void, parked)
         self._present_hints(ctx, cid, area, left, top, rows, tw, th, x0, y0, void, parked,
-                            figures_sent)
+                            figures_sent, tops, view)
+
+    def _figure(self, key, color, vx, vy, tw, th, x0, y0, view):
+        """``(props, rect)`` for a sprite standing on view cell (vx, vy): its footprint
+        placed by its anchor on the cell's bottom-center, then CLIPPED to the view - a
+        tall figure in the top row must not paint over whatever is above the map. None
+        when nothing of it is in view."""
+        from ...procedural.gui.image import gui_image_get_atlas
+        from ...procedural.tilemap_art import tilemap_sprite_footprint
+        atlas = gui_image_get_atlas(key)
+        w, h, ax, ay = tilemap_sprite_footprint(key)
+        foot_x = x0 + (vx + 0.5) * tw
+        foot_y = y0 + (vy + 1) * th
+        l = foot_x - ax * w * tw
+        t = foot_y - ay * h * th
+        r, b = l + w * tw, t + h * th
+        cl, ct = max(l, view[0]), max(t, view[1])
+        cr, cb = min(r, view[2]), min(b, view[3])
+        if cr <= cl or cb <= ct:
+            return None
+        if (cl, ct, cr, cb) == (l, t, r, b) or atlas.left is None:
+            return atlas.get_props(color=color), (l, t, r, b)
+        # Crop the picture by the same fractions the rect lost.
+        sw, sh = atlas.right - atlas.left, atlas.bottom - atlas.top
+        sl = atlas.left + sw * (cl - l) / (r - l)
+        sr = atlas.left + sw * (cr - l) / (r - l)
+        st = atlas.top + sh * (ct - t) / (b - t)
+        sb = atlas.top + sh * (cb - t) / (b - t)
+        file = atlas.file.replace("\\", "/")
+        props = (f"image:{file};sub_rect:{int(round(sl))},{int(round(st))},"
+                 f"{int(round(sr))},{int(round(sb))};color:{color or atlas.color or 'white'};")
+        return props, (cl, ct, cr, cb)
 
     def _present_hints(self, ctx, cid, area, left, top, rows, tw, th, x0, y0, void,
-                       parked, figures_sent):
+                       parked, figures_sent, tops=None, view=None):
         """Badges over what is still worth a look. Drawn after the figures, so any
-        figure re-sent means every badge is re-sent too (send order is draw order)."""
+        figure re-sent means every badge is re-sent too (send order is draw order). A
+        badge rides at the top of the tallest sprite on its cell, so it floats over a
+        figure's head rather than over its chest."""
         if self.hints is None or void is None:
             return
         from ...procedural.gui.image import gui_image_get_atlas
@@ -251,6 +305,10 @@ class TileView(Column):
             if sprite and 0 <= vx < self.cols and 0 <= vy < rows:
                 r = x0 + (vx + 1) * tw
                 t = y0 + vy * th
+                if tops and (x, y) in tops:
+                    t = min(t, tops[(x, y)])
+                if view is not None:
+                    t = max(t, view[1])
                 placed.append((gui_image_get_atlas(sprite).get_props(),
                                (r - tw * HINT_SIZE, t, r, t + th * HINT_SIZE)))
         for i in range(HINT_SLOTS):

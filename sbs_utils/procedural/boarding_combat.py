@@ -100,6 +100,10 @@ def boarding_hurt(lifeform, amount=1, by=None):
         add_role(lf, DOWN_ROLE)
         tilemap_stop(lf)
         tilemap_set_sprite(lf, color="#555")
+        # Drawn lying down when the art has a `_down` look; the grey stays the tell
+        # either way.
+        from .tilemap import tilemap_set_pose
+        tilemap_set_pose(lf, "down")
         signal_emit("boarding_crew_down", {"BOARDING_WHO": lf, "BOARDING_BY": by})
         # Everyone ON THE GROUND - a crew member still aboard is not down there to help.
         from .boarding import boarding_team
@@ -139,6 +143,8 @@ def boarding_revive(lifeform, hp=None, by=None):
     remove_role(lf, DOWN_ROLE)
     set_inventory_value(lf, HP_KEY, int(hp if hp is not None else max(1, CREW_HP // 2 + 1)))
     tilemap_set_sprite(lf, color=get_inventory_value(lf, "BOARDING_COLOR", None) or "#4cf")
+    from .tilemap import tilemap_set_pose
+    tilemap_set_pose(lf, None)
     signal_emit("boarding_crew_revived", {"BOARDING_WHO": lf, "BOARDING_BY": by})
     return True
 
@@ -351,6 +357,8 @@ def _hostile_step(rec, now):
     if d <= 1:
         rec["state"] = "attack"
         tilemap_stop(rec["id"])
+        from .tilemap import tilemap_face
+        tilemap_face(rec["id"], px, py)
         if now >= rec["next_strike"]:
             rec["next_strike"] = now + rec["cooldown"]
             signal_emit("boarding_hostile_struck", {"BOARDING_HOSTILE": rec["key"],
@@ -440,6 +448,15 @@ def boarding_talk(client_id, key):
         return False
     opened = boarding_encounter(_SCENES["doc"], rec["talk"], client_id,
                                 channel=f"talk:{rec['key']}") is not None
+    if opened:
+        # Face each other.
+        from .boarding import boarding_me
+        from .tilemap import tilemap_face, tilemap_where
+        me = boarding_me(client_id)
+        mine, theirs = tilemap_where(me), tilemap_where(rec["id"]) if rec["id"] else None
+        if mine and theirs and mine[0] == theirs[0]:
+            tilemap_face(me, theirs[1], theirs[2])
+            tilemap_face(rec["id"], mine[1], mine[2])
     if opened and not rec.get("talked"):
         # Spoken to: the map stops badging this person as somebody new.
         rec["talked"] = True
@@ -518,6 +535,8 @@ def boarding_tile_fire(client_id, x, y):
     area = at[0]
     if abs(at[1] - x) + abs(at[2] - y) > FIRE_RANGE:
         return report(False, None, "out of range")
+    from .tilemap import tilemap_face
+    tilemap_face(lf, x, y)                 # turn to shoot, hit or miss
     if not tilemap_sees(area, at[1], at[2], int(x), int(y)):
         return report(False, None, "no line of sight")
     from .boarding import boarding_team

@@ -131,7 +131,10 @@ def tilemap_tileset(name, kinds):
     Args:
         name (str): the tileset's name, as an area's ``tileset:`` names it.
         kinds (dict): ``{kind: {"cell": atlas key, "walk": bool, "see": bool,
-            "color": tint, "variants": [atlas key, ...]}}``. ``walk`` defaults True,
+            "color": tint, "variants": [atlas key, ...], "look": art ground name}}``.
+            ``look`` names the ground an ART SET draws this kind with (see
+            ``tilemap_art``) - so a map keeps its own kind names (``dust``) and still
+            gets a shared pack's ground (``dirt_arid``). ``walk`` defaults True,
             ``see`` defaults to ``walk``. ``variants`` are other looks for the same
             kind, picked per cell so a field of one kind does not repeat in a grid.
     """
@@ -142,7 +145,10 @@ def tilemap_tileset(name, kinds):
         table[_norm(kind)] = {"cell": spec.get("cell"), "walk": walk,
                               "see": bool(spec.get("see", walk)),
                               "color": spec.get("color"),
-                              "variants": [spec.get("cell")] + list(spec.get("variants") or [])}
+                              "variants": [spec.get("cell")] + list(spec.get("variants") or []),
+                              "edges": spec.get("edges"), "shade": spec.get("shade"),
+                              "tall": bool(spec.get("tall", False)),
+                              "look": spec.get("look"), "grid": spec.get("grid")}
     _TILESETS[_norm(name)] = table
     return table
 
@@ -161,9 +167,58 @@ def _kind_spec(rec, kind):
     return (_TILESETS.get(rec["tileset"]) or {}).get(kind)
 
 
-def tilemap_cell_look(spec, x, y):
-    """The atlas key a kind is drawn with at one cell - a fixed pick among its variants,
-    so the same cell always looks the same."""
+def _by_position(looks, x, y):
+    """One look of an n x n GRID picked by where the cell is, so the pieces of one big
+    texture always sit next to each other the same way. A single key is itself."""
+    if isinstance(looks, str) or not looks:
+        return looks
+    n = int(round(len(looks) ** 0.5))
+    if n * n != len(looks):
+        return looks[0]
+    return looks[(y % n) * n + (x % n)]
+
+
+#: Neighbor bits for ``edges`` masks: which sides have the SAME kind.
+EDGE_N, EDGE_E, EDGE_S, EDGE_W = 1, 2, 4, 8
+
+
+def tilemap_cell_look(spec, x, y, area=None):
+    """The atlas key a kind is drawn with at one cell.
+
+    With the area given, a kind's art can depend on its neighbors:
+
+    - ``edges`` - ``{mask: key}`` where the mask is which sides have the same kind
+      (N=1, E=2, S=4, W=8). A wall run, a cliff edge, a pool's bank. A mask with no
+      entry falls through to the plain look.
+    - ``shade`` - the look of this kind lying just SOUTH of a ``tall`` kind, in its
+      shadow, which is what makes a wall read as standing up. A key, or a grid.
+    - ``grid`` - n x n keys cut from one texture bigger than a tile; each cell takes
+      the piece for its position (x % n, y % n). Seamless, and the texture keeps a
+      believable scale where squeezing it into one tile would shrink it to noise.
+
+    Otherwise a fixed pick among the kind's variants, so the same cell always looks the
+    same.
+    """
+    rec = _AREAS.get(_norm(area)) if area is not None else None
+    if rec is not None:
+        kind = rec["tiles"][y][x] if 0 <= y < rec["h"] and 0 <= x < rec["w"] else None
+        edges = spec.get("edges")
+        if edges:
+            mask = 0
+            for bit, (dx, dy) in ((EDGE_N, (0, -1)), (EDGE_E, (1, 0)),
+                                  (EDGE_S, (0, 1)), (EDGE_W, (-1, 0))):
+                nx, ny = x + dx, y + dy
+                if 0 <= ny < rec["h"] and 0 <= nx < rec["w"] and rec["tiles"][ny][nx] == kind:
+                    mask |= bit
+            look = edges.get(str(mask)) or edges.get(mask)
+            if look:
+                return look
+        if spec.get("shade") and y > 0:
+            above = _kind_spec(rec, rec["tiles"][y - 1][x])
+            if above is not None and above.get("tall"):
+                return _by_position(spec["shade"], x, y)
+    if spec.get("grid"):
+        return _by_position(spec["grid"], x, y)
     looks = [v for v in (spec.get("variants") or []) if v] or [spec.get("cell")]
     if len(looks) == 1:
         return looks[0]
@@ -524,7 +579,8 @@ def tilemap_place(agent, area, x=None, y=None, sprite=None, color=None, party=No
     old = _ACTORS.get(aid)
     rec = old or {"sprite": None, "color": None, "party": False, "blocks": False,
                   "speed": DEFAULT_SPEED, "path": [], "next": 0.0, "intent": None,
-                  "mark": None, "exits": None, "fixed": False}
+                  "mark": None, "exits": None, "fixed": False,
+                  "facing": "s", "stride": 0, "pose": None}
     from_area = rec.get("area")
     rec.update({"area": area, "x": int(x), "y": int(y), "path": [], "intent": None,
                 "mark": tilemap_mark_at(area, x, y)})
@@ -595,6 +651,72 @@ def tilemap_actors_near(agent, reach=1):
                   and abs(r["x"] - me["x"]) + abs(r["y"] - me["y"]) <= reach)
 
 
+def _facing(dx, dy):
+    """The compass word for a step: the larger axis wins, ties go to north/south - a
+    figure seen from the 3/4 view reads best facing the camera or away from it."""
+    if dx == 0 and dy == 0:
+        return None
+    if abs(dx) > abs(dy):
+        return "e" if dx > 0 else "w"
+    return "s" if dy > 0 else "n"
+
+
+def tilemap_face(agent, x, y):
+    """Turn an actor toward a cell - someone it is talking to, or shooting at. The
+    view draws the facing when the sprite has one (``<sprite>_<n|e|s|w>...``)."""
+    rec = _ACTORS.get(to_id(agent))
+    if rec is None:
+        return False
+    face = _facing(int(x) - rec["x"], int(y) - rec["y"])
+    if face and face != rec.get("facing"):
+        rec["facing"] = face
+        _bump(rec["area"])
+    return True
+
+
+def tilemap_set_pose(agent, pose=None):
+    """A pose the sprite set may draw instead of standing - ``"down"`` for a crew
+    member at 0 HP (``<sprite>_down``). ``None`` stands it back up."""
+    rec = _ACTORS.get(to_id(agent))
+    if rec is None:
+        return False
+    if rec.get("pose") != pose:
+        rec["pose"] = pose
+        _bump(rec["area"])
+    return True
+
+
+def tilemap_sprite_look(rec):
+    """The atlas key an actor is drawn with right now.
+
+    A sprite names a BASE key; an art set may add looks named after it, and the first
+    one that is registered wins::
+
+        <base>_down                         when the pose is "down"
+        <base>_<facing>_<idle|a|b>          a facing and a stride frame
+        <base>_<facing>                     a facing
+        <base>                              the one look everything has
+
+    So a plain one-cell sprite draws exactly as it always did, and a set that only has
+    some of the looks falls back cell by cell rather than showing nothing.
+    """
+    base = rec.get("sprite")
+    if not base:
+        return None
+    from .gui.image import ImageAtlas
+    have = ImageAtlas.all
+    if rec.get("pose"):
+        key = f"{base}_{rec['pose']}"
+        if key in have:
+            return key
+    facing = rec.get("facing") or "s"
+    frame = ("idle", "a", "b")[rec.get("stride") or 0]
+    for key in (f"{base}_{facing}_{frame}", f"{base}_{facing}"):
+        if key in have:
+            return key
+    return base
+
+
 def tilemap_set_sprite(agent, sprite=None, color=None):
     rec = _ACTORS.get(to_id(agent))
     if rec is None:
@@ -643,6 +765,9 @@ def tilemap_stop(agent):
     if rec is not None:
         rec["path"] = []
         rec["intent"] = None
+        if rec.get("stride"):
+            rec["stride"] = 0              # standing still again
+            _bump(rec["area"])
 
 
 def tilemap_walking(agent):
@@ -669,6 +794,11 @@ def _step(aid, rec):
         rec["path"] = path
         nx, ny = path[0]
     rec["path"].pop(0)
+    # Which way it is walking, and which foot: the view draws both when the sprite set
+    # has them. The stride alternates per STEP, so it animates at walking pace with no
+    # repaint of its own.
+    rec["facing"] = _facing(nx - rec["x"], ny - rec["y"]) or rec.get("facing") or "s"
+    rec["stride"] = 2 if rec.get("stride") == 1 else 1
     rec["x"], rec["y"] = nx, ny
     if rec["party"]:
         tilemap_reveal(rec["area"], nx, ny)
@@ -684,6 +814,7 @@ def _step(aid, rec):
 
 def _arrive(aid, rec):
     from .signal import signal_emit
+    rec["stride"] = 0                      # standing: the idle frame
     area = rec["area"]
     signal_emit("tilemap_arrived", {"TILEMAP_AGENT": aid, "TILEMAP_AREA": area,
                                     "TILEMAP_X": rec["x"], "TILEMAP_Y": rec["y"]})

@@ -173,6 +173,83 @@ class TestCamera(ViewBase):
         self.assertEqual(self.clicks, [])
 
 
+class TestTallSprites(ViewBase):
+    """3/4 art: a figure taller than its cell, a ship several cells wide."""
+
+    def setUp(self):
+        super().setUp()
+        from sbs_utils.procedural.gui.image import ImageAtlas
+        from sbs_utils.procedural import tilemap_art as TA
+        ImageAtlas("tv:tall", "media/tiles", 0, 0, 64, 96)
+        ImageAtlas("tv:ship", "media/tiles", 0, 0, 256, 192)
+        TA.tilemap_sprite_size("tv:tall", 1, 1.5)
+        TA.tilemap_sprite_size("tv:ship", 4, 3, anchor=(0.5, 1.0))
+        self.addCleanup(TA.tilemap_art_clear)
+        T.tilemap_set_sprite(1, sprite="tv:tall")
+
+    def figure(self, sent, aid=1):
+        slot = self.view._slots[aid]
+        return [s for s in sent if s[1] == f"tv:a{slot}"][-1]
+
+    def cell(self, sent, x, y):
+        return next(s for s in sent if s[1] == "tv:t%d_%d" % self.view.view_cell(x, y))[3]
+
+    def test_a_tall_figure_stands_on_its_cell_and_rises_above_it(self):
+        sent = self.paint()
+        l, t, r, b = self.cell(sent, 5, 5)
+        fl, ft, fr, fb = self.figure(sent)[3]
+        self.assertAlmostEqual(fb, b)
+        self.assertAlmostEqual(fl, l)
+        self.assertAlmostEqual(ft, b - 1.5 * (b - t))
+
+    def test_a_wide_set_piece_is_centered_on_its_anchor(self):
+        T.tilemap_place(9, "field", 8, 8, sprite="tv:ship", fixed=True)
+        T.tilemap_reveal_all("field")
+        sent = self.paint()
+        l, t, r, b = self.cell(sent, 8, 8)
+        sl, st, sr, sb = self.figure(sent, 9)[3]
+        self.assertAlmostEqual((sl + sr) / 2, (l + r) / 2)
+        self.assertAlmostEqual(sr - sl, 4 * (r - l))
+
+    def test_the_southern_figure_is_sent_last(self):
+        T.tilemap_place(2, "field", 5, 6, sprite="tv:tall", party=True)
+        sent = self.paint()
+        figs = [s[1] for s in sent if ":a" in s[1] and "color:#000" not in s[2]]
+        self.assertEqual(figs[-1], f"tv:a{self.view._slots[2]}")
+
+    def test_OVERTAKING_RE_SENDS_IN_ROW_ORDER(self):
+        """Walk the northern figure past the southern one: it must now be drawn over it."""
+        T.tilemap_place(2, "field", 6, 6, sprite="tv:tall", party=True)
+        self.paint()
+        T.tilemap_place(1, "field", 5, 7)
+        sent = self.paint()
+        figs = [s[1] for s in sent if ":a" in s[1] and "color:#000" not in s[2]]
+        self.assertEqual(figs, [f"tv:a{self.view._slots[2]}", f"tv:a{self.view._slots[1]}"])
+
+    def test_A_TALL_FIGURE_IN_THE_TOP_ROW_IS_CROPPED_TO_THE_VIEW(self):
+        self.paint()
+        left, top = self.view._camera[1], self.view._camera[2]
+        T.tilemap_place(1, "field", left + 2, top)
+        sent = self.paint()
+        _, _, props, (fl, ft, fr, fb) = self.figure(sent)
+        y0 = self.view._geometry[4]
+        self.assertAlmostEqual(ft, y0)
+        # A third of the picture is above the view: the crop starts a third down.
+        self.assertIn("sub_rect:0,32,64,96", props)
+
+    def test_NO_TAG_FIRST_APPEARS_AFTER_THE_BUILD_WITH_TALL_ART(self):
+        built = {s[1] for s in self.paint()}
+        T.tilemap_place(9, "field", 8, 8, sprite="tv:ship", fixed=True)
+        self.walk(12, 12)
+        later = {s[1] for s in self.paint()}
+        self.assertEqual(later - built, set())
+
+    def test_a_plain_sprite_still_fills_exactly_its_cell(self):
+        T.tilemap_set_sprite(1, sprite="tv:dirt")
+        sent = self.paint()
+        self.assertEqual(self.figure(sent)[3], self.cell(sent, 5, 5))
+
+
 class TestHintBadges(ViewBase):
     """Badges over what is still worth a look (``boarding_hints``)."""
 
@@ -205,6 +282,19 @@ class TestHintBadges(ViewBase):
         self.badges.clear()
         sent = self.paint()
         self.assertTrue(any(":h0" in s[1] and "color:#000" in s[2] for s in sent))
+
+    def test_a_badge_rides_above_a_tall_figure(self):
+        from sbs_utils.procedural.gui.image import ImageAtlas
+        from sbs_utils.procedural import tilemap_art as TA
+        ImageAtlas("tv:tall", "media/tiles", 0, 0, 64, 96)
+        TA.tilemap_sprite_size("tv:tall", 1, 1.5)
+        self.addCleanup(TA.tilemap_art_clear)
+        T.tilemap_place(3, "field", 6, 5, sprite="tv:tall", fixed=True)
+        sent = self.paint()
+        tile = next(s for s in sent if s[1] == "tv:t%d_%d" % self.view.view_cell(6, 5))
+        badge = next(s for s in sent if ":h" in s[1] and "color:#000" not in s[2])
+        th = tile[3][3] - tile[3][1]
+        self.assertAlmostEqual(badge[3][1], tile[3][1] - 0.5 * th)
 
     def test_NO_BADGE_TAG_FIRST_APPEARS_AFTER_THE_BUILD(self):
         self.badges = {}
