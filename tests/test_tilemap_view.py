@@ -250,6 +250,43 @@ class TestTallSprites(ViewBase):
         self.assertEqual(self.figure(sent)[3], self.cell(sent, 5, 5))
 
 
+class TestFringes(ViewBase):
+    """Where the dirt field meets its rock border, rock frays onto the dirt."""
+
+    def setUp(self):
+        super().setUp()
+        from sbs_utils.procedural.gui.image import ImageAtlas
+        for side in "nesw":
+            ImageAtlas("tv:rock_f" + side, "media/tiles", 0, 0, 64, 64)
+        T.tilemap_tileset("tv", {
+            "dirt": {"cell": "tv:dirt", "over": 1},
+            "rock": {"cell": "tv:rock", "walk": False, "over": 2,
+                     "fringe": {s: "tv:rock_f" + s for s in "nesw"}}})
+        T.tilemap_reveal_all("field")
+        T.tilemap_place(1, "field", 2, 2)            # the camera sits on the corner
+
+    def test_FRINGES_GO_BETWEEN_GROUND_AND_FIGURES(self):
+        sent = self.paint()
+        idx = {s[1]: i for i, s in enumerate(sent)}
+        fr = [i for t, i in idx.items() if ":f" in t and "color:#000" not in sent[i][2]]
+        self.assertTrue(fr, "no fringe drawn at the rock border")
+        last_tile = max(i for t, i in idx.items() if ":t" in t)
+        figures = [i for t, i in idx.items() if ":a" in t and "color:#000" not in sent[i][2]]
+        self.assertGreater(min(fr), last_tile)
+        self.assertLess(max(fr), min(figures))
+
+    def test_NO_FRINGE_TAG_FIRST_APPEARS_AFTER_THE_BUILD(self):
+        built = {s[1] for s in self.paint()}
+        self.walk(20, 14)
+        later = {s[1] for s in self.paint()}
+        self.assertEqual(later - built, set())
+
+    def test_nothing_unseen_is_frayed(self):
+        T.tilemap_area("field")["explored"] = {(2, 2)}
+        sent = self.paint()
+        self.assertFalse([s for s in sent if ":f" in s[1] and "color:#000" not in s[2]])
+
+
 class TestHintBadges(ViewBase):
     """Badges over what is still worth a look (``boarding_hints``)."""
 

@@ -371,6 +371,36 @@ class TestNeighborLooks(TileBase):
         spec = T.tilemap_kind_spec("edgy", "dirt")
         self.assertEqual(T.tilemap_cell_look(spec, 1, 1), "g:3")
 
+    def test_GROUND_THAT_GOES_OVER_FRAYS_ONTO_ITS_NEIGHBOUR(self):
+        """Salt crust over dirt: the dirt cell beside salt gets salt's strip on that
+        edge; the salt cell gets nothing from the dirt below it in priority."""
+        T.tilemap_tileset("test", {
+            "dirt": {"cell": "g:dirt", "over": 1},
+            "rock": {"cell": "g:salt", "over": 3,
+                     "fringe": {"n": "f:n", "e": "f:e", "s": "f:s", "w": "f:w"}}})
+        # EDGY: row 1 is dirt, rock, rock, rock, dirt.
+        self.assertEqual(T.tilemap_cell_fringes("edgy", 0, 1), ["f:e"])   # rock to its east
+        self.assertEqual(T.tilemap_cell_fringes("edgy", 2, 0), ["f:s"])   # rock below it
+        self.assertEqual(T.tilemap_cell_fringes("edgy", 2, 1), [])        # rock itself
+        self.assertEqual(T.tilemap_cell_fringes("edgy", 0, 0), [])        # all dirt around
+
+    def test_A_CONVEX_CORNER_GETS_A_CORNER_PIECE(self):
+        T.tilemap_tileset("test", {
+            "dirt": {"cell": "g:dirt", "over": 1},
+            "rock": {"cell": "g:salt", "over": 3,
+                     "fringe": {"n": "f:n", "e": "f:e", "s": "f:s", "w": "f:w",
+                                "ne": "f:ne", "se": "f:se", "sw": "f:sw", "nw": "f:nw"}}})
+        # (0, 0): rock is only diagonally across, at (1, 1).
+        self.assertEqual(T.tilemap_cell_fringes("edgy", 0, 0), ["f:se"])
+        # (0, 1): rock to the east - the edge strip, and no corner piece on top of it.
+        self.assertEqual(T.tilemap_cell_fringes("edgy", 0, 1), ["f:e"])
+
+    def test_a_kind_with_no_priority_keeps_hard_edges(self):
+        T.tilemap_tileset("test", {
+            "dirt": {"cell": "g:dirt"},
+            "rock": {"cell": "g:salt", "over": 3, "fringe": {"e": "f:e"}}})
+        self.assertEqual(T.tilemap_cell_fringes("edgy", 0, 1), [])
+
     def test_without_the_area_nothing_changes(self):
         spec = T.tilemap_kind_spec("edgy", "dirt")
         self.assertEqual(T.tilemap_cell_look(spec, 2, 2), "tile:dirt")

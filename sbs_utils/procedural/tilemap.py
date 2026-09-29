@@ -148,7 +148,8 @@ def tilemap_tileset(name, kinds):
                               "variants": [spec.get("cell")] + list(spec.get("variants") or []),
                               "edges": spec.get("edges"), "shade": spec.get("shade"),
                               "tall": bool(spec.get("tall", False)),
-                              "look": spec.get("look"), "grid": spec.get("grid")}
+                              "look": spec.get("look"), "grid": spec.get("grid"),
+                              "fringe": spec.get("fringe"), "over": spec.get("over")}
     _TILESETS[_norm(name)] = table
     return table
 
@@ -180,6 +181,56 @@ def _by_position(looks, x, y):
 
 #: Neighbor bits for ``edges`` masks: which sides have the SAME kind.
 EDGE_N, EDGE_E, EDGE_S, EDGE_W = 1, 2, 4, 8
+
+
+#: Which fringe strip sits along which edge of the RECEIVING cell, for a neighbour on
+#: each side.
+_FRINGE_SIDES = (("n", 0, -1), ("e", 1, 0), ("s", 0, 1), ("w", -1, 0))
+_FRINGE_CORNERS = (("ne", 1, -1), ("se", 1, 1), ("sw", -1, 1), ("nw", -1, -1))
+
+
+def tilemap_cell_fringes(area, x, y):
+    """The fringe strips drawn over one cell where its ground meets another: for each
+    side whose neighbour is a kind that goes OVER this one (a higher ``over``) and has a
+    ``fringe``, that kind's strip for this edge. Lowest first, so the one on top is
+    drawn last. ``[]`` for a cell with nothing to blend.
+
+    This is how two kinds of ground meet softly - salt crust spilling onto dirt, a path
+    frayed at its sides - where one tile per cell could only meet in a straight seam."""
+    rec = _AREAS.get(_norm(area))
+    if rec is None or not (0 <= x < rec["w"] and 0 <= y < rec["h"]):
+        return []
+    here = _kind_spec(rec, rec["tiles"][y][x])
+    if here is None:
+        return []
+    mine = here.get("over")
+    if mine is None or here.get("tall"):
+        return []
+    def spec_at(dx, dy):
+        nx, ny = x + dx, y + dy
+        if not (0 <= nx < rec["w"] and 0 <= ny < rec["h"]):
+            return None
+        return _kind_spec(rec, rec["tiles"][ny][nx])
+
+    out = []
+    for side, dx, dy in _FRINGE_SIDES:
+        there = spec_at(dx, dy)
+        if there is None or there is here or not there.get("fringe"):
+            continue
+        if (there.get("over") or 0) > mine and there["fringe"].get(side):
+            out.append((there["over"], there["fringe"][side]))
+    # CORNERS: a higher kind only diagonally across gets a corner piece, so a convex
+    # corner of it does not end in a square notch. Skipped when either side along
+    # that corner is the same kind - its edge strip already covers the corner.
+    for side, dx, dy in _FRINGE_CORNERS:
+        there = spec_at(dx, dy)
+        if there is None or there is here or not there.get("fringe"):
+            continue
+        if spec_at(dx, 0) is there or spec_at(0, dy) is there:
+            continue
+        if (there.get("over") or 0) > mine and there["fringe"].get(side):
+            out.append((there["over"], there["fringe"][side]))
+    return [k for _, k in sorted(out)]
 
 
 def tilemap_cell_look(spec, x, y, area=None):

@@ -178,7 +178,7 @@ def _dress(spec, look):
         spec["variants"] = [look["cell"]] + list(look.get("variants") or [])
     elif look.get("variants"):
         spec["variants"] = [spec.get("cell")] + list(look["variants"])
-    for field in ("edges", "shade", "tall", "color", "grid"):
+    for field in ("edges", "shade", "tall", "color", "grid", "fringe", "over"):
         if field in look:
             spec[field] = look[field]
 

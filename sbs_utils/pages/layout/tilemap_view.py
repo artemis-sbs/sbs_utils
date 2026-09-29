@@ -36,6 +36,9 @@ HINT_SIZE = 0.5
 #: How far outside the view (in cells) an actor may stand and still reach into it - a
 #: landed ship anchored off the bottom edge, a tall figure one row below it.
 FOOT_REACH = 3
+#: Fringe slots: where two kinds of ground meet, the edge of one frayed over the other.
+#: Enough for the boundaries in one view; beyond it, a seam simply stays straight.
+FRINGE_SLOTS = 160
 HOVER = "background_color:#fff2;"
 
 
@@ -200,6 +203,9 @@ class TileView(Column):
                 self._send(ctx.sbs, cid, f"{self.tag}:c{vx}_{vy}", HOVER, rect(vx, vy),
                            kind="click")
 
+        fringes_sent = self._present_fringes(ctx, cid, area, left, top, rows, explored,
+                                             visible, void, parked, rect, tiles_sent)
+
         # FIGURES, drawn after the ground, in ROW ORDER. A sprite may be taller than its
         # cell (a figure seen in 3/4) or several cells wide (a landed ship), so it
         # overlaps the cells above it - and whatever stands further SOUTH must be drawn
@@ -235,7 +241,7 @@ class TileView(Column):
         # Slots nobody is in are parked, and forgotten so the next actor can take them.
         self._slots = {aid: s for aid, s in self._slots.items() if s in shown}
         order = sorted(shown, key=lambda s: shown[s][2])
-        changed = tiles_sent or order != self._order or any(
+        changed = tiles_sent or fringes_sent or order != self._order or any(
             self._sent.get(f"{self.tag}:a{s}") != (shown[s][0], shown[s][1]) for s in shown)
         figures_sent = False
         if changed:
@@ -249,6 +255,43 @@ class TileView(Column):
                 self._send(ctx.sbs, cid, f"{self.tag}:a{i}", void, parked)
         self._present_hints(ctx, cid, area, left, top, rows, tw, th, x0, y0, void, parked,
                             figures_sent, tops, view)
+
+    def _present_fringes(self, ctx, cid, area, left, top, rows, explored, visible, void,
+                         parked, rect, tiles_sent):
+        """Where two kinds of ground meet, the one that goes OVER frays onto the other:
+        its fringe strip drawn along the shared edge (``tilemap_cell_fringes``). A pool
+        of slots like the figures', drawn after the ground and before the figures - so a
+        tile re-sent means every fringe is re-sent over it. Returns whether any was."""
+        from ...procedural.tilemap import tilemap_cell_fringes
+        from ...procedural.gui.image import gui_image_get_atlas
+        if void is None:
+            return False
+        placed = []
+        for vy in range(rows):
+            for vx in range(self.cols):
+                x, y = left + vx, top + vy
+                if self.fog and (x, y) not in explored:
+                    continue
+                keys = tilemap_cell_fringes(area, x, y)
+                if not keys:
+                    continue
+                color = "#777" if self.fog and (x, y) not in visible else "white"
+                for key in keys:
+                    placed.append((gui_image_get_atlas(key).get_props(color=color),
+                                   rect(vx, vy)))
+        placed = placed[:FRINGE_SLOTS]
+        if tiles_sent:
+            # Only the ones ON the map must follow new tiles; parked ones are offscreen.
+            for i in range(len(placed)):
+                self._sent.pop(f"{self.tag}:f{i}", None)
+        sent = False
+        for i in range(FRINGE_SLOTS):
+            tag = f"{self.tag}:f{i}"
+            if i < len(placed):
+                sent |= self._send(ctx.sbs, cid, tag, placed[i][0], placed[i][1])
+            else:
+                self._send(ctx.sbs, cid, tag, void, parked)
+        return sent
 
     def _figure(self, key, color, vx, vy, tw, th, x0, y0, view):
         """``(props, rect)`` for a sprite standing on view cell (vx, vy): its footprint
