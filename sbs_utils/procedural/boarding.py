@@ -276,11 +276,38 @@ def _boarding_metric(name, agent_id, speaker):
     # agent - it is the one guard word that is not about who is asking.
     if str(name).strip() == "learned":
         return len(_FACTS)
+    # A WORD AND AN ARGUMENT - `skill engineering`, `holding medkit`, `party coil` - owned
+    # by the module that knows the answer (checks, the pack), registered with
+    # `boarding_metric_word`, so this resolver stays one lookup.
+    word, _, rest = str(name).strip().partition(" ")
+    fn = _METRIC_WORDS.get(word.lower())
+    if fn is not None and rest.strip():
+        return fn(rest.strip(), agent_id)
     if agent_id is not None and has_role(agent_id, str(name).strip()):
         return 1
     if _PREV_METRIC is not None:
         return _PREV_METRIC(name, agent_id, speaker)
     return 0
+
+
+_METRIC_WORDS = {}
+
+
+def boarding_metric_word(word, fn):
+    """Answer guards of the form ``<word> <argument>`` - ``if holding medkit >= 1``.
+
+    ``fn(argument, agent_id)`` returns a number. The word is the first token of the
+    guard's left side; a guard that is only the word (no argument) is still a role.
+    """
+    _METRIC_WORDS[str(word).strip().lower()] = fn
+
+
+def _skill_metric(rest, agent_id):
+    from .boarding_checks import boarding_skill
+    return boarding_skill(agent_id, rest) if agent_id is not None else 0
+
+
+boarding_metric_word("skill", _skill_metric)
 
 
 def boarding_metric_install():
@@ -317,34 +344,169 @@ def boarding_metric_uninstall():
 
 # --- The scene loop ---------------------------------------------------------
 #
-# One boarding mission is live at a time, so this is a single record rather than a table keyed by
-# site: two simultaneous boarding partys would need two arbitration tokens, and nothing asks for
-# that yet. It is a dict so a probe can see it and the reset can empty it.
-_SCENE = {}
+# ONE SCENE PER CHANNEL. A channel is a group of consoles in the same conversation. The
+# party as a whole is the `PARTY` channel, and a console that was never put anywhere else
+# is in it - so a mission that never opens a channel has exactly the one scene it always
+# had, and every function below defaults to it.
+#
+# A party spread across an open world needs more than one: the medic talking to a
+# survivor in the caves while the engineer argues with a deputy in the colony. So a
+# mission (or `boarding_encounter`) opens a channel for a group, and each console reads
+# and answers the scene of the channel it is in.
+#
+# THE SEQ IS GLOBAL. Every channel draws its token from one counter, so no two beats
+# anywhere ever share a seq - a button rendered in one channel can never be accepted by
+# another, and the arbitration stays exactly as safe as it was with one scene.
+PARTY = "party"
+
+_SCENE = {}                         # the PARTY channel - kept as the same dict object
+_SCENES = {PARTY: _SCENE}           # channel -> scene record
+_CLIENT_CHANNEL = {}                # client_id -> channel (absent means PARTY)
+_STICKY = set()                     # channels that outlive their scene ending
+_SEQ = [0]
 
 
-def boarding_scene_begin(scenes, key, speaker=None):
+def _next_seq():
+    _SEQ[0] += 1
+    return _SEQ[0]
+
+
+def _record(channel=None, create=False):
+    """The scene record for a channel. PARTY always exists; another is made on demand."""
+    ch = channel or PARTY
+    rec = _SCENES.get(ch)
+    if rec is None and create:
+        rec = _SCENES[ch] = {}
+    return rec if rec is not None else {}
+
+
+def boarding_party_channel():
+    """The name of the channel every console starts in."""
+    return PARTY
+
+
+def boarding_channel_of(client_id):
+    """The channel this console is in - PARTY unless it was put somewhere else."""
+    return _CLIENT_CHANNEL.get(to_id(client_id), PARTY)
+
+
+def boarding_channel_open(channel, members=(), sticky=False):
+    """Make a channel for a group of consoles and move them into it. Returns its name.
+
+    Opening an existing channel only adds the members. ``sticky`` keeps the channel (and
+    its members in it) after its scene ends; by default an ended side scene sends its
+    members back to the party.
+    """
+    ch = str(channel or PARTY)
+    _record(ch, create=True)
+    if sticky:
+        _STICKY.add(ch)
+    for cid in members or ():
+        boarding_channel_join(cid, ch)
+    return ch
+
+
+def boarding_channel_join(client_id, channel):
+    """Move one console into a channel. Its reader picks up that channel's beat."""
+    cid = to_id(client_id)
+    ch = str(channel or PARTY)
+    _record(ch, create=True)
+    if ch == PARTY:
+        _CLIENT_CHANNEL.pop(cid, None)
+    else:
+        _CLIENT_CHANNEL[cid] = ch
+    return ch
+
+
+def boarding_channel_leave(client_id):
+    """Put one console back in the party channel."""
+    return boarding_channel_join(client_id, PARTY)
+
+
+def boarding_channel_members(channel=None):
+    """The consoles in a channel, as a set. For PARTY: every console not elsewhere."""
+    ch = channel or PARTY
+    if ch == PARTY:
+        return {c for c in boarding_clients() if c not in _CLIENT_CHANNEL}
+    return {c for c, where in _CLIENT_CHANNEL.items() if where == ch}
+
+
+def boarding_channels():
+    """Every channel with a scene open, PARTY first when it has one."""
+    out = [ch for ch, rec in _SCENES.items() if rec.get("parsed") is not None]
+    out.sort(key=lambda c: (c != PARTY, c))
+    return out
+
+
+def boarding_channel_close(channel):
+    """End a channel's scene and send its members back to the party."""
+    ch = channel or PARTY
+    boarding_scene_end(ch)
+    if ch == PARTY:
+        return
+    for cid in list(boarding_channel_members(ch)):
+        _CLIENT_CHANNEL.pop(cid, None)
+    _STICKY.discard(ch)
+    _SCENES.pop(ch, None)
+
+
+def boarding_any_open():
+    """True when any channel has a beat open."""
+    return any(rec.get("parsed") is not None for rec in _SCENES.values())
+
+
+def boarding_scene_begin(scenes, key, speaker=None, channel=None):
     """Open a beat: parse the scene, pick ONE line for everybody, bump the token.
 
     Returns the scene key actually opened, or None when the key names no scene - which is how
     a choice pointing at a missing target ends the conversation instead of hanging on it.
+
+    ``channel`` is whose scene this is; the default is the whole party.
     """
+    ch = channel or PARTY
     node = dialogue_get(scenes, key) if key else None
     if node is None:
-        boarding_scene_end()
+        boarding_scene_end(ch)
         return None
+    rec = _record(ch, create=True)
     parsed = dialogue_parse(node)
-    _SCENE.update({
+    rec.update({
         "scenes": scenes,
         "key": key,
         "parsed": parsed,
-        "speaker": speaker if speaker is not None else _SCENE.get("speaker"),
-        "seq": _SCENE.get("seq", 0) + 1,
+        "speaker": speaker if speaker is not None else rec.get("speaker"),
+        "seq": _next_seq(),
+        "channel": ch,
     })
     # Picked ONCE, here, so every console is told the same thing. See the module docstring.
-    _SCENE["line"] = dialogue_pick_line(parsed, None, _SCENE["speaker"])
-    _mirror_to_inbox()
+    rec["line"] = dialogue_pick_line(parsed, None, rec["speaker"])
+    if ch == PARTY:
+        # The inbox is the WHOLE party's transcript, so only the party's beats go there.
+        # A side scene is private to its channel and lives in that channel's reader.
+        _mirror_to_inbox()
     return key
+
+
+def boarding_encounter(scenes, key, client_id, speaker=None, channel=None, members=()):
+    """Start a scene for ONE group - this console and whoever is with it.
+
+    The everyday way into a side conversation: somebody walks up to the deputy, and the
+    deputy's scene opens for them (and anyone else in ``members``) while the rest of the
+    party carries on with whatever they are doing. If the channel already has a beat open
+    the console simply joins it, so two people walking up to the same person share one
+    conversation instead of starting two.
+
+    Returns the channel name, or None when ``key`` names no scene.
+    """
+    ch = str(channel or key)
+    rec = _record(ch)
+    boarding_channel_open(ch, [client_id] + list(members or ()))
+    if rec.get("parsed") is not None:
+        return ch
+    if boarding_scene_begin(scenes, key, speaker, channel=ch) is None:
+        boarding_channel_close(ch)
+        return None
+    return ch
 
 
 # The boarding party's only channel to the ship has always been the shared main screen,
@@ -384,36 +546,41 @@ def _mirror_to_inbox():
         log("could not mirror an boarding beat to the inbox", "boarding", "warning")
 
 
-def boarding_scene_end():
+def boarding_scene_end(channel=None):
     """Close the conversation, leaving the token moved on so a late press still refuses."""
-    seq = _SCENE.get("seq", 0) + 1
-    _SCENE.clear()
-    _SCENE["seq"] = seq
+    rec = _record(channel, create=True)
+    rec.clear()
+    rec["seq"] = _next_seq()
 
 
-def boarding_scene():
+def boarding_scene(channel=None):
     """The current scene key, or None when nothing is open."""
-    return _SCENE.get("key")
+    return _record(channel).get("key")
 
 
-def boarding_is_open():
+def boarding_is_open(channel=None):
     """True while a beat is open and answerable."""
-    return _SCENE.get("parsed") is not None
+    return _record(channel).get("parsed") is not None
 
 
-def boarding_seq():
+def boarding_seq(channel=None):
     """The arbitration token. A console stamps this onto every button it renders."""
-    return _SCENE.get("seq", 0)
+    return _record(channel).get("seq", 0)
 
 
-def boarding_line():
+def boarding_seq_for(client_id):
+    """The token of the channel THIS console is in - what its screen should poll."""
+    return boarding_seq(boarding_channel_of(client_id))
+
+
+def boarding_line(channel=None):
     """The spoken line for this beat - the same one for every console."""
-    return _SCENE.get("line", "")
+    return _record(channel).get("line", "")
 
 
-def boarding_speaker():
+def boarding_speaker(channel=None):
     """The opaque speaker record this beat is spoken by."""
-    return _SCENE.get("speaker")
+    return _record(channel).get("speaker")
 
 
 def boarding_choices(client_id):
@@ -423,10 +590,12 @@ def boarding_choices(client_id):
     yields a different list. A client with no character gets the unguarded choices only,
     which is the right answer for an observer rather than an error.
     """
-    parsed = _SCENE.get("parsed")
+    ch = boarding_channel_of(client_id)
+    rec = _record(ch)
+    parsed = rec.get("parsed")
     if parsed is None:
         return []
-    speaker = _SCENE.get("speaker")
+    speaker = rec.get("speaker")
     held = boarding_held(client_id)
     if not held:
         # No character: the unguarded choices only, which is the right answer for an
@@ -436,29 +605,29 @@ def boarding_choices(client_id):
     out = []
     seen = set()
     for lf_id in held:
-        for ch in dialogue_choices(parsed, lf_id, speaker):
+        for c in dialogue_choices(parsed, lf_id, speaker):
             # DEDUPE. An ungated choice - "Beam back up", "Walk in with her" - is offered
             # to EVERY character, so a plain union shows it once per body held. Keep the
             # first, which belongs to the primary because the primary is iterated first;
             # each later character then contributes only what is exclusively theirs, and
             # that ordering is what makes the grouping on screen read.
-            mark = (ch.get("label"), ch.get("target"))
+            mark = (c.get("label"), c.get("target"))
             if mark in seen:
                 continue
             seen.add(mark)
             # WHO IS ACTING, carried on the choice. Guards and outcomes are per character,
             # so `boarding_answer` cannot ask the console - the console has several. A
             # MastDataObject stores values as ATTRIBUTES, so `ch["agent"] = ...` raises.
-            setattr(ch, "agent", lf_id)
-            out.append(ch)
+            setattr(c, "agent", lf_id)
+            out.append(c)
     # FORWARDED WORK, on one console only. See `boarding_orphan_choices`: a party short of
     # a medic still has to be able to treat her, and the duty console is the stable
     # answer to "who catches it" that every console computes identically.
-    if client_id == boarding_duty_client():
+    if client_id == boarding_duty_client(ch):
         seen_labels = {(c.get("label"), c.get("target")) for c in out}
-        for ch in boarding_orphan_choices():
-            if (ch.get("label"), ch.get("target")) not in seen_labels:
-                out.append(ch)
+        for c in boarding_orphan_choices(ch):
+            if (c.get("label"), c.get("target")) not in seen_labels:
+                out.append(c)
     return out
 
 
@@ -474,26 +643,28 @@ def boarding_choices_for(client_id, lifeform):
     Falls back to the console's whole list when it is not holding this character, which
     is what a stale selection looks like after somebody else took a body over.
     """
-    parsed = _SCENE.get("parsed")
+    ch = boarding_channel_of(client_id)
+    rec = _record(ch)
+    parsed = rec.get("parsed")
     if parsed is None:
         return []
     lf_id = to_id(lifeform)
     if lf_id is None or lf_id not in boarding_held(client_id):
         return boarding_choices(client_id)
-    out = dialogue_choices(parsed, lf_id, _SCENE.get("speaker"))
-    for ch in out:
-        setattr(ch, "agent", lf_id)
+    out = dialogue_choices(parsed, lf_id, rec.get("speaker"))
+    for c in out:
+        setattr(c, "agent", lf_id)
     # The SAME forwarded tail `boarding_choices` appends, and for the same console. It has
     # to be here too, not only there: the inbox reply strip asks this function whenever
     # a character is active, which is the boarding party's main surface - so forwarding that
     # lived only in `boarding_choices` would be invisible exactly where it is needed. Both
     # lists must also agree, because `boarding_answer` re-derives one of them to read the
     # index back.
-    if client_id == boarding_duty_client():
+    if client_id == boarding_duty_client(ch):
         seen = {(c.get("label"), c.get("target")) for c in out}
-        for ch in boarding_orphan_choices():
-            if (ch.get("label"), ch.get("target")) not in seen:
-                out.append(ch)
+        for c in boarding_orphan_choices(ch):
+            if (c.get("label"), c.get("target")) not in seen:
+                out.append(c)
     return out
 
 def boarding_answer(client_id, index, seq=None, agent=None):
@@ -504,6 +675,10 @@ def boarding_answer(client_id, index, seq=None, agent=None):
     the console's full list and press the wrong thing - the lists are different lengths
     and in a different order.
 
+    The pick is read against the scene of the channel the console is IN. Seqs are unique
+    across channels, so a button left over from a channel the console has since left is
+    refused like any other stale press.
+
     REFUSES, changing nothing, when: no beat is open; the token has moved on (somebody else
     already answered this beat); the index names no choice THIS character may take; or an
     outcome handler refuses the pick.
@@ -512,53 +687,82 @@ def boarding_answer(client_id, index, seq=None, agent=None):
     second press arriving in the same frame is already carrying a stale token by the time it
     gets here.
     """
-    parsed = _SCENE.get("parsed")
+    cid = to_id(client_id)
+    ch = boarding_channel_of(cid)
+    rec = _record(ch)
+    parsed = rec.get("parsed")
     if parsed is None:
         return False
-    if seq is not None and seq != _SCENE.get("seq", 0):
+    if seq is not None and seq != rec.get("seq", 0):
         return False
-    cid = to_id(client_id)
     choices = boarding_choices_for(cid, agent) if agent is not None else boarding_choices(cid)
     if not isinstance(index, int) or index < 0 or index >= len(choices):
         return False
     choice = choices[index]
 
-    from_key = _SCENE.get("key")
-    _SCENE["seq"] = _SCENE.get("seq", 0) + 1
+    from_key = rec.get("key")
+    rec["seq"] = _next_seq()
 
-    speaker = _SCENE.get("speaker")
+    speaker = rec.get("speaker")
     # The character that OWNS the choice, not the console's primary. With a doubled-up
     # console those differ, and applying as the primary would credit the wrong body -
     # and evaluate a cost or a refusal against someone who was not acting.
     actor = choice.get("agent") or boarding_me(cid)
+    _REDIRECT.clear()
     if dialogue_apply(actor, speaker, choice.outcomes) is False:
         # A handler refused (a cost that cannot be paid). The token has ALREADY moved, so
         # every console is holding a stale one and the beat is briefly unanswerable - which
         # is correct, not a deadlock: consoles repaint off the token, re-render with the new
         # one, and the same person can try something else. Bumping after the outcome instead
         # would reopen the same-frame race this exists to close.
+        _REDIRECT.clear()
         return False
+    # An outcome may send the scene somewhere other than the authored target - a failed
+    # check (`check engineering 8 else botched`). Read and cleared in this one call.
+    target = _REDIRECT.pop("target", choice.target)
 
     # Tell the transcript what was said, and what was not. The beat's replies live
     # here rather than on the message, so the inbox cannot work this out on its own -
     # and an answered beat showing nothing is the transcript losing the half that
     # matters. Best effort: a mission running without the inbox is unaffected.
-    try:
-        from .messages import message_answer_scene
-        message_answer_scene(from_key, choice.label,
-                             by=_name_of(actor),
-                             others=[c.label for c in choices
-                                     if c.label != choice.label])
-    except Exception:
-        pass
+    if ch == PARTY:
+        try:
+            from .messages import message_answer_scene
+            message_answer_scene(from_key, choice.label,
+                                 by=_name_of(actor),
+                                 others=[c.label for c in choices
+                                         if c.label != choice.label])
+        except Exception:
+            pass
 
-    scenes = _SCENE.get("scenes")
-    if not choice.target:
-        boarding_scene_end()
-        signal_emit("boarding_scene_ended", {"BOARDING_FROM": from_key})
+    scenes = rec.get("scenes")
+    if not target:
+        members = sorted(boarding_channel_members(ch))
+        if ch != PARTY and ch not in _STICKY:
+            boarding_channel_close(ch)
+        else:
+            boarding_scene_end(ch)
+        signal_emit("boarding_scene_ended", {"BOARDING_FROM": from_key,
+                                             "BOARDING_CHANNEL": ch,
+                                             "BOARDING_CLIENTS": members,
+                                             "BOARDING_WHO": actor})
         return True
-    boarding_scene_begin(scenes, choice.target, speaker)
+    boarding_scene_begin(scenes, target, speaker, channel=ch)
     return True
+
+
+# Set by an outcome verb to send the scene to another target than the authored one.
+# See `boarding_redirect`.
+_REDIRECT = {}
+
+
+def boarding_redirect(target):
+    """From inside an outcome handler: go to ``target`` instead of the choice's own.
+
+    Only meaningful while ``boarding_answer`` is applying outcomes; it is cleared around
+    every answer, so a stray call cannot leak into the next one.
+    """
+    _REDIRECT["target"] = target
 
 
 def _name_of(lifeform_id):
@@ -573,8 +777,19 @@ def _name_of(lifeform_id):
 
 
 def boarding_scene_count():
-    """Reset-ledger probe: whether a beat is being held."""
-    return 1 if _SCENE.get("parsed") is not None else 0
+    """Reset-ledger probe: how many channels are holding a beat."""
+    return sum(1 for rec in _SCENES.values() if rec.get("parsed") is not None)
+
+
+def _boarding_scenes_clear():
+    """Every channel gone, the party channel emptied, the token reset."""
+    _SCENE.clear()
+    _SCENES.clear()
+    _SCENES[PARTY] = _SCENE
+    _CLIENT_CHANNEL.clear()
+    _STICKY.clear()
+    _REDIRECT.clear()
+    _SEQ[0] = 0
 
 
 # --- The reader: the scene as a document ----------------------------------------------
@@ -594,12 +809,13 @@ _READERS = {}       # client_id -> {"text", "seq", "agent", "area"}
 def _boarding_beat_text(client_id, agent=None):
     """This beat as markdown: the line, then this console's choices as signal lines."""
     from .amd import amd_choice_label
-    if not boarding_is_open():
+    ch = boarding_channel_of(client_id)
+    if not boarding_is_open(ch):
         return "The conversation is over."
-    seq = boarding_seq()
+    seq = boarding_seq(ch)
     choices = (boarding_choices_for(client_id, agent) if agent is not None
                else boarding_choices(client_id))
-    lines = [str(boarding_line() or "")]
+    lines = [str(boarding_line(ch) or "")]
     if choices:
         lines.append("")
     agent_q = f"&agent={to_id(agent)}" if agent is not None else ""
@@ -618,13 +834,21 @@ def _boarding_reader_sync(client_id, chosen=None):
     from .amd import amd_choices_settle
     state = _READERS.setdefault(client_id, {"text": "", "seq": None, "agent": None,
                                             "area": None})
-    seq = boarding_seq()
+    ch = boarding_channel_of(client_id)
+    seq = boarding_seq(ch)
     if state["seq"] != seq or chosen is not None:
         text = amd_choices_settle(state["text"], chosen) if state["text"] else ""
         if state["seq"] != seq:
             beat = _boarding_beat_text(client_id, state["agent"])
+            # A CHANGE OF CHANNEL is marked, so a console that walked into a side
+            # conversation - or came back out of one - can see where the transcript
+            # stopped being about the last thing.
+            # Plain words, not `---`: a text area has no rule and drew it as "- ---".
+            if text and state.get("channel", PARTY) != ch:
+                text = f"{text}\n\n~ ~ ~"
             text = f"{text}\n\n{beat}" if text else beat
             state["seq"] = seq
+        state["channel"] = ch
         state["text"] = text
     return state["text"]
 
@@ -643,6 +867,12 @@ def boarding_reader_text(client_id, agent=None):
         state["agent"] = to_id(agent)
         state["seq"] = None
     return _boarding_reader_sync(client_id)
+
+
+def boarding_reader_has_text(client_id):
+    """Whether this console has a transcript to show - a conversation now, or one it has
+    had. The Act app keeps showing it after the conversation ends."""
+    return bool((_READERS.get(client_id) or {}).get("text"))
 
 
 def boarding_reader_revision(client_id):
@@ -683,6 +913,7 @@ def boarding_reader(text_area, client_id, agent=None, in_region=False):
     text = boarding_reader_text(client_id, agent)
     state = _READERS[client_id]
     state["area"] = text_area
+    state["in_region"] = bool(in_region)
     if text_area is not None:
         text_area.value = text
         # A transcript grows at the end, so that is the end it follows.
@@ -706,12 +937,26 @@ def _boarding_reader_on_pick(name, data):
     agent = data.get("agent")
     agent = int(agent) if agent not in (None, "") else None
     chosen = data.get("SIGNAL_CHOICE")
+    # WHO SHARED THAT BEAT, taken before answering - an answer that ends a side scene
+    # sends its members back to the party, and they still need the pick settled.
+    audience = boarding_channel_members(boarding_channel_of(cid)) | {cid}
     boarding_answer(cid, index, seq, agent=agent)
-    # Every reader, the one that pressed included: whoever answered, the beat moved on
-    # for all of them. A refused press (stale seq) still resyncs, which shows the
-    # presser the beat somebody else moved to.
+    # Every reader in that channel, the one that pressed included: whoever answered, the
+    # beat moved on for all of them. A refused press (stale seq) still resyncs, which
+    # shows the presser the beat somebody else moved to. A reader in ANOTHER channel is
+    # left alone - its live choices belong to a different conversation, and settling
+    # them against this pick would drop them.
     for client_id, state in list(_READERS.items()):
+        if client_id not in audience:
+            continue
         text = _boarding_reader_sync(client_id, chosen)
+        if state.get("in_region"):
+            # NEVER write a region's area out of band. It draws OVER whatever the region
+            # holds now - engine-seen: a pick that ended a side scene rebuilt the xESS Act
+            # app as "Nothing to decide here", and this write then painted the transcript
+            # on top of it. The owner polls the revision and rebuilds in band.
+            state["rev"] = state.get("rev", 0) + 1
+            continue
         area = state.get("area")
         if area is not None:
             area.value = text
@@ -727,8 +972,9 @@ def boarding_clear():
     boarding_team_clear()
     _READERS.clear()
     signal_unobserve(_boarding_reader_on_pick)
-    _SCENE.clear()
+    _boarding_scenes_clear()
     _FACTS.clear()
+    _REGISTERED_JOBS.clear()
     boarding_invite_clear()
     boarding_latecomers_unwatch()
     boarding_metric_uninstall()
@@ -749,7 +995,7 @@ def boarding_clear():
 INVITE_KEY = "__BOARDING_INVITE__"
 
 
-def boarding_invite(ship, roster, title=None, site=None):
+def boarding_invite(ship, roster, title=None, site=None, area=None):
     """Open a boarding party. Nobody moves until a console beams down.
 
     Args:
@@ -761,6 +1007,9 @@ def boarding_invite(ship, roster, title=None, site=None):
             shipped BEAM DOWN button does that without knowing anything about it, which
             is the point of carrying it here rather than at the call site. Without one
             this is the dialogue-only party, which is still a valid way to play.
+        area (str, optional): a TILE area to beam down into instead of an interior -
+            the ground as data (``procedural/tilemap.py``). Going down stands each
+            character there and the crew console draws the tile map.
 
     Returns:
         dict: the invitation.
@@ -770,6 +1019,7 @@ def boarding_invite(ship, roster, title=None, site=None):
         "roster": [to_id(m) for m in (roster or []) if to_id(m)],
         "title": title or "BOARDING PARTY",
         "site": to_id(site) if site is not None else None,
+        "area": area,
         "open": True,
     }
     Agent.SHARED.set_inventory_value(INVITE_KEY, invite)
@@ -804,6 +1054,12 @@ def boarding_invite_site():
     """The interior this party is boarding, or None for a dialogue-only party."""
     invite = Agent.SHARED.get_inventory_value(INVITE_KEY, None)
     return (invite or {}).get("site")
+
+
+def boarding_invite_area():
+    """The tile area this party beams down into, or None."""
+    invite = Agent.SHARED.get_inventory_value(INVITE_KEY, None)
+    return (invite or {}).get("area")
 
 
 def boarding_open_roster(client_id=None):
@@ -1064,7 +1320,7 @@ def _abbreviates(word, rank):
 
 
 def boarding_invite_crew(ship, title=None, consoles=None, assign_missing=True,
-                         site=None):
+                         site=None, area=None):
     """Open a landing party made of the crew, each body RESERVED to its own console.
 
     The difference from :func:`boarding_invite` is the reservation. A crew-derived party
@@ -1074,7 +1330,8 @@ def boarding_invite_crew(ship, title=None, consoles=None, assign_missing=True,
     """
     ship_id = to_id(ship)
     pairs = _crew_bodies(ship_id, consoles, assign_missing)
-    invite = boarding_invite(ship, [body for _cid, body in pairs], title, site=site)
+    invite = boarding_invite(ship, [body for _cid, body in pairs], title, site=site,
+                             area=area)
     # CREW-DERIVED, recorded on the invitation. A party cast by a MISSION is deliberate -
     # three named people and no more - and must never grow a fourth because somebody sat
     # down. A party cast from the bridge is the opposite: it is "whoever is here", so
@@ -1231,11 +1488,53 @@ FORWARDING = False
 #: A guard that is a JOB - `if medical`, which the parser normalizes to `medical >= 1`.
 #: Anything else is the story's own lock and is never forwarded: `learned >= 3` is not
 #: "we are short a medic", it is "you have not worked it out yet", and handing that over
-#: because nobody qualifies would give away the answer. `learned` is named in
-#: `_boarding_metric` as the one guard word that is not about who is asking; the shape test
-#: catches the rest without needing a list.
+#: because nobody qualifies would give away the answer.
+#:
+#: THE SHAPE IS NOT ENOUGH. A mission marks progress with roles too - LandingParty added
+#: `briefed` to every body once the party had compared notes, and guarded its ending on
+#: `if briefed >= 1`. That has the shape of a job, so it was forwarded to the duty console
+#: before anybody had been briefed, handing over the ending. So a word is a job only when
+#: it is one of the JOB WORDS: the stock jobs, whatever a body was cast with
+#: (`JOBS_KEY`, which `_body_for` records from the crew record's `Roles:`), and whatever
+#: a mission registers with `boarding_register_jobs`.
 _JOB_GUARD = re.compile(r"^(?P<word>[\w ]+?)\s*>=\s*1$")
 _NOT_A_JOB_GUARD = ("learned",)
+_STOCK_JOBS = frozenset({"medical", "engineering", "security", "science", "helm",
+                         "weapons", "comms", "captain", "command", "pilot", "doctor",
+                         "tactical", "operations"})
+_REGISTERED_JOBS = set()
+
+
+def boarding_register_jobs(words):
+    """Declare more words that are JOBS, so a guard on one can be forwarded.
+
+    Args:
+        words (str | list): a comma-separated string or a list of words.
+    """
+    if isinstance(words, str):
+        words = words.split(",")
+    for w in words or ():
+        w = str(w).strip().lower()
+        if w:
+            _REGISTERED_JOBS.add(w)
+
+
+def boarding_job_vocabulary():
+    """Every word that counts as a job, as a set: stock, registered, and cast."""
+    out = set(_STOCK_JOBS) | _REGISTERED_JOBS
+    lifeforms = set(boarding_team())
+    invite = Agent.SHARED.get_inventory_value(INVITE_KEY, None)
+    if isinstance(invite, dict):
+        lifeforms.update(invite.get("roster") or ())
+    # And every boarding body, down or not: a job is a job before its holder beams down.
+    from .roles import role
+    lifeforms.update(role(CREW_ROLE))
+    for lf in lifeforms:
+        for w in get_inventory_value(lf, JOBS_KEY, None) or ():
+            w = str(w).strip().lower()
+            if w:
+                out.add(w)
+    return out
 
 
 def boarding_forwarding(on=True):
@@ -1254,39 +1553,48 @@ def boarding_forwarding(on=True):
 
 def _is_job_guard(guard):
     """Whether a guard names a JOB rather than the story's own progress."""
-    m = _JOB_GUARD.match(str(guard).strip())
-    return bool(m) and m.group("word").strip().lower() not in _NOT_A_JOB_GUARD
+    text = str(guard).strip()
+    if re.match(r"^[A-Za-z_][\w ]*$", text):
+        text = f"{text} >= 1"            # `if medical` is `medical >= 1`
+    m = _JOB_GUARD.match(text)
+    if not m:
+        return False
+    word = m.group("word").strip().lower()
+    return word not in _NOT_A_JOB_GUARD and word in boarding_job_vocabulary()
 
 
-def boarding_duty_client():
+def boarding_duty_client(channel=None):
     """The console that catches what nobody else can take.
 
-    The lowest client id on the surface - an arbitrary rule, but a STABLE one, which
+    The lowest client id in the channel - an arbitrary rule, but a STABLE one, which
     is the property that matters: every console computes the same answer, so a
     forwarded choice appears once rather than on whichever screen repainted last.
     """
-    down = sorted(c for c in boarding_clients() if boarding_held(c))
+    down = sorted(c for c in boarding_channel_members(channel) if boarding_held(c))
     return down[0] if down else None
 
 
-def boarding_orphan_choices():
-    """Choices in the open beat that no character on the surface can take."""
-    parsed = _SCENE.get("parsed")
+def boarding_orphan_choices(channel=None):
+    """Choices in a channel's open beat that nobody in that channel can take."""
+    rec = _record(channel)
+    parsed = rec.get("parsed")
     if parsed is None or not FORWARDING:
         return []
-    speaker = _SCENE.get("speaker")
-    team = boarding_team()
+    speaker = rec.get("speaker")
+    team = set()
+    for cid in boarding_channel_members(channel):
+        team.update(boarding_held(cid))
     if not team:
         return []
     out = []
-    for ch in parsed.get("choices") or []:
-        guard = ch.get("guard")
+    for c in parsed.get("choices") or []:
+        guard = c.get("guard")
         if not guard or not _is_job_guard(guard):
             continue                     # open to everybody, or not a job at all
         if any(dialogue_guard_ok(guard, lf, speaker) for lf in team):
             continue                     # somebody here is qualified
-        obj = MastDataObject({"label": ch["label"], "target": ch["target"],
-                              "outcomes": ch.get("outcomes") or []})
+        obj = MastDataObject({"label": c["label"], "target": c["target"],
+                              "outcomes": c.get("outcomes") or []})
         # WHAT IT IS FOR, so the screen can say "nobody here is a medic" rather than
         # silently handing over a job. The guard text is what the author wrote.
         setattr(obj, "forwarded", str(guard))

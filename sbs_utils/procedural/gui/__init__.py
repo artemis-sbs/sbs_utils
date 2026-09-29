@@ -39,6 +39,9 @@ from .blank import gui_blank
 from .hole import gui_hole
 from .row import gui_row
 from .grid import gui_grid
+from .tilemap_view import gui_tilemap
+from . import xess_ground  # noqa: F401  (registers the ground apps)
+from .xess_ground import xess_ground_use
 from .list_view import gui_list
 from .section import gui_section, gui_region, gui_sub_section
 

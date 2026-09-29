@@ -356,7 +356,8 @@ class AChoiceCarriesItsBeat(_XessBase):
     def test_the_answer_passes_the_seq_it_was_built_with(self):
         import inspect
         src = inspect.getsource(X._act_app)
-        self.assertIn("seq = boarding_seq()", src)
+        # The seq of THIS console's channel - a party can be in several conversations.
+        self.assertIn("seq = boarding_seq(channel)", src)
         self.assertIn("seq=seq", src)
 
     def test_and_the_agent_the_choice_belongs_to(self):

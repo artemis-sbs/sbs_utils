@@ -179,6 +179,23 @@ def reset_mission_state():
     # believing it has somebody.
     from .procedural.boarding_site import boarding_site_clear
     boarding_site_clear()
+    # Areas, blockers and walks for a party spread over several interiors, and the tile
+    # world an away mission walks when its ground is not an interior at all. Both hold a
+    # tick task, and a tick task that outlives its mission ticks on into the next.
+    from .procedural.boarding_world import boarding_world_clear
+    boarding_world_clear()
+    from .procedural.tilemap import tilemap_clear
+    tilemap_clear()
+    from .procedural.boarding_tiles import boarding_tile_clear
+    boarding_tile_clear()
+    from .procedural.boarding_props import boarding_props_clear
+    boarding_props_clear()
+    from .procedural.boarding_checks import boarding_checks_clear
+    boarding_checks_clear()
+    from .procedural.boarding_combat import boarding_combat_clear
+    boarding_combat_clear()
+    from .procedural.boarding_quests import boarding_quests_clear
+    boarding_quests_clear()
     # What proximity culling had parked. FORGET, don't retrieve: the sim is gone, so
     # every id is dead and pushing/retrieving one is an engine null deref.
     from .procedural.standby import standby_cull_reset
@@ -514,6 +531,18 @@ from .procedural.standby import standby_cull_parked_count as _standby_parked_cou
 register_reset_state("standby parked", _standby_parked_count)
 from .procedural.boarding import boarding_invite_count as _boarding_invite_count
 register_reset_state("boarding invitation", _boarding_invite_count)
+from .procedural.boarding_world import boarding_zone_count as _boarding_zone_count
+register_reset_state("boarding zones", _boarding_zone_count)
+from .procedural.tilemap import tilemap_count as _tilemap_count
+register_reset_state("tile world", _tilemap_count)
+from .procedural.boarding_props import boarding_props_count as _boarding_props_count
+register_reset_state("boarding props", _boarding_props_count)
+from .procedural.boarding_checks import boarding_checks_count as _boarding_checks_count
+register_reset_state("boarding checks", _boarding_checks_count)
+from .procedural.boarding_combat import boarding_combat_count as _boarding_combat_count
+register_reset_state("boarding hostiles", _boarding_combat_count)
+from .procedural.boarding_quests import boarding_quests_count as _boarding_quests_count
+register_reset_state("boarding quests", _boarding_quests_count)
 from .procedural.boarding_site import boarding_site_count as _boarding_site_count
 from .procedural.boarding_site import boarding_figure_count as _boarding_figure_count
 register_reset_state("boarding sites", _boarding_site_count)

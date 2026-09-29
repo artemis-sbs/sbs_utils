@@ -424,13 +424,15 @@ def xess_revision(client_id=None, surface=SURFACE_BOARDING):
 
 def _boarding_revision(client_id):
     """The handheld's own half of the revision - see :func:`xess_revision`."""
-    from ..boarding import boarding_seq, boarding_reader_revision
+    from ..boarding import boarding_seq_for, boarding_reader_revision
     from ..boarding_site import boarding_armed, boarding_setting
     from ..eva_tools import eva_armed
     # _team_health: the Crew app shows each member's HP, which nothing else here moves.
     # boarding_reader_revision: Act's transcript scrolled or was picked from, and a text
     # area in this region cannot redraw itself - the rebuild here is its repaint.
-    return (boarding_seq(), boarding_armed(client_id), boarding_setting(client_id),
+    from .xess_ground import xess_ground_revision
+    return (boarding_seq_for(client_id), xess_ground_revision(client_id),
+            boarding_armed(client_id), boarding_setting(client_id),
             eva_armed(client_id), _team_health(), boarding_reader_revision(client_id))
 
 
@@ -556,6 +558,8 @@ def gui_xess_tick(surface=SURFACE_BOARDING):
     if rev == view.get("rev"):
         return True
     view["rev"] = rev
+    # A region REBUILD reuses its sub-region tags (gui/section.py PageRegion) - that is
+    # what stops a text area being painted once per rebuild, stacked.
     gui_rebuild(view["app"])
     with view["app"]:
         _draw_app(cid, surface)
@@ -589,10 +593,11 @@ def _boarding_auto_open(client_id):
       possible moment - the one where something just started happening.
     """
     from ..inventory import get_inventory_value, set_inventory_value
-    from ..boarding import boarding_seq, boarding_is_open, boarding_choices
+    from ..boarding import (boarding_seq_for, boarding_is_open, boarding_choices,
+                            boarding_channel_of)
     from ..boarding_site import boarding_armed
     from ..eva_tools import eva_armed, eva_working
-    seq = boarding_seq()
+    seq = boarding_seq_for(client_id)
     if get_inventory_value(client_id, KEY_SEEN, None) == seq:
         return False
     set_inventory_value(client_id, KEY_SEEN, seq)
@@ -605,7 +610,7 @@ def _boarding_auto_open(client_id):
         return False
     if eva_working(client_id)[0] is not None:
         return False
-    if not boarding_is_open():
+    if not boarding_is_open(boarding_channel_of(client_id)):
         return False
     try:
         if not (boarding_choices(client_id) or []):
@@ -872,11 +877,17 @@ def _act_app(client_id):
     from .listbox import gui_list_box
     from .message import gui_message_callback
     from ..boarding import (boarding_line, boarding_choices, boarding_seq, boarding_answer,
-                            boarding_reader, boarding_is_open)
+                            boarding_reader, boarding_is_open, boarding_channel_of)
 
     gui_xess_head(client_id, "Act")
+    # THIS CONSOLE'S conversation. A party spread over a world can be in several at once;
+    # each console reads and answers the one its channel holds.
+    channel = boarding_channel_of(client_id)
 
-    if ACT_AS_STORY and boarding_is_open():
+    # The transcript STAYS after a conversation ends - its last line says it is over - so
+    # a pick that closes a side scene does not swap the story for a different screen.
+    from ..boarding import boarding_reader_has_text
+    if ACT_AS_STORY and (boarding_is_open(channel) or boarding_reader_has_text(client_id)):
         # THE SCENE AS A DOCUMENT: every beat so far, each pick left where it was made,
         # ending in this character's choices as flat buttons. The transcript is kept by
         # `boarding_reader`, per console, so a repaint of this app loses nothing; picks
@@ -885,7 +896,7 @@ def _act_app(client_id):
         boarding_reader(gui_text_area(""), client_id, in_region=True)
         return
 
-    line = boarding_line() or ""
+    line = boarding_line(channel) or ""
     if line:
         # A CAPPED BAND, and the list below gets `1fr`. This row used to be `1fr` with
         # the list on `2fr` - which is not a size. `1fr` IS THE ONLY FLEX SPELLING the
@@ -912,7 +923,7 @@ def _act_app(client_id):
     # `boarding_answer` re-derives the list and indexes into it, so an index from a
     # superseded beat would answer the WRONG choice. It refuses a stale seq outright, so
     # a button left over from the previous beat answers nothing instead.
-    seq = boarding_seq()
+    seq = boarding_seq(channel)
     gui_row("row-height: 1fr; padding: 4px, 8px, 4px, 8px;")
     lb = gui_list_box(choices, "item-gap: 0.3em;", item_template=_choice_row,
                       select=True, reveal=True)
@@ -1036,7 +1047,10 @@ def _callers(client_id):
         cid = boarding_client_of(lf)
         room = ""
         at = boarding_where(cid) if cid is not None else None
-        if at is not None:
+        if at is not None and boarding_my_host(cid) is None:
+            from .boarding_console import where_text
+            room = where_text(cid)       # a tile world: the place, not a grid node
+        elif at is not None:
             node = boarding_room_at(boarding_my_host(cid), at[0], at[1],
                                     boarding_room_roles())
             room = boarding_room_name(node.name) if node is not None else "a corridor"
@@ -1061,6 +1075,11 @@ def _crew_health(lifeform):
         from ..inventory import get_inventory_value
         fig = boarding_figure_of(lifeform)
         if fig is None:
+            # A body on a TILE world keeps its HP on the person, not on a grid figure.
+            from ..tilemap import tilemap_where
+            if tilemap_where(lifeform) is not None:
+                from ..boarding_combat import boarding_hp, CREW_HP
+                return boarding_hp(lifeform), CREW_HP
             return None, None
         max_hp = int(grid_get_max_hp() or 0)
         return int(get_inventory_value(fig, "HP", max_hp) or 0), max_hp
@@ -1263,6 +1282,10 @@ def _scan_app(client_id):
                                  boarding_room_name, boarding_room_roles)
 
     gui_xess_head(client_id, "Scan")
+    from ..boarding_tiles import boarding_tile_on
+    if boarding_tile_on(client_id):
+        _scan_ground(client_id)
+        return
     at = boarding_where(client_id)
     if at is None:
         gui_row("row-height: 1fr;")
@@ -1279,6 +1302,49 @@ def _scan_app(client_id):
     gui_row("row-height: 1fr;")
     gui_text_area("\n".join(lines))
     _file(client_id, room)
+
+
+def _scan_ground(client_id):
+    """Scan on the ground: the place, and everything in sight worth a reading.
+
+    Only what the crew can SEE - a scan that listed a hostile behind a rock would be the
+    device leaking the map. Each reading is filed to the survey log once.
+    """
+    from .row import gui_row
+    from .text import gui_text_area
+    from .boarding_console import where_text
+    from ..boarding import boarding_me
+    from ..tilemap import tilemap_where, tilemap_visible, tilemap_actors, tilemap_actor
+    from ..boarding_props import boarding_prop_of, boarding_prop
+    from ..boarding_combat import boarding_hostile_of, boarding_hostile
+    me = boarding_me(client_id)
+    at = tilemap_where(me)
+    lines = ["## %s" % where_text(client_id), ""]
+    seen = tilemap_visible(at[0])
+    for aid in tilemap_actors(at[0]):
+        a = tilemap_actor(aid)
+        if (a["x"], a["y"]) not in seen:
+            continue
+        rec = None
+        key = boarding_prop_of(aid)
+        if key:
+            rec = boarding_prop(key)
+        else:
+            key = boarding_hostile_of(aid)
+            rec = boarding_hostile(key) if key else None
+        if rec is None:
+            continue
+        desc = rec.get("scan") or rec.get("desc") or ""
+        lines.append("**%s** - %s" % (rec["name"], desc or "no reading"))
+        try:
+            from ..survey_log import xess_log
+            xess_log("scan", rec["name"], desc, by=client_id)
+        except Exception:                                # noqa: BLE001
+            pass
+    if len(lines) == 2:
+        lines.append("Nothing in sight worth a reading.")
+    gui_row("row-height: 1fr;")
+    gui_text_area("\n".join(lines))
 
 
 # The grid's own colors for a node's condition (engineering draws the same four), so
@@ -1784,8 +1850,8 @@ def _standing_somewhere(client_id):
 
 
 def _boarding_home_text(client_id):
-    from ..boarding import boarding_line
-    return boarding_line() or ""
+    from ..boarding import boarding_line, boarding_channel_of
+    return boarding_line(boarding_channel_of(client_id)) or ""
 
 
 def _register_builtins():

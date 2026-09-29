@@ -165,7 +165,12 @@ def gui_rebuild(region):
         gui_rebuild(my_region)
         gui_represent(my_region)
     """
-    region.sub_section.rebuild()
+    # A REGION reuses its tags across rebuilds (see PageRegion); a bare section has no
+    # such bookkeeping and keeps the old behavior.
+    if hasattr(region, "_stable_tags_on"):
+        region.rebuild()
+    else:
+        region.sub_section.rebuild()
     return region
 
 def gui_update(tag, props, shared=False, test=None):

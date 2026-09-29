@@ -218,6 +218,12 @@ def boarding_walk(client_id, x, y, speed=WALK_SPEED):
     fig = boarding_my_figure(client_id)
     if not fig or not grid_object_valid(fig):
         return False
+    # A WORLD AREA ROUTES ITSELF. The engine cannot see a blocker (a rock, a shut door),
+    # so on a zone - or any host with blockers - the library finds the path and hands it
+    # over one straight leg at a time. See `boarding_world`.
+    from .boarding_world import boarding_world_routes, boarding_world_walk
+    if boarding_world_routes(boarding_my_host(client_id)):
+        return boarding_world_walk(client_id, int(x), int(y), speed)
     grid_target_pos(fig, x, y, speed)
     return True
 
@@ -441,7 +447,10 @@ def boarding_where(client_id):
     from .grid import grid_pos_data
     fig = boarding_my_figure(client_id)
     if not fig:
-        return None
+        # A body on a TILE world is somewhere too - the same question, the other model.
+        from .boarding_tiles import boarding_tile_where
+        at = boarding_tile_where(client_id)
+        return (at[1], at[2]) if at else None
     at = grid_pos_data(fig)
     if at is None or at[0] is None:
         return None

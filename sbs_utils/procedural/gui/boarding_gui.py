@@ -311,7 +311,7 @@ def boarding_home_ship(client_id):
     return get_inventory_value(client_id, HOME_KEY, None) or viewscreen_home_ship(client_id)
 
 
-def boarding_go_down(client_id, host=None):
+def boarding_go_down(client_id, host=None, at=None):
     """Morph this console into the character it just took, and show it where it is.
 
     The PADD stays open across it - the crew pressed a button on a screen and that
@@ -334,6 +334,8 @@ def boarding_go_down(client_id, host=None):
         client_id: the console going down.
         host (optional): the ship or station whose interior it will walk. Without one
             this is the old dialogue-only morph, which is still a valid way to play.
+        at (optional): the cell to stand on, ``(x, y)``. Defaults to the interior's
+            airlock. A console already standing somewhere else is MOVED here.
 
     Returns:
         bool: False when this console is not holding anybody.
@@ -354,8 +356,18 @@ def boarding_go_down(client_id, host=None):
     # two interiors.
     if host is None:
         host = boarding_invite_site()
+    # A TILE area instead of an interior: the ground as data. Named by the caller (a
+    # move between areas) or by the invitation.
+    from ..boarding import boarding_invite_area
+    area = None
+    if isinstance(host, str):
+        area, host = host, None
+    elif host is None:
+        area = boarding_invite_area()
     # Captured BEFORE anything moves, because the move is what makes it unanswerable.
-    home = viewscreen_home_ship(client_id)
+    # A console ALREADY DOWN is moving between areas: it has a home on record, and asking
+    # the viewscreen now would answer with the area it is leaving.
+    home = get_inventory_value(client_id, HOME_KEY, None) or viewscreen_home_ship(client_id)
     set_inventory_value(client_id, HOME_KEY, home)
     # Who they are, read before the morph rewrites it.
     post_name = get_inventory_value(client_id, "CREW_NAME", None)
@@ -395,29 +407,47 @@ def boarding_go_down(client_id, host=None):
         # overlay make.
         FrameContext.context.sbs.assign_client_to_ship(client_id, to_id(host))
     if host is not None:
-        _give_a_body(client_id, host)
+        _give_a_body(client_id, host, at)
+    elif area is not None:
+        from ..boarding_tiles import boarding_tile_put
+        boarding_tile_put(client_id, area, at)
+    # BOARDING_HOST carries the area KEY for a tile world, so a route that asks "is there
+    # somewhere to walk" (the crew console's reroute) says yes without knowing which.
     signal_emit("boarding_went_down", {"BOARDING_CLIENT": client_id,
                                        "BOARDING_WHO": boarding_me(client_id),
-                                       "BOARDING_HOST": to_id(host) if host else 0})
+                                       "BOARDING_HOST": to_id(host) if host else (area or 0),
+                                       "BOARDING_AREA": area})
     return True
 
 
-def _give_a_body(client_id, host):
+def _give_a_body(client_id, host, at=None):
     """Put this console's character on the interior, and hand the console that body.
 
-    Idempotent: a console that already has a figure keeps it, so a second beam-down (a
-    reconnect, a move between sites) does not leave an abandoned body standing on the
-    floor for the rest of the mission.
+    Idempotent: a console that already has a figure ON THIS HOST keeps it, so a second
+    beam-down (a reconnect) does not leave an abandoned body standing on the floor for the
+    rest of the mission. A figure standing on a DIFFERENT host is taken off it and the
+    person is put down here instead - that is what moving between areas is. Keeping it
+    would leave the console driving a body it can no longer see.
     """
     from ..boarding_site import (boarding_figure_of, boarding_figure_spawn, boarding_take,
                                  boarding_my_figure, boarding_entry_cell)
+    from ..grid import grid_objects, grid_delete_object
+    from ..links import unlink
     from ..query import to_id
+    from ..inventory import get_inventory_value
     who = boarding_me(client_id)
     if not who:
         return None
     fig = boarding_figure_of(who)
+    if fig and to_id(fig) not in grid_objects(to_id(host)):
+        old_host = get_inventory_value(client_id, "BOARDING_HOST", None)
+        unlink(who, "figure", fig)
+        unlink(fig, "lifeform", who)
+        if old_host:
+            grid_delete_object(old_host, fig)
+        fig = None
     if not fig:
-        x, y = boarding_entry_cell(host)
+        x, y = at if at else boarding_entry_cell(host)
         fig = boarding_figure_spawn(host, who, x, y)
     if fig:
         boarding_take(client_id, fig, host)
@@ -436,6 +466,10 @@ def boarding_go_up(client_id):
     from .console import gui_console_enter
     from ..signal import signal_emit
     from ..boarding_site import boarding_release
+    from ..boarding_tiles import boarding_tile_leave
+    # Off the tile world FIRST: beaming up releases the character, and after that nothing
+    # can say which actor was this console's.
+    boarding_tile_leave(client_id)
     if not boarding_beam_up(client_id):
         return False
     # Read the home ship BEFORE the keys are dropped, and pass it explicitly. Left to

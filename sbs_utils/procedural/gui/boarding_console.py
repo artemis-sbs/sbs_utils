@@ -145,6 +145,32 @@ def where_text(client_id):
     out - a bar that disagrees with the map about which room you are in is worse than one
     that says nothing.
     """
+    from ..boarding_tiles import boarding_tile_where
+    tile = boarding_tile_where(client_id)
+    if tile is not None:
+        # HEALTH FIRST. A crew member who cannot move needs to be told why before being
+        # told where; at full health nothing is said about it at all.
+        from ..boarding import boarding_me
+        from ..boarding_combat import boarding_is_down, boarding_hp, CREW_HP
+        me = boarding_me(client_id)
+        if boarding_is_down(me):
+            return "DOWN - needs a medkit"
+        hp = boarding_hp(me)
+        place = _tile_place(tile)
+        return place if hp >= CREW_HP else "%s - HP %d/%d" % (place, hp, CREW_HP)
+    return _grid_where(client_id)
+
+
+def _tile_place(tile):
+    """On a TILE world: the place mark under their feet, else the area itself."""
+    from ..tilemap import tilemap_mark_at, tilemap_title, tilemap_exit_target
+    mark = tilemap_mark_at(*tile)
+    if mark and not tilemap_exit_target(tile[0], mark)[0]:
+        return mark.replace("_", " ")
+    return tilemap_title(tile[0]) or tile[0]
+
+
+def _grid_where(client_id):
     from ..boarding_site import (boarding_my_host, boarding_where, boarding_room_at,
                                  boarding_room_name, boarding_room_roles)
     at = boarding_where(client_id)
@@ -188,13 +214,23 @@ def gui_boarding_console(client_id=None, map_width=66, on_leave=None):
     # MAST puts beside it, so it never shares a row - the controls do not overlap it,
     # they disappear under it.
     gui_section("area:0,0,%d,100;" % map_width)
-    gui_layout_widget("ship_internal_view")
+    # THE GROUND AS DATA, when the body is on a tile world: the console's own window onto
+    # its area, following its character. Otherwise the engine's interior view.
+    from ..boarding import boarding_me
+    from ..boarding_tiles import boarding_tile_on, boarding_tile_click
+    tiles = None
+    if boarding_tile_on(cid):
+        from .tilemap_view import gui_tilemap
+        tiles = gui_tilemap(boarding_me(cid), on_click=boarding_tile_click)
+    else:
+        gui_layout_widget("ship_internal_view")
 
     # THE DEVICE. It opens its own section for the bar and its own region for the apps,
     # so the geometry lives in one place rather than being split across two files.
     device = gui_xess(cid)
 
-    view = {"cid": cid, "device": device, "rev": boarding_console_revision(cid)}
+    view = {"cid": cid, "device": device, "rev": boarding_console_revision(cid),
+            "tiles": tiles}
     page = FrameContext.page
     if page is not None:
         setattr(page, VIEW, view)

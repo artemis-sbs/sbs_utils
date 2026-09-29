@@ -539,5 +539,139 @@ class BackComesHome(_DrawBase):
         self.assertFalse(self.emitted.saying("Back"))
 
 
+class ARebuildReusesItsSubRegions(_DrawBase):
+    """Engine-seen 2026-09-29: the Act transcript painted once per rebuild, stacked at
+    different scrolls. A text area (and a listbox) is its own engine SUB-REGION, and
+    clearing the app region does not take old child sub-regions with it - so every
+    rebuild must reuse the SAME sub-region tags, and blank the ones it stops using."""
+
+    SCENES = {"lab": {"key": "lab", "display_text": "lab", "data": {},
+                      "description": "% Containment has failed.\n- [Look again](lab)\n"}}
+
+    def setUp(self):
+        super().setUp()
+        self.regions = []
+        self.cleared = []
+        orig_sub, orig_clear = mock_sbs.send_gui_sub_region, mock_sbs.send_gui_clear
+
+        def sub(cid, parent, tag, *a, **k):
+            self.regions.append(tag)
+            return orig_sub(cid, parent, tag, *a, **k)
+
+        def clear(cid, tag, *a, **k):
+            self.cleared.append(tag)
+            return orig_clear(cid, tag, *a, **k)
+        mock_sbs.send_gui_sub_region = sub
+        mock_sbs.send_gui_clear = clear
+        self.addCleanup(setattr, mock_sbs, "send_gui_sub_region", orig_sub)
+        self.addCleanup(setattr, mock_sbs, "send_gui_clear", orig_clear)
+
+    def rebuild(self):
+        FrameContext.page = self.page
+        FrameContext.task = self.page.gui_task
+        self.regions.clear()
+        self.cleared.clear()
+        X.gui_xess_tick()
+        self.present()
+
+    def act_tags(self):
+        """Sub-regions of Controls (a text area, a listbox) sent this pass."""
+        return {t for t in self.regions if str(t).endswith("$$")}
+
+    def test_THE_SAME_SUB_REGIONS_EVERY_REBUILD(self):
+        A.boarding_metric_install()
+        A.boarding_scene_begin(self.SCENES, "lab")
+        X.xess_open(CID, X.APP_ACT)
+        self.build()
+        built = self.act_tags()
+        self.assertTrue(built, "the Act transcript made no sub-region")
+        A.boarding_answer(CID, 0, seq=A.boarding_seq_for(CID))
+        self.rebuild()
+        first = self.act_tags()
+        # The build's own sub-regions are retired - blanked - on the first rebuild.
+        self.assertTrue(built - first <= set(self.cleared))
+        for _ in range(3):
+            A.boarding_answer(CID, 0, seq=A.boarding_seq_for(CID))   # the beat moves on
+            self.rebuild()
+            self.assertEqual(self.act_tags(), first)
+
+    def test_a_sub_region_no_longer_used_is_blanked(self):
+        A.boarding_metric_install()
+        A.boarding_scene_begin(self.SCENES, "lab")
+        X.xess_open(CID, X.APP_ACT)
+        self.build()
+        act = self.act_tags()
+        X.xess_open(CID, X.APP_FIRE)          # an app with no text area in that slot
+        self.rebuild()
+        stale = act - self.act_tags()
+        self.assertTrue(stale <= set(self.cleared))
+
+
+
+class APickRedrawsInTheSameFrame(_DrawBase):
+    """Engine playtest 2026-09-29: picking an Act choice did not update the transcript
+    until something else changed. The click made the OLD text area settle its own choice
+    (`choose` sets its value, which marks it dirty); the region rebuild drew the new
+    transcript, and then the end-of-frame dirty pass repainted the stale object into the
+    SAME sub-region (stable tags) - over the new one. An owner-repainted area must never
+    repaint itself."""
+
+    STORY = """
+gui_boarding_console()
+on change boarding_console_revision():
+    gui_boarding_console_tick()
+await gui()
+"""
+    SCENES = {"lab": {"key": "lab", "display_text": "lab", "data": {},
+                      "description": "% FIRST BEAT.\n- [Onward](lab2)\n"},
+              "lab2": {"key": "lab2", "display_text": "lab2", "data": {},
+                       "description": "% SECOND BEAT.\n- [Done]()\n"}}
+
+    def setUp(self):
+        super().setUp()
+        story = MastStory()
+        self.assertEqual([], story.compile(self.STORY, "xesspick", story))
+        story.compiler_errors = []
+        ConsolePage.story = story
+        FrameContext.mast = story
+        self.order = []
+        orig = mock_sbs.send_gui_text
+
+        def rec(cid, parent, tag, props, *r):
+            self.order.append((parent, props or ""))
+            return orig(cid, parent, tag, props, *r)
+        mock_sbs.send_gui_text = rec
+        self.addCleanup(setattr, mock_sbs, "send_gui_text", orig)
+
+    def pick_first_choice(self):
+        tags = [c for c in self.emitted.click_tags() if ":ch" in c]
+        self.assertTrue(tags, "no choice on screen")
+        self.order.clear()
+        self.click(tags[0])
+        from sbs_utils.pages.layout.dirty import Dirty
+        Dirty.represent_dirty()                  # the engine's end-of-frame pass
+
+    def last_transcript(self):
+        return [p for parent, p in self.order if "BEAT" in p][-1:]
+
+    def test_THE_NEW_BEAT_IS_THE_LAST_THING_DRAWN(self):
+        A.boarding_metric_install()
+        A.boarding_scene_begin(self.SCENES, "lab")
+        X.xess_open(CID, X.APP_ACT)
+        self.build()
+        self.pick_first_choice()
+        last = self.last_transcript()
+        self.assertTrue(last and "SECOND BEAT" in last[0],
+                        "the stale transcript was drawn after the new one: %s" % last)
+        # And again after a rebuild, when the tags are the stable ones.
+        self.emitted.clear()
+        self.present()
+        self.pick_first_choice()
+        drawn = [p for parent, p in self.order if "conversation is over" in p]
+        self.assertTrue(drawn, "the second pick drew nothing new")
+        self.assertIn("conversation is over", [p for _, p in self.order][-1] + "".join(
+            p for _, p in self.order[-3:]))
+
+
 if __name__ == "__main__":
     unittest.main()

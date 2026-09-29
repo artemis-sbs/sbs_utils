@@ -165,7 +165,36 @@ def gui_sub_section(style=None):
     return PageSubSection(style)
 
 from ...pages.layout.layout import RegionType
+
+
+def _control_tags(layout):
+    """The tags of every Control (text area, listbox) in a layout's CURRENT tree - each
+    one is its own engine sub-region, `<tag>$$`."""
+    from ...pages.widgets.control import Control
+    out = set()
+
+    def walk(node):
+        for row in getattr(node, "rows", None) or []:
+            for col in getattr(row, "columns", None) or []:
+                if isinstance(col, Control) and col.tag is not None:
+                    out.add(str(col.tag))
+                walk(col)
+    walk(layout)
+    return out
+
+
 class PageRegion:
+    """A re-drawable area. REBUILDING ONE REUSES ITS TAGS.
+
+    ENGINE-SEEN 2026-09-29 (xESS Act): a text area or listbox is its OWN engine
+    sub-region, and clearing the parent region does not take old child sub-regions with
+    it. Every rebuild made new ones under the next build-order tags, so the old ones
+    stayed on screen underneath - the transcript was drawn once per rebuild, stacked, at
+    whatever scroll each had. So after `rebuild()`, the next fill hands out tags derived
+    from this region's own (stable) tag: each rebuild reuses the same sub-regions, which
+    clear themselves before drawing. One the new fill no longer uses is blanked.
+    """
+
     def __init__(self, style) -> None:
         page = FrameContext.page
         if page is None:
@@ -173,6 +202,9 @@ class PageRegion:
         self.page = page
         self.style = style
         self.sub_section = None
+        self._rebuilding = False
+        self._previous = set()
+        self._issued = set()
         # Create  top level layout        
         self.sub_section  = gui_section(style)
  
@@ -192,14 +224,46 @@ class PageRegion:
         # Allow reentering
         self.sub_section = self.page.push_sub_section(self.style, self.sub_section, self.sub_section.region)
         self.sub_section.region_type = RegionType.REGION_ABSOLUTE
-        
+        if self._rebuilding:
+            self._stable_tags_on()
 
     # Pythons expects 4 args, mast only 1
     # Python's are exception related
     def __exit__(self, ex=None, value=None, tb=None):
+        if self._rebuilding:
+            self._stable_tags_off()
         self.page.pop_sub_section(False, self.sub_section.region)
         if self.sub_section.region:
             gui_represent(self.sub_section)
+
+    def _stable_tags_on(self):
+        prefix = "r%s-" % self.sub_section.tag
+        count = [0]
+        issued = self._issued = set()
+
+        def get_tag():
+            count[0] += 1
+            tag = "%s%d" % (prefix, count[0])
+            issued.add(tag)
+            return tag
+        self.page.get_tag = get_tag            # shadows the class method, this page only
+
+    def _stable_tags_off(self):
+        if "get_tag" in self.page.__dict__:
+            del self.page.get_tag
+        self._rebuilding = False
+        # Blank what the last fill had and this one does not - with a placeholder,
+        # because an empty buffer is never swapped forward.
+        cid = getattr(self.page, "client_id", None)
+        ctx = FrameContext.context
+        if cid is None or ctx is None:
+            return
+        for tag in sorted(self._previous - self._issued):
+            region = tag + "$$"
+            ctx.sbs.send_gui_clear(cid, region)
+            ctx.sbs.send_gui_text(cid, region, tag + "-blank", "$text: ;", 0, 0, 1, 1)
+            ctx.sbs.send_gui_complete(cid, region)
+        self._previous = set()
 
     def show(self, _show):
         self.sub_section.show(_show)
@@ -207,6 +271,9 @@ class PageRegion:
         self.sub_section.mark_visual_dirty()
 
     def rebuild(self):
+        """Empty the region for a fresh fill - which reuses the last fill's tags."""
+        self._previous = _control_tags(self.sub_section)
+        self._rebuilding = True
         self.sub_section.rebuild()
         return self
 

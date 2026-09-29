@@ -1881,6 +1881,20 @@ class TextArea(Control):
                              SIGNAL_CHOICE=ch["display"], SIGNAL_VALUE=ch["display"])
         return ch
 
+    def represent(self, event):
+        """A dirty pass redrawing this area on its own - unless its OWNER repaints it.
+
+        With `repaint_cb` set the area lives in a region its owner rebuilds, and a rebuild
+        reuses the same sub-region tags. So a self-redraw is not merely out of band, it
+        is stale: engine-seen, a picked choice settled the OLD area (`choose` sets its
+        value, which marks it dirty), the owner's rebuild drew the new transcript, and
+        then this pass painted the old one over it - "the pick does nothing until
+        something else changes". The owner's in-band present calls `present`, not this.
+        """
+        if self.repaint_cb is not None:
+            return
+        super().represent(event)
+
     def _repaint(self, event):
         """Redraw after a click, scroll or fold.
 

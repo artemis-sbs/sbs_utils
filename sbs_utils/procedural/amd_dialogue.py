@@ -46,6 +46,9 @@ from sbs_utils.mast.mast_node import MastDataObject
 _CHOICE = RE_CHOICE
 _GATE = RE_GATE
 _GUARD = re.compile(r"^(?P<lhs>[\w ]+?)\s*(?P<op>>=|<=|==|!=|>|<)\s*(?P<num>-?\d+)$")
+# A guard that is only a name - `if medical` - means "has it at all": `medical >= 1`.
+# It used to match nothing and so hid the choice from everyone, which no author meant.
+_BARE_GUARD = re.compile(r"^[A-Za-z_][\w ]*$")
 
 
 def _dlg_norm(s):
@@ -390,7 +393,10 @@ def dialogue_guard_ok(guard, agent_id, speaker):
     metric, a comparison operator, and an integer - never arbitrary code."""
     if not guard:
         return True
-    m = _GUARD.match(guard.strip())
+    guard = guard.strip()
+    if _BARE_GUARD.match(guard):
+        guard = f"{guard} >= 1"
+    m = _GUARD.match(guard)
     if m is None:
         return False
     lhs = _METRIC_RESOLVER(m.group("lhs"), agent_id, speaker) if _METRIC_RESOLVER else 0

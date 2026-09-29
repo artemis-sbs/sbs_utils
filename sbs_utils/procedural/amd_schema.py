@@ -258,6 +258,9 @@ QUEST = {
     # deadline and penalty land on the world rather than on a passing crew. Resolved the
     # same way an `Action:` actor is (landmark key, then role); `shared` names the story
     # agent. DESIGN_RECORD.md s4.
+    # WHO ON A BOARDING PARTY it is for: a job word or a crew member's name
+    # (`procedural/boarding_quests.py`). Granted to that crew member when they land.
+    "for": text(hint="engineering - or a crew member's name"),
     "held by": field(text(hint="ds1"), key="held_by",
                      doc="WHO owns the quest - a landmark key or a role, so a station's "
                          "resupply job is held by the station and its deadline lands on "
@@ -449,6 +452,9 @@ CREW = {
     # every roster that used it was warned about a field the game understands - an away
     # scene guarding its choices on `medical` is the case it exists for.
     "roles": csv(hint="what this person is FOR - medical, engineering, security"),
+    # How GOOD they are at things, for a boarding party's skill checks
+    # (`procedural/boarding_checks.py`). A job with no number is worth 2.
+    "skills": text(hint="engineering 4, science 1"),
     # NOT `Image:`. `image` is already a section word (_SECTION_ALIASES) and one label must
     # never mean two things - CUTSCENE reached for `backdrop` for exactly this reason.
     "portrait": text(hint="a photograph: an atlas key, or a path under `Portraits:`"),
@@ -732,7 +738,45 @@ RELIC = {
 }
 
 
+# Things on a boarding party's GROUND (`procedural/boarding_props.py`): a door, a pickup,
+# a terminal that opens a scene. `At:` is the global coordinate; `Mark:` names a mark in
+# the tile area's file instead - a word, which `At:` would coerce to nothing.
+PROP = {
+    "area": text(hint="the tile area it stands in"),
+    "mark": text(hint="a mark in the area file - drone_wreck"),
+    "sprite": text(hint="an atlas key - lp:door_shut"),
+    "open sprite": text(hint="what it looks like once opened"),
+    "scene": text(hint="the dialogue scene using it opens"),
+    "item": text(hint="picked up into the user's pack"),
+    "qty": integer(),
+    "reach": integer(hint="cells from which it can be used - 1"),
+    "blocks": text(hint="yes / no - whether it closes its cell"),
+    "opens with": text(hint="key depot_key, check engineering 9, cut, signal lp_power"),
+    "hidden until": text(hint="a signal; until then it cannot be found"),
+    "once": text(hint="yes / no"),
+    "needs": text(hint="a guard word - medical"),
+    "scan": text(hint="what the xESS Scan app says about it"),
+}
+
+# Someone on a boarding party's ground (`procedural/boarding_combat.py`): a hostile that
+# hunts heat, or a person who only ever talks (`Calm: yes`).
+HOSTILE = {
+    "area": text(hint="the tile area"),
+    "mark": text(hint="a mark in the area file"),
+    "sprite": text(hint="an atlas key"),
+    "hp": integer(), "damage": integer(), "notice": integer(hint="cells"),
+    "stun": integer(hint="seconds a stun holds"), "cooldown": integer(hint="seconds"),
+    "speed": integer(hint="cells per second"),
+    "patrol": text(hint="12 8; 18 8; 18 14"),
+    "drops": text(hint="items left where it falls - venom"),
+    "talk scene": text(hint="clicking it opens this scene instead of a fight"),
+    "calm": text(hint="yes - never attacks"),
+    "hidden until": text(hint="a signal"),
+    "scan": text(hint="what the xESS Scan app says about it"),
+}
+
 ARCHETYPES = {
+    "prop": PROP, "hostile": HOSTILE,
     "quest": QUEST, "lifeform": LIFEFORM, "item": ITEM, "side": SIDE,
     "scan": SCAN, "landmark": LANDMARK, "region": REGION, "map": MAP,
     "dialogue": DIALOGUE, "image": IMAGE,
@@ -857,6 +901,10 @@ _SECTION_ALIASES = {
     # snapshot caught it. `bridge` is unused today but is a PLACE as often as it is a set of
     # people, so it is left alone on the same principle.
     "crew": "crew", "crews": "crew", "roster": "crew", "rosters": "crew",
+    # A boarding party's ground: its things, and whoever is standing on it.
+    "props": "prop", "prop": "prop", "objects": "prop",
+    "hostiles": "hostile", "hostile": "hostile", "people": "hostile",
+    "side stories": "quest", "side_stories": "quest",
     "items": "item", "item": "item",
     "sides": "side", "side": "side", "factions": "side",
     "scans": "scan", "scan": "scan", "science": "scan",
