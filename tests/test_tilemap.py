@@ -358,6 +358,21 @@ class TestNeighborLooks(TileBase):
         self.assertEqual(self.look(0, 2), "tile:dirt")
         self.assertEqual(self.look(2, 0), "tile:dirt")
 
+    def test_AN_EDGE_CAN_HAVE_VARIANTS_PICKED_BY_POSITION(self):
+        T.tilemap_tileset("test", dict(KINDS, rock={
+            "cell": "tile:rock", "walk": False,
+            "edges": {"10": ["tile:we_a", "tile:we_b", "tile:we_c"]}}))
+        seen = set()
+        for x in range(0, 40):
+            T.tilemap_area("edgy")["tiles"][1] = ["rock"] * 5
+            seen.add(self.look(2, 1))
+        self.assertTrue(seen <= {"tile:we_a", "tile:we_b", "tile:we_c"})
+        # The same cell always gets the same look.
+        self.assertEqual(self.look(2, 1), self.look(2, 1))
+        looks = {T.tilemap_cell_look(T.tilemap_kind_spec("edgy", "rock"), x, 1, "edgy")
+                 for x in (1, 2, 3)}
+        self.assertTrue(looks <= {"tile:we_a", "tile:we_b", "tile:we_c"})
+
     def test_A_GRID_TEXTURE_IS_PICKED_BY_POSITION(self):
         """Four pieces of one bigger texture: neighbours always get neighbouring pieces,
         so the texture runs on across cells with no seam."""

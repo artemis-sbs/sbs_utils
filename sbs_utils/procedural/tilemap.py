@@ -238,7 +238,7 @@ def tilemap_cell_look(spec, x, y, area=None):
 
     With the area given, a kind's art can depend on its neighbors:
 
-    - ``edges`` - ``{mask: key}`` where the mask is which sides have the same kind
+    - ``edges`` - ``{mask: key or [keys]}`` where the mask is which sides have the same kind
       (N=1, E=2, S=4, W=8). A wall run, a cliff edge, a pool's bank. A mask with no
       entry falls through to the plain look.
     - ``shade`` - the look of this kind lying just SOUTH of a ``tall`` kind, in its
@@ -262,6 +262,12 @@ def tilemap_cell_look(spec, x, y, area=None):
                 if 0 <= ny < rec["h"] and 0 <= nx < rec["w"] and rec["tiles"][ny][nx] == kind:
                     mask |= bit
             look = edges.get(str(mask)) or edges.get(mask)
+            if isinstance(look, (list, tuple)):
+                # Several looks for one mask (a cliff face in variants): a fixed pick by
+                # position, so a long cliff does not repeat the same face every cell.
+                looks = [v for v in look if v]
+                h = ((x * 73856093) ^ (y * 19349663)) >> 3
+                look = looks[h % len(looks)] if looks else None
             if look:
                 return look
         if spec.get("shade") and y > 0:
