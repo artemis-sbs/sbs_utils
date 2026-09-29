@@ -173,6 +173,47 @@ class TestCamera(ViewBase):
         self.assertEqual(self.clicks, [])
 
 
+class TestHintBadges(ViewBase):
+    """Badges over what is still worth a look (``boarding_hints``)."""
+
+    def setUp(self):
+        super().setUp()
+        self.badges = {(6, 5): "tv:rock"}
+        self.view.hints = lambda cid, area: dict(self.badges)
+
+    def test_a_badge_sits_in_the_corner_of_its_tile(self):
+        sent = self.paint()
+        tile = next(s for s in sent if s[1] == "tv:t%d_%d" % self.view.view_cell(6, 5))
+        badge = [s for s in sent if ":h" in s[1] and "color:#000" not in s[2]]
+        self.assertEqual(len(badge), 1)
+        (tl, tt, tr, tb), (bl, bt, br, bb) = tile[3], badge[0][3]
+        self.assertAlmostEqual(br, tr)
+        self.assertAlmostEqual(bt, tt)
+        self.assertLess(br - bl, tr - tl)
+
+    def test_BADGES_GO_AFTER_FIGURES(self):
+        """Send order is draw order: a figure re-sent must not cover a badge."""
+        self.paint()
+        self.walk(6, 6)
+        sent = self.paint()
+        last_figure = max(i for i, s in enumerate(sent) if ":a" in s[1])
+        first_badge = min(i for i, s in enumerate(sent) if ":h" in s[1])
+        self.assertGreater(first_badge, last_figure)
+
+    def test_a_dealt_with_thing_loses_its_badge(self):
+        self.paint()
+        self.badges.clear()
+        sent = self.paint()
+        self.assertTrue(any(":h0" in s[1] and "color:#000" in s[2] for s in sent))
+
+    def test_NO_BADGE_TAG_FIRST_APPEARS_AFTER_THE_BUILD(self):
+        self.badges = {}
+        built = {s[1] for s in self.paint()}
+        self.badges = {(6, 5): "tv:rock", (7, 5): "tv:dirt"}
+        later = {s[1] for s in self.paint()}
+        self.assertEqual(later - built, set())
+
+
 if __name__ == "__main__":
     unittest.main()
 

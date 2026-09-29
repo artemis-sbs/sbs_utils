@@ -29,12 +29,16 @@ HIDE = (-2.0, -2.0, -1.0, -1.0)      # kept for callers; the view no longer send
 #: real image from the first paint (unseen ground is the VOID look), and figures live in
 #: a fixed pool of tags that park offscreen when empty, rather than one tag per actor.
 ACTOR_SLOTS = 40
+#: Hint badges ("something here is worth a look") - a second pool, drawn last.
+HINT_SLOTS = 24
+#: A badge covers this share of its tile, in the top-right corner.
+HINT_SIZE = 0.5
 HOVER = "background_color:#fff2;"
 
 
 class TileView(Column):
     def __init__(self, tag, follow=None, area=None, cols=17, margin=3, on_click=None,
-                 fog=True):
+                 fog=True, hints=None):
         super().__init__()
         self.tag = tag
         self.follow = follow
@@ -45,6 +49,8 @@ class TileView(Column):
         self.edge = margin
         self.on_click = on_click
         self.fog = fog
+        # fn(client_id, area) -> {(x, y): atlas key}: badges over cells worth a look.
+        self.hints = hints
         self._camera = None          # (area, left cell, top cell)
         self._geometry = None        # (rows, tile_w%, tile_h%, x0%, y0%)
         self._sent = {}              # widget tag -> (props, rect) this console has
@@ -104,7 +110,7 @@ class TileView(Column):
     def _tile_props(self, area, x, y, explored, visible, void):
         """What a tile looks like - or the VOID look for nothing / not yet seen. Never
         empty: see the module docstring on why every tag carries a real image."""
-        from ...procedural.tilemap import tilemap_kind, tilemap_kind_spec
+        from ...procedural.tilemap import tilemap_kind, tilemap_kind_spec, tilemap_cell_look
         from ...procedural.gui.image import gui_image_get_atlas
         kind = tilemap_kind(area, x, y)
         spec = tilemap_kind_spec(area, kind) if kind else None
@@ -115,7 +121,7 @@ class TileView(Column):
         color = spec.get("color") or "white"
         if self.fog and (x, y) not in visible:
             color = "#777"
-        return gui_image_get_atlas(spec["cell"]).get_props(color=color)
+        return gui_image_get_atlas(tilemap_cell_look(spec, x, y)).get_props(color=color)
 
     def _void_props(self, area):
         """Any cell of the area's tileset, tinted black: how nothing is drawn."""
@@ -213,11 +219,45 @@ class TileView(Column):
                            rect(vx, vy))
         # Slots nobody is in are parked, and forgotten so the next actor can take them.
         self._slots = {aid: s for aid, s in self._slots.items() if s in shown}
+        figures_sent = tiles_sent
         for i in range(ACTOR_SLOTS):
             tag = f"{self.tag}:a{i}"
             if i in shown:
-                self._send(ctx.sbs, cid, tag, shown[i][0], shown[i][1])
+                figures_sent |= self._send(ctx.sbs, cid, tag, shown[i][0], shown[i][1])
             elif void is not None:
+                figures_sent |= self._send(ctx.sbs, cid, tag, void, parked)
+        self._present_hints(ctx, cid, area, left, top, rows, tw, th, x0, y0, void, parked,
+                            figures_sent)
+
+    def _present_hints(self, ctx, cid, area, left, top, rows, tw, th, x0, y0, void,
+                       parked, figures_sent):
+        """Badges over what is still worth a look. Drawn after the figures, so any
+        figure re-sent means every badge is re-sent too (send order is draw order)."""
+        if self.hints is None or void is None:
+            return
+        from ...procedural.gui.image import gui_image_get_atlas
+        try:
+            badges = self.hints(cid, area) or {}
+        except Exception as e:                           # noqa: BLE001
+            from ...procedural.execution import log
+            log(f"tile hints failed: {e}", "tilemap", "warning")
+            badges = {}
+        if figures_sent:
+            for i in range(HINT_SLOTS):
+                self._sent.pop(f"{self.tag}:h{i}", None)
+        placed = []
+        for (x, y), sprite in sorted(badges.items()):
+            vx, vy = x - left, y - top
+            if sprite and 0 <= vx < self.cols and 0 <= vy < rows:
+                r = x0 + (vx + 1) * tw
+                t = y0 + vy * th
+                placed.append((gui_image_get_atlas(sprite).get_props(),
+                               (r - tw * HINT_SIZE, t, r, t + th * HINT_SIZE)))
+        for i in range(HINT_SLOTS):
+            tag = f"{self.tag}:h{i}"
+            if i < len(placed):
+                self._send(ctx.sbs, cid, tag, placed[i][0], placed[i][1])
+            else:
                 self._send(ctx.sbs, cid, tag, void, parked)
 
     def _world_changed(self, area):

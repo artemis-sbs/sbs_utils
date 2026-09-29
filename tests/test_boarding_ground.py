@@ -475,5 +475,97 @@ class TestTransporter(GroundBase):
         self.assertEqual(A.boarding_channel_of(CID), A.boarding_party_channel())
 
 
+LEADS = {"children": [
+    {"key": "patience_heart", "display_text": "Patience's Heart", "description": "",
+     "data": {"for": "engineering", "state": "active", "leads_to": "coil, glassback"}},
+]}
+
+
+class TestWhatIsLeftToExplore(GroundBase):
+    """Playtest: nothing said which things still mattered. Hints badge them."""
+
+    def setUp(self):
+        super().setUp()
+        from sbs_utils.procedural import boarding_hints as H
+        from sbs_utils.procedural import boarding_quests as Q
+        self.H = H
+        Q.boarding_quests_clear()
+        self.addCleanup(Q.boarding_quests_clear)
+        P.boarding_props_declare(PROPS)
+        P.boarding_props_place()
+        K.boarding_hostiles_declare(HOSTILES)
+        K.boarding_hostiles_place()
+        K._HOSTILES["glassback"]["talk"] = "any"
+        K.boarding_hostile_calm("glassback")
+        P._SCENES["doc"] = TALK
+        T.tilemap_load(OTHER)
+        area = T.tilemap_area("yard")
+        area["marks"]["to_flats"] = {(10, 6)}
+        area["mark_at"][(10, 6)] = "to_flats"
+        self.down()
+        T.tilemap_reveal_all("yard")
+        self.Q = Q
+
+    def hints(self):
+        return self.H.boarding_hints(CID, "yard")
+
+    def test_untouched_things_and_new_places_are_badged(self):
+        h = self.hints()
+        self.assertEqual(h[(5, 2)], "new")        # the crate: something to look at
+        self.assertEqual(h[(9, 6)], "new")        # the coil: an item
+        self.assertEqual(h[(9, 2)], "new")        # somebody nobody has talked to
+        self.assertEqual(h[(10, 6)], "way")       # the Salt Flats: never been there
+
+    def test_NOTHING_UNSEEN_IS_BADGED(self):
+        T.tilemap_area("yard")["explored"] = {(2, 2)}
+        self.assertEqual(self.hints(), {})
+
+    def test_used_and_talked_to_are_no_longer_badged(self):
+        T.tilemap_place(self.bodies[CID], "yard", 9, 5)
+        P.boarding_interact(CID, "coil")
+        self.assertTrue(K.boarding_talk(CID, "glassback"))
+        h = self.hints()
+        self.assertNotIn((9, 6), h)
+        self.assertNotIn((9, 2), h)
+
+    def test_a_visited_place_is_not_new(self):
+        T.tilemap_reveal("flats", 0, 0)
+        self.assertNotIn((10, 6), self.hints())
+
+    def test_a_quest_lead_outranks_new(self):
+        self.Q.boarding_quests_grant(LEADS)
+        h = self.hints()
+        self.assertEqual(h[(9, 6)], "lead")
+        self.assertEqual(h[(9, 2)], "lead")
+        self.assertEqual(h[(5, 2)], "new")
+        places = self.H.boarding_lead_places(CID)
+        self.assertEqual([p[0] for p in places], ["coil", "glassback"])
+        self.assertTrue(places[0][2].startswith("here, "))
+
+    def test_another_consoles_lead_is_not_mine(self):
+        self.Q.boarding_quests_grant(LEADS)
+        self.down(CID2)
+        self.assertEqual(self.H.boarding_leads(CID2), [])
+
+    def test_further_off_lists_bearing_and_puts_leads_first(self):
+        self.Q.boarding_quests_grant(LEADS)
+        poi = self.H.boarding_points_of_interest(CID)
+        self.assertEqual(poi[0][5], "lead")
+        crate = next(p for p in poi if p[1] == "crate")
+        self.assertEqual((crate[3], crate[4]), (3, "E"))
+
+    def test_go_to_walks_up_and_uses_it(self):
+        self.assertTrue(self.H.boarding_go_to(CID, "crate"))
+        self.advance(3)
+        self.assertTrue(P.boarding_prop("crate")["touched"])
+        self.assertNotIn((5, 2), self.hints())
+
+    def test_badges_need_a_sprite(self):
+        self.assertEqual(self.H.boarding_hint_badges(CID, "yard"), {})
+        self.H.boarding_hint_style(new="g:dirt")
+        self.addCleanup(self.H.boarding_hint_style, new="")
+        self.assertEqual(self.H.boarding_hint_badges(CID, "yard")[(5, 2)], "g:dirt")
+
+
 if __name__ == "__main__":
     unittest.main()

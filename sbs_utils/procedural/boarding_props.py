@@ -417,7 +417,13 @@ def boarding_interact(client_id, key):
                                 channel=f"prop:{rec['key']}",
                                 members=[c for c in others if c is not None])
         result, text = ("scene", rec["name"]) if ch else ("looked", rec["desc"])
+    was = (rec["used"], rec.get("touched"))
     rec["used"] = rec["used"] or result in ("opened", "picked", "scene")
+    rec["touched"] = True
+    if (rec["used"], True) != was:
+        # Dealt with: repaint so the map stops badging it as unexplored.
+        from .tilemap import tilemap_touch
+        tilemap_touch(rec["area"])
     signal_emit("boarding_interacted", {"BOARDING_CLIENT": client_id, "BOARDING_WHO": lf,
                                         "BOARDING_PROP": rec["key"],
                                         "BOARDING_RESULT": result, "BOARDING_TEXT": text})

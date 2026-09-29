@@ -75,10 +75,39 @@ def _look_app(client_id):
         gui_row("row-height: 2.2em; font:gui-2;")
         gui_button("Go to %s" % title,
                    on_press=(lambda _c=client_id, _m=mark: _go_exit(_c, _m)))
+    # FURTHER OFF. What is in sight (or was seen and still matters) but out of reach,
+    # nearest first, leads and untouched things ahead of the rest. Pressing walks there
+    # and uses it, as a map click would - so the list is also a way to play.
+    far = _nearby(client_id)
+    if far:
+        gui_row("row-height: 1.6em; font:gui-1;")
+        gui_text("$text:%s;color:%s;" % (_esc("Further off"), DIM))
+    for kind, key, name, d, bearing, hint in far:
+        gui_row("row-height: 2.2em; font:gui-2;")
+        mark = _HINT_MARK.get(hint, "")
+        gui_button("%s%s - %d %s" % (mark, name, d, bearing),
+                   on_press=(lambda _c=client_id, _k=key: _go_to(_c, _k)))
     note = boarding_last_note(client_id)
     if note:
         gui_row("row-height: 1fr; padding: 6px, 6px, 6px, 6px;")
         gui_text_area(note)
+
+
+#: How a list marks a hint kind; the map badges say the same thing.
+_HINT_MARK = {"lead": "! ", "new": "? "}
+NEARBY_ROWS = 4
+
+
+def _nearby(client_id):
+    from ..boarding_hints import boarding_points_of_interest
+    return boarding_points_of_interest(client_id, reach=1)[:NEARBY_ROWS]
+
+
+def _go_to(client_id, key):
+    from ..boarding_hints import boarding_go_to
+    from ..boarding_props import _note
+    if not boarding_go_to(client_id, key):
+        _note(client_id, "You cannot get there from here.")
 
 
 def _exits(client_id):
@@ -117,13 +146,8 @@ def _use(client_id, kind, key):
         from ..boarding_props import boarding_interact
         boarding_interact(client_id, key)
     elif kind == "talk":
-        from ..boarding_combat import boarding_hostile
-        from ..boarding_props import _SCENES
-        from ..boarding import boarding_encounter
-        rec = boarding_hostile(key)
-        if rec and rec["talk"] and _SCENES["doc"] is not None:
-            boarding_encounter(_SCENES["doc"], rec["talk"], client_id,
-                               channel=f"talk:{key}")
+        from ..boarding_combat import boarding_talk
+        boarding_talk(client_id, key)
 
 
 def _pack_app(client_id):
@@ -202,7 +226,17 @@ def xess_ground_revision(client_id):
     me = boarding_me(client_id)
     return (tuple(sorted(boarding_pack(me).items())), boarding_last_note(client_id),
             tuple(_near(client_id)), _tasks_revision(client_id),
-            _places(), _in_sight(client_id), tuple(_exits(client_id)))
+            _places(), _in_sight(client_id), tuple(_exits(client_id)),
+            _nearby_revision(client_id))
+
+
+def _nearby_revision(client_id):
+    """The Look and Tasks lists, without distances: a step that changes only how far
+    something is does not rebuild the device; a new bearing, hint or thing does."""
+    from ..boarding_hints import boarding_hints_revision, boarding_lead_places
+    far = tuple((k, key, b, h) for k, key, _, _, b, h in _nearby(client_id))
+    return (far, boarding_hints_revision(client_id),
+            tuple((k, w.split(",")[0]) for k, _, w in boarding_lead_places(client_id)))
 
 
 def _places():
@@ -261,6 +295,31 @@ def _tasks_app(client_id):
         return
     gui_row("row-height: 1fr; padding: 4px, 6px, 4px, 6px;")
     gui_list_box(items, "row-height: 2.6em;", item_template=quest_log_template)
+    _leads(client_id)
+
+
+LEAD_ROWS = 4
+
+
+def _leads(client_id):
+    """What the open quests point at, and where - a button walks there when it is in
+    this area. A quest names its leads with `Leads to:`."""
+    from .row import gui_row
+    from .text import gui_text
+    from .button import gui_button
+    from ..boarding_hints import boarding_lead_places
+    leads = boarding_lead_places(client_id)[:LEAD_ROWS]
+    if not leads:
+        return
+    gui_row("row-height: 1.6em; font:gui-1;")
+    gui_text("$text:%s;color:%s;" % (_esc("Leads"), DIM))
+    for key, name, where in leads:
+        gui_row("row-height: 2.2em; font:gui-2;")
+        if where.startswith("here"):
+            gui_button("! %s - %s" % (name, where[len("here, "):]),
+                       on_press=(lambda _c=client_id, _k=key: _go_to(_c, _k)))
+        else:
+            gui_text("$text:%s;" % _esc("! %s - %s" % (name, where)))
 
 
 def _beam_app(client_id):

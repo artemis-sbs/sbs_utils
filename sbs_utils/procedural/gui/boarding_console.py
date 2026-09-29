@@ -221,7 +221,9 @@ def gui_boarding_console(client_id=None, map_width=66, on_leave=None):
     tiles = None
     if boarding_tile_on(cid):
         from .tilemap_view import gui_tilemap
-        tiles = gui_tilemap(boarding_me(cid), on_click=boarding_tile_click)
+        from ..boarding_hints import boarding_hint_badges
+        tiles = gui_tilemap(boarding_me(cid), on_click=boarding_tile_click,
+                            hints=boarding_hint_badges)
     else:
         gui_layout_widget("ship_internal_view")
 

@@ -106,6 +106,12 @@ def tilemap_revision(area):
     return _REV.get(_norm(area), 0)
 
 
+def tilemap_touch(area):
+    """Say something about an area changed that the tiles do not show - a prop was used,
+    a person spoken to - so views of it repaint."""
+    _bump(area)
+
+
 def tilemap_listen(fn):
     """Call ``fn(area_key)`` whenever an area changes. Views use this to repaint."""
     if fn not in _LISTENERS:
@@ -125,7 +131,9 @@ def tilemap_tileset(name, kinds):
     Args:
         name (str): the tileset's name, as an area's ``tileset:`` names it.
         kinds (dict): ``{kind: {"cell": atlas key, "walk": bool, "see": bool,
-            "color": tint}}``. ``walk`` defaults True, ``see`` defaults to ``walk``.
+            "color": tint, "variants": [atlas key, ...]}}``. ``walk`` defaults True,
+            ``see`` defaults to ``walk``. ``variants`` are other looks for the same
+            kind, picked per cell so a field of one kind does not repeat in a grid.
     """
     table = {}
     for kind, spec in (kinds or {}).items():
@@ -133,7 +141,8 @@ def tilemap_tileset(name, kinds):
         walk = bool(spec.get("walk", True))
         table[_norm(kind)] = {"cell": spec.get("cell"), "walk": walk,
                               "see": bool(spec.get("see", walk)),
-                              "color": spec.get("color")}
+                              "color": spec.get("color"),
+                              "variants": [spec.get("cell")] + list(spec.get("variants") or [])}
     _TILESETS[_norm(name)] = table
     return table
 
@@ -150,6 +159,16 @@ def _kind_spec(rec, kind):
     if kind is None:
         return None
     return (_TILESETS.get(rec["tileset"]) or {}).get(kind)
+
+
+def tilemap_cell_look(spec, x, y):
+    """The atlas key a kind is drawn with at one cell - a fixed pick among its variants,
+    so the same cell always looks the same."""
+    looks = [v for v in (spec.get("variants") or []) if v] or [spec.get("cell")]
+    if len(looks) == 1:
+        return looks[0]
+    h = (x * 73856093) ^ (y * 19349663)
+    return looks[(h >> 3) % len(looks)]
 
 
 def tilemap_kind_spec(area, kind):

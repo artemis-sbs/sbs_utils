@@ -224,7 +224,8 @@ def boarding_hostiles_declare(section):
         if rec["key"]:
             rec.update({"id": None, "state": "calm" if rec["calm"] else "idle",
                         "hp_left": rec["hp"], "stunned_until": 0.0, "next_strike": 0.0,
-                        "target": None, "leg": 0, "shown": not rec["hidden"]})
+                        "target": None, "leg": 0, "shown": not rec["hidden"],
+                        "talked": False})
             _HOSTILES[rec["key"]] = rec
             keys.append(rec["key"])
     return keys
@@ -437,8 +438,15 @@ def boarding_talk(client_id, key):
     rec = _HOSTILES.get(_norm(key))
     if rec is None or not rec["talk"] or _SCENES["doc"] is None:
         return False
-    return boarding_encounter(_SCENES["doc"], rec["talk"], client_id,
-                              channel=f"talk:{rec['key']}") is not None
+    opened = boarding_encounter(_SCENES["doc"], rec["talk"], client_id,
+                                channel=f"talk:{rec['key']}") is not None
+    if opened and not rec.get("talked"):
+        # Spoken to: the map stops badging this person as somebody new.
+        rec["talked"] = True
+        if rec.get("area"):
+            from .tilemap import tilemap_touch
+            tilemap_touch(rec["area"])
+    return opened
 
 
 def boarding_hostile_click(client_id, area, x, y):

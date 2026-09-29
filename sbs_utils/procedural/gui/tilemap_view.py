@@ -7,7 +7,8 @@ from ...helpers import FrameContext
 from ..style import apply_control_styles
 
 
-def gui_tilemap(follow=None, area=None, cols=17, style=None, on_click=None, fog=True):
+def gui_tilemap(follow=None, area=None, cols=17, style=None, on_click=None, fog=True,
+                hints=None):
     """Add a tile map view to the current layout.
 
     Args:
@@ -19,6 +20,8 @@ def gui_tilemap(follow=None, area=None, cols=17, style=None, on_click=None, fog=
         on_click (callable, optional): ``fn(client_id, area, x, y)`` for a tile click.
         fog (bool, optional): draw only what the party has seen. On by default - a map
             must not show the crew what they do not know.
+        hints (callable, optional): ``fn(client_id, area) -> {(x, y): atlas key}`` -
+            badges drawn over cells worth a look (``boarding_hint_badges``).
 
     Returns:
         TileView: the layout item.
@@ -34,7 +37,7 @@ def gui_tilemap(follow=None, area=None, cols=17, style=None, on_click=None, fog=
     if page is None:
         return None
     view = TileView(page.get_tag(), follow=follow, area=area, cols=cols,
-                    on_click=on_click, fog=fog)
+                    on_click=on_click, fog=fog, hints=hints)
     apply_control_styles(".tilemap", style, view, task)
     page.add_content(view, None)
     return view

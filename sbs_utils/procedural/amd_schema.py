@@ -261,6 +261,10 @@ QUEST = {
     # WHO ON A BOARDING PARTY it is for: a job word or a crew member's name
     # (`procedural/boarding_quests.py`). Granted to that crew member when they land.
     "for": text(hint="engineering - or a crew member's name"),
+    # WHAT IT POINTS AT on the ground: prop and person keys. The map badges them and the
+    # xESS Tasks app lists where they are (`procedural/boarding_hints.py`).
+    "leads to": field(text(hint="depot_ledger, harrow"), key="leads_to",
+                      doc="Props or people this quest points the crew at, by key."),
     "held by": field(text(hint="ds1"), key="held_by",
                      doc="WHO owns the quest - a landmark key or a role, so a station's "
                          "resupply job is held by the station and its deadline lands on "
