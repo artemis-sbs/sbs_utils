@@ -147,9 +147,39 @@ def media_roots():
     roots = [os.path.join(mission, "media")]
     lib_media = os.path.join(os.path.dirname(mission), "__lib__", "media")
     for pack in _pinned_packs():
+        _ensure_unpacked(lib_media, pack)
         roots.append(os.path.join(lib_media, pack))
     _LIB_MEDIA, _MISSION = roots, mission
     return roots
+
+
+def _ensure_unpacked(lib_media, pack):
+    """Unpack a pinned pack that is in `__lib__` as a zip but not yet unpacked.
+
+    `sbs.pyz` normally unpacks packs, but only ones NAMED like a media pack
+    (`<owner>.<repo>.media.<tag>.zip`) - older copies still do - and a pack released
+    from a repo that ships several (`artemis-sbs.Cosmos-Tiles.frontier.v0.1.0.zip`) is
+    not named that way. So the mission does it itself, the way `Mast.expand_resources`
+    unpacks `resources`: into a temp folder, then renamed into place, so an interrupted
+    unpack never leaves half a pack behind. A pack already unpacked is left alone.
+    """
+    dest = os.path.join(lib_media, pack)
+    if os.path.isdir(dest):
+        return False
+    archive = os.path.join(os.path.dirname(lib_media), pack + ".zip")
+    if not os.path.isfile(archive):
+        return False
+    import zipfile
+    tmp = dest + ".unpacking"
+    try:
+        with zipfile.ZipFile(archive) as zf:
+            zf.extractall(tmp)
+        os.replace(tmp, dest)
+        _log_pack(f"media pack unpacked: {pack}")
+        return True
+    except Exception as e:                               # noqa: BLE001
+        _log_pack(f"media pack {pack} could not be unpacked: {e}")
+        return False
 
 
 def media_shared(path, pack=None):
