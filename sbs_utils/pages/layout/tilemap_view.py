@@ -31,6 +31,12 @@ HIDE = (-2.0, -2.0, -1.0, -1.0)      # kept for callers; the view no longer send
 #: 96, not 40: a furnished room, a city street or a generated ship deck easily shows more
 #: than 40 things at once, and whatever did not get a slot was simply not drawn.
 ACTOR_SLOTS = 96
+#: The widest view drawn. Every visible cell is two widgets (its tile and its click
+#: region), so a view 91 cells across - a whole generated starbase deck - is about 12,000
+#: widgets in one section, and the engine crashed drawing ones that size
+#: (RetainedGUIManager::DrawSection reading a freed widget list, 2026-09-29). A mission
+#: shows a big map by scrolling a view over it (`follow=`), not by shrinking the cells.
+MAX_COLS = 40
 #: Hint badges ("something here is worth a look") - a second pool, drawn last.
 HINT_SLOTS = 24
 #: A badge covers this share of its tile, in the top-right corner.
@@ -51,7 +57,11 @@ class TileView(Column):
         self.tag = tag
         self.follow = follow
         self.area = area
-        self.cols = max(3, int(cols))
+        if int(cols) > MAX_COLS:
+            from ...procedural.execution import log
+            log(f"tile view: {cols} columns asked for, {MAX_COLS} drawn - a view scrolls; it "
+                f"does not draw a whole big map at once", "tilemap", "warning")
+        self.cols = max(3, min(MAX_COLS, int(cols)))
         # NOT `margin`: Column owns that name, and the layout overwrites it with a
         # Bounds - which made the first repaint after a step raise in the engine.
         self.edge = margin

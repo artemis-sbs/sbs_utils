@@ -85,6 +85,14 @@ class TestWhatIsSent(ViewBase):
         self.assertEqual(len(clicks), 16 * rows)
         self.assertEqual(len(slots), ACTOR_SLOTS)
 
+    def test_a_view_is_never_wider_than_max_cols(self):
+        """A whole big map at once is thousands of widgets in one section; the engine
+        crashed drawing ones that size. Wider asks are drawn MAX_COLS wide."""
+        from sbs_utils.pages.layout.tilemap_view import MAX_COLS
+        wide = TileView("tvw", follow=1, cols=91)
+        self.assertEqual(wide.cols, MAX_COLS)
+        self.assertEqual(TileView("tvn", follow=1, cols=17).cols, 17)
+
     def test_a_full_pool_drops_furniture_never_a_person(self):
         """A crowded view (a furnished deck, a city street) can hold more things than the
         figure pool: whatever is left out must be furniture, not someone standing there."""
