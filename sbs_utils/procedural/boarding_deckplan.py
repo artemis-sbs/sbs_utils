@@ -611,8 +611,38 @@ def boarding_deck_system_prop(area, cell):
 
 # --- the live ship ------------------------------------------------------------------------
 
-#: What a damage-control team is drawn as, by team, in order.
-DAMCON_SPRITES = ["fig:crew_m", "fig:crew_f", "fig:medic_m", "fig:soldier_m"]
+#: Who crews a ship, by race: its damage-control teams are drawn as these, in turn.
+#: The race is the first word of the hull's key (`kralien_cruiser`). A mission may add
+#: to it; a race it does not name is crewed by humans.
+RACE_CREWS = {
+    "human": ["fig:crew_m", "fig:crew_f", "fig:medic_m", "fig:soldier_m"],
+    "kralien": ["fig:kralien", "fig:kralien", "fig:kralien_chief"],
+    "torgoth": ["fig:torgoth"],
+    "ximni": ["fig:ximni"],
+    "arvonian": ["fig:arvonian", "fig:arvonian_f"],
+    "skaraan": ["fig:skaraan", "fig:skaraan_young"],
+    "pirate": ["fig:junker_m", "fig:junker_f", "fig:hunter_f"],
+    "biomech": ["fig:robot_war"],
+}
+_RACE_WORDS = {"xim": "ximni", "tsn": "human", "usfp": "human", "terran": "human"}
+#: Kept for missions that set it: when it is not None it overrides RACE_CREWS.
+DAMCON_SPRITES = None
+
+
+def boarding_deck_race(ship_key):
+    """The race whose crew a hull carries, from its key: ``kralien_cruiser`` ->
+    ``kralien``, ``starbase_torgoth`` -> ``torgoth``. ``human`` for anything not in
+    ``RACE_CREWS``."""
+    words = str(ship_key or "").strip().lower().split("_")
+    if words and words[0] == "starbase" and len(words) > 1:
+        words = words[1:]                    # starbase_kralien is a Kralien base
+    word = _RACE_WORDS.get(words[0], words[0]) if words else ""
+    return word if word in RACE_CREWS else "human"
+
+
+def boarding_deck_crew_sprites(ship_key):
+    """The figures a hull's crew is drawn as."""
+    return list(DAMCON_SPRITES or RACE_CREWS[boarding_deck_race(ship_key)])
 DAMAGED_TINT = "#666"
 #: The two frames a shorted system's sparks flip between.
 SPARKS = ("prop:sparks", "prop:sparks_b")
@@ -669,7 +699,8 @@ def boarding_deck_sync(area, ship):
             if gid not in teams:
                 if spot is None:
                     continue
-                sprite = DAMCON_SPRITES[len(teams) % len(DAMCON_SPRITES)]
+                crew = boarding_deck_crew_sprites(rec.get("ship"))
+                sprite = crew[len(teams) % len(crew)]
                 tilemap_place(gid, area, spot[0], spot[1], sprite=sprite, party=False,
                               blocks=False, speed=2.5, exits=False)
                 teams[gid] = cell

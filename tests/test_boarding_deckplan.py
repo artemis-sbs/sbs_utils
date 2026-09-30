@@ -255,6 +255,18 @@ class TestTheLiveShip(unittest.TestCase):
         D.boarding_deck_sync(self.area, self.SHIP)
         self.assertTrue(T.tilemap_walking(950))
 
+    def test_a_ships_teams_are_drawn_as_its_race(self):
+        self.assertEqual(D.boarding_deck_race("kralien_cruiser"), "kralien")
+        self.assertEqual(D.boarding_deck_race("xim_scout"), "ximni")
+        self.assertEqual(D.boarding_deck_race("tsn_light_cruiser"), "human")
+        self.assertEqual(D.boarding_deck_race("mystery_hull"), "human")
+        self.assertEqual(D.boarding_deck_race("starbase_torgoth"), "torgoth")
+        self.assertEqual(D.boarding_deck_race("starbase_civil"), "human")
+        D._DECKS[self.area]["ship"] = "torgoth_goliath"
+        self.state = [(950, 0, 0, False, True, 6)]
+        D.boarding_deck_sync(self.area, self.SHIP)
+        self.assertEqual(T.tilemap_actor(950)["sprite"], "fig:torgoth")
+
     def test_a_team_at_zero_hp_is_down_and_a_team_that_is_gone_leaves(self):
         self.state = [(950, 0, 0, False, True, 0)]
         D.boarding_deck_sync(self.area, self.SHIP)
