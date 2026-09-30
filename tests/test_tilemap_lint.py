@@ -448,6 +448,7 @@ class TestTilesetPreviewForTheEditor(unittest.TestCase):
     def test_usage_counts_cells_in_the_areas_that_use_it(self):
         r = self.preview(TILESET.replace("tileset: Filed", "tileset: test"))
         self.assertEqual(r["areas"], ["colony", "ridge"])
+        self.assertTrue(r["areaPaths"]["ridge"].endswith(os.path.join("surface", "ridge.tiles")))
         self.assertEqual(r["usage"]["rock"], 16 + 12)   # ridge 6x4 ring, colony 5x3 ring
         self.assertEqual(r["usage"]["water"], 1)
 

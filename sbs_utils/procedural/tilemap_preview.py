@@ -375,8 +375,12 @@ def tilemap_tileset_preview(text, mission_root=None, sets=None, world=None):
                 if kind:
                     usage[kind] = usage.get(kind, 0) + 1
     drawn = {k for k in art.values() if k} | {v["key"] for v in looks_out.values() if v["key"]}
+    paths = world.get("area_paths") or {}
     out.update({"name": rec["name"], "title": rec["title"], "kinds": rec["kinds"],
                 "lines": {k: n - 1 for k, n in rec["lines"].items()},
                 "art": art, "usage": usage, "areas": sorted(areas),
+                # Where each of those areas is, so renaming a kind can follow it into
+                # their legends.
+                "areaPaths": {k: os.path.abspath(paths[k]) for k in areas if k in paths},
                 "sprites": {k: v for k, v in sprites.items() if k in drawn}})
     return out

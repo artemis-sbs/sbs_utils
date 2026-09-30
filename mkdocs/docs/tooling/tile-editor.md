@@ -117,9 +117,11 @@ Open a `.tileset` file and it opens as the **Tileset Editor**. Each row is one k
 
 Below the table is every look the art sets offer. Select a kind, then click a look to put
 it on. **+ Kind** adds a kind that can be walked and seen across. **x** removes a kind,
-and one that is still drawn somewhere takes a second click. Renaming a kind changes it
-only here, so the status line says how many cells of the areas still use the old name.
-Those areas' legends then show up as problems until they are updated.
+and one that is still drawn somewhere takes a second click. **Renaming** a kind renames
+it in every area that uses this tileset too: each legend line that draws it has just that
+word changed. The whole rename is one edit across the files, so one undo takes it back.
+The areas are left unsaved, so use **Save All** to keep them. Mission code that names the
+kind in a string is not changed.
 
 Each edit rewrites one line. It is lined up with the file's own columns, so a file
 laid out in columns stays that way.
