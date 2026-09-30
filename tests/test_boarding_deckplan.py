@@ -319,6 +319,24 @@ class TestAMockShip(unittest.TestCase):
         self.assertEqual(kit["color"], D.DAMAGED_TINT)
         self.assertTrue(grid_objects(ship))
 
+    def test_an_interior_builds_when_the_damcon_prefab_is_missing(self):
+        """Under a running story a missing prefab label RAISES (the mock returns None);
+        it used to take the whole interior build - and the deck - down with it."""
+        from sbs_utils.procedural import internal_damage as ID
+        from sbs_utils.procedural.grid import grid_objects
+        from sbs_utils.procedural.query import to_id
+        from sbs_utils.procedural.spawn import player_spawn
+
+        def missing(*a, **k):
+            raise Exception("Calling undefined label prefab_lifeform_damcons")
+        real = ID.prefab_spawn
+        ID.prefab_spawn = missing
+        self.addCleanup(setattr, ID, "prefab_spawn", real)
+        ship = to_id(player_spawn(0, 0, 0, "Probe", "tsn", "tsn_light_cruiser"))
+        ID.grid_rebuild_grid_objects(ship)
+        self.assertTrue(grid_objects(ship))
+        self.assertIsNotNone(D.boarding_deck_for(ship))
+
     def test_a_ships_deck_is_built_once_and_watched(self):
         from sbs_utils.procedural.internal_damage import grid_rebuild_grid_objects
         from sbs_utils.procedural.query import to_id

@@ -826,7 +826,14 @@ def grid_restore_damcons(id_or_obj, layout=None):
                 # The prefab does the whole job: it grid_spawns the team, its rally marker,
                 # and seeds "blackboard:idle_pos" (LM ai/grid_brains.mast). It contains no
                 # await, so its task is always done() in-frame and dc is the team.
-                dc_task = prefab_spawn(prefab_label, {"ship_id": ship_id, "NAME":_name, "START_X": point[0], "START_Y": point[1], "COLOR": color, "DAMAGE_COLOR":damage_color})
+                try:
+                    dc_task = prefab_spawn(prefab_label, {"ship_id": ship_id, "NAME":_name, "START_X": point[0], "START_Y": point[1], "COLOR": color, "DAMAGE_COLOR":damage_color})
+                except Exception:                            # noqa: BLE001
+                    # Under a running story a missing label RAISES ("Calling undefined
+                    # label") where the mock returns None - and it took the whole
+                    # interior build down with it, from a mission without the LM "ai"
+                    # mastlib. The teams are optional; the interior is not.
+                    dc_task = None
                 if dc_task is None:
                     # Bad PREFAB_DAMCONS override, or the LM "ai" mastlib is not loaded.
                     log(f"damcon prefab '{prefab_label}' not found - {_name} not created", "grid", "error")
