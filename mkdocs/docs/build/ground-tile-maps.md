@@ -158,12 +158,15 @@ in two ways:
 - **A prop can have a mirrored twin.** A sprite marked `"mirror": true` in the manifest
   is also registered as `<key>_mirror`, and a prop that stands still is drawn as the twin
   on about half the cells, the same cells every time. It blocks the ground the twin
-  covers. A wood of one tree then repeats half as often. Never mark anything with
-  lettering or a handed shape.
+  covers. A field of rocks or a yard of hay bales then repeats half as often. Never mark
+  anything with lettering or a handed shape.
 
-A mirrored look is lit from the other side, so its baked shadow falls the other way.
-`gui_image_mirror(key, as_key)` does the same for any image, for example one arrow
-that points both ways.
+A mirrored look is lit from the other side, so its baked shadow falls the other way. A
+short shadow hides that and a long one does not: twinned trees in one orchard cast
+shadows both ways. So the Cosmos-Tiles packs mark only small things (rocks, rubble,
+bushes, hay, crystal seams, potted plants), and they keep their real west-facing
+figures. `gui_image_mirror(key, as_key)` does the same for any image, for example one
+arrow that points both ways.
 
 ## Placing things on the ground
 

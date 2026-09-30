@@ -48,11 +48,13 @@ MIRRORING. The engine draws a cell backwards when its rect runs backwards (the
 
 - a figure that has its EAST looks but not its WEST ones (or the reverse) gets them
   mirrored - a set only needs to draw one side;
-- ``"mirror": true`` on a sprite registers a mirrored twin, ``<key>_mirror``, and a prop that
-  stands still uses the twin on about half the cells, so a wood of one tree repeats less.
-  Never on anything with lettering or a handed shape.
+- ``"mirror": true`` on a sprite registers a mirrored twin, ``<key>_mirror``, and a prop
+  that stands still uses the twin on about half the cells, so a field of rocks repeats
+  less. Never on anything with lettering or a handed shape.
 
-A mirrored look is lit from the other side: its baked shadow falls the other way.
+A mirrored look is lit from the other side: its baked shadow falls the other way. A
+short shadow hides that; a long one does not (twinned trees in one orchard cast
+shadows both ways), so mark only small things.
 
 SETS OVERLAY. ``tilemap_art_use("builtin", "synty")`` loads the mission's own set first,
 then the pack's; a later set wins key by key, so a pack that only redraws the people is a
