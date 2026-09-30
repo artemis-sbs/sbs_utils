@@ -669,8 +669,13 @@ class PlayerRosterTests(unittest.TestCase):
         """A sim wipe respawns the roster, so slot 2 is a genuinely NEW engine object.
 
         Indirection cannot morph the id - it makes SURVIVING the change the roster's job.
+
+        The console is a REAL client id (the 0x8000... bit). Once any test has run the
+        event handler, engine_guards wraps get_ship_of_client on the shared mock, and it
+        answers 0 for anything else - a bare 55 passed alone and failed in the full suite.
         """
-        R.player_roster_bind(2, 55)
+        cid = 0x8000000000000037
+        R.player_roster_bind(2, cid)
         R.player_roster_rebind()                       # record the ids we start from
         was = R.player_roster_resolve(2)
 
@@ -684,7 +689,7 @@ class PlayerRosterTests(unittest.TestCase):
         self.assertNotEqual(was, now, "the mock reused the id - the test proves nothing")
         self.assertEqual([2], R.player_roster_rebind())
         import sys
-        self.assertEqual(now, sys.modules["sbs"].get_ship_of_client(55))
+        self.assertEqual(now, sys.modules["sbs"].get_ship_of_client(cid))
 
     def test_rebind_is_quiet_when_nothing_moved(self):
         R.player_roster_bind(2, 55)

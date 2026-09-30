@@ -9,6 +9,11 @@ import unittest
 import cosmos_dev.mock.sbs as _base_mock
 import cosmos_dev.mockgui.sbs as mockgui
 
+# A REAL client id (the 0x8000... bit). Once any test has run the event handler,
+# engine_guards wraps get_ship_of_client on the shared mock and answers 0 for anything
+# else - so a bare 5 passed when this file ran alone and failed in the full suite.
+CID = 0x8000000000000005
+
 
 class TestMockguiQueue(unittest.TestCase):
     """Outgoing queue: verify send_gui_* calls serialise correctly."""
@@ -695,7 +700,7 @@ class TestEngineConsoleWidgets(unittest.TestCase):
     def _cmds(self, cmd):
         return [m for m in self._drain() if m["cmd"] == cmd]
 
-    def _assign_player(self, cid=5):
+    def _assign_player(self, cid=CID):
         sid = mockgui.sim.create_space_object("behav_playership", "test", 0x20)
         mockgui.sim.space_objects[sid]._pos = mockgui.vec3(0, 0, 0)
         mockgui.sim.client_ships[cid] = sid
@@ -713,7 +718,7 @@ class TestEngineConsoleWidgets(unittest.TestCase):
     def test_helm_console_streams_default_rects(self):
         """Helm is laid out by the engine in C++ and never calls gui_layout_widget, so
         the mock has to supply the placement or the console is blank."""
-        mockgui.send_client_widget_list(5, "normal_helm", "2dview^throttle^helm_movement")
+        mockgui.send_client_widget_list(CID, "normal_helm", "2dview^throttle^helm_movement")
         thr = [m for m in self._drain()
                if m["cmd"] == "throttle" and m.get("op") == "defrect"]
         self.assertTrue(thr, "throttle got no default rect")
@@ -723,22 +728,22 @@ class TestEngineConsoleWidgets(unittest.TestCase):
     def test_science_console_gets_no_default_rect(self):
         """Science lays itself out in MAST (layout_widgets.mast //gui/normal_sci), so a
         built-in default would fight the mission's own rect."""
-        mockgui.send_client_widget_list(5, "normal_sci", "science_2d_view^science_data")
+        mockgui.send_client_widget_list(CID, "normal_sci", "science_2d_view^science_data")
         self.assertEqual([m for m in self._drain() if m.get("op") == "defrect"], [])
 
     def test_script_rect_is_forwarded(self):
-        mockgui.send_client_widget_list(5, "normal_sci", "science_data")
+        mockgui.send_client_widget_list(CID, "normal_sci", "science_data")
         self._drain()
-        mockgui.send_client_widget_rects(5, "science_data", 10, 20, 90, 80,
+        mockgui.send_client_widget_rects(CID, "science_data", 10, 20, 90, 80,
                                          10, 20, 90, 80)
         rect = [m for m in self._cmds("sci_data") if m.get("op") == "rect"]
         self.assertTrue(rect)
         self.assertEqual((rect[-1]["left"], rect[-1]["bottom"]), (10, 80))
 
     def test_dropping_a_widget_hides_it(self):
-        mockgui.send_client_widget_list(5, "normal_helm", "throttle")
+        mockgui.send_client_widget_list(CID, "normal_helm", "throttle")
         self._drain()
-        mockgui.send_client_widget_list(5, "normal_comm", "comms_control")
+        mockgui.send_client_widget_list(CID, "normal_comm", "comms_control")
         self.assertTrue([m for m in self._cmds("throttle") if m.get("op") == "hide"])
 
     def test_empty_widget_list_clears_then_restores(self):
@@ -751,16 +756,16 @@ class TestEngineConsoleWidgets(unittest.TestCase):
         sid = self._assign_player()
         mockgui.sim.space_objects[sid].data_set.set("playerThrottle", 0.5, 0)
         helm = "2dview^throttle^shield_control"
-        mockgui.send_client_widget_list(5, "normal_helm", helm)
+        mockgui.send_client_widget_list(CID, "normal_helm", helm)
         mockgui.physics_tick(dt=0.5)
         self._drain()
 
-        mockgui.send_client_widget_list(5, "quest", "")
+        mockgui.send_client_widget_list(CID, "quest", "")
         hides = [m for m in self._cmds("throttle") if m.get("op") == "hide"]
         self.assertTrue(hides, "an empty widget list must hide the widgets")
-        self.assertNotIn(5, mockgui._ENGINE_WIDGETS["throttle"].clients)
+        self.assertNotIn(CID, mockgui._ENGINE_WIDGETS["throttle"].clients)
 
-        mockgui.send_client_widget_list(5, "normal_helm", helm)
+        mockgui.send_client_widget_list(CID, "normal_helm", helm)
         mockgui.physics_tick(dt=0.5)
         back = self._cmds("throttle")
         self.assertTrue([m for m in back if m.get("op") == "defrect"], "no placement on return")
@@ -770,7 +775,7 @@ class TestEngineConsoleWidgets(unittest.TestCase):
 
     def test_unemulated_widget_is_reported_once(self):
         """An unimplemented widget used to be indistinguishable from a broken one."""
-        mockgui.send_client_widget_list(5, "normal_engi", "eng_power_controls")
+        mockgui.send_client_widget_list(CID, "normal_engi", "eng_power_controls")
         self.assertIn("eng_power_controls", mockgui._unknown_widgets_seen)
 
     # -- state streams ------------------------------------------------------
@@ -778,7 +783,7 @@ class TestEngineConsoleWidgets(unittest.TestCase):
     def test_throttle_state_is_streamed(self):
         sid = self._assign_player()
         mockgui.sim.space_objects[sid].data_set.set("playerThrottle", 0.5, 0)
-        mockgui.send_client_widget_list(5, "normal_helm", "throttle")
+        mockgui.send_client_widget_list(CID, "normal_helm", "throttle")
         self._drain()
         mockgui.physics_tick(dt=0.5)
         thr = [m for m in self._cmds("throttle") if "throttle" in m]
@@ -792,7 +797,7 @@ class TestEngineConsoleWidgets(unittest.TestCase):
         tid = mockgui.sim.create_space_object("behav_npcship", "target", 0)
         mockgui.sim.space_objects[tid]._pos = mockgui.vec3(1000, 0, 0)
         mockgui.sim.space_objects[sid].data_set.set("science_target_UID", tid, 0)
-        mockgui.send_client_widget_list(5, "normal_sci", "science_data")
+        mockgui.send_client_widget_list(CID, "normal_sci", "science_data")
         self._drain()
         for _ in range(mockgui._COMMS_LIST_INTERVAL + 1):
             mockgui.physics_tick(dt=0.1)
@@ -918,7 +923,10 @@ class TestConsoleControlRoundTrip(unittest.TestCase):
     def setUp(self):
         mockgui.gui_queue = _queue.Queue()
         mockgui.create_new_sim()
-        self.cid = 5
+        # A REAL client id (the 0x8000... bit): once any test has run the event handler,
+        # engine_guards wraps get_ship_of_client on the shared mock and answers 0 for
+        # anything else, so a bare 5 passed alone and failed in the full suite.
+        self.cid = 0x8000000000000005
         self.sid = mockgui.sim.create_space_object("behav_playership", "tsn_light_cruiser", 0x20)
         self.o = mockgui.sim.space_objects[self.sid]
         self.o._pos = mockgui.vec3(0, 0, 0)
@@ -1158,8 +1166,8 @@ class TestPreferencesAndReticle(unittest.TestCase):
     def test_reticle_streams_the_selection_and_only_on_change(self):
         sid = mockgui.sim.create_space_object("behav_playership", "test", 0x20)
         tid = mockgui.sim.create_space_object("behav_npcship", "target", 0)
-        mockgui.sim.client_ships[5] = sid
-        mockgui.send_client_widget_list(5, "normal_weap", "weapon_2d_view")
+        mockgui.sim.client_ships[CID] = sid
+        mockgui.send_client_widget_list(CID, "normal_weap", "weapon_2d_view")
         mockgui.sim.space_objects[sid].data_set.set("weapon_target_UID", tid, 0)
         mockgui.gui_queue = _queue.Queue()
         mockgui._push_reticle()
@@ -1175,8 +1183,8 @@ class TestPreferencesAndReticle(unittest.TestCase):
     def test_clearing_the_selection_streams_an_empty_id(self):
         sid = mockgui.sim.create_space_object("behav_playership", "test", 0x20)
         tid = mockgui.sim.create_space_object("behav_npcship", "target", 0)
-        mockgui.sim.client_ships[5] = sid
-        mockgui.send_client_widget_list(5, "normal_sci", "science_2d_view")
+        mockgui.sim.client_ships[CID] = sid
+        mockgui.send_client_widget_list(CID, "normal_sci", "science_2d_view")
         ds = mockgui.sim.space_objects[sid].data_set
         ds.set("science_target_UID", tid, 0)
         mockgui._push_reticle()
