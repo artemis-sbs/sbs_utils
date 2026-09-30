@@ -202,7 +202,8 @@ small markdown-like language and **auto-scrolls** when its content overflows.
   markdown. A face is two text lines tall, a ship four (the engine frames a 3D ship
   small), an icon or image one; `size=N` sets it. The list-wide form takes the same
   kinds: `[](bullet://image://arrow)`. A picture with **no** text after it is still
-  drawn full size, as before.
+  drawn full size, as before. The text beside a picture is **plain**: write
+  `Lt Marek`, not `**Lt Marek**`, which the engine draws with its asterisks.
 - **Collapsible sections** — write a heading as `##+ Weapons` (starts closed) or
   `##- Hull` (starts open). A click on the heading folds or unfolds everything down
   to the next heading at the same or a higher level - tables, lists and

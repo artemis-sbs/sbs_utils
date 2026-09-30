@@ -82,6 +82,9 @@ described and grouped, with only the ones this station should see:
 - **The boarding party carries it down.** A landing party's own apps travel with the party,
   and the scene they are playing is mirrored into the inbox, so the surface crew read
   their story where they read everything else — one device, wherever the person is.
+  The handheld they act with, the xESS, shows the scene as it plays: the face of whoever
+  is speaking, a picture of what is being used or picked up, and who on the team chose
+  each answer.
 - **It fits the screen it is on.** Thirty apps at 1024x768 is a scrolling list; the same
   thirty at 1920x1080 is a grid. Nothing is ever cut off the bottom.
 

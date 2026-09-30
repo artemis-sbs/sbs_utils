@@ -193,6 +193,12 @@ Sprite: fig:glassback
 A mark name goes in `Mark:`, never in `At:`. `At:` reads coordinates only, so a word
 there reads as nothing and the prop is never placed.
 
+A person or hostile can also have a `Face:`, a face string or a keyword (`female`,
+`male`, `terran`) that is resolved once, so they keep the same face all mission. The
+xESS **Act** transcript shows it beside what they say. Someone without one appears there
+as their `Sprite:` figure, facing you, and a prop appears as its sprite. See
+[Faces and pictures in the transcript](boarding-parties.md#faces-and-pictures-in-the-transcript).
+
 A prop with nothing to it (no `Scene:`, `Item:`, `Opens with:`, `Needs:` and no
 description) is **scenery**: bunks, console banks, barrels, whatever furnishes a room.
 It is drawn and `Blocks:` like any prop, but the Look list and the list of things further
@@ -231,7 +237,7 @@ is the middle of the thing, so leave room round it.
 
 A mission can give its own art a base with
 `tilemap_sprite_base("prop:wagon", (-1.4, -0.5, 1.4, 0.5))`: left, top, right, bottom in
-tiles from the centre of its cell, x east and y south. `tilemap_sprite_cells(key)` says
+tiles from the center of its cell, x east and y south. `tilemap_sprite_cells(key)` says
 which cells that covers.
 
 ## A ship's deck, drawn for you
