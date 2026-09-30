@@ -363,12 +363,18 @@ def amd_choice_label(text):
     return text.replace("[", "(").replace("]", ")")
 
 
-def amd_choices_settle(text, chosen=None):
+def amd_choices_settle(text, chosen=None, before=None):
     """Every live choice group in `text` settled: the one choice made, or nothing.
 
     A group containing a choice whose words are `chosen` becomes that one choice as
     `[words](chosen://name)`; a group without it is dropped, since nobody took it here.
     `chosen://` lines already settled stay as they are. Returns the new text.
+
+    `before`, when given, is a line put just above the choice made - who made it. It
+    is its own line so the choice stays a whole `chosen://` line, which is what draws
+    it as a chip. With it, the choice made is shown in EVERY group, even one that did
+    not offer it: who chose what is news to every reader, not only to one who could
+    have chosen the same.
     """
     out = []
     group = []
@@ -384,7 +390,13 @@ def amd_choices_settle(text, chosen=None):
                     break
         if pick is not None:
             name = pick.group("urn").split("?")[0]
+            if before:
+                out.append(before)
             out.append(f"[{pick.group('disp').strip()}](chosen://{name})")
+        elif before and chosen is not None and str(chosen).strip():
+            name = group[0].group("urn").split("?")[0]
+            out.append(before)
+            out.append(f"[{str(chosen).strip()}](chosen://{name})")
         group.clear()
 
     for line in str(text or "").split("\n"):

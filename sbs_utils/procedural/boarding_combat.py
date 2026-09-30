@@ -220,8 +220,19 @@ def boarding_hostile_records(section):
             "talk": d.get("talk_scene"),
             "calm": str(d.get("calm") or "").strip().lower() in ("yes", "true", "1"),
             "hidden": d.get("hidden_until"),
+            "face": _face(d.get("face")),
         })
     return out
+
+
+def _face(spec):
+    """A person's `Face:` - a face string as written, or a keyword (`female`, `male`,
+    `terran`) resolved ONCE, here, so they keep one face all mission. None: no face,
+    which is right for anyone the face art cannot draw."""
+    if not str(spec or "").strip():
+        return None
+    from ..faces import face_resolve
+    return face_resolve(str(spec).strip())
 
 
 def boarding_hostiles_declare(section):

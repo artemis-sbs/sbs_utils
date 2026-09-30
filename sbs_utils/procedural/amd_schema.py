@@ -774,6 +774,8 @@ HOSTILE = {
     "patrol": text(hint="12 8; 18 8; 18 14"),
     "drops": text(hint="items left where it falls - venom"),
     "talk scene": text(hint="clicking it opens this scene instead of a fight"),
+    "face": face(hint="shown beside their lines when talked to - a face string, or "
+                      "female / male / terran"),
     "calm": text(hint="yes - never attacks"),
     "hidden until": text(hint="a signal"),
     "scan": text(hint="what the xESS Scan app says about it"),

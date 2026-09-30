@@ -583,6 +583,50 @@ def boarding_speaker(channel=None):
     return _record(channel).get("speaker")
 
 
+def boarding_line_face(channel=None):
+    """The face of whoever says this beat's line, or None - so a transcript can show who
+    is talking, and show nobody when nobody in particular is.
+
+    In order: the person a ``talk:<key>`` channel is a conversation with (their
+    ``Face:``); the speaker the scene was opened with, when that is someone with a face;
+    the scene's ``Speaker:``, resolved the way a hail's is (``hail_speaker``). A
+    narrator, a prop or a crowd has no face, and gets none.
+    """
+    ch = channel or PARTY
+    rec = _record(ch)
+    if rec.get("parsed") is None:
+        return None
+    if ch.startswith("talk:"):
+        from .boarding_combat import boarding_hostile
+        person = boarding_hostile(ch[len("talk:"):])
+        if person is not None and person.get("face"):
+            return person["face"]
+    speaker = rec.get("speaker")
+    if speaker is not None:
+        try:
+            from ..faces import get_face
+            face = get_face(to_id(speaker))
+            if face:
+                return face
+        except Exception:                                # noqa: BLE001
+            pass
+    key = (rec.get("parsed") or {}).get("speaker")
+    if key:
+        try:
+            from .hail import hail_speaker
+            return hail_speaker(key).get("face") or None
+        except Exception:                                # noqa: BLE001
+            return None
+    return None
+
+
+def _face_md(face, size):
+    """A lead face for a transcript line, made safe to sit inside `face://...)`: a `)`
+    or `?` in the string would end the reference or start its options."""
+    safe = str(face).strip().replace(")", "").replace("?", "").replace("]", "")
+    return f"![](face://{safe}?size={size})" if safe else ""
+
+
 def boarding_choices(client_id):
     """The choices THIS client's character may take, in authored order.
 
@@ -709,6 +753,7 @@ def boarding_answer(client_id, index, seq=None, agent=None):
     # and evaluate a cost or a refusal against someone who was not acting.
     actor = choice.get("agent") or boarding_me(cid)
     _REDIRECT.clear()
+    _ANSWERED["actor"] = actor          # who answered: the reader credits them
     if dialogue_apply(actor, speaker, choice.outcomes) is False:
         # A handler refused (a cost that cannot be paid). The token has ALREADY moved, so
         # every console is holding a stale one and the beat is briefly unanswerable - which
@@ -754,6 +799,9 @@ def boarding_answer(client_id, index, seq=None, agent=None):
 # Set by an outcome verb to send the scene to another target than the authored one.
 # See `boarding_redirect`.
 _REDIRECT = {}
+# The character the last accepted answer was credited to - the one `boarding_answer`
+# applied the outcomes as, which on a doubled-up console is not the primary.
+_ANSWERED = {}
 
 
 def boarding_redirect(target):
@@ -763,6 +811,24 @@ def boarding_redirect(target):
     every answer, so a stray call cannot leak into the next one.
     """
     _REDIRECT["target"] = target
+
+
+def _chooser_line(actor):
+    """`![](face://...) Name` - who made a choice, for the line above it in a
+    transcript. Just the name when they have no face; None when there is nobody.
+
+    Plain words: the text beside a lead face is drawn as written, so `**bold**` would
+    show its asterisks (engine-seen)."""
+    if actor is None:
+        return None
+    name = _name_of(actor)
+    try:
+        from ..faces import get_face
+        face = get_face(to_id(actor))
+    except Exception:                                    # noqa: BLE001
+        face = None
+    lead = _face_md(face, READER_CHOOSER_FACE_LINES) if face else ""
+    return f"{lead} {name}" if lead else name
 
 
 def _name_of(lifeform_id):
@@ -806,8 +872,15 @@ BOARDING_PICK_SIGNAL = "boarding_pick"
 _READERS = {}       # client_id -> {"text", "seq", "agent", "area"}
 
 
+#: How tall the faces in a transcript are, in text lines: the speaker's beside their
+#: line, and the crew member's above the choice they made.
+READER_SPEAKER_FACE_LINES = 3
+READER_CHOOSER_FACE_LINES = 2
+
+
 def _boarding_beat_text(client_id, agent=None):
-    """This beat as markdown: the line, then this console's choices as signal lines."""
+    """This beat as markdown: the line - with the face of whoever says it, when someone
+    in particular does - then this console's choices as signal lines."""
     from .amd import amd_choice_label
     ch = boarding_channel_of(client_id)
     if not boarding_is_open(ch):
@@ -815,7 +888,10 @@ def _boarding_beat_text(client_id, agent=None):
     seq = boarding_seq(ch)
     choices = (boarding_choices_for(client_id, agent) if agent is not None
                else boarding_choices(client_id))
-    lines = [str(boarding_line(ch) or "")]
+    line = str(boarding_line(ch) or "")
+    face = boarding_line_face(ch) if line.strip() else None
+    lead = _face_md(face, READER_SPEAKER_FACE_LINES) if face else ""
+    lines = [f"{lead} {line}" if lead else line]
     if choices:
         lines.append("")
     agent_q = f"&agent={to_id(agent)}" if agent is not None else ""
@@ -825,11 +901,12 @@ def _boarding_beat_text(client_id, agent=None):
     return "\n".join(lines)
 
 
-def _boarding_reader_sync(client_id, chosen=None):
+def _boarding_reader_sync(client_id, chosen=None, by=None):
     """Bring one console's transcript up to the current beat. Returns its text.
 
     Any choices still live in it are settled first - to `chosen` where that was one of
-    them, otherwise dropped, because the beat they belonged to has moved on.
+    them, otherwise dropped, because the beat they belonged to has moved on. `by` is a
+    line saying who chose, put just above the choice made.
     """
     from .amd import amd_choices_settle
     state = _READERS.setdefault(client_id, {"text": "", "seq": None, "agent": None,
@@ -837,7 +914,7 @@ def _boarding_reader_sync(client_id, chosen=None):
     ch = boarding_channel_of(client_id)
     seq = boarding_seq(ch)
     if state["seq"] != seq or chosen is not None:
-        text = amd_choices_settle(state["text"], chosen) if state["text"] else ""
+        text = amd_choices_settle(state["text"], chosen, before=by) if state["text"] else ""
         if state["seq"] != seq:
             beat = _boarding_beat_text(client_id, state["agent"])
             # A CHANGE OF CHANNEL is marked, so a console that walked into a side
@@ -940,7 +1017,12 @@ def _boarding_reader_on_pick(name, data):
     # WHO SHARED THAT BEAT, taken before answering - an answer that ends a side scene
     # sends its members back to the party, and they still need the pick settled.
     audience = boarding_channel_members(boarding_channel_of(cid)) | {cid}
-    boarding_answer(cid, index, seq, agent=agent)
+    _ANSWERED.clear()
+    accepted = boarding_answer(cid, index, seq, agent=agent)
+    # WHO CHOSE, above the choice, for every reader - in a party of several consoles
+    # the chip alone does not say. Only for a pick that was taken: a stale press
+    # changed nothing, so it credits nobody.
+    by = _chooser_line(_ANSWERED.get("actor")) if accepted else None
     # Every reader in that channel, the one that pressed included: whoever answered, the
     # beat moved on for all of them. A refused press (stale seq) still resyncs, which
     # shows the presser the beat somebody else moved to. A reader in ANOTHER channel is
@@ -949,7 +1031,7 @@ def _boarding_reader_on_pick(name, data):
     for client_id, state in list(_READERS.items()):
         if client_id not in audience:
             continue
-        text = _boarding_reader_sync(client_id, chosen)
+        text = _boarding_reader_sync(client_id, chosen, by)
         if state.get("in_region"):
             # NEVER write a region's area out of band. It draws OVER whatever the region
             # holds now - engine-seen: a pick that ended a side scene rebuilt the xESS Act
@@ -971,6 +1053,7 @@ def boarding_clear():
     """The per-mission reset: no team, no beat, resolver handed back."""
     boarding_team_clear()
     _READERS.clear()
+    _ANSWERED.clear()
     signal_unobserve(_boarding_reader_on_pick)
     _boarding_scenes_clear()
     _FACTS.clear()

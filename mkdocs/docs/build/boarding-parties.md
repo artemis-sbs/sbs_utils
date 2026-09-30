@@ -99,6 +99,37 @@ each of them a different story, which reads as a fault in the writing rather tha
 code. `boarding_scene_begin` picks the line once and `boarding_line()` gives every console the same
 one.
 
+## Faces in the transcript
+
+The xESS **Act** app shows a conversation as a transcript (`boarding_reader`), and a face
+appears wherever someone in particular is speaking:
+
+- **The person you are talking to.** A talk scene's lines have that person's face beside
+  them. The face comes from the person's `Face:`, a face string or a keyword (`female`,
+  `male`, `terran`) resolved once when the mission loads, so it stays the same all
+  mission.
+- **A scene's speaker.** When a scene's `Speaker:` is someone with a face, such as a cast
+  member, a crew member or a role someone holds, their face is beside the line. It is
+  resolved the way a hail's speaker is.
+- **Who chose.** Above each choice made are the face and name of the crew member who made
+  it, on every console in the conversation, so a party of several consoles can see who
+  said what.
+
+Narration, a prop, a crowd, or anyone with no `Face:` gets no face. That is on purpose: a
+face there would claim a speaker the scene does not have.
+
+```markdown
+### [Magistrate Ines Oyelaran](oyelaran)
+---
+Area: colony
+At: 10, 14
+Sprite: fig:captain_f
+Face: ter #6b3a20 1 0;ter #fff 23 6;ter #6b3a20 12 1;ter #6b3a20 4 2;ter #fff 11 3;
+Calm: yes
+Talk scene: oyelaran
+---
+```
+
 ## Ending a scene
 
 A choice with an **empty target** ends the conversation:

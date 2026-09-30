@@ -221,6 +221,82 @@ class RegionTests(ReaderTests.__bases__[0]):
         self.assertEqual(A.boarding_scene(), "autopsy")
 
 
+class FaceTests(ReaderTests.__bases__[0]):
+    """Faces in the transcript WHEN SOMEONE IN PARTICULAR IS SPEAKING: the person a talk
+    is with, a scene's speaker who has a face, and the crew member who chose. A narrator
+    gets none."""
+
+    setUp = ReaderTests.setUp
+    area = ReaderTests.area
+    press = ReaderTests.press
+
+    def tearDown(self):
+        from sbs_utils.procedural import boarding_combat as K
+        K.boarding_combat_clear()
+        ReaderTests.tearDown(self)
+
+    def lines(self, ta):
+        return list(ta.content)
+
+    def test_WHO_CHOSE_IS_ABOVE_THE_CHOICE_ON_EVERY_READER(self):
+        from sbs_utils.faces import get_face
+        doc = self.area(101)
+        eng = self.area(102)
+        self.press(doc, 101, "Examine the body")
+        for ta in (doc, eng):
+            lines = self.lines(ta)
+            chip = next(i for i, l in enumerate(lines) if "chosen://" in l)
+            self.assertTrue(lines[chip - 1].startswith("![](face://" + get_face(self.doc.id)),
+                            lines[chip - 1])
+            self.assertTrue(lines[chip - 1].endswith(" Dr Sorel"))
+
+    def test_a_stale_press_credits_nobody(self):
+        doc = self.area(101)
+        eng = self.area(102)
+        doc.calc_rich(101)
+        held = next(t for t, c in doc._choice_map.items() if c["display"] == "Back out")
+        stale = dict(doc._choice_map[held])
+        self.press(eng, 102, "Force the panel")
+        doc._choice_map[held] = stale
+        doc.choose(held, 101)
+        text = "\n".join(self.lines(doc))
+        self.assertIn(" Chief Ruiz", text)            # the pick that WAS taken is credited
+        self.assertNotIn("Dr Sorel", text)            # the refused one credits nobody
+
+    def test_a_narrator_has_no_face(self):
+        self.assertNotIn("face://", self.lines(self.area(101))[0])
+
+    def test_A_SCENE_SPEAKER_WITH_A_FACE_SHOWS_IT(self):
+        from sbs_utils.faces import get_face
+        scenes = {"s": {"key": "s", "display_text": "s", "data": {"speaker": "medical"},
+                        "description": "% Hold still.\n"}}
+        # `Speaker: medical` names a role; the doctor has it, and a face.
+        A.boarding_encounter(scenes, "s", 101, speaker=None, channel="side")
+        first = self.lines(self.area(101))[-1]
+        self.assertTrue(first.startswith("![](face://" + get_face(self.doc.id)), first)
+        self.assertTrue(first.endswith("Hold still."))
+
+    def test_THE_PERSON_YOU_TALK_TO_HAS_THEIR_FACE(self):
+        from sbs_utils.procedural import boarding_combat as K
+        K.boarding_hostiles_declare({"children": [
+            {"key": "magistrate", "display_text": "Magistrate",
+             "data": {"area": "yard", "calm": "yes", "talk_scene": "lab",
+                      "face": "ter #fff 1 0;ter #fff 2 1;"}}]})
+        self.assertEqual(K.boarding_hostile("magistrate")["face"], "ter #fff 1 0;ter #fff 2 1;")
+        A.boarding_encounter(_scenes(), "lab", 101, channel="talk:magistrate")
+        text = A._boarding_beat_text(101)
+        self.assertTrue(text.startswith("![](face://ter #fff 1 0;ter #fff 2 1;?size=3) "),
+                        text)
+
+    def test_someone_with_no_face_is_just_their_words(self):
+        from sbs_utils.procedural import boarding_combat as K
+        K.boarding_hostiles_declare({"children": [
+            {"key": "crowd", "display_text": "Crowd",
+             "data": {"area": "yard", "calm": "yes", "talk_scene": "lab"}}]})
+        A.boarding_encounter(_scenes(), "lab", 101, channel="talk:crowd")
+        self.assertTrue(A._boarding_beat_text(101).startswith("The body is cold."))
+
+
 class SettleTests(unittest.TestCase):
     TEXT = "Hi.\n[A](signal://s?i=0)\n[B](signal://s?i=1)\n\nLater.\n[C](signal://t)"
 
@@ -229,6 +305,15 @@ class SettleTests(unittest.TestCase):
         self.assertIn("[B](chosen://s)", out)
         self.assertNotIn("[A]", out)
         self.assertNotIn("[C]", out)
+
+    def test_WHO_CHOSE_GOES_ON_ITS_OWN_LINE_ABOVE_THE_CHIP(self):
+        out = amd_choices_settle(self.TEXT, "B", before="**Kovac**").split("\n")
+        chip = out.index("[B](chosen://s)")
+        self.assertEqual(out[chip - 1], "**Kovac**")
+
+    def test_nothing_chosen_puts_no_line(self):
+        self.assertEqual(amd_choices_settle(self.TEXT, None, before="**Kovac**"),
+                         amd_choices_settle(self.TEXT))
 
     def test_with_no_choice_every_group_goes(self):
         out = amd_choices_settle(self.TEXT)
