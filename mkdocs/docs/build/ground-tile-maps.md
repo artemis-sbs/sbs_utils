@@ -149,6 +149,22 @@ come from this mission or from a pinned media pack. A later set wins key by key,
 pack that only redraws the people is a valid pack. The manifest format is documented in
 `sbs_utils/procedural/tilemap_art.py`.
 
+The engine draws a picture mirrored when its rect runs backwards, and art sets use that
+in two ways:
+
+- **A figure needs only one side.** When a set has a figure's east-facing looks but not
+  its west-facing ones (or the reverse), the missing side is the other one mirrored. A
+  side the set does draw is always kept.
+- **A prop can have a mirrored twin.** A sprite marked `"mirror": true` in the manifest
+  is also registered as `<key>_mirror`, and a prop that stands still is drawn as the twin
+  on about half the cells, the same cells every time. It blocks the ground the twin
+  covers. A wood of one tree then repeats half as often. Never mark anything with
+  lettering or a handed shape.
+
+A mirrored look is lit from the other side, so its baked shadow falls the other way.
+`gui_image_mirror(key, as_key)` does the same for any image, for example one arrow
+that points both ways.
+
 ## Placing things on the ground
 
 Props, people and hostiles live in `.amd` sections (`## [Props](props)`,

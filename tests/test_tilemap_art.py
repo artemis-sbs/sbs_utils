@@ -174,6 +174,84 @@ class TestBase(ArtBase):
         self.assertEqual(sorted(TA.tilemap_sprite_cells("ta:taxi")), [(0, 0)])
 
 
+WALKER = {
+    "sheets": {"chars": "chars.png"},
+    "sprites": {
+        "ta:guy_s_idle": {"sheet": "chars", "rect": [0, 0, 64, 96], "cells": [1, 1.5]},
+        "ta:guy_e_idle": {"sheet": "chars", "rect": [64, 0, 128, 96], "cells": [1, 1.5],
+                          "anchor": [0.3, 1.0], "base": [-0.2, -0.1, 0.4, 0.1]},
+        "ta:guy_e_a": {"sheet": "chars", "rect": [128, 0, 192, 96], "cells": [1, 1.5]},
+        "ta:sign_e": {"sheet": "chars", "rect": [192, 0, 256, 64]},
+        "ta:tree": {"sheet": "chars", "rect": [256, 0, 384, 192], "mirror": True},
+    },
+}
+DRAWN_WEST = {"sheets": {"c": "c2.png"},
+              "sprites": {"ta:guy_w_idle": {"sheet": "c", "rect": [0, 0, 64, 96]}}}
+NEW_EAST = {"sheets": {"c": "c3.png"},
+            "sprites": {"ta:guy_e_idle": {"sheet": "c", "rect": [500, 0, 564, 96]},
+                        "ta:tree": {"sheet": "c", "rect": [600, 0, 700, 100]}}}
+
+
+class TestMirroring(ArtBase):
+    """The engine draws a cell backwards when its rect runs backwards, so a set need only
+    draw one side of a figure, and a prop can have a mirrored twin for variety."""
+
+    def setUp(self):
+        super().setUp()
+        for name, manifest in (("walker", WALKER), ("drawnwest", DRAWN_WEST),
+                               ("neweast", NEW_EAST)):
+            folder = os.path.join(self.tmp, name)
+            os.makedirs(folder)
+            with open(os.path.join(folder, "manifest.json"), "w", encoding="utf-8") as f:
+                json.dump(manifest, f)
+            self.folders[name] = folder.replace("\\", "/")
+
+    def rect(self, key):
+        a = ImageAtlas.all[key]
+        return (a.left, a.top, a.right, a.bottom)
+
+    def test_A_FIGURE_GETS_THE_SIDE_IT_LACKS(self):
+        TA.tilemap_art_use("walker")
+        self.assertEqual(self.rect("ta:guy_w_idle"), (128, 0, 64, 96))
+        self.assertEqual(self.rect("ta:guy_w_a"), (192, 0, 128, 96))
+        # Its feet stay on the cell, and the ground it covers flips too.
+        self.assertEqual(TA.tilemap_sprite_footprint("ta:guy_w_idle"), (1.0, 1.5, 0.7, 1.0))
+        self.assertEqual(TA._BASES["ta:guy_w_idle"], (-0.4, -0.1, 0.2, 0.1))
+        self.assertEqual(TA.tilemap_art_origin("ta:guy_w_idle"), "walker (mirrored)")
+
+    def test_only_a_figure_is_given_a_side(self):
+        TA.tilemap_art_use("walker")
+        self.assertNotIn("ta:sign_w", ImageAtlas.all)
+
+    def test_A_WEST_A_SET_DREW_IS_KEPT_WHICHEVER_LOADS_FIRST(self):
+        for order in (("walker", "drawnwest"), ("drawnwest", "walker")):
+            TA.tilemap_art_clear()
+            TA.tilemap_art_use(*order)
+            self.assertEqual(self.rect("ta:guy_w_idle"), (0, 0, 64, 96), order)
+            self.assertEqual(TA.tilemap_art_origin("ta:guy_w_idle"), "drawnwest")
+
+    def test_a_later_east_takes_its_west_with_it(self):
+        TA.tilemap_art_use("walker", "neweast")
+        self.assertEqual(self.rect("ta:guy_w_idle"), (564, 0, 500, 96))
+
+    def test_mirror_true_gives_a_prop_a_twin(self):
+        TA.tilemap_art_use("walker")
+        self.assertEqual(TA.tilemap_sprite_twin("ta:tree"), "ta:tree_mirror")
+        self.assertEqual(self.rect("ta:tree_mirror"), (384, 0, 256, 192))
+        self.assertIsNone(TA.tilemap_sprite_twin("ta:sign_e"))
+
+    def test_A_TREE_REDRAWN_WITHOUT_MIRROR_LOSES_ITS_OLD_TWIN(self):
+        TA.tilemap_art_use("walker", "neweast")
+        self.assertIsNone(TA.tilemap_sprite_twin("ta:tree"))
+        self.assertNotIn("ta:tree_mirror", ImageAtlas.all)
+
+    def test_clear_takes_the_derived_looks_out(self):
+        TA.tilemap_art_use("walker")
+        TA.tilemap_art_clear()
+        for key in ("ta:guy_w_idle", "ta:tree_mirror"):
+            self.assertNotIn(key, ImageAtlas.all)
+
+
 class TestSetsFromSettings(unittest.TestCase):
     def test_builtin_always_comes_first(self):
         self.assertEqual(TA.tilemap_art_sets("synty, extra")[:1], ["builtin"])

@@ -275,6 +275,45 @@ class TestBigThings(TileBase):
         self.assertFalse(T.tilemap_is_open("ridge", 5, 4))
 
 
+class TestMirroredTwins(TileBase):
+    """A still prop with a mirrored twin is drawn as the twin on about half the cells -
+    the same cells every time - and blocks the ground the twin covers."""
+
+    def setUp(self):
+        super().setUp()
+        self.addCleanup(TA.tilemap_art_clear)
+        # A stump whose ground reaches EAST of its cell; the twin's reaches west.
+        TA.tilemap_art_load({"sheets": {"s": "s.png"}, "sprites": {
+            "t:stump": {"sheet": "s", "rect": [0, 0, 10, 10], "mirror": True,
+                        "base": [-0.3, -0.3, 1.3, 0.3]}}}, "media/probe", "test")
+        # Two cells on the open row whose position picks differ.
+        row = [x for x in range(2, 8)]
+        self.plain = next(x for x in row if T._cell_hash(x, 4) % 2 == 0)
+        self.twin = next(x for x in row if T._cell_hash(x, 4) % 2 == 1)
+
+    def put(self, aid, x, fixed=True):
+        T.tilemap_place(aid, "ridge", x, 4, sprite="t:stump", blocks=True, fixed=fixed)
+        return T.tilemap_actor(aid)
+
+    def test_the_cell_picks_the_twin_the_same_way_every_time(self):
+        a, b = self.put(201, self.plain), self.put(202, self.twin)
+        self.assertEqual(T.tilemap_sprite_look(a), "t:stump")
+        self.assertEqual(T.tilemap_sprite_look(b), "t:stump_mirror")
+        self.assertEqual(T.tilemap_sprite_look(b), "t:stump_mirror")
+
+    def test_something_that_moves_is_never_a_twin(self):
+        self.assertEqual(T.tilemap_sprite_look(self.put(203, self.twin, fixed=False)),
+                         "t:stump")
+
+    def test_THE_TWIN_BLOCKS_THE_GROUND_IT_IS_DRAWN_ON(self):
+        self.put(201, self.plain)
+        self.assertEqual(T.tilemap_actor_cells(201), [(self.plain, 4), (self.plain + 1, 4)])
+        T.tilemap_remove(201)
+        self.put(202, self.twin)
+        self.assertEqual(T.tilemap_actor_cells(202), [(self.twin - 1, 4), (self.twin, 4)])
+        self.assertFalse(T.tilemap_is_open("ridge", self.twin - 1, 4))
+
+
 class TestMarks(TileBase):
     def test_entering_a_mark_says_so_once(self):
         T.tilemap_place(A, "ridge", party=True)

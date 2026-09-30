@@ -13,7 +13,8 @@ import zlib
 from cosmos_dev.mock import sbs
 from sbs_utils.helpers import FrameContext, Context, FakeEvent
 from sbs_utils.procedural.gui.image import (ImageAtlas, gui_image_add_atlas,
-                                            gui_image_add_atlas_grid, gui_image_get_atlas)
+                                            gui_image_add_atlas_grid, gui_image_get_atlas,
+                                            gui_image_mirror)
 
 SHEET = "media/icons/quest-sheet"
 
@@ -130,6 +131,42 @@ class CuttingUpASheet(unittest.TestCase):
         self.assertIn("icon:job", ImageAtlas.all)
 
 
+class Mirroring(unittest.TestCase):
+    """The engine draws a cell backwards when its rect runs backwards (the flip_probe
+    mission): so a mirror is the same cell with its edges swapped."""
+
+    def setUp(self):
+        sbs.create_new_sim()
+        FrameContext.context = Context(sbs.sim, sbs, FakeEvent())
+        self._saved = dict(ImageAtlas.all)
+
+    def tearDown(self):
+        ImageAtlas.all.clear()
+        ImageAtlas.all.update(self._saved)
+
+    def test_left_to_right_swaps_the_side_edges(self):
+        gui_image_add_atlas("probe_walker_e", SHEET, 10, 20, 40, 60, color="red")
+        back = gui_image_mirror("probe_walker_e", "probe_walker_w")
+        self.assertIs(ImageAtlas.all["probe_walker_w"], back)
+        self.assertEqual((back.left, back.top, back.right, back.bottom), (40, 20, 10, 60))
+        self.assertIn("sub_rect:40,20,10,60;color:red;", back.get_props())
+
+    def test_top_to_bottom_swaps_the_top_and_bottom(self):
+        gui_image_add_atlas("probe_walker_e", SHEET, 10, 20, 40, 60)
+        up = gui_image_mirror("probe_walker_e", "probe_upside", vertical=True)
+        self.assertEqual((up.left, up.top, up.right, up.bottom), (10, 60, 40, 20))
+
+    def test_A_BACKWARDS_CELL_IS_STILL_ITS_SIZE(self):
+        gui_image_add_atlas("probe_walker_e", SHEET, 10, 20, 40, 60)
+        self.assertEqual(gui_image_mirror("probe_walker_e", "probe_w").get_size(), (30, 40))
+
+    def test_the_original_is_untouched_and_a_missing_key_is_none(self):
+        gui_image_add_atlas("probe_walker_e", SHEET, 10, 20, 40, 60)
+        gui_image_mirror("probe_walker_e", "probe_w")
+        self.assertEqual(ImageAtlas.all["probe_walker_e"].left, 10)
+        self.assertIsNone(gui_image_mirror("probe_nothing", "probe_nothing_w"))
+
+
 class FindingTheFileAgain(unittest.TestCase):
     """`self.file` is what the ENGINE is handed. Everything on this side that has to
     OPEN the art - the exists check behind "IMAGE NOT FOUND", and the header read that
@@ -172,6 +209,13 @@ class FindingTheFileAgain(unittest.TestCase):
         atlas = ImageAtlas(None, self.rel)
         self.assertEqual(os.path.normpath(atlas.local_file() + ".png"),
                          os.path.normpath(self.path))
+
+    def test_A_WHOLE_IMAGE_MIRRORS_BY_ITS_OWN_SIZE(self):
+        gui_image_add_atlas("probe_arrow", self.rel)
+        flipped = gui_image_mirror("probe_arrow", "probe_arrow_back")
+        self.assertEqual((flipped.left, flipped.top, flipped.right, flipped.bottom),
+                         (3, 0, 0, 2))
+        self.assertEqual(flipped.get_size(), (3, 2))
 
     def test_art_that_is_not_there_still_says_so(self):
         self.assertFalse(ImageAtlas(None, "media/probe/no_such_art").is_valid())

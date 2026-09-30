@@ -368,8 +368,10 @@ class ImageAtlas:
     def get_size(self):
         global _image_sizes
         if self.left is not None:
-            w = self.right - self.left
-            h = self.bottom - self.top
+            # abs: a MIRRORED cell runs backwards (see gui_image_mirror) and is still
+            # this big.
+            w = abs(self.right - self.left)
+            h = abs(self.bottom - self.top)
             return (w,h)
 
         # look in cache
@@ -502,7 +504,42 @@ Returns:
     ImageAtlas: The image Atlas object. This is a low level object typically used by the system 
 """
     return ImageAtlas(key, image, left, top, right, bottom, color, domain)
-    
+
+
+def gui_image_mirror(key, as_key, vertical=False):
+    """Register ``as_key`` as ``key`` drawn MIRRORED - left to right, or top to bottom.
+
+    The engine has no flip property, but it draws a picture backwards when its
+    ``sub_rect`` runs backwards (right < left, or bottom < top): measured with the
+    ``flip_probe`` mission. So one arrow can point both ways, and a figure drawn facing
+    east can also face west.
+
+    Args:
+        key (str): an image atlas key.
+        as_key (str): the key to register the mirrored picture under.
+        vertical (bool, optional): flip top to bottom instead of left to right.
+
+    Returns:
+        ImageAtlas: the new entry, or None when ``key`` is not registered or is a whole
+        image whose size cannot be read.
+    """
+    import copy
+    src = ImageAtlas.all.get(key)
+    if src is None:
+        return None
+    rect = (src.left, src.top, src.right, src.bottom)
+    if src.left is None:
+        size = src.get_size()
+        if not size or not size[0]:
+            return None
+        rect = (0, 0, size[0], size[1])
+    l, t, r, b = rect
+    out = copy.copy(src)
+    out.left, out.top, out.right, out.bottom = (l, b, r, t) if vertical else (r, t, l, b)
+    out.key = as_key
+    ImageAtlas.all[as_key] = out
+    return out
+
 
 _image_sizes = {}
 def gui_image_size(file):

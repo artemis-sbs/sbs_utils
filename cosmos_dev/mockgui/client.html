@@ -408,6 +408,12 @@ function _buildImageWidget(s) {
     if (!tex) return;
     const hasSub = s.sub_rect || s.sub_left !== undefined;
     if (hasSub) {
+      // _loadTex hands every widget of one FILE the same texture, so setting this one's
+      // repeat/offset on it moved every other cell of the sheet to this cell too. A
+      // clone shares the picture and keeps its own crop.
+      tex = tex.clone();
+      // A sub_rect that runs backwards comes out as a negative repeat, which draws the
+      // cell mirrored - as the engine does (flip_probe).
       const parts = s.sub_rect ? s.sub_rect.split(',').map(Number) : [0, 0, 1, 1];
       let sl = s.sub_left   !== undefined ? +s.sub_left   : parts[0];
       let st = s.sub_top    !== undefined ? +s.sub_top    : parts[1];
@@ -432,6 +438,11 @@ function _buildImageWidget(s) {
       const { r, g, b, a } = _parseColor(s.color);
       mat.color.setRGB(r, g, b);
       mat.opacity = a;
+    } else {
+      // No color at all: the engine tints the picture MAGENTA (flip_probe, 2026-09-30:
+      // white drew magenta, yellow drew red). The library always sends one; a raw send
+      // that forgets it should look as wrong here as it does on a bridge.
+      mat.color.setRGB(1, 0, 1);
     }
     mat.needsUpdate = true;
     doRender(lastW || wrapper.clientWidth, lastH || wrapper.clientHeight);
@@ -4087,6 +4098,15 @@ function placeRoot(el, left, top, right, bottom) {
   el.style.height = pct(bottom - top);
 }
 
+// The engine draws an IMAGE mirrored when its rect runs backwards - right < left, or
+// bottom < top (measured with the flip_probe mission). Place it by its true box and flip.
+function placeImage(el, left, top, right, bottom) {
+  const fx = right < left, fy = bottom < top;
+  placeRoot(el, Math.min(left, right), Math.min(top, bottom),
+            Math.max(left, right), Math.max(top, bottom));
+  el.style.transform = (fx || fy) ? `scale(${fx ? -1 : 1}, ${fy ? -1 : 1})` : '';
+}
+
 // ── clear ─────────────────────────────────────────────────────────────────────
 function _clearRegionChildren(parentTag) {
   for (const k of Object.keys(_regions)) {
@@ -4239,6 +4259,7 @@ function cmdWidget(msg) {
   el.style.zIndex = s.draw_layer || 1001;  // engine default is 1001
 
   const region = _regions[parent != null ? parent : ""] || _regions[""];
+  const place = cmd === 'image' ? placeImage : placeRoot;
 
   // In-place update: outside a rebuild, replace the existing element in the
   // region's live front buffer.
@@ -4249,6 +4270,7 @@ function cmdWidget(msg) {
       el.style.top    = existing.style.top;
       el.style.width  = existing.style.width;
       el.style.height = existing.style.height;
+      el.style.transform = existing.style.transform;
       existing.parentNode.replaceChild(el, existing);
       log(`  ~${cmd} tag=${tag} → region[${parent||'root'}] front (in-place)`, 'dbg');
       return;
@@ -4262,7 +4284,7 @@ function cmdWidget(msg) {
     // wearing, vanished here and duplicated on a real bridge. One defect cost three
     // engine round trips because every headless check agreed with code that could
     // not work. Showing the duplicate is the whole point.
-    placeRoot(el, left, top, right, bottom);
+    place(el, left, top, right, bottom);
     region.front.appendChild(el);
     log(`  +${cmd} tag=${tag} → region[${parent||'root'}] front (CREATED - no such tag here)`, 'warn');
     return;
@@ -4276,7 +4298,7 @@ function cmdWidget(msg) {
     el.style.width  = (right - left) + 'px';
     el.style.height = (bottom - top) + 'px';
   } else {
-    placeRoot(el, left, top, right, bottom);
+    place(el, left, top, right, bottom);
   }
 
   // 2D engine-view widgets have no visual content in the mockgui; instead register

@@ -61,7 +61,7 @@ from collections import deque
 
 from ..agent import Agent
 from .query import to_id
-from .tilemap_art import tilemap_sprite_cells
+from .tilemap_art import tilemap_sprite_cells, tilemap_sprite_twin
 
 # --- state ---------------------------------------------------------------------------
 #
@@ -378,8 +378,7 @@ def tilemap_cell_look(spec, x, y, area=None):
                 # Several looks for one mask (a cliff face in variants): a fixed pick by
                 # position, so a long cliff does not repeat the same face every cell.
                 looks = [v for v in look if v]
-                h = ((x * 73856093) ^ (y * 19349663)) >> 3
-                look = looks[h % len(looks)] if looks else None
+                look = looks[_cell_hash(x, y) % len(looks)] if looks else None
             if look:
                 return look
         if spec.get("shade") and y > 0:
@@ -391,8 +390,12 @@ def tilemap_cell_look(spec, x, y, area=None):
     looks = [v for v in (spec.get("variants") or []) if v] or [spec.get("cell")]
     if len(looks) == 1:
         return looks[0]
-    h = (x * 73856093) ^ (y * 19349663)
-    return looks[(h >> 3) % len(looks)]
+    return looks[_cell_hash(x, y) % len(looks)]
+
+
+def _cell_hash(x, y):
+    """A fixed number per cell: how a cell picks among variants, the same every time."""
+    return ((x * 73856093) ^ (y * 19349663)) >> 3
 
 
 def tilemap_kind_spec(area, kind):
@@ -664,10 +667,21 @@ def tilemap_set_tile(area, x, y, kind):
     return True
 
 
+def _body_key(rec):
+    """The sprite whose GROUND an actor stands on: its own, or the mirrored twin a still
+    prop is drawn with on this cell (see ``tilemap_sprite_look``)."""
+    key = rec["sprite"]
+    if key and rec.get("fixed"):
+        twin = tilemap_sprite_twin(key)
+        if twin and _cell_hash(rec["x"], rec["y"]) % 2:
+            return twin
+    return key
+
+
 def _covers(a, x, y):
     """Whether an actor record covers a cell: its own, or one under its sprite's base."""
     dx, dy = x - a["x"], y - a["y"]
-    return (dx == 0 and dy == 0) or (dx, dy) in tilemap_sprite_cells(a["sprite"])
+    return (dx == 0 and dy == 0) or (dx, dy) in tilemap_sprite_cells(_body_key(a))
 
 
 def _blocking_actor_at(area, x, y, ignore=None):
@@ -840,7 +854,7 @@ def tilemap_actor_cells(agent):
     if rec is None:
         return []
     return sorted((rec["x"] + dx, rec["y"] + dy)
-                  for dx, dy in tilemap_sprite_cells(rec["sprite"]))
+                  for dx, dy in tilemap_sprite_cells(_body_key(rec)))
 
 
 def tilemap_actor_distance(agent, x, y):
@@ -861,7 +875,7 @@ def tilemap_actors_near(agent, reach=1):
     return sorted(a for a, r in _ACTORS.items()
                   if a != to_id(agent) and r["area"] == me["area"]
                   and min(abs(r["x"] + dx - me["x"]) + abs(r["y"] + dy - me["y"])
-                          for dx, dy in tilemap_sprite_cells(r["sprite"])) <= reach)
+                          for dx, dy in tilemap_sprite_cells(_body_key(r))) <= reach)
 
 
 def _facing(dx, dy):
@@ -911,11 +925,15 @@ def tilemap_sprite_look(rec):
         <base>                              the one look everything has
 
     So a plain one-cell sprite draws exactly as it always did, and a set that only has
-    some of the looks falls back cell by cell rather than showing nothing.
+    some of the looks falls back cell by cell rather than showing nothing. A prop that
+    stands still (``fixed``) and has a mirrored twin (``"mirror": true``) is drawn as the
+    twin on about half the cells - the same cells every time.
     """
     base = rec.get("sprite")
     if not base:
         return None
+    if "x" in rec:
+        base = _body_key(rec)
     from .gui.image import ImageAtlas
     have = ImageAtlas.all
     if rec.get("pose"):
