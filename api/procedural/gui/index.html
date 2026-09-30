@@ -1626,6 +1626,8 @@
       
         
       
+        
+      
     
     
     
@@ -1751,6 +1753,34 @@
     
   
     Tile maps
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../build/ground-tile-maps/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Ground tile maps (experimental)
   
 
     
@@ -2352,7 +2382,7 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5_25" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5_26" >
         
           
           <div class="md-nav__link md-nav__container">
@@ -2374,14 +2404,14 @@
             </a>
             
               
-              <label class="md-nav__link " for="__nav_5_25" id="__nav_5_25_label" tabindex="0">
+              <label class="md-nav__link " for="__nav_5_26" id="__nav_5_26_label" tabindex="0">
                 <span class="md-nav__icon md-icon"></span>
               </label>
             
           </div>
         
-        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_5_25_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_5_25">
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_5_26_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5_26">
             <span class="md-nav__icon md-icon"></span>
             
   
@@ -3171,6 +3201,8 @@
       
         
       
+        
+      
     
     
     
@@ -3492,6 +3524,34 @@
     
   
     GUI Editor
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../tooling/tile-editor/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Tile Map Editor (experimental)
   
 
     
@@ -4940,6 +5000,34 @@
       
     </span>
   </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#sbs_utils.procedural.gui.section.PageRegion" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-class"></code>&nbsp;PageRegion
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label=" PageRegion">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#sbs_utils.procedural.gui.section.PageRegion.rebuild" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-method"></code>&nbsp;rebuild
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
   
 </li>
       
@@ -12849,6 +12937,34 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#sbs_utils.procedural.gui.section.PageRegion" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-class"></code>&nbsp;PageRegion
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label=" PageRegion">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#sbs_utils.procedural.gui.section.PageRegion.rebuild" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-method"></code>&nbsp;rebuild
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#sbs_utils.procedural.gui.section.PageSubSection" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -16376,6 +16492,77 @@ gui_input("", var="ship_name")</p>
 
 
 
+
+<div class="doc doc-object doc-class">
+
+
+
+<h2 id="sbs_utils.procedural.gui.section.PageRegion" class="doc doc-heading">
+            <code>PageRegion</code>
+
+
+</h2>
+
+
+    <div class="doc doc-contents ">
+
+
+
+        <p>A re-drawable area. REBUILDING ONE REUSES ITS TAGS.</p>
+<p>ENGINE-SEEN 2026-09-29 (xESS Act): a text area or listbox is its OWN engine
+sub-region, and clearing the parent region does not take old child sub-regions with
+it. Every rebuild made new ones under the next build-order tags, so the old ones
+stayed on screen underneath - the transcript was drawn once per rebuild, stacked, at
+whatever scroll each had. So after <code>rebuild()</code>, the next fill hands out tags derived
+from this region's own (stable) tag: each rebuild reuses the same sub-regions, which
+clear themselves before drawing. One the new fill no longer uses is blanked.</p>
+
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="sbs_utils.procedural.gui.section.PageRegion.rebuild" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">rebuild</span><span class="p">()</span></code>
+
+</h3>
+
+
+    <div class="doc doc-contents ">
+
+        <p>Empty the region for a fresh fill - which reuses the last fill's tags.</p>
+
+
+    </div>
+
+</div>
+
+
+
+  </div>
+
+    </div>
+
+</div>
 
 <div class="doc doc-object doc-class">
 
