@@ -161,6 +161,45 @@ class TestLayout(unittest.TestCase):
         self.assertEqual(sorted(rec["marks"]["entry"]), sorted(self.layout["entry"]))
 
 
+class TestDeckPreview(unittest.TestCase):
+    """What `sbs site` draws a ship deck from: the deck the game builds, as preview data -
+    its tiles, its rooms as marks, its furniture and doors as props."""
+
+    def setUp(self):
+        self.addCleanup(D.boarding_deck_clear)
+        from sbs_utils.procedural.tilemap_preview import tilemap_preview_deck
+        self.got = tilemap_preview_deck(PLAN)
+        self.layout = D.boarding_deck_layout(D.boarding_deck_plan_ascii(PLAN))
+
+    def test_it_is_the_deck_the_game_lays_out(self):
+        self.assertTrue(self.got["ok"], self.got.get("error"))
+        self.assertEqual(self.got["ship"], "test_ship")
+        self.assertEqual((self.got["area"]["w"], self.got["area"]["h"]),
+                         (self.layout["w"], self.layout["h"]))
+        self.assertEqual(self.got["tiles"], self.layout["tiles"])
+
+    def test_its_furniture_and_doors_stand_where_the_game_puts_them(self):
+        props = sorted((p["sprite"], p["cell"][0], p["cell"][1])
+                       for p in self.got["placements"] if p["display"] != "door")
+        self.assertEqual(props, sorted((s, x, y) for s, x, y, _ in self.layout["furniture"]))
+        doors = sorted(tuple(p["cell"]) for p in self.got["placements"]
+                       if p["display"] == "door")
+        self.assertEqual(doors, sorted(self.layout["doors"]))
+        self.assertTrue(all(p["kind"] == "prop" for p in self.got["placements"]))
+
+    def test_its_rooms_are_marks_and_the_hallway_is_not(self):
+        marks = self.got["marks"]
+        self.assertIn("room:crew-quarters", marks)
+        self.assertIn("entry", marks)
+        self.assertNotIn("room:hallway", marks)
+        self.assertNotIn("door", marks)
+
+    def test_a_plan_with_nothing_open_says_so(self):
+        from sbs_utils.procedural.tilemap_preview import tilemap_preview_deck
+        got = tilemap_preview_deck("ship: empty\nsize: 2x2\nlegend:\n  q: crew-quarters\n---\n")
+        self.assertFalse(got["ok"])
+
+
 class TestBuild(unittest.TestCase):
     def setUp(self):
         mock_sbs.create_new_sim()

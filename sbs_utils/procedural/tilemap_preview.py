@@ -208,7 +208,7 @@ def _sprite_look(sprites, base, facing="s", cell=None, fixed=False):
 
 
 def tilemap_preview(area_text, mission_root=None, sets=None, texts=None, world=None,
-                    amd_docs=None):
+                    amd_docs=None, things=None):
     """Everything a tool needs to draw one area file as the game would.
 
     Args:
@@ -218,6 +218,8 @@ def tilemap_preview(area_text, mission_root=None, sets=None, texts=None, world=N
         sets (list, optional): art set names; default ``tilemap_preview_sets``.
         texts (dict, optional): open buffers, ``{normcase(abspath): text}``.
         world (dict, optional): an already built ``tilemap_world``.
+        things (list, optional): more placements, in ``tilemap_placements``' shape - a
+            generated deck's furniture and doors (``tilemap_preview_deck``).
 
     Returns:
         dict: ``ok``, and on success ``area`` (key, title, tileset, w, h, entry), ``tiles``
@@ -290,6 +292,7 @@ def tilemap_preview(area_text, mission_root=None, sets=None, texts=None, world=N
 
     placements = tilemap_placements(rec["key"], amd_docs, dict(world, areas=dict(
         world.get("areas") or {}, **{rec["key"]: rec}))) if amd_docs else []
+    placements += [dict(t) for t in things or ()]
     for item in placements:
         # The game places a figure facing south and turns it as it walks; the other
         # facings are here so a tool can preview the art each way round.
@@ -359,6 +362,54 @@ def tilemap_preview_file(path, mission_root=None, sets=None):
                 except Exception:                        # noqa: BLE001
                     continue
     return tilemap_preview(text, mission_root, sets=sets, world=world, amd_docs=amd_docs)
+
+
+def _thing(key, name, sprite, cell):
+    return {"key": key, "display": name, "kind": "prop", "calm": False, "hidden": False,
+            "sprite": sprite, "color": None, "uri": None, "line": 0, "how": "at",
+            "mark": None, "cell": list(cell), "at": None, "patrol": [], "problems": []}
+
+
+def tilemap_preview_deck(plan_text, mission_root=None, sets=None, title=None):
+    """``tilemap_preview`` of the boarding deck the library generates from a ship's
+    interior plan (a ``.grid`` file) - the deck ``boarding_deck_build`` builds, with its
+    furniture and doors as ``placements`` (props) and its rooms as ``room:<name>`` marks.
+
+    Drawn with the mission's art sets and ``station``, whose looks decks are made of.
+    The result also carries ``ship`` (the plan's shipData key)."""
+    from . import boarding_deckplan as D
+    try:
+        plan = D.boarding_deck_plan_ascii(plan_text)
+    except Exception as e:                               # noqa: BLE001
+        return {"ok": False, "error": str(e)}
+    if not plan.get("cells"):
+        return {"ok": False, "error": "the plan has no open cell"}
+    layout = D.boarding_deck_layout(plan)
+    key = _norm(plan.get("ship") or "deck")
+    text = D.boarding_deck_text(layout, key, title or key, "deck")
+    world = {"tilesets": {"deck": {"name": "deck", "kinds": D.boarding_deck_kinds()}},
+             "areas": {}}
+    things = [_thing(f"kit_{n}", sprite.split(":", 1)[-1].replace("_", " "), sprite, (x, y))
+              for n, (sprite, x, y, _cell) in enumerate(layout["furniture"])]
+    for n, d in enumerate(sorted(layout["doors"], key=lambda t: (t[1], t[0]))):
+        side = layout["door_sides"].get(d, "front")
+        things.append(_thing(f"door_{n}", "door", D.DOOR_SPRITES[side][0], d))
+    if sets is None:
+        # The mission's own sets, then `station` - where deck art lives. `builtin` only
+        # when it is THIS mission's: the search would find a neighbor's.
+        own = os.path.isfile(os.path.join(mission_root or "", "media", "tileart", "builtin",
+                                          "manifest.json"))
+        sets = [n for n in (tilemap_preview_sets(mission_root) if mission_root else [])
+                if n != "builtin" or own]
+        if "station" not in sets:
+            sets.append("station")
+    out = tilemap_preview(text, mission_root, sets=sets, world=world, things=things)
+    if out.get("ok"):
+        out["marks"].update({m: sorted([list(c) for c in cells])
+                             for m, cells in layout["rooms"].items()
+                             if m.startswith("room:") and m != "room:hallway"})
+        out["ship"] = plan.get("ship")
+    return out
 
 
 def _look_key(look):

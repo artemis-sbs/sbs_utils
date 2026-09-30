@@ -2048,8 +2048,12 @@ sbs site MyMission --emit site --open
   a PDF of every map.
 - **A handout without spoilers.** `--profile player` leaves off hidden things, hostiles,
   patrols and every mark except the ways out.
+- **Every ship's deck, too.** Each ship with an interior plan gets a page showing the deck
+  a boarding party would walk: furnished rooms, each outlined and named, doors and the
+  way in. One **Every ship deck** page lists them all, 63 for LegendaryMissions alone.
 
-See [Maps](tooling/site.md#maps) and [Seeing a whole map](build/ground-tile-maps.md#seeing-a-whole-map).
+See [Maps](tooling/site.md#maps), [Ship decks](tooling/site.md#ship-decks) and [Seeing a
+whole map](build/ground-tile-maps.md#seeing-a-whole-map).
 
 ---
 

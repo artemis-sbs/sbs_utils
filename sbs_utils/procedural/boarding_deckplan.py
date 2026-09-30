@@ -544,10 +544,9 @@ def boarding_deck_text(layout, key, title=None, tileset="deck"):
     return "\n".join(lines) + "\n"
 
 
-def boarding_deck_tileset(name="deck"):
-    """Declare the tileset generated decks use: every look the kits name is a kind of
-    the same name, walls and hull tall and closed. Returns its name."""
-    from .tilemap import tilemap_tileset
+def boarding_deck_kinds():
+    """The tile kinds generated decks use: every look the kits name is a kind of the same
+    name, walls and hull closed - ``{kind: {walk, see, look}}``."""
     looks = {HULL, WALL, DOOR, HALL}
     for kind in set(_KITS) | set(_OVERRIDES):
         looks.add(boarding_deck_kit_for(kind).get("floor", "floor_metal"))
@@ -555,7 +554,14 @@ def boarding_deck_tileset(name="deck"):
     for look in looks:
         closed = look in (HULL, WALL)
         kinds[look] = {"walk": not closed, "see": not closed, "look": look}
-    tilemap_tileset(name, kinds)
+    return kinds
+
+
+def boarding_deck_tileset(name="deck"):
+    """Declare the tileset generated decks use (``boarding_deck_kinds``). Returns its
+    name."""
+    from .tilemap import tilemap_tileset
+    tilemap_tileset(name, boarding_deck_kinds())
     return name
 
 

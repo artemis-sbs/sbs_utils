@@ -125,6 +125,20 @@ sbs site MyMission --emit site --open
 sbs site MyMission --emit site --profile player --maps-pdf -o handout
 ```
 
+### Ship decks
+
+Every ship interior plan the mission has (a `.grid` file with a `ship:` line) also gets
+a page: the deck a [boarding party](../build/ground-tile-maps.md#a-ships-deck-drawn-for-you)
+would walk, generated from the plan the same way the game generates it. Its rooms are
+outlined and named, and it is furnished, with walls, doors and the way in. The decks are
+drawn with the `station` art set.
+
+There can be a hundred of them (LegendaryMissions has 63), so the menu gets one entry,
+**Every ship deck**: a table of every ship with its size and number of rooms, linking to
+each deck.
+
+The output folder, `__site__` by default, is build output: the mission repos ignore it.
+
 ## Faces
 
 A `face://` spec is a layer stack over a race atlas, composited at display time on a

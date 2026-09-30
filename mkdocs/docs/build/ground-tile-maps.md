@@ -347,3 +347,4 @@ walker. To see a whole map at once:
 | Working on it | The Tile Map Editor, zoomed out: the `-` button or key, or Ctrl+wheel, down to 8 pixels a tile. |
 | Reading or sharing it | `sbs site <mission> --emit site`: a page per map, with the real art, linked to the records on it ([Maps](../tooling/site.md#maps)). |
 | Paper or a PDF | Print a map page, or add `--maps-pdf` to write one PDF per map. `--profile player` leaves the secrets off. |
+| A ship's boarding deck | The same `sbs site` build: every ship interior plan gets a deck page, listed under **Every ship deck** ([Ship decks](../tooling/site.md#ship-decks)). |
