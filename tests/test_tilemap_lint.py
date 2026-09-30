@@ -405,3 +405,85 @@ class TestPlacementsForTheEditor(TileLintBase):
         sprites = {"fig:a": 1, "fig:a_s_idle": 1, "fig:b_s": 1, "prop:c": 1}
         self.assertEqual([_sprite_look(sprites, k) for k in ("fig:a", "fig:b", "prop:c", "x")],
                          ["fig:a_s_idle", "fig:b_s", "prop:c", None])
+
+
+class TestTilesetPreviewForTheEditor(unittest.TestCase):
+    """What the tileset editor shows: the looks the art sets offer, the art each kind
+    ends up wearing, and how many cells of the areas use each kind."""
+
+    def setUp(self):
+        import json
+        self.root = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, self.root)
+        os.makedirs(os.path.join(self.root, "surface"))
+        os.makedirs(os.path.join(self.root, "media", "tileart", "builtin"))
+        for name, text in (("story.json", "{}"), ("surface/test.tileset", TILESET),
+                           ("surface/ridge.tiles", RIDGE), ("surface/colony.tiles", COLONY)):
+            with open(os.path.join(self.root, name), "w", encoding="utf-8") as fh:
+                fh.write(text)
+        with open(os.path.join(self.root, "media", "tileart", "builtin", "manifest.json"), "w") as fh:
+            json.dump({"sheets": {"s": "s.png"},
+                       "sprites": {"g:dirt": {"sheet": "s", "rect": [0, 0, 64, 64]},
+                                   "g:sand0": {"sheet": "s", "rect": [64, 0, 128, 64]},
+                                   "fig:a_s_idle": {"sheet": "s", "rect": [0, 64, 64, 128]},
+                                   "fig:a_e_idle": {"sheet": "s", "rect": [64, 64, 128, 128]}},
+                       "ground": {"dirt": {"cell": "g:dirt"},
+                                  "sand": {"grid": ["g:sand0", "g:sand1"], "tall": True}}}, fh)
+
+    def preview(self, text=TILESET):
+        from sbs_utils.procedural.tilemap_preview import tilemap_tileset_preview
+        return tilemap_tileset_preview(text, self.root)
+
+    def test_the_looks_on_offer_each_with_a_picture(self):
+        looks = self.preview()["looks"]
+        self.assertEqual(sorted(looks), ["dirt", "sand"])
+        self.assertEqual((looks["dirt"]["key"], looks["sand"]["key"]), ("g:dirt", "g:sand0"))
+        self.assertTrue(looks["sand"]["tall"])
+
+    def test_a_kind_with_no_art_says_so(self):
+        art = self.preview(TILESET.replace("look=dust", "look=dirt"))["art"]
+        self.assertEqual(art["dirt"], "g:dirt")
+        self.assertIsNone(art["rock"])               # no set has a `rock` look
+
+    def test_usage_counts_cells_in_the_areas_that_use_it(self):
+        r = self.preview(TILESET.replace("tileset: Filed", "tileset: test"))
+        self.assertEqual(r["areas"], ["colony", "ridge"])
+        self.assertEqual(r["usage"]["rock"], 16 + 12)   # ridge 6x4 ring, colony 5x3 ring
+        self.assertEqual(r["usage"]["water"], 1)
+
+    def test_a_broken_file_still_lists_the_looks(self):
+        r = self.preview("tileset: t\nkinds:\n  dirt: wlak\n")
+        self.assertFalse(r["ok"])
+        self.assertIn("wlak", r["error"])
+        self.assertIn("dirt", r["looks"])
+
+    def test_placements_carry_every_facing(self):
+        from sbs_utils.procedural.amd_core import parse
+        from sbs_utils.procedural.tilemap_preview import tilemap_preview
+        world_text = WORLD.replace("Sprite: prop:drone", "Sprite: fig:a")
+        r = tilemap_preview(RIDGE, self.root,
+                            amd_docs=[("file:///w.amd", parse(world_text), world_text)])
+        drone = next(p for p in r["placements"] if p["key"] == "drone")
+        self.assertEqual(drone["looks"], {"n": None, "e": "fig:a_e_idle", "s": "fig:a_s_idle", "w": None})
+        self.assertEqual(drone["look"], "fig:a_s_idle")
+        self.assertIn("fig:a_e_idle", r["sprites"])
+
+
+class TestTilesetOverTheServer(unittest.TestCase):
+    """`tiles/tilesetPreview` through the real server loop, on the same small mission."""
+
+    setUp = TestLanguageServer.setUp
+    drive = TestLanguageServer.drive
+    uri = TestLanguageServer.uri
+
+    def test_the_tileset_editor_gets_its_table(self):
+        got = self.drive([
+            {"jsonrpc": "2.0", "id": 9, "method": "tiles/tilesetPreview", "params": {
+                "textDocument": {"uri": self.uri("surface/test.tileset")},
+                "text": TILESET.replace("tileset: Filed", "tileset: test")}},
+            {"jsonrpc": "2.0", "method": "exit"}])
+        res = next(m for m in got if m.get("id") == 9)["result"]
+        self.assertTrue(res["ok"])
+        self.assertEqual(res["art"]["dirt"], "g:dirt")
+        self.assertEqual(res["usage"]["dirt"], 7 + 3)       # ridge, and colony's r
+        self.assertEqual(res["problems"], [])

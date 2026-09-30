@@ -274,10 +274,14 @@ def tilemap_preview(area_text, mission_root=None, sets=None, texts=None, world=N
     placements = tilemap_placements(rec["key"], amd_docs, dict(world, areas=dict(
         world.get("areas") or {}, **{rec["key"]: rec}))) if amd_docs else []
     for item in placements:
-        item["look"] = _sprite_look(sprites, item["sprite"]) if item["sprite"] else None
+        # The game places a figure facing south and turns it as it walks; the other
+        # facings are here so a tool can preview the art each way round.
+        item["looks"] = {f: _sprite_look(sprites, item["sprite"], f) for f in "nesw"} \
+            if item["sprite"] else {}
+        item["look"] = item["looks"].get("s")
 
     drawn = {k for row in looks for k in row if k} | {k for _, _, ks in fringes for k in ks} \
-        | {p["look"] for p in placements if p["look"]}
+        | {k for p in placements for k in p["looks"].values() if k}
     exits = dict(rec["exits"])
     for mark in rec["marks"]:
         if mark.startswith("to_") and mark not in exits:
@@ -305,3 +309,74 @@ def tilemap_preview(area_text, mission_root=None, sets=None, texts=None, world=N
         "areas": sorted(world.get("areas") or {}),
         "placements": placements,
     }
+
+
+def _look_key(look):
+    """The one sprite that stands for a ground look in a list: its cell, else the first
+    piece of its grid or variants."""
+    if not isinstance(look, dict):
+        return None
+    for field in ("cell", "grid", "variants"):
+        v = look.get(field)
+        if isinstance(v, (list, tuple)):
+            v = next((x for x in v if x), None)
+        if v:
+            return v
+    return None
+
+
+def tilemap_tileset_preview(text, mission_root=None, sets=None, world=None):
+    """Everything a tool needs to edit one ``.tileset`` file: its kinds as written, every
+    ground look the mission's art sets offer (with a sprite to show for each), and how
+    many cells of each kind the mission's areas use.
+
+    Returns:
+        dict: ``ok``/``error``; ``name``, ``title``, ``kinds`` ({kind: rules}), ``lines``
+        ({kind: 0-based line}), ``looks`` ({look: {key, tall, over, fringe, edges}}),
+        ``art`` ({kind: sprite key or None - None means no art set draws it}),
+        ``usage`` ({kind: cells}), ``areas`` (the areas that use this tileset),
+        ``sprites``, ``sets``, ``missing``.
+    """
+    try:
+        rec = T.tilemap_tileset_parse(text)
+        error = None
+    except TilemapError as e:
+        rec, error = None, str(e)
+    names = list(sets) if sets else tilemap_preview_sets(mission_root) if mission_root \
+        else ["builtin"]
+    sprites, grounds, found, missing = _load_sets(mission_root, names)
+    looks = {}
+    for ground in grounds:                       # later sets win, look by look
+        for name, look in ground.items():
+            if isinstance(look, dict):
+                looks.setdefault(_norm(name), {}).update(look)
+    looks_out = {name: {"key": _look_key(look), "tall": bool(look.get("tall")),
+                        "over": look.get("over"), "fringe": bool(look.get("fringe")),
+                        "edges": bool(look.get("edges"))}
+                 for name, look in sorted(looks.items())}
+    out = {"ok": rec is not None, "error": error, "looks": looks_out,
+           "sets": found, "missing": missing}
+    if rec is None:
+        out["sprites"] = {}
+        return out
+    art = {}
+    for kind, spec in rec["kinds"].items():
+        look = looks_out.get(_norm(spec.get("look") or kind))
+        art[kind] = (look or {}).get("key") or spec.get("cell")
+    if world is None:
+        world = tilemap_world(mission_root) if mission_root else {"areas": {}}
+    usage, areas = {}, []
+    for key, area in (world.get("areas") or {}).items():
+        if area["tileset"] != rec["name"]:
+            continue
+        areas.append(key)
+        for row in area["tiles"]:
+            for kind in row:
+                if kind:
+                    usage[kind] = usage.get(kind, 0) + 1
+    drawn = {k for k in art.values() if k} | {v["key"] for v in looks_out.values() if v["key"]}
+    out.update({"name": rec["name"], "title": rec["title"], "kinds": rec["kinds"],
+                "lines": {k: n - 1 for k, n in rec["lines"].items()},
+                "art": art, "usage": usage, "areas": sorted(areas),
+                "sprites": {k: v for k, v in sprites.items() if k in drawn}})
+    return out

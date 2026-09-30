@@ -15,7 +15,7 @@ It is part of the **Artemis AMD** VS Code extension.
 ## Open it
 
 Open any `.tiles` file and it opens in the editor. **Text** on the toolbar switches to the
-plain text editor. To come back, use **Open in Tile Map Editor** on a `.tiles` text
+plain text editor. To come back, use **Open in Tile Map / Tileset Editor** on a `.tiles` text
 editor's title bar.
 
 The editor needs the **AMD language server**, the same one that checks `.amd` files, for
@@ -31,7 +31,7 @@ colored by kind.
 | **Fill** | `F` | Fills the region the clicked cell belongs to. |
 | **Pick** | `I` | Picks the clicked cell's legend entry. **Alt+click** does it with any tool. |
 | **Entry** | `E` | Sets `entry:`, where a party beamed down stands. |
-| **Move** | `M` | Drags a prop, person or hostile, or one point of a patrol, to a new cell (see [Things](#things-props-people-and-hostiles)). A click without a drag opens it in the AMD Inspector. |
+| **Move** | `M` | Drags a prop, person or hostile (or the mark it stands on), or one point of a patrol, to a new cell (see [Things](#things-props-people-and-hostiles)). A click without a drag opens it in the AMD Inspector. |
 
 **The legend is the palette.** Click an entry to paint with it. Double-click it to change
 its kind or mark. **+ Entry** adds one: pick a kind (the tileset's kinds are offered), an
@@ -78,18 +78,25 @@ Inspector.
 
 With the **Move** tool:
 
-- **Drag** a thing placed by `At:` to rewrite its `At: x, y`.
+- **Drag** a thing placed by `At:` to rewrite its `At: x, y` in the `.amd`.
 - **Drag** a patrol point to rewrite that one point of `Patrol:`.
+- **Drag** a thing placed by `Mark:` to move **the mark**. The mark keeps its whole shape
+  and each cell keeps its own character. Everything else standing on that mark, and any
+  scene that belongs to it, moves with it. The cells it leaves become plain ground of
+  the same kind, or the ground around them if the legend has no plain character for
+  that kind.
 - **Click** without dragging to open the thing in the Inspector.
 
-A thing placed by `Mark:` does not drag, because the mark *is* the place and a scene may
-belong to it too. Paint that mark somewhere else and the thing follows.
-
-A move edits the **`.amd`**, not this file, so the editor's own undo cannot reach it. Use
+Moving a mark edits **this file**, so the editor's own undo covers it. Moving an `At:` or
+a patrol point edits the **`.amd`**, which the editor's undo cannot reach. For those, use
 **Undo move** on the toolbar, which puts back the last move while the text is still what
 the move left. If the `.amd` had no unsaved changes, a move saves it again, so a drag
 does not leave a file dirty in the background. If you have unsaved edits there, they are
 left for you to save.
+
+**Face S** cycles the figures through S, W, N and E, to preview a set's art each way
+round. It only changes the preview. The game places everyone facing south and turns
+them as they walk.
 
 ## What it writes
 
@@ -97,7 +104,22 @@ The text file is the map. A stroke rewrites **only the rows it changed**, so com
 the header and the legend's spacing are left alone, and each stroke is one step of undo.
 A row's trailing blanks are dropped, because they mean *nothing* anyway.
 
-## Not yet
+## The Tileset Editor
 
-- `.tileset` files get syntax highlighting and checks, but no visual editor.
-- Figures are drawn facing south and standing still.
+Open a `.tileset` file and it opens as the **Tileset Editor**. Each row is one kind, with:
+
+- a picture of the look it wears, from the mission's art sets, tinted by its `color=`
+- **Walk**, **See** and **Tall** checkboxes
+- its **Look**, with the art sets' looks offered as you type; a look no art set draws is
+  outlined in red
+- its **Tint** and **Over**
+- **Cells**: how many cells of the mission's areas are drawn with it
+
+Below the table is every look the art sets offer. Select a kind, then click a look to put
+it on. **+ Kind** adds a kind that can be walked and seen across. **x** removes a kind,
+and one that is still drawn somewhere takes a second click. Renaming a kind changes it
+only here, so the status line says how many cells of the areas still use the old name.
+Those areas' legends then show up as problems until they are updated.
+
+Each edit rewrites one line. It is lined up with the file's own columns, so a file
+laid out in columns stays that way.

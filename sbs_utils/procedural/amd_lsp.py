@@ -408,6 +408,16 @@ def _tiles_preview(uri, text, docs, sets=None):
     return out
 
 
+def _tileset_preview(uri, text, docs, sets=None):
+    """`tiles/tilesetPreview`: a .tileset's kinds, the looks the art sets offer, and how
+    much of each kind the mission's areas use - for the tileset editor."""
+    from sbs_utils.procedural.tilemap_preview import tilemap_tileset_preview
+    root, world = _tile_world(uri, docs)
+    out = tilemap_tileset_preview(text, root, sets=sets or None, world=world)
+    out["problems"] = _tile_diagnostics(uri, text, docs)
+    return out
+
+
 def _publish(stdout, uri, text, docs):
     try:
         if _is_mast(uri):
@@ -1875,6 +1885,15 @@ def serve(stdin=None, stdout=None):
                 _write_message(stdout, {"jsonrpc": "2.0", "id": mid,
                                         "result": _tiles_preview(uri, text, docs,
                                                                  p.get("sets"))})
+            elif method == "tiles/tilesetPreview":
+                p = msg.get("params", {})
+                uri = p.get("textDocument", {}).get("uri", "")
+                text = p.get("text")
+                if text is None:
+                    text = docs.get(uri) or _read(_uri_to_path(uri)) or ""
+                _write_message(stdout, {"jsonrpc": "2.0", "id": mid,
+                                        "result": _tileset_preview(uri, text, docs,
+                                                                   p.get("sets"))})
             elif method == "textDocument/didClose":
                 uri = msg.get("params", {}).get("textDocument", {}).get("uri", "")
                 docs.pop(uri, None)

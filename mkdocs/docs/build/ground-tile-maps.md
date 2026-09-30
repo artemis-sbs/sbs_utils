@@ -266,4 +266,6 @@ The same findings appear as squiggles in VS Code while you type (Artemis AMD ext
 
 The **Tile Map Editor** in VS Code paints `.tiles` files and shows them with the
 mission's own art, as the game draws them. It also shows the props, people and hostiles
-the `.amd` places on the area, and you can drag them (and patrol points) into place. See [Tile Map Editor](../tooling/tile-editor.md).
+the `.amd` places on the area, and you can drag them (and patrol points) into place. A
+`.tileset` file opens in the **Tileset Editor**, a table of its kinds with each look's
+picture. See [Tile Map Editor](../tooling/tile-editor.md).
