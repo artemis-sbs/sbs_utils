@@ -266,6 +266,19 @@ def boarding_props(area=None):
     return sorted(k for k, r in _PROPS.items() if area is None or r["area"] == _norm(area))
 
 
+def boarding_prop_is_scenery(rec):
+    """True for a prop with nothing to it - no scene, item, lock, need or description.
+
+    Scenery furnishes a map (a bunk, a console bank, a barrel) and blocks like any prop,
+    but nothing lists it or offers to use it, and a click on it walks toward it."""
+    if isinstance(rec, str):
+        rec = _PROPS.get(_norm(rec))
+    if rec is None:
+        return False
+    return not (rec.get("scene") or rec.get("item") or rec.get("opens")
+                or rec.get("needs") or rec.get("desc"))
+
+
 def boarding_prop_at(area, x, y):
     from .tilemap import tilemap_actors_at
     for aid in tilemap_actors_at(area, x, y):
@@ -275,14 +288,14 @@ def boarding_prop_at(area, x, y):
 
 
 def boarding_props_near(lifeform, reach=1):
-    """Props within ``reach`` of this character, nearest first."""
+    """Props within ``reach`` of this character, nearest first. Scenery is left out."""
     from .tilemap import tilemap_where
     at = tilemap_where(lifeform)
     if at is None:
         return []
     out = []
     for key, rec in _PROPS.items():
-        if rec["id"] is None or rec["area"] != at[0]:
+        if rec["id"] is None or rec["area"] != at[0] or boarding_prop_is_scenery(rec):
             continue
         p = tilemap_where(rec["id"])
         if p is None:
@@ -457,8 +470,8 @@ def boarding_prop_click(client_id, area, x, y):
     from .boarding import boarding_me
     from .tilemap import tilemap_where, tilemap_walk, tilemap_path, tilemap_is_open
     key = boarding_prop_at(area, x, y)
-    if key is None:
-        return False
+    if key is None or boarding_prop_is_scenery(key):
+        return False                       # not a prop to use: the click walks there
     rec = _PROPS[key]
     lf = boarding_me(client_id)
     at = tilemap_where(lf)

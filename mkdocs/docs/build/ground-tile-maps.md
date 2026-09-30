@@ -174,6 +174,22 @@ Sprite: fig:glassback
 A mark name goes in `Mark:`, never in `At:`. `At:` reads coordinates only, so a word
 there reads as nothing and the prop is never placed.
 
+A prop with nothing to it (no `Scene:`, `Item:`, `Opens with:`, `Needs:` and no
+description) is **scenery**: bunks, console banks, barrels, whatever furnishes a room.
+It is drawn and `Blocks:` like any prop, but the Look list and the list of things further
+off leave it out, it never gets a badge, and a click on it walks toward it instead of
+using it. Give a prop one line of description and it becomes something to look at.
+
+```
+### [Bunk](gnaw_bunk)
+---
+Area: gnaw
+At: 8, 5
+Sprite: prop:bunk
+Blocks: yes
+---
+```
+
 ## Checking your maps
 
 `sbs lint` checks area files, tileset files, and every placement in the mission's `.amd`.

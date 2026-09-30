@@ -222,6 +222,49 @@ class TestProps(GroundBase):
         self.assertTrue(dialogue_guard_ok("skill engineering >= 2", lf, None))
 
 
+class TestScenery(GroundBase):
+    """A prop with nothing to it furnishes the map: it blocks, but nothing offers it."""
+
+    def setUp(self):
+        super().setUp()
+        P.boarding_props_declare({"children": PROPS["children"] + [
+            {"key": "bunk", "display_text": "Bunk", "description": "",
+             "data": {"area": "yard", "at": "4, 1", "sprite": "g:rock", "blocks": "yes"}},
+        ]})
+        P.boarding_props_place()
+        self.down()
+
+    def test_only_a_prop_with_nothing_to_it_is_scenery(self):
+        self.assertTrue(P.boarding_prop_is_scenery("bunk"))
+        for key in ("crate", "door", "coil"):     # description, lock, item
+            self.assertFalse(P.boarding_prop_is_scenery(key), key)
+
+    def test_scenery_blocks(self):
+        self.assertFalse(T.tilemap_is_open("yard", 4, 1))
+
+    def test_look_does_not_offer_it(self):
+        T.tilemap_place(self.bodies[CID], "yard", 4, 2)   # beside the bunk and the crate
+        near = P.boarding_props_near(self.bodies[CID], 1)
+        self.assertIn("crate", near)
+        self.assertNotIn("bunk", near)
+
+    def test_nothing_badges_or_lists_it(self):
+        from sbs_utils.procedural.boarding_hints import (boarding_hints,
+                                                          boarding_points_of_interest)
+        self.assertNotIn((4, 1), boarding_hints(CID, "yard"))
+        keys = [t[1] for t in boarding_points_of_interest(CID)]
+        self.assertIn("crate", keys)
+        self.assertNotIn("bunk", keys)
+
+    def test_a_click_on_it_walks_rather_than_uses(self):
+        self.click(4, 1)
+        self.advance(3)
+        at = BT.boarding_tile_where(CID)
+        self.assertEqual(abs(at[1] - 4) + abs(at[2] - 1), 1)
+        used = [d["BOARDING_PROP"] for n, d in self.seen if n == "boarding_interacted"]
+        self.assertNotIn("bunk", used)
+
+
 class TestChecksInDialogue(GroundBase):
     SCENES = {
         "fix": {"key": "fix", "display_text": "fix", "data": {},

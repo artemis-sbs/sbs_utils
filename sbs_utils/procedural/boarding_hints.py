@@ -172,9 +172,9 @@ def boarding_points_of_interest(client_id, reach=1):
     """What this crew member can see that is worth walking to, nearest first:
     ``[(kind, key, name, distance, bearing, hint)]``. ``kind`` is ``prop`` or ``talk``;
     ``hint`` is ``lead``, ``new`` or ``""``. Things already within ``reach`` are left
-    out - the Look app lists those as buttons already."""
+    out - the Look app lists those as buttons already. Scenery is never listed."""
     from .boarding import boarding_me
-    from .boarding_props import _PROPS
+    from .boarding_props import _PROPS, boarding_prop_is_scenery
     from .boarding_combat import _HOSTILES
     from .tilemap import tilemap_where, tilemap_visible, tilemap_area
     me = boarding_me(client_id)
@@ -205,7 +205,7 @@ def boarding_points_of_interest(client_id, reach=1):
 
     for key, prop in _PROPS.items():
         if prop["id"] is not None and prop["area"] == area and prop["shown"] \
-                and not prop["taken"]:
+                and not prop["taken"] and not boarding_prop_is_scenery(prop):
             add("prop", key, prop["name"], prop["id"])
     for key, person in _HOSTILES.items():
         if person.get("talk") and person.get("id") is not None \
