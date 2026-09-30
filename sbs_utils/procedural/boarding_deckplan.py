@@ -644,8 +644,9 @@ def boarding_deck_crew_sprites(ship_key):
     """The figures a hull's crew is drawn as."""
     return list(DAMCON_SPRITES or RACE_CREWS[boarding_deck_race(ship_key)])
 DAMAGED_TINT = "#666"
-#: The two frames a shorted system's sparks flip between.
+#: The two frames a shorted system's sparks flip between, and a burning room's fire.
 SPARKS = ("prop:sparks", "prop:sparks_b")
+FIRE = ("prop:fire", "prop:fire_b")
 
 
 def _grid_state(ship):
@@ -671,8 +672,8 @@ def _grid_state(ship):
 
 def boarding_deck_sync(area, ship):
     """Show a ship's state on the deck built from it: a damaged node's kit goes dark
-    with rubble beside it (and sparks, for a system), a repaired one comes back, and each
-    damage-control team
+    with rubble beside it - sparks by a system, fire in any other room - a repaired one
+    comes back, and each damage-control team
     stands - and walks - where Engineering has it. Call it when things change, or let
     ``boarding_deck_watch`` call it every second. Returns how many things changed."""
     from .tilemap import (tilemap_place, tilemap_where, tilemap_walk, tilemap_remove,
@@ -740,14 +741,15 @@ def boarding_deck_sync(area, ship):
                 boarding_props_place(area)
                 rubble[cell] = key
                 changed += 1
-            # A system that is hit shorts out: sparks by its kit, flickering.
-            if kit and len(free) > 1:
-                key = f"{area}_sparks_{cell[0]}_{cell[1]}"
-                boarding_prop_add(key, area, free[1], sprite=SPARKS[0], blocks=False,
-                                  name="sparks")
+            # A system that is hit shorts out and sparks; any other room burns.
+            if len(free) > 1:
+                frames = SPARKS if kit else FIRE
+                key = f"{area}_{'sparks' if kit else 'fire'}_{cell[0]}_{cell[1]}"
+                boarding_prop_add(key, area, free[1], sprite=frames[0], blocks=False,
+                                  name="sparks" if kit else "fire")
                 boarding_props_place(area)
                 sparks[cell] = key
-                rec["flicker"][key] = SPARKS
+                rec["flicker"][key] = frames
         elif not broken and cell in rubble:
             boarding_prop_forget(rubble.pop(cell))
             if cell in sparks:

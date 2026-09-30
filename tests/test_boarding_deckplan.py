@@ -241,6 +241,13 @@ class TestTheLiveShip(unittest.TestCase):
         self.assertIsNone(P.boarding_prop(key))
         self.assertNotIn(key, D._DECKS[self.area]["flicker"])
 
+    def test_a_damaged_room_that_is_not_a_system_burns(self):
+        self.state = [(902, 0, 0, True, False, None)]            # crew quarters
+        D.boarding_deck_sync(self.area, self.SHIP)
+        key = D._DECKS[self.area]["sparks"][(0, 0)]
+        self.assertEqual(P.boarding_prop(key)["sprite"], D.FIRE[0])
+        self.assertEqual(D._DECKS[self.area]["flicker"][key], D.FIRE)
+
     def test_nothing_changes_when_nothing_did(self):
         self.state = [(901, 4, 0, True, False, None)]
         D.boarding_deck_sync(self.area, self.SHIP)
