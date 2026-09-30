@@ -16,8 +16,9 @@ import os
 import re
 
 from . import tilemap as T
-from .tilemap_lint import _scan, tilemap_area_lenient, tilemap_world
-from .tilemap import TilemapError, tilemap_parse, _norm
+from .tilemap_lint import (_PLACED, _fields, _scan, tilemap_area_lenient,
+                           tilemap_lint_placements, tilemap_world)
+from .tilemap import TilemapError, tilemap_parse, _norm, _xy
 
 
 def tilemap_preview_find_set(mission_root, name):
@@ -100,14 +101,97 @@ def _load_sets(mission_root, names):
             if not sheet or not spec.get("rect"):
                 continue
             path = os.path.join(folder, sheet if str(sheet).endswith(".png") else sheet + ".png")
+            cells = spec.get("cells") or (1, 1)
+            anchor = spec.get("anchor") or (0.5, 1.0)
             sprites[key] = {"sheet": os.path.abspath(path), "rect": list(spec["rect"]),
-                            "color": spec.get("color")}
+                            "color": spec.get("color"),
+                            "cells": [float(cells[0]), float(cells[1])],
+                            "anchor": [float(anchor[0]), float(anchor[1])]}
         grounds.append(m.get("ground") or {})
         found.append({"name": name, "folder": os.path.abspath(folder)})
     return sprites, grounds, found, missing
 
 
-def tilemap_preview(area_text, mission_root=None, sets=None, texts=None, world=None):
+def _truthy(value):
+    return str(value or "").strip().lower() in ("yes", "true", "1")
+
+
+def tilemap_placements(area, amd_docs, world=None):
+    """Every prop, person and hostile a mission's AMD stands on one area, with WHERE in
+    the ``.amd`` each position is written - so a tool can draw them and move them.
+
+    Args:
+        area (str): the area key.
+        amd_docs: ``[(uri, parsed amd_core document, text)]`` - the mission's .amd files.
+        world (dict, optional): ``tilemap_world``, for the lint findings attached to each.
+
+    Returns:
+        list: one dict per placement - ``key``, ``display``, ``kind`` (prop/hostile),
+        ``calm``, ``hidden``, ``sprite``, ``color``, ``uri``, ``line`` (the heading,
+        0-based), ``how`` (mark/at/None), ``mark``, ``cell`` ([x, y] or None), ``at``
+        (the ``At:`` value's range: line, start, end - 0-based, end exclusive),
+        ``patrol`` ([{x, y, line, start, end}]) and ``problems`` (lint messages).
+    """
+    area = _norm(area)
+    rec = ((world or {}).get("areas") or {}).get(area)
+    out = []
+    for uri, doc, text in amd_docs or ():
+        findings = tilemap_lint_placements(text, world, doc=doc) if world else []
+        for node in doc.nodes:
+            if node.kind not in _PLACED:
+                continue
+            f = _fields(node)
+            if "area" not in f or _norm(f["area"][2]) != area:
+                continue
+            lines = {n for n, _raw in node.fence_lines}
+            item = {"key": node.key, "display": node.display or node.key, "kind": node.kind,
+                    "calm": _truthy(f.get("calm", (0, 0, ""))[2]),
+                    "hidden": bool(f.get("hidden until", (0, 0, ""))[2]),
+                    "sprite": f.get("sprite", (0, 0, ""))[2] or None,
+                    "color": f.get("color", (0, 0, ""))[2] or None,
+                    "uri": uri, "line": (node.span.line - 1) if node.span else 0,
+                    "how": None, "mark": None, "cell": None, "at": None, "patrol": [],
+                    "problems": [x.message for x in findings if x.line in lines]}
+            if "mark" in f:
+                item["how"], item["mark"] = "mark", _norm(f["mark"][2])
+                cells = sorted((rec or {}).get("marks", {}).get(item["mark"], ()))
+                item["cell"] = list(cells[0]) if cells else None
+            elif "at" in f:
+                n, col, value = f["at"]
+                item["how"] = "at"
+                item["at"] = {"line": n - 1, "start": col, "end": col + len(value)}
+                cell = _xy(value)
+                item["cell"] = list(cell) if cell else None
+            if "patrol" in f:
+                n, col, value = f["patrol"]
+                raw = dict(node.fence_lines).get(n, "")
+                pos = col
+                for chunk in value.replace(";", "  ").split("  "):
+                    chunk = chunk.strip()
+                    pt = _xy(chunk)
+                    if not chunk or pt is None:
+                        continue
+                    c = raw.find(chunk, pos)
+                    if c < 0:
+                        continue
+                    pos = c + len(chunk)
+                    item["patrol"].append({"x": pt[0], "y": pt[1], "line": n - 1,
+                                           "start": c, "end": c + len(chunk)})
+            out.append(item)
+    return out
+
+
+def _sprite_look(sprites, base, facing="s"):
+    """The key a figure is drawn with standing still - the same fallbacks the game uses
+    (``tilemap_sprite_look``): a facing's idle frame, the facing, then the base key."""
+    for k in ("%s_%s_idle" % (base, facing), "%s_%s" % (base, facing), base):
+        if k in sprites:
+            return k
+    return None
+
+
+def tilemap_preview(area_text, mission_root=None, sets=None, texts=None, world=None,
+                    amd_docs=None):
     """Everything a tool needs to draw one area file as the game would.
 
     Args:
@@ -187,7 +271,13 @@ def tilemap_preview(area_text, mission_root=None, sets=None, texts=None, world=N
         T._AREAS.clear()
         T._AREAS.update(saved_areas)
 
-    drawn = {k for row in looks for k in row if k} | {k for _, _, ks in fringes for k in ks}
+    placements = tilemap_placements(rec["key"], amd_docs, dict(world, areas=dict(
+        world.get("areas") or {}, **{rec["key"]: rec}))) if amd_docs else []
+    for item in placements:
+        item["look"] = _sprite_look(sprites, item["sprite"]) if item["sprite"] else None
+
+    drawn = {k for row in looks for k in row if k} | {k for _, _, ks in fringes for k in ks} \
+        | {p["look"] for p in placements if p["look"]}
     exits = dict(rec["exits"])
     for mark in rec["marks"]:
         if mark.startswith("to_") and mark not in exits:
@@ -213,4 +303,5 @@ def tilemap_preview(area_text, mission_root=None, sets=None, texts=None, world=N
         "sets": found,
         "missing": missing,
         "areas": sorted(world.get("areas") or {}),
+        "placements": placements,
     }

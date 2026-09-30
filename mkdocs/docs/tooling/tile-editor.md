@@ -31,6 +31,7 @@ colored by kind.
 | **Fill** | `F` | Fills the region the clicked cell belongs to. |
 | **Pick** | `I` | Picks the clicked cell's legend entry. **Alt+click** does it with any tool. |
 | **Entry** | `E` | Sets `entry:`, where a party beamed down stands. |
+| **Move** | `M` | Drags a prop, person or hostile, or one point of a patrol, to a new cell (see [Things](#things-props-people-and-hostiles)). A click without a drag opens it in the AMD Inspector. |
 
 **The legend is the palette.** Click an entry to paint with it. Double-click it to change
 its kind or mark. **+ Entry** adds one: pick a kind (the tileset's kinds are offered), an
@@ -58,6 +59,38 @@ columns at the edge are kept.
 
 **Zoom** with `+` / `-` or Ctrl+wheel. **A** toggles Kinds and Art.
 
+## Things: props, people and hostiles
+
+**Things** (on by default) draws every prop, person and hostile that the mission's
+`.amd` files place in this area, read from your unsaved text too. In **Art** they are
+drawn with their sprites, standing on their cell and tinted the way the game tints them.
+In **Kinds** they are icons:
+
+- an amber square for a prop
+- a green circle for a person who never attacks (`Calm: yes`)
+- a red circle for a hostile
+
+A hostile's `Patrol:` is drawn as a dashed loop through its points. Anything with
+`Hidden until:` is drawn faded. Anything with a problem is ringed in red. The sidebar
+lists everything placed in this area, including anything that cannot be drawn because it
+is off the map or on a mark that is not there. Click an entry to open it in the AMD
+Inspector.
+
+With the **Move** tool:
+
+- **Drag** a thing placed by `At:` to rewrite its `At: x, y`.
+- **Drag** a patrol point to rewrite that one point of `Patrol:`.
+- **Click** without dragging to open the thing in the Inspector.
+
+A thing placed by `Mark:` does not drag, because the mark *is* the place and a scene may
+belong to it too. Paint that mark somewhere else and the thing follows.
+
+A move edits the **`.amd`**, not this file, so the editor's own undo cannot reach it. Use
+**Undo move** on the toolbar, which puts back the last move while the text is still what
+the move left. If the `.amd` had no unsaved changes, a move saves it again, so a drag
+does not leave a file dirty in the background. If you have unsaved edits there, they are
+left for you to save.
+
 ## What it writes
 
 The text file is the map. A stroke rewrites **only the rows it changed**, so comments,
@@ -66,7 +99,5 @@ A row's trailing blanks are dropped, because they mean *nothing* anyway.
 
 ## Not yet
 
-- Props, people and hostiles from the `.amd` are not drawn on the map, and cannot be
-  dragged into place. `sbs lint` already checks where they stand.
-- A sprite's `color` tint is not applied in Art mode.
 - `.tileset` files get syntax highlighting and checks, but no visual editor.
+- Figures are drawn facing south and standing still.

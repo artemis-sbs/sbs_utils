@@ -396,7 +396,12 @@ def _tiles_preview(uri, text, docs, sets=None):
     """`tiles/preview`: what the area in `text` looks like, for the tile editor."""
     from sbs_utils.procedural.tilemap_preview import tilemap_preview
     root, world = _tile_world(uri, docs)
-    out = tilemap_preview(text, root, sets=sets or None, world=world)
+    # The mission's .amd (open buffers win), for the props and people standing here.
+    amd_docs = []
+    if root:
+        amd_docs = [(u, d, getattr(d, "source", "") or "")
+                    for _p, u, d in _index_for(uri, docs)["docs"]]
+    out = tilemap_preview(text, root, sets=sets or None, world=world, amd_docs=amd_docs)
     if out.get("ok"):
         out["problems"] = _tile_diagnostics(uri, text, docs)
         out["missionRoot"] = root

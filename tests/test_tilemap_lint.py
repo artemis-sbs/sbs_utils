@@ -316,6 +316,9 @@ class TestLanguageServer(unittest.TestCase):
         self.assertEqual(sorted(res["sprites"]), ["g:dirt", "g:rock"])
         self.assertFalse(res["kinds"]["water"]["walk"])
         self.assertEqual(res["problems"], [])
+        # Who stands here, read from the mission's .amd through the server's own index.
+        self.assertEqual(sorted(p["key"] for p in res["placements"]), ["drone", "gb"])
+        self.assertTrue(next(p for p in res["placements"] if p["key"] == "gb")["at"])
         # Anything that reads the AMD model answers a tile file with nothing.
         self.assertIsNone(next(m for m in got if m.get("id") == 8)["result"])
 
@@ -358,3 +361,47 @@ class TestPreviewMatchesTheGame(unittest.TestCase):
                           if T.tilemap_cell_fringes("ridge", x, y)])
         self.assertTrue(got["fringes"])              # the seam really was exercised
         self.assertEqual((dict(T._TILESETS), dict(T._AREAS)), before)
+
+
+class TestPlacementsForTheEditor(TileLintBase):
+    """What the tile editor draws and drags: every thing on an area, and WHERE in the .amd
+    its position is written, to the column."""
+
+    def placed(self, text=WORLD):
+        from sbs_utils.procedural.amd_core import parse
+        from sbs_utils.procedural.tilemap_preview import tilemap_placements
+        return {p["key"]: p for p in tilemap_placements(
+            "ridge", [("file:///w.amd", parse(text), text)], self.world())}
+
+    def test_a_mark_placed_prop_stands_on_its_mark(self):
+        p = self.placed()["drone"]
+        self.assertEqual((p["kind"], p["how"], p["mark"], p["cell"]), ("prop", "mark", "landing", [2, 1]))
+        self.assertIsNone(p["at"])
+
+    def test_AT_AND_EACH_PATROL_POINT_CARRY_THEIR_SOURCE_COLUMNS(self):
+        p = self.placed()["gb"]
+        lines = WORLD.split("\n")
+        at = p["at"]
+        self.assertEqual(lines[at["line"]][at["start"]:at["end"]], "1, 1")
+        self.assertEqual([lines[q["line"]][q["start"]:q["end"]] for q in p["patrol"]], ["1 1", "2 2"])
+        self.assertEqual([(q["x"], q["y"]) for q in p["patrol"]], [(1, 1), (2, 2)])
+
+    def test_problems_ride_along(self):
+        p = self.placed(WORLD.replace("At: 1, 1", "At: 9, 1"))["gb"]
+        self.assertEqual(p["cell"], [9, 1])
+        self.assertTrue(any("off the map" in m for m in p["problems"]))
+
+    def test_only_this_area(self):
+        self.assertEqual(self.placed(WORLD.replace("Area: ridge\nMark", "Area: colony\nMark")).keys(),
+                         {"gb"})
+
+    def test_hidden_and_calm(self):
+        text = WORLD.replace("Patrol: 1 1; 2 2", "Patrol: 1 1; 2 2\nCalm: yes\nHidden until: lp_power")
+        p = self.placed(text)["gb"]
+        self.assertTrue(p["calm"] and p["hidden"])
+
+    def test_the_preview_picks_a_standing_frame(self):
+        from sbs_utils.procedural.tilemap_preview import _sprite_look
+        sprites = {"fig:a": 1, "fig:a_s_idle": 1, "fig:b_s": 1, "prop:c": 1}
+        self.assertEqual([_sprite_look(sprites, k) for k in ("fig:a", "fig:b", "prop:c", "x")],
+                         ["fig:a_s_idle", "fig:b_s", "prop:c", None])
