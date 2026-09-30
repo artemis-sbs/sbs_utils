@@ -52,7 +52,7 @@ _KITS = {
     "warp": {"floor": "floor_lit", "system": "prop:reactor"},
     "jump": {"floor": "floor_lit", "system": "prop:reactor"},
     "hyper": {"floor": "floor_lit", "system": "prop:reactor"},
-    "shield": {"floor": "floor_lit", "system": "prop:shield_generator"},
+    "shield": {"floor": "floor_lit", "system": "prop:shield_globe"},
     "sensor": {"floor": "floor_panel", "system": "prop:sensor_array"},
     "computer": {"floor": "floor_panel",
                  "furniture": ["prop:console_bank", "prop:security_desk", "prop:terminal"]},
@@ -78,7 +78,8 @@ _KITS = {
                             "prop:crate_shield", "prop:cart_loaded"]},
     "bay": {"floor": "floor_hazard",
             "furniture": [("prop:shuttle", 14), "prop:cart", "prop:crate", "prop:barrel"]},
-    "brig": {"floor": "floor_plain", "furniture": ["prop:bunk", "prop:toilet"]},
+    "brig": {"floor": "floor_plain",
+             "furniture": ["prop:brig_cell", "prop:brig_cell", "prop:toilet"]},
     "recreation": {"floor": "floor_tiles",
                    "furniture": ["prop:vr_booth", "prop:couch", "prop:bench", "prop:plant"]},
     "lounge": {"floor": "floor_tiles",
@@ -103,6 +104,12 @@ _ALIASES = {
     "torp": "torpedo", "gun": "beam", "weapon": "beam", "engine": "impulse",
     "berths": "quarters", "grog": "cargo", "ready": "conference",
 }
+
+#: The door that stands in a doorway, shut and open, by how the wall runs. Doors are
+#: scenery that never blocks: they slide open for anyone next to them
+#: (``boarding_deck_animate``). A mission may change these.
+DOOR_SPRITES = {"front": ("prop:door_station", "prop:doorframe"),
+                "side": ("prop:door_side", "prop:door_side_open")}
 
 #: Legend characters for the looks the kits use; any other look gets a free character.
 _CHARS = {HULL: "H", WALL: "#", DOOR: "+", HALL: ",", "floor_grate": "=",
@@ -478,7 +485,11 @@ def boarding_deck_layout(plan, scale=SCALE):
                     n += 1
                     break
 
+    # A doorway in a wall that runs east-west faces the viewer; one in a north-south
+    # wall is seen side-on. The door that stands in it is drawn to match.
+    sides = {d: ("front" if d[1] % s == 0 else "side") for d in doors}
     return {"w": TW, "h": TH, "tiles": tiles, "rooms": rooms, "doors": doors,
+            "door_sides": sides,
             "entry": entry, "furniture": furniture, "cell_tiles": cell_tiles,
             "scale": s, "ship": plan.get("ship")}
 
@@ -570,10 +581,19 @@ def boarding_deck_build(plan, key, title=None, scale=SCALE, tileset="deck",
             boarding_prop_add(pkey, area, (x, y), sprite=sprite, blocks=True,
                               name=sprite.split(":", 1)[-1].replace("_", " "))
             props.append((pkey, cell))
+    doors = {}
+    if furnish:
+        for n, d in enumerate(sorted(layout["doors"], key=lambda t: (t[1], t[0]))):
+            side = layout["door_sides"].get(d, "front")
+            dkey = f"{area}_door_{n}"
+            boarding_prop_add(dkey, area, d, sprite=DOOR_SPRITES[side][0], blocks=False,
+                              name="door")
+            doors[d] = (dkey, side)
         boarding_props_place(area)
     _DECKS[area] = {"ship": layout.get("ship"), "scale": layout["scale"],
                     "cell_tiles": layout["cell_tiles"],
-                    "systems": {cell: pkey for pkey, cell in props if cell is not None}}
+                    "systems": {cell: pkey for pkey, cell in props if cell is not None},
+                    "doors": doors, "open": set(), "flicker": {}, "beat": 0}
     return area
 
 
@@ -594,6 +614,8 @@ def boarding_deck_system_prop(area, cell):
 #: What a damage-control team is drawn as, by team, in order.
 DAMCON_SPRITES = ["fig:crew_m", "fig:crew_f", "fig:medic_m", "fig:soldier_m"]
 DAMAGED_TINT = "#666"
+#: The two frames a shorted system's sparks flip between.
+SPARKS = ("prop:sparks", "prop:sparks_b")
 
 
 def _grid_state(ship):
@@ -619,7 +641,8 @@ def _grid_state(ship):
 
 def boarding_deck_sync(area, ship):
     """Show a ship's state on the deck built from it: a damaged node's kit goes dark
-    with rubble beside it, a repaired one comes back, and each damage-control team
+    with rubble beside it (and sparks, for a system), a repaired one comes back, and each
+    damage-control team
     stands - and walks - where Engineering has it. Call it when things change, or let
     ``boarding_deck_watch`` call it every second. Returns how many things changed."""
     from .tilemap import (tilemap_place, tilemap_where, tilemap_walk, tilemap_remove,
@@ -632,6 +655,7 @@ def boarding_deck_sync(area, ship):
         return 0
     changed = 0
     rubble = rec.setdefault("rubble", {})
+    sparks = rec.setdefault("sparks", {})
     teams = rec.setdefault("teams", {})
     seen_teams = set()
     damaged_cells = set()
@@ -685,10 +709,87 @@ def boarding_deck_sync(area, ship):
                 boarding_props_place(area)
                 rubble[cell] = key
                 changed += 1
+            # A system that is hit shorts out: sparks by its kit, flickering.
+            if kit and len(free) > 1:
+                key = f"{area}_sparks_{cell[0]}_{cell[1]}"
+                boarding_prop_add(key, area, free[1], sprite=SPARKS[0], blocks=False,
+                                  name="sparks")
+                boarding_props_place(area)
+                sparks[cell] = key
+                rec["flicker"][key] = SPARKS
         elif not broken and cell in rubble:
             boarding_prop_forget(rubble.pop(cell))
+            if cell in sparks:
+                key = sparks.pop(cell)
+                rec["flicker"].pop(key, None)
+                boarding_prop_forget(key)
             changed += 1
     return changed
+
+
+def boarding_deck_animate_step(area):
+    """One beat of a deck's life: doors slide open for anyone beside them and shut
+    behind them, and flickering things (sparks, fire) flip frame every other beat.
+    Returns how many things changed. ``boarding_deck_animate`` runs it for you."""
+    from .tilemap import tilemap_actors, tilemap_actor, tilemap_place, tilemap_where
+    from .boarding_props import boarding_prop
+    area = str(area).strip().lower()
+    rec = _DECKS.get(area)
+    if rec is None:
+        return 0
+    changed = 0
+    near = set()
+    for aid in tilemap_actors(area):
+        a = tilemap_actor(aid)
+        if a is None or a.get("fixed"):
+            continue
+        x, y = a["x"], a["y"]
+        near.update(((x, y), (x + 1, y), (x - 1, y), (x, y + 1), (x, y - 1)))
+    for tile, (key, side) in rec.get("doors", {}).items():
+        want = tile in near
+        if want == (tile in rec["open"]):
+            continue
+        p = boarding_prop(key)
+        at = tilemap_where(p["id"]) if p and p.get("id") is not None else None
+        if at is None:
+            continue
+        shut, opened = DOOR_SPRITES[side]
+        tilemap_place(p["id"], at[0], at[1], at[2], sprite=opened if want else shut)
+        (rec["open"].add if want else rec["open"].discard)(tile)
+        changed += 1
+    rec["beat"] = rec.get("beat", 0) + 1
+    if rec["beat"] % 2 == 0:
+        frame = (rec["beat"] // 2) % 2
+        for key, frames in list(rec.get("flicker", {}).items()):
+            p = boarding_prop(key)
+            at = tilemap_where(p["id"]) if p and p.get("id") is not None else None
+            if at is not None:
+                tilemap_place(p["id"], at[0], at[1], at[2], sprite=frames[frame])
+                changed += 1
+    return changed
+
+
+def boarding_deck_animate(area, seconds=0.25):
+    """Keep a deck alive - doors, sparks, fire (``boarding_deck_animate_step``) - every
+    `seconds`, until it is cleared. Started by ``boarding_deck_watch``; call it yourself
+    for a deck with no ship behind it. Returns the tick task."""
+    from ..tickdispatcher import TickDispatcher
+    rec = _DECKS.get(str(area).strip().lower())
+    if rec is None:
+        return None
+    if rec.get("animate") is not None:
+        return rec["animate"]
+
+    def tick(task):
+        if _DECKS.get(task.area) is not rec:
+            task.stop()
+            return
+        boarding_deck_animate_step(task.area)
+
+    task = TickDispatcher.do_interval(tick, seconds)
+    task.area = str(area).strip().lower()
+    rec["animate"] = task
+    return task
 
 
 def boarding_deck_watch(area, ship, seconds=1.0):
@@ -713,6 +814,7 @@ def boarding_deck_watch(area, ship, seconds=1.0):
     task.area = str(area).strip().lower()
     task.ship = ship
     rec["watch"] = task
+    boarding_deck_animate(area)
     boarding_deck_sync(area, ship)
     return task
 
@@ -746,12 +848,13 @@ def boarding_deck_for(ship, title=None, watch=True, tileset="deck"):
 
 def boarding_deck_clear():
     for rec in _DECKS.values():
-        task = rec.get("watch")
-        if task is not None:
-            try:
-                task.stop()
-            except Exception:                                # noqa: BLE001
-                pass
+        for name in ("watch", "animate"):
+            task = rec.get(name)
+            if task is not None:
+                try:
+                    task.stop()
+                except Exception:                            # noqa: BLE001
+                    pass
     _DECKS.clear()
     _OVERRIDES.clear()
 

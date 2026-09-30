@@ -160,8 +160,28 @@ class TestBuild(unittest.TestCase):
         keys = P.boarding_props(self.area)
         self.assertTrue(keys)
         self.assertTrue(all(P.boarding_prop_is_scenery(k) for k in keys))
-        where = T.tilemap_where(P.boarding_prop(keys[0])["id"])
+        kit = next(k for k in keys if "_kit_" in k)
+        where = T.tilemap_where(P.boarding_prop(kit)["id"])
         self.assertFalse(T.tilemap_is_open(self.area, where[1], where[2]))
+
+    def test_every_doorway_has_a_door_drawn_the_way_its_wall_runs(self):
+        doors = D._DECKS[self.area]["doors"]
+        self.assertEqual(set(doors), set(T.tilemap_mark_cells(self.area, "door")))
+        sides = {side for _, side in doors.values()}
+        self.assertEqual(sides, {"front", "side"})
+        for tile, (key, side) in doors.items():
+            self.assertEqual(P.boarding_prop(key)["sprite"], D.DOOR_SPRITES[side][0])
+            self.assertTrue(T.tilemap_is_open(self.area, *tile))    # a door never blocks
+
+    def test_a_door_slides_open_for_someone_beside_it_and_shuts_behind_them(self):
+        tile, (key, side) = sorted(D._DECKS[self.area]["doors"].items())[0]
+        T.tilemap_place(9001, self.area, tile[0], tile[1] + 1, sprite="fig:crew_m")
+        D.boarding_deck_animate_step(self.area)
+        actor = T.tilemap_actor(P.boarding_prop(key)["id"])
+        self.assertEqual(actor["sprite"], D.DOOR_SPRITES[side][1])
+        T.tilemap_remove(9001)
+        D.boarding_deck_animate_step(self.area)
+        self.assertEqual(actor["sprite"], D.DOOR_SPRITES[side][0])
 
     def test_a_system_node_knows_its_kit(self):
         key = D.boarding_deck_system_prop(self.area, (4, 0))
@@ -205,6 +225,21 @@ class TestTheLiveShip(unittest.TestCase):
         D.boarding_deck_sync(self.area, self.SHIP)
         self.assertIsNone(self.kit((4, 0))["color"])
         self.assertFalse([k for k in P.boarding_props(self.area) if "_rubble_" in k])
+
+    def test_a_damaged_system_throws_sparks_that_flicker_until_repaired(self):
+        self.state = [(901, 4, 0, True, False, None)]
+        D.boarding_deck_sync(self.area, self.SHIP)
+        key = D._DECKS[self.area]["sparks"][(4, 0)]
+        actor = T.tilemap_actor(P.boarding_prop(key)["id"])
+        seen = set()
+        for _ in range(4):
+            D.boarding_deck_animate_step(self.area)
+            seen.add(actor["sprite"])
+        self.assertEqual(seen, set(D.SPARKS))
+        self.state = [(901, 4, 0, False, False, None)]
+        D.boarding_deck_sync(self.area, self.SHIP)
+        self.assertIsNone(P.boarding_prop(key))
+        self.assertNotIn(key, D._DECKS[self.area]["flicker"])
 
     def test_nothing_changes_when_nothing_did(self):
         self.state = [(901, 4, 0, True, False, None)]
