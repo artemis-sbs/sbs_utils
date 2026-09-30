@@ -236,6 +236,19 @@ The deck then follows its ship. `boarding_deck_watch` checks it every second, an
   (`RACE_CREWS`, read from the hull key: `kralien_cruiser` has Kralien crews, a TSN ship
   has humans).
 
+The ship's own crew can be put aboard as well, drawn as its race:
+
+```python
+boarding_deck_crew(deck, ship=enemy_id, boarders=player_ship, talk_scene="crew_talk")
+```
+
+If the ship is at war with the boarders, about three in five of the crew are guards. They
+walk the hallways and fight whoever they notice. The rest are hands, calm in the cabins
+and messes, who fight only when provoked. Aboard any other ship everyone is a hand. By
+default there is one crew member per ten plan cells (2 to 12); `hostile=` and `count=`
+override the stance and the number. `talk_scene` names a scene of the mission's own that
+the hands can be talked to with.
+
 Every doorway has a door, drawn front-on or side-on to match its wall. Doors never block:
 `boarding_deck_animate` slides them open for anyone beside them and flips the frames of
 the sparks and fire. `boarding_deck_watch` starts it; for a deck with no ship behind it,

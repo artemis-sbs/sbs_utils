@@ -189,6 +189,68 @@ class TestBuild(unittest.TestCase):
         self.assertTrue(D.boarding_deck_tiles_of(self.area, (4, 0)))
 
 
+class TestTheShipsCrew(unittest.TestCase):
+    """A boarded ship's own crew: guards who fight, hands who keep out of it."""
+
+    def setUp(self):
+        from sbs_utils.procedural import boarding_combat as K
+        mock_sbs.create_new_sim()
+        FrameContext.context = Context(mock_sbs.sim, mock_sbs, FakeEvent())
+        self.addCleanup(setattr, FrameContext, "context", None)
+        for clear in (T.tilemap_clear, T.tilemap_clear_tilesets, P.boarding_props_clear,
+                      D.boarding_deck_clear, K.boarding_combat_clear):
+            clear()
+            self.addCleanup(clear)
+        self.K = K
+        self.area = D.boarding_deck_build(D.boarding_deck_plan_ascii(PLAN), "deck_crew")
+
+    def test_aboard_an_enemy_three_in_five_are_guards_in_the_hallways(self):
+        keys = D.boarding_deck_crew(self.area, hostile=True, count=5)
+        self.assertEqual(len(keys), 5)
+        recs = [self.K.boarding_hostile(k) for k in keys]
+        guards = [r for r in recs if not r["calm"]]
+        hands = [r for r in recs if r["calm"]]
+        self.assertEqual((len(guards), len(hands)), (3, 2))
+        halls = set(T.tilemap_mark_cells(self.area, "room:hallway"))
+        for g in guards:
+            at = T.tilemap_where(g["id"])
+            self.assertIn((at[1], at[2]), halls)
+            self.assertEqual(len(g["patrol"]), 2)
+        for h in hands:
+            at = T.tilemap_where(h["id"])
+            self.assertNotIn((at[1], at[2]), halls)
+            self.assertEqual(h["state"], "calm")
+
+    def test_aboard_any_other_ship_nobody_fights(self):
+        keys = D.boarding_deck_crew(self.area, hostile=False, count=4)
+        self.assertTrue(all(self.K.boarding_hostile(k)["calm"] for k in keys))
+
+    def test_the_crew_is_drawn_as_the_ships_race_and_stays_off_doors_and_the_entry(self):
+        D._DECKS[self.area]["ship"] = "kralien_cruiser"
+        keys = D.boarding_deck_crew(self.area, hostile=True, count=6)
+        sprites = {self.K.boarding_hostile(k)["sprite"] for k in keys}
+        self.assertTrue(sprites <= set(D.RACE_CREWS["kralien"]))
+        avoid = set(T.tilemap_mark_cells(self.area, "entry")) | \
+            set(T.tilemap_mark_cells(self.area, "door"))
+        for k in keys:
+            at = T.tilemap_where(self.K.boarding_hostile(k)["id"])
+            self.assertNotIn((at[1], at[2]), avoid)
+
+    def test_hands_can_be_talked_to_with_the_missions_scene(self):
+        keys = D.boarding_deck_crew(self.area, hostile=False, count=2, talk_scene="crew_talk")
+        self.assertEqual({self.K.boarding_hostile(k)["talk"] for k in keys}, {"crew_talk"})
+
+    def test_the_same_deck_gets_the_same_crew(self):
+        keys = D.boarding_deck_crew(self.area, hostile=True, count=4)
+        first = [T.tilemap_where(self.K.boarding_hostile(k)["id"]) for k in keys]
+        for k in keys:
+            T.tilemap_remove(self.K.boarding_hostile(k)["id"])
+        self.K.boarding_combat_clear()
+        again = [T.tilemap_where(self.K.boarding_hostile(k)["id"])
+                 for k in D.boarding_deck_crew(self.area, hostile=True, count=4)]
+        self.assertEqual(first, again)
+
+
 class TestTheLiveShip(unittest.TestCase):
     """The deck follows its ship: damage shows, repair teams walk."""
 

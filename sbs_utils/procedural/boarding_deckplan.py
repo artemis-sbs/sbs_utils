@@ -620,7 +620,7 @@ RACE_CREWS = {
     "torgoth": ["fig:torgoth"],
     "ximni": ["fig:ximni"],
     "arvonian": ["fig:arvonian", "fig:arvonian_f"],
-    "skaraan": ["fig:skaraan", "fig:skaraan_young"],
+    "skaraan": ["fig:skaraan", "fig:skaraan_f"],
     "pirate": ["fig:junker_m", "fig:junker_f", "fig:hunter_f"],
     "biomech": ["fig:robot_war"],
 }
@@ -877,6 +877,104 @@ def boarding_deck_for(ship, title=None, watch=True, tileset="deck"):
     if watch:
         boarding_deck_watch(key, sid)
     return key
+
+
+#: What a boarded ship's crew is, by stance: its guards fight, its hands keep out of it.
+_CREW_ROLES = {
+    "guard": {"hp": 3, "damage": 1, "notice": 5, "calm": False},
+    "hand": {"hp": 2, "damage": 1, "notice": 4, "calm": True},
+}
+
+
+def boarding_deck_crew(area, ship=None, boarders=None, hostile=None, count=None,
+                       talk_scene=None, seed=None):
+    """Put a boarded ship's own crew aboard its deck, drawn as its race, as boarding
+    hostiles (``boarding_combat``) - some who fight, some who do not:
+
+    - aboard a ship at war with the boarders, about three in five are GUARDS, walking the
+      hallways between two points and fighting whoever they notice; the rest are HANDS,
+      calm, in the cabins and messes, who only fight back when provoked;
+    - aboard any other ship everyone is a hand.
+
+    Args:
+        area: the deck (``boarding_deck_build`` / ``boarding_deck_for``).
+        ship, boarders: the boarded ship and the boarders' ship; ``side_are_enemies`` of
+            the two decides the stance unless ``hostile`` does.
+        hostile (bool): force the stance.
+        count (int): how many; by default one per ten cells of the plan, 2 to 12.
+        talk_scene (str): a scene key the hands can be talked to with (the mission's own
+            dialogue); without one they cannot be talked to.
+        seed: for a repeatable crew; the area's name by default.
+
+    Returns:
+        list: the hostile keys, ``<area>_crew_<n>``. Placed at once.
+    """
+    import random
+    import zlib
+    from .boarding_combat import boarding_hostiles_declare, boarding_hostiles_place
+    from .tilemap import tilemap_is_open, tilemap_mark_cells
+    area = str(area).strip().lower()
+    rec = _DECKS.get(area)
+    if rec is None:
+        return []
+    if hostile is None:
+        hostile = False
+        if ship is not None and boarders is not None:
+            try:
+                from .sides import side_are_enemies
+                hostile = bool(side_are_enemies(ship, boarders))
+            except Exception:                                # noqa: BLE001
+                hostile = False
+    cells = len(rec.get("cell_tiles") or {})
+    n = count if count is not None else max(2, min(12, cells // 10))
+    rng = random.Random(zlib.crc32(str(seed if seed is not None else area).encode()))
+    race = boarding_deck_race(rec.get("ship"))
+    looks = boarding_deck_crew_sprites(rec.get("ship"))
+    taken = set(tilemap_mark_cells(area, "entry")) | set(tilemap_mark_cells(area, "door"))
+
+    def free(tiles):
+        out = [t for t in sorted(tiles) if t not in taken and tilemap_is_open(area, *t)]
+        rng.shuffle(out)
+        return out
+    halls = free(tilemap_mark_cells(area, "room:hallway"))
+    rooms = free(t for mark in _marks_of(area) if mark.startswith("room:")
+                 and mark != "room:hallway"
+                 and boarding_deck_room_kind(mark[len("room:"):]) in _CALM_ROOMS
+                 for t in tilemap_mark_cells(area, mark))
+    guards = int(round(n * 0.6)) if hostile else 0
+    children = []
+    title = race.capitalize() if race != "human" else "Crew"
+    for i in range(n):
+        role = "guard" if i < guards else "hand"
+        pool = halls if role == "guard" else (rooms or halls)
+        if not pool:
+            continue
+        at = pool.pop()
+        taken.add(at)
+        data = dict(_CREW_ROLES[role], area=area, at="%d, %d" % at, sprite=looks[i % len(looks)])
+        data["calm"] = "yes" if data["calm"] else "no"
+        if role == "guard" and halls:
+            # Up and down a stretch of hallway.
+            far = max(halls, key=lambda t: -abs(abs(t[0] - at[0]) + abs(t[1] - at[1]) - 6))
+            data["patrol"] = "%d %d; %d %d" % (at[0], at[1], far[0], far[1])
+        if role == "hand" and talk_scene:
+            data["talk_scene"] = talk_scene
+        children.append({"key": f"{area}_crew_{i}",
+                         "display_text": f"{title} {'guard' if role == 'guard' else 'crew'}",
+                         "description": "", "data": data})
+    keys = boarding_hostiles_declare({"children": children})
+    boarding_hostiles_place(area)
+    return keys
+
+
+#: Rooms the crew who are not guards are found in.
+_CALM_ROOMS = {"quarters", "mess", "galley", "sickbay", "lab", "recreation", "lounge",
+               "conference", "workshop", "cargo", "computer", "bridge", "room"}
+
+
+def _marks_of(area):
+    from .tilemap import tilemap_marks
+    return tilemap_marks(area)
 
 
 def boarding_deck_clear():
