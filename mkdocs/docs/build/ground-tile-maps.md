@@ -228,10 +228,18 @@ boarding_invite(player_ship, [], title="Boarding", area=deck)
 The deck then follows its ship. `boarding_deck_watch` checks it every second, and
 `boarding_deck_sync` does one check on demand:
 
-- a damaged node's kit goes dark, with rubble beside it that can be walked over;
+- a damaged node's kit goes dark, with rubble beside it that can be walked over. A system
+  also throws sparks, and any other room catches fire;
 - a repaired node comes back;
 - each damage-control team stands where Engineering has it, walks when it moves, lies down
-  at 0 HP, and leaves when it is gone.
+  at 0 HP, and leaves when it is gone. Teams are drawn as the ship's own race
+  (`RACE_CREWS`, read from the hull key: `kralien_cruiser` has Kralien crews, a TSN ship
+  has humans).
+
+Every doorway has a door, drawn front-on or side-on to match its wall. Doors never block:
+`boarding_deck_animate` slides them open for anyone beside them and flips the frames of
+the sparks and fire. `boarding_deck_watch` starts it; for a deck with no ship behind it,
+call `boarding_deck_animate(area)` yourself.
 
 The furniture is scenery, and the same plan always gives the same deck. To furnish a kind
 of room your own way, use `boarding_deck_kit("cargo", furniture=["prop:barrel"])`. To start
