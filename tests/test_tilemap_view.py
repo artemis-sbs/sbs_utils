@@ -85,6 +85,24 @@ class TestWhatIsSent(ViewBase):
         self.assertEqual(len(clicks), 16 * rows)
         self.assertEqual(len(slots), ACTOR_SLOTS)
 
+    def test_a_full_pool_drops_furniture_never_a_person(self):
+        """A crowded view (a furnished deck, a city street) can hold more things than the
+        figure pool: whatever is left out must be furniture, not someone standing there."""
+        from sbs_utils.pages.layout.tilemap_view import ACTOR_SLOTS
+        self.view.fog = False                     # every one of them in view
+        n = 0
+        for y in range(1, 12):
+            for x in range(1, 15):
+                if n < ACTOR_SLOTS + 10 and (x, y) != (5, 5):
+                    n += 1
+                    T.tilemap_place(1000 + n, "field", x, y, sprite="tv:rock", fixed=True)
+        # A high id, so it comes after all the furniture in the world's own order.
+        T.tilemap_place(99999, "field", 6, 6, sprite="tv:dirt", party=False)
+        self.paint()
+        people = {aid for aid in self.view._slots if aid in (1, 99999)}
+        self.assertEqual(people, {1, 99999})
+        self.assertEqual(len(self.view._slots), ACTOR_SLOTS)
+
     def test_NOTHING_IS_EVER_SENT_EMPTY(self):
         """An empty image never becomes a widget, so it can never be updated later."""
         for kind, tag, props, _ in self.paint():

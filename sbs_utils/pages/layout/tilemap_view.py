@@ -28,7 +28,9 @@ HIDE = (-2.0, -2.0, -1.0, -1.0)      # kept for callers; the view no longer send
 #: nothing, and ground the camera scrolled onto stayed black). So every tile tag carries a
 #: real image from the first paint (unseen ground is the VOID look), and figures live in
 #: a fixed pool of tags that park offscreen when empty, rather than one tag per actor.
-ACTOR_SLOTS = 40
+#: 96, not 40: a furnished room, a city street or a generated ship deck easily shows more
+#: than 40 things at once, and whatever did not get a slot was simply not drawn.
+ACTOR_SLOTS = 96
 #: Hint badges ("something here is worth a look") - a second pool, drawn last.
 HINT_SLOTS = 24
 #: A badge covers this share of its tile, in the top-right corner.
@@ -214,7 +216,10 @@ class TileView(Column):
         view = (x0, y0, x0 + self.cols * tw, y0 + rows * th)
         shown = {}                      # slot -> (props, rect, sort key)
         tops = {}                       # cell -> top of the tallest sprite on it
-        for aid in tilemap_actors(area):
+        # People before furniture: if the pool is ever full, a chair goes undrawn, never
+        # a person.
+        for aid in sorted(tilemap_actors(area),
+                          key=lambda i: bool((tilemap_actor(i) or {}).get("fixed"))):
             a = tilemap_actor(aid)
             if not a.get("sprite"):
                 continue
