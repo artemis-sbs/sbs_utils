@@ -188,6 +188,8 @@ def reset_mission_state():
     tilemap_clear()
     from .procedural.tilemap_art import tilemap_art_clear
     tilemap_art_clear()
+    from .procedural.boarding_deckplan import boarding_deck_clear
+    boarding_deck_clear()
     from .procedural.boarding_tiles import boarding_tile_clear
     boarding_tile_clear()
     from .procedural.boarding_props import boarding_props_clear
@@ -541,6 +543,8 @@ from .procedural.boarding_props import boarding_props_count as _boarding_props_c
 register_reset_state("boarding props", _boarding_props_count)
 from .procedural.tilemap_art import tilemap_art_count as _tilemap_art_count
 register_reset_state("tile art", _tilemap_art_count)
+from .procedural.boarding_deckplan import boarding_deck_count as _boarding_deck_count
+register_reset_state("boarding decks", _boarding_deck_count)
 from .procedural.boarding_checks import boarding_checks_count as _boarding_checks_count
 register_reset_state("boarding checks", _boarding_checks_count)
 from .procedural.boarding_combat import boarding_combat_count as _boarding_combat_count

@@ -162,6 +162,11 @@ _TILESET_FLAGS = ("walk", "see", "tall")
 _TILESET_VALUES = ("look", "cell", "color", "over")
 
 
+def tilemap_tileset_known(name):
+    """Whether a tileset of this name has been declared."""
+    return _norm(name) in _TILESETS
+
+
 def tilemap_tileset_parse(text):
     """Read a tileset file. Raises TilemapError rather than guessing.
 
@@ -546,6 +551,23 @@ def tilemap_mark_cells(area, mark):
     """Every cell a mark covers, sorted."""
     rec = _AREAS.get(_norm(area))
     return sorted((rec or {}).get("marks", {}).get(_norm(mark), set()))
+
+
+def tilemap_mark(area, mark, cells):
+    """Add cells to a mark after the area is loaded - how a generated map names its
+    rooms without spending a legend character on each. A cell keeps the mark its file
+    gave it (an exit, the entry) as the one ``tilemap_mark_at`` answers. False for an
+    unknown area."""
+    rec = _AREAS.get(_norm(area))
+    if rec is None:
+        return False
+    mark = _norm(mark)
+    for c in cells:
+        cell = (int(c[0]), int(c[1]))
+        rec["marks"].setdefault(mark, set()).add(cell)
+        rec["mark_at"].setdefault(cell, mark)
+    _bump(rec["key"])
+    return True
 
 
 def tilemap_mark_at(area, x, y):

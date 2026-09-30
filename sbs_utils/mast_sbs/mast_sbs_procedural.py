@@ -118,6 +118,8 @@ MastGlobals.import_python_module('sbs_utils.procedural.boarding_tiles')
 MastGlobals.import_python_module('sbs_utils.procedural.boarding_props')
 MastGlobals.import_python_module('sbs_utils.procedural.boarding_hints')
 MastGlobals.import_python_module('sbs_utils.procedural.tilemap_art')
+# Boarding decks drawn from a ship's interior plan.
+MastGlobals.import_python_module('sbs_utils.procedural.boarding_deckplan')
 MastGlobals.import_python_module('sbs_utils.procedural.boarding_checks')
 MastGlobals.import_python_module('sbs_utils.procedural.boarding_combat')
 MastGlobals.import_python_module('sbs_utils.procedural.boarding_quests')

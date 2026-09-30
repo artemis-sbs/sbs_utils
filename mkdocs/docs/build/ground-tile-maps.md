@@ -190,6 +190,43 @@ Blocks: yes
 ---
 ```
 
+## A ship's deck, drawn for you
+
+Any hull with an interior plan (the one Engineering shows) can be boarded on a tile map
+nobody has to draw. `boarding_deckplan` lays the plan out as a deck:
+
+- each plan cell becomes 3 x 3 tiles;
+- each room gets the floor and furniture of its kind. A galley gets tables and stools, a
+  cargo hold gets crates, and a system room gets one piece of kit per node: a reactor per
+  warp node, a turret per beam node, a power cell per impulse node;
+- bulkheads separate the rooms, and every room gets a doorway, so the whole deck can be
+  walked. A plan that comes in pieces, such as a starbase's modules, is joined by
+  gangways;
+- every room's tiles carry a mark named after the room (`room:impulse`,
+  `room:crew-quarters`, `room:hallway`). Boarding arrives at `entry`, which is the
+  airlock if the ship has one, otherwise the middle of the hallway.
+
+```python
+from sbs_utils.procedural.boarding_deckplan import (boarding_deck_plan,
+                                                    boarding_deck_tileset,
+                                                    boarding_deck_build)
+boarding_deck_tileset()                       # the "deck" tileset: kinds named for looks
+tilemap_art_use("station", tileset="deck")    # the Cosmos-Tiles station pack draws them
+area = boarding_deck_build(boarding_deck_plan(ship), "boarded_deck", title="Enemy cruiser")
+```
+
+`boarding_deck_plan(ship)` reads a live ship's layout and hull map. For a `.grid` file, use
+`boarding_deck_plan_ascii(text)`.
+
+The furniture is scenery, and the same plan always gives the same deck. To furnish a kind
+of room your own way, use `boarding_deck_kit("cargo", furniture=["prop:barrel"])`. To start
+from the generated deck and edit it by hand, `boarding_deck_text(layout, key)` gives it as
+a `.tiles` file.
+
+The deck's looks come from an art set. Without the `station` pack (or another set that
+draws the same looks) the deck still works, but nothing is drawn. A mission that boards
+ships therefore pins `artemis-sbs.Cosmos-Tiles.station.<tag>.zip`.
+
 ## Checking your maps
 
 `sbs lint` checks area files, tileset files, and every placement in the mission's `.amd`.

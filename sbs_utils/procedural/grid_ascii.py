@@ -170,11 +170,14 @@ def grid_ascii_parse(text, ship_key=None):
             f"size says {h} rows but the map has {len(map_lines)}")
 
     objects = []
+    hallways = []
     for y, row in enumerate(map_lines):
         row = row.ljust(w)
         if len(row) > w:
             raise GridAsciiError(f"map row {y} is {len(row)} wide, size says {w}")
         for x, ch in enumerate(row[:w]):
+            if ch == HALLWAY:
+                hallways.append((x, y))
             if ch in (OFF_HULL, HALLWAY):
                 continue
             if ch not in legend:
@@ -195,8 +198,10 @@ def grid_ascii_parse(text, ship_key=None):
     damcons = grid_ascii_parse_damcons(header.get("damcons"))
     if damcons is not None:
         entry["damcons"] = damcons
+    # `hallways` is not grid data - a hallway has no object - but a reader that wants the
+    # whole deck (a boarding map drawn from the plan) needs to know which cells are open.
     return {"ship": ship, "layout": header.get("layout", "default"),
-            "w": w, "h": h, "entry": entry}
+            "w": w, "h": h, "entry": entry, "hallways": hallways}
 
 
 def grid_ascii_parse_damcons(text):

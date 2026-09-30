@@ -73,6 +73,11 @@ class TestRoundTrip(unittest.TestCase):
 class TestParsing(unittest.TestCase):
     HEAD = "ship: test_ship\nsize: 4x2\nlegend:\n  c: cargo\n---\n"
 
+    def test_hallways_are_listed_beside_the_grid_data(self):
+        got = grid_ascii_parse(self.HEAD + "cc. \n .c.")
+        self.assertEqual(got["hallways"], [(2, 0), (1, 1), (3, 1)])
+        self.assertNotIn("hallways", got["entry"])       # never merged as grid data
+
     def test_roles_come_from_the_registry(self):
         got = grid_ascii_parse(self.HEAD + "cc..\n....")
         self.assertEqual(got["entry"]["grid_objects"][0]["roles"],
