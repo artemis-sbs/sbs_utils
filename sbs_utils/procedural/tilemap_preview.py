@@ -83,7 +83,14 @@ def tilemap_preview_sets(mission_root):
 
 
 def _load_sets(mission_root, names):
+    """Every sprite the sets draw, merged in order (a later set wins key by key), plus
+    the looks the game DERIVES from them by mirroring (``tilemap_art_mirror_pairs``): a
+    figure's missing side and a ``"mirror": true`` prop's twin. A derived look is its
+    source with the rect's left and right swapped - drawn mirrored, as the engine draws
+    a rect that runs backwards."""
+    from .tilemap_art import tilemap_art_mirror_pairs
     sprites, grounds, found, missing = {}, [], [], []
+    mirror = {}
     for name in names:
         folder = tilemap_preview_find_set(mission_root, name)
         if folder is None:
@@ -107,8 +114,14 @@ def _load_sets(mission_root, names):
                             "color": spec.get("color"),
                             "cells": [float(cells[0]), float(cells[1])],
                             "anchor": [float(anchor[0]), float(anchor[1])]}
+            mirror[key] = bool(spec.get("mirror"))
         grounds.append(m.get("ground") or {})
         found.append({"name": name, "folder": os.path.abspath(folder)})
+    for source, key in tilemap_art_mirror_pairs(sprites, [k for k, v in mirror.items() if v]):
+        src = sprites[source]
+        l, t, r, b = src["rect"]
+        sprites[key] = dict(src, rect=[r, t, l, b],
+                            anchor=[1.0 - src["anchor"][0], src["anchor"][1]])
     return sprites, grounds, found, missing
 
 
@@ -181,9 +194,13 @@ def tilemap_placements(area, amd_docs, world=None):
     return out
 
 
-def _sprite_look(sprites, base, facing="s"):
+def _sprite_look(sprites, base, facing="s", cell=None, fixed=False):
     """The key a figure is drawn with standing still - the same fallbacks the game uses
-    (``tilemap_sprite_look``): a facing's idle frame, the facing, then the base key."""
+    (``tilemap_sprite_look``): a facing's idle frame, the facing, then the base key. A
+    still thing (``fixed`` - a prop) with a mirrored twin is the twin on the cells the
+    game picks it on."""
+    if fixed and cell and "%s_mirror" % base in sprites and T._cell_hash(*cell) % 2:
+        base = "%s_mirror" % base
     for k in ("%s_%s_idle" % (base, facing), "%s_%s" % (base, facing), base):
         if k in sprites:
             return k
@@ -276,8 +293,9 @@ def tilemap_preview(area_text, mission_root=None, sets=None, texts=None, world=N
     for item in placements:
         # The game places a figure facing south and turns it as it walks; the other
         # facings are here so a tool can preview the art each way round.
-        item["looks"] = {f: _sprite_look(sprites, item["sprite"], f) for f in "nesw"} \
-            if item["sprite"] else {}
+        fixed = item["kind"] == "prop"
+        item["looks"] = {f: _sprite_look(sprites, item["sprite"], f, item["cell"], fixed)
+                         for f in "nesw"} if item["sprite"] else {}
         item["look"] = item["looks"].get("s")
 
     drawn = {k for row in looks for k in row if k} | {k for _, _, ks in fringes for k in ks} \
@@ -309,6 +327,38 @@ def tilemap_preview(area_text, mission_root=None, sets=None, texts=None, world=N
         "areas": sorted(world.get("areas") or {}),
         "placements": placements,
     }
+
+
+def tilemap_preview_file(path, mission_root=None, sets=None):
+    """``tilemap_preview`` of an area file on disk, with its mission's props and people
+    read from the mission's ``.amd`` files on disk - for a tool with no editor behind it
+    (``sbs site``). The mission is the nearest folder above with a ``story.json``."""
+    path = os.path.abspath(path)
+    if mission_root is None:
+        folder = os.path.dirname(path)
+        while folder and not os.path.isfile(os.path.join(folder, "story.json")):
+            parent = os.path.dirname(folder)
+            folder = None if parent == folder else parent
+        mission_root = folder
+    with open(path, encoding="utf-8") as fh:
+        text = fh.read()
+    world = tilemap_world(mission_root) if mission_root else None
+    amd_docs = []
+    if mission_root:
+        from .amd_core import parse as amd_parse
+        for root, dirs, files in os.walk(mission_root):
+            dirs[:] = sorted(d for d in dirs if not d.startswith((".", "_")))
+            for name in sorted(files):
+                if not name.endswith(".amd"):
+                    continue
+                full = os.path.join(root, name)
+                try:
+                    with open(full, encoding="utf-8") as fh:
+                        source = fh.read()
+                    amd_docs.append((full, amd_parse(source, full), source))
+                except Exception:                        # noqa: BLE001
+                    continue
+    return tilemap_preview(text, mission_root, sets=sets, world=world, amd_docs=amd_docs)
 
 
 def _look_key(look):

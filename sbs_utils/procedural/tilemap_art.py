@@ -169,10 +169,45 @@ def tilemap_art_mirror(key, as_key, origin=None):
     return True
 
 
+def _twin_key(key):
+    return f"{key}_mirror"
+
+
 def tilemap_sprite_twin(key):
     """The mirrored twin a still prop may be drawn with (``"mirror": true``), or None."""
-    twin = f"{key}_mirror"
+    twin = _twin_key(key)
     return twin if _MIRRORED.get(twin) == key else None
+
+
+def tilemap_art_mirror_pairs(real, mirror=(), present=None):
+    """The looks mirroring DERIVES, as ``[(source, key)]`` - pure, so a tool that reads
+    the manifests itself (``tilemap_preview``) derives exactly what the game does.
+
+    - A figure - something with south or north looks - that has one side's looks, east
+      or west, but not the other's: each missing look, from the one it mirrors.
+    - Each key in ``mirror`` (``"mirror": true``): its twin, ``<key>_mirror``.
+
+    Args:
+        real: the keys a set really draws - never a derived one.
+        mirror: the keys marked ``"mirror": true``.
+        present: every key drawn for real, sets or not (a mission's own); defaults to
+            ``real``. A look already present is never replaced.
+    """
+    real = set(real)
+    present = real if present is None else set(present) | real
+    pairs = []
+    for key in sorted(real):
+        m = _FACING.match(key)
+        if not m:
+            continue
+        base, side, frame = m.group("base"), m.group("f"), m.group("frame") or ""
+        if not any(f"{base}_{f}{g}" in present for f in "sn" for g in (frame, "", "_idle")):
+            continue
+        twin = f"{base}_{'w' if side == 'e' else 'e'}{frame}"
+        if twin not in present:
+            pairs.append((key, twin))
+    pairs += [(key, _twin_key(key)) for key in sorted(set(mirror) & real)]
+    return pairs
 
 
 def _forget(key):
@@ -189,18 +224,10 @@ def _fill_facings():
     look a set or the mission drew. A look derived before is derived again, so it
     follows whatever set now draws the side it comes from."""
     from .gui.image import ImageAtlas
-    have = ImageAtlas.all
+    present = {k for k in ImageAtlas.all if k not in _MIRRORED}
     made = 0
-    for key in sorted(k for k in _REGISTERED if k not in _MIRRORED):
-        m = _FACING.match(key)
-        if not m:
-            continue
-        base, side, frame = m.group("base"), m.group("f"), m.group("frame") or ""
-        if not any(f"{base}_{f}{g}" in have for f in "sn" for g in (frame, "", "_idle")):
-            continue
-        twin = f"{base}_{'w' if side == 'e' else 'e'}{frame}"
-        if twin in have and twin not in _MIRRORED:
-            continue
+    for key, twin in tilemap_art_mirror_pairs(
+            [k for k in _REGISTERED if k not in _MIRRORED], present=present):
         if tilemap_art_mirror(key, twin):
             made += 1
     return made
@@ -277,7 +304,7 @@ def tilemap_art_load(manifest, folder, name="set", tileset=None):
         # A set drew it, so it is no longer derived; and a twin made from the picture
         # this one replaces goes with it.
         _MIRRORED.pop(key, None)
-        twin = f"{key}_mirror"
+        twin = _twin_key(key)
         if _MIRRORED.get(twin) == key:
             _forget(twin)
         if spec.get("mirror"):

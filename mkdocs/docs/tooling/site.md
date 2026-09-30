@@ -99,6 +99,32 @@ Search ships as a script assigning a global, not a JSON file fetched at runtime,
 because `fetch()` is blocked on `file://` and the whole point is a folder you can open
 off disk.
 
+### Maps
+
+A mission with [tile maps](../build/ground-tile-maps.md) gets a page per `.tiles` area,
+listed under **Maps**. Each page draws the whole area with its real art, which the
+engine's tile view cannot do for a big map.
+
+- **Zoom and layers.** `-`, `+`, Fit and Ctrl+wheel zoom the map. Marks, things, patrols
+  and the grid can each be switched off. Hovering names the cell's kind and marks.
+- **Links.** A thing on the map links to its record, and an exit to the map it leads to.
+  The Exits and On this map lists below the map say the same.
+- **Printing.** Printing the page gives the map on one landscape page and the lists after
+  it. `--maps-pdf` also writes `tilemaps/<area>.pdf` for each map, using an installed Edge
+  or Chrome.
+- **`--profile player`.** Hidden things, hostiles, patrols and every mark except the
+  ways out are left off, so the page is safe to hand to players.
+
+The looks come from sbs_utils (`tilemap_preview_file`), the same functions the game
+draws with: variants, edges, fringes, a figure's mirrored side and a prop's mirrored twin.
+The page's script only draws what it is given. The sheets the maps use are copied into
+the site's `media/tileart/`.
+
+```
+sbs site MyMission --emit site --open
+sbs site MyMission --emit site --profile player --maps-pdf -o handout
+```
+
 ## Faces
 
 A `face://` spec is a layer stack over a race atlas, composited at display time on a

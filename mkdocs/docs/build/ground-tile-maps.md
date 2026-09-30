@@ -336,3 +336,14 @@ mission's own art, as the game draws them. It also shows the props, people and h
 the `.amd` places on the area, and you can drag them (and patrol points) into place. A
 `.tileset` file opens in the **Tileset Editor**, a table of its kinds with each look's
 picture. See [Tile Map Editor](../tooling/tile-editor.md).
+
+## Seeing a whole map
+
+The game's tile view shows at most 40 tiles across, so a big map scrolls and follows a
+walker. To see a whole map at once:
+
+| For | Use |
+|---|---|
+| Working on it | The Tile Map Editor, zoomed out: the `-` button or key, or Ctrl+wheel, down to 8 pixels a tile. |
+| Reading or sharing it | `sbs site <mission> --emit site`: a page per map, with the real art, linked to the records on it ([Maps](../tooling/site.md#maps)). |
+| Paper or a PDF | Print a map page, or add `--maps-pdf` to write one PDF per map. `--profile player` leaves the secrets off. |

@@ -407,6 +407,83 @@ class TestPlacementsForTheEditor(TileLintBase):
                          ["fig:a_s_idle", "fig:b_s", "prop:c", None])
 
 
+MIRRORING = {"sheets": {"s": "s.png"}, "sprites": {
+    "fig:w_s_idle": {"sheet": "s", "rect": [0, 0, 10, 20]},
+    "fig:w_e_idle": {"sheet": "s", "rect": [10, 0, 20, 20], "anchor": [0.3, 1.0]},
+    "prop:rock": {"sheet": "s", "rect": [20, 0, 40, 20], "mirror": True},
+    "prop:sign": {"sheet": "s", "rect": [40, 0, 60, 20]}}}
+
+
+class TestPreviewMirrorsLikeTheGame(unittest.TestCase):
+    """The looks the game derives by mirroring - a figure's missing side, a prop's twin -
+    are in the preview too, as rects that run backwards, and a prop is its twin on the
+    very cells the game draws it on."""
+
+    def setUp(self):
+        import json
+        self.root = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, self.root)
+        folder = os.path.join(self.root, "media", "tileart", "builtin")
+        os.makedirs(folder)
+        with open(os.path.join(folder, "manifest.json"), "w") as fh:
+            json.dump(MIRRORING, fh)
+
+    def sprites(self):
+        from sbs_utils.procedural.tilemap_preview import _load_sets
+        return _load_sets(self.root, ["builtin"])[0]
+
+    def test_a_figure_gets_its_missing_side_mirrored(self):
+        west = self.sprites()["fig:w_w_idle"]
+        self.assertEqual(west["rect"], [20, 0, 10, 20])
+        self.assertAlmostEqual(west["anchor"][0], 0.7)
+
+    def test_mirror_true_gives_a_twin_and_nothing_else_does(self):
+        got = self.sprites()
+        self.assertEqual(got["prop:rock_mirror"]["rect"], [40, 0, 20, 20])
+        self.assertNotIn("prop:sign_mirror", got)
+
+    def test_A_PROP_IS_ITS_TWIN_ON_THE_CELLS_THE_GAME_PICKS(self):
+        from sbs_utils.procedural import tilemap as T
+        from sbs_utils.procedural import tilemap_art as TA
+        from sbs_utils.procedural.tilemap_preview import _sprite_look
+        sprites = self.sprites()
+        self.addCleanup(TA.tilemap_art_clear)
+        TA.tilemap_art_load(MIRRORING, "media/tileart/builtin", "builtin")
+        both = set()
+        for x in range(6):
+            game = T.tilemap_sprite_look({"sprite": "prop:rock", "fixed": True, "x": x, "y": 3})
+            self.assertEqual(_sprite_look(sprites, "prop:rock", "s", [x, 3], True), game, x)
+            both.add(game)
+            # Something that moves is never a twin, in either.
+            self.assertEqual(_sprite_look(sprites, "prop:rock", "s", [x, 3], False), "prop:rock")
+        self.assertEqual(both, {"prop:rock", "prop:rock_mirror"})
+
+
+class TestPreviewOfAFileOnDisk(unittest.TestCase):
+    """`sbs site` has no editor behind it: the preview reads the area, the tileset, the
+    art and the mission's .amd straight from the mission folder."""
+
+    def test_the_mission_is_found_and_its_things_stand_on_the_map(self):
+        import json
+        from sbs_utils.procedural.tilemap_preview import tilemap_preview_file
+        root = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, root)
+        files = {"story.json": "{}", "surface/test.tileset": TILESET,
+                 "surface/ridge.tiles": RIDGE, "surface/colony.tiles": COLONY,
+                 "world.amd": WORLD,
+                 "media/tileart/builtin/manifest.json": json.dumps(MIRRORING)}
+        for rel, text in files.items():
+            path = os.path.join(root, *rel.split("/"))
+            os.makedirs(os.path.dirname(path), exist_ok=True)
+            with open(path, "w", encoding="utf-8") as fh:
+                fh.write(text)
+        got = tilemap_preview_file(os.path.join(root, "surface", "ridge.tiles"))
+        self.assertTrue(got["ok"], got.get("error"))
+        self.assertEqual(got["area"]["key"], "ridge")
+        self.assertEqual({p["key"] for p in got["placements"]}, {"drone", "gb"})
+        self.assertEqual(got["exits"]["to_colony"], "colony @to_ridge")
+
+
 class TestTilesetPreviewForTheEditor(unittest.TestCase):
     """What the tileset editor shows: the looks the art sets offer, the art each kind
     ends up wearing, and how many cells of the areas use each kind."""
@@ -465,7 +542,9 @@ class TestTilesetPreviewForTheEditor(unittest.TestCase):
         r = tilemap_preview(RIDGE, self.root,
                             amd_docs=[("file:///w.amd", parse(world_text), world_text)])
         drone = next(p for p in r["placements"] if p["key"] == "drone")
-        self.assertEqual(drone["looks"], {"n": None, "e": "fig:a_e_idle", "s": "fig:a_s_idle", "w": None})
+        # West is east mirrored, as the game draws a figure a set drew one side of.
+        self.assertEqual(drone["looks"], {"n": None, "e": "fig:a_e_idle", "s": "fig:a_s_idle",
+                                          "w": "fig:a_w_idle"})
         self.assertEqual(drone["look"], "fig:a_s_idle")
         self.assertIn("fig:a_e_idle", r["sprites"])
 
