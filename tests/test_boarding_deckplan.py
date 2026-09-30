@@ -169,5 +169,116 @@ class TestBuild(unittest.TestCase):
         self.assertTrue(D.boarding_deck_tiles_of(self.area, (4, 0)))
 
 
+class TestTheLiveShip(unittest.TestCase):
+    """The deck follows its ship: damage shows, repair teams walk."""
+
+    SHIP = 555
+
+    def setUp(self):
+        mock_sbs.create_new_sim()
+        FrameContext.context = Context(mock_sbs.sim, mock_sbs, FakeEvent())
+        self.addCleanup(setattr, FrameContext, "context", None)
+        for clear in (T.tilemap_clear, T.tilemap_clear_tilesets, P.boarding_props_clear,
+                      D.boarding_deck_clear):
+            clear()
+            self.addCleanup(clear)
+        self.area = D.boarding_deck_build(D.boarding_deck_plan_ascii(PLAN), "deck_live")
+        self.state = []
+        real = D._grid_state
+        D._grid_state = lambda ship: list(self.state)
+        self.addCleanup(setattr, D, "_grid_state", real)
+        T.tilemap_set_clock(0.0)
+        self.addCleanup(T.tilemap_set_clock, None)
+
+    def kit(self, cell):
+        return P.boarding_prop(D.boarding_deck_system_prop(self.area, cell))
+
+    def test_a_damaged_node_goes_dark_with_rubble_and_comes_back_repaired(self):
+        self.state = [(901, 4, 0, True, False, None)]
+        self.assertTrue(D.boarding_deck_sync(self.area, self.SHIP))
+        self.assertEqual(self.kit((4, 0))["color"], D.DAMAGED_TINT)
+        rubble = [k for k in P.boarding_props(self.area) if "_rubble_" in k]
+        self.assertEqual(len(rubble), 1)
+        self.assertEqual(P.boarding_prop(rubble[0])["sprite"], "prop:debris_pile")
+        self.assertTrue(P.boarding_prop_is_scenery(rubble[0]))
+        self.state = [(901, 4, 0, False, False, None)]
+        D.boarding_deck_sync(self.area, self.SHIP)
+        self.assertIsNone(self.kit((4, 0))["color"])
+        self.assertFalse([k for k in P.boarding_props(self.area) if "_rubble_" in k])
+
+    def test_nothing_changes_when_nothing_did(self):
+        self.state = [(901, 4, 0, True, False, None)]
+        D.boarding_deck_sync(self.area, self.SHIP)
+        self.assertEqual(D.boarding_deck_sync(self.area, self.SHIP), 0)
+
+    def test_a_repair_team_stands_where_engineering_has_it_and_walks_when_it_moves(self):
+        self.state = [(950, 0, 0, False, True, 6)]
+        D.boarding_deck_sync(self.area, self.SHIP)
+        at = T.tilemap_where(950)
+        self.assertIn((at[1], at[2]), D.boarding_deck_tiles_of(self.area, (0, 0)))
+        self.state = [(950, 3, 2, False, True, 6)]
+        D.boarding_deck_sync(self.area, self.SHIP)
+        self.assertTrue(T.tilemap_walking(950))
+
+    def test_a_team_at_zero_hp_is_down_and_a_team_that_is_gone_leaves(self):
+        self.state = [(950, 0, 0, False, True, 0)]
+        D.boarding_deck_sync(self.area, self.SHIP)
+        self.assertEqual(T.tilemap_actor(950)["pose"], "down")
+        self.state = []
+        D.boarding_deck_sync(self.area, self.SHIP)
+        self.assertIsNone(T.tilemap_where(950))
+
+
+class TestAMockShip(unittest.TestCase):
+    """End to end on the mock: a real ship's interior, read and built into a deck."""
+
+    def setUp(self):
+        from tests.reset_helper import reset_mock
+        from sbs_utils.procedural.internal_damage import grid_interior_reset
+        from sbs_utils.procedural.grid import grid_merge_ascii
+        reset_mock(mock_sbs)
+        grid_interior_reset()
+        for clear in (T.tilemap_clear, T.tilemap_clear_tilesets, P.boarding_props_clear,
+                      D.boarding_deck_clear):
+            clear()
+            self.addCleanup(clear)
+        grid_merge_ascii("ship: tsn_light_cruiser\nsize: 3x2\nlegend:\n  i: impulse\n"
+                         "  c: cargo\n---\nici\nccc", "test")
+
+    def test_the_ship_is_read_built_and_its_damage_shown(self):
+        from sbs_utils.procedural.internal_damage import grid_rebuild_grid_objects
+        from sbs_utils.procedural.grid import grid_objects
+        from sbs_utils.procedural.query import to_id
+        from sbs_utils.procedural.roles import add_role
+        from sbs_utils.procedural.spawn import player_spawn
+        ship = to_id(player_spawn(0, 0, 0, "Probe", "tsn", "tsn_light_cruiser"))
+        grid_rebuild_grid_objects(ship)
+        plan = D.boarding_deck_plan(ship)
+        self.assertEqual(plan["cells"][(0, 0)], "impulse")
+        area = D.boarding_deck_build(plan, "probe_deck")
+        self.assertIsNotNone(D.boarding_deck_system_prop(area, (0, 0)))
+        state = D._grid_state(ship)
+        node = next(g for g, x, y, _, damcon, _ in state if (x, y) == (0, 0) and not damcon)
+        add_role(node, "__damaged__")
+        D.boarding_deck_sync(area, ship)
+        kit = P.boarding_prop(D.boarding_deck_system_prop(area, (0, 0)))
+        self.assertEqual(kit["color"], D.DAMAGED_TINT)
+        self.assertTrue(grid_objects(ship))
+
+    def test_a_ships_deck_is_built_once_and_watched(self):
+        from sbs_utils.procedural.internal_damage import grid_rebuild_grid_objects
+        from sbs_utils.procedural.query import to_id
+        from sbs_utils.procedural.spawn import player_spawn
+        ship = to_id(player_spawn(0, 0, 0, "Probe", "tsn", "tsn_light_cruiser"))
+        grid_rebuild_grid_objects(ship)
+        deck = D.boarding_deck_for(ship, title="Probe")
+        self.assertEqual(deck, f"deck_{ship}")
+        self.assertEqual(T.tilemap_title(deck), "Probe")
+        self.assertIsNotNone(D._DECKS[deck]["watch"])
+        props = len(P.boarding_props(deck))
+        self.assertEqual(D.boarding_deck_for(ship), deck)        # not built again
+        self.assertEqual(len(P.boarding_props(deck)), props)
+
+
 if __name__ == "__main__":
     unittest.main()

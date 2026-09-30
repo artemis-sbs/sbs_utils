@@ -365,6 +365,14 @@ def boarding_prop_remove(key):
     return True
 
 
+def boarding_prop_forget(key):
+    """Take a prop off the map AND forget it - for something that was only ever there
+    for a while (rubble on a node that has been repaired). A removed prop keeps its
+    record, so ``boarding_props_place`` would put it back."""
+    boarding_prop_remove(key)
+    return _PROPS.pop(_norm(key), None) is not None
+
+
 def _try_open(rec, lf):
     """Try each way this door opens that the user can manage. The first that works."""
     from .boarding import boarding_team

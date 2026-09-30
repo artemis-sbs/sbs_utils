@@ -589,7 +589,169 @@ def boarding_deck_system_prop(area, cell):
     return (rec or {}).get("systems", {}).get(tuple(cell))
 
 
+# --- the live ship ------------------------------------------------------------------------
+
+#: What a damage-control team is drawn as, by team, in order.
+DAMCON_SPRITES = ["fig:crew_m", "fig:crew_f", "fig:medic_m", "fig:soldier_m"]
+DAMAGED_TINT = "#666"
+
+
+def _grid_state(ship):
+    """``[(grid object id, x, y, damaged, damcon, hp)]`` for a ship's interior now. The
+    seam the tests replace."""
+    from .grid import grid_objects
+    from .query import to_blob
+    from .roles import has_role
+    from .inventory import get_inventory_value
+    out = []
+    for gid in sorted(grid_objects(ship) or ()):
+        blob = to_blob(gid)
+        if blob is None:
+            continue
+        try:
+            x, y = int(blob.get("curx", 0)), int(blob.get("cury", 0))
+        except (ValueError, TypeError):
+            continue
+        out.append((gid, x, y, has_role(gid, "__damaged__"), has_role(gid, "damcons"),
+                    get_inventory_value(gid, "HP", None)))
+    return out
+
+
+def boarding_deck_sync(area, ship):
+    """Show a ship's state on the deck built from it: a damaged node's kit goes dark
+    with rubble beside it, a repaired one comes back, and each damage-control team
+    stands - and walks - where Engineering has it. Call it when things change, or let
+    ``boarding_deck_watch`` call it every second. Returns how many things changed."""
+    from .tilemap import (tilemap_place, tilemap_where, tilemap_walk, tilemap_remove,
+                          tilemap_set_pose, tilemap_is_open)
+    from .boarding_props import (boarding_prop, boarding_prop_add, boarding_props_place,
+                                 boarding_prop_forget)
+    area = str(area).strip().lower()
+    rec = _DECKS.get(area)
+    if rec is None:
+        return 0
+    changed = 0
+    rubble = rec.setdefault("rubble", {})
+    teams = rec.setdefault("teams", {})
+    seen_teams = set()
+    damaged_cells = set()
+    for gid, x, y, damaged, damcon, hp in _grid_state(ship):
+        cell = (x, y)
+        tiles = rec["cell_tiles"].get(cell) or []
+        if damcon:
+            seen_teams.add(gid)
+            spot = next((t for t in sorted(tiles, key=lambda t: (t[1], t[0]))
+                         if tilemap_is_open(area, t[0], t[1])), None)
+            if gid not in teams:
+                if spot is None:
+                    continue
+                sprite = DAMCON_SPRITES[len(teams) % len(DAMCON_SPRITES)]
+                tilemap_place(gid, area, spot[0], spot[1], sprite=sprite, party=False,
+                              blocks=False, speed=2.5, exits=False)
+                teams[gid] = cell
+                changed += 1
+            elif teams[gid] != cell and spot is not None:
+                tilemap_walk(gid, spot[0], spot[1])
+                teams[gid] = cell
+                changed += 1
+            tilemap_set_pose(gid, "down" if hp is not None and hp <= 0 else None)
+            continue
+        if damaged:
+            damaged_cells.add(cell)
+    # Teams that are gone from the ship leave the deck.
+    for gid in [g for g in teams if g not in seen_teams]:
+        tilemap_remove(gid)
+        del teams[gid]
+        changed += 1
+    for cell in sorted(damaged_cells | set(rubble)):
+        kit = rec["systems"].get(cell)
+        broken = cell in damaged_cells
+        if kit:
+            p = boarding_prop(kit)
+            at = tilemap_where(p["id"]) if p and p.get("id") is not None else None
+            if at is not None and (p.get("color") == DAMAGED_TINT) != broken:
+                p["color"] = DAMAGED_TINT if broken else None
+                tilemap_place(p["id"], at[0], at[1], at[2], color=p["color"] or "")
+                changed += 1
+        if broken and cell not in rubble:
+            free = [t for t in sorted(rec["cell_tiles"].get(cell, []),
+                                      key=lambda t: (-t[1], -t[0]))
+                    if tilemap_is_open(area, t[0], t[1])]
+            if free:
+                key = f"{area}_rubble_{cell[0]}_{cell[1]}"
+                # Rubble is walked over: a repair party must still get to the kit.
+                boarding_prop_add(key, area, free[0], sprite="prop:debris_pile",
+                                  blocks=False, name="rubble")
+                boarding_props_place(area)
+                rubble[cell] = key
+                changed += 1
+        elif not broken and cell in rubble:
+            boarding_prop_forget(rubble.pop(cell))
+            changed += 1
+    return changed
+
+
+def boarding_deck_watch(area, ship, seconds=1.0):
+    """Keep a deck in step with its ship (``boarding_deck_sync``) every few seconds,
+    until the deck is cleared or the ship is gone. Returns the tick task."""
+    from ..tickdispatcher import TickDispatcher
+    from .query import to_object
+    rec = _DECKS.get(str(area).strip().lower())
+    if rec is None:
+        return None
+    if rec.get("watch") is not None:
+        return rec["watch"]
+
+    def tick(task):
+        if _DECKS.get(task.area) is not rec or to_object(task.ship) is None:
+            task.stop()
+            rec["watch"] = None
+            return
+        boarding_deck_sync(task.area, task.ship)
+
+    task = TickDispatcher.do_interval(tick, seconds)
+    task.area = str(area).strip().lower()
+    task.ship = ship
+    rec["watch"] = task
+    boarding_deck_sync(area, ship)
+    return task
+
+
+def boarding_deck_for(ship, title=None, watch=True, tileset="deck"):
+    """The boarding deck of a live ship: built the first time it is asked for, then kept
+    in step with the ship (``boarding_deck_watch``). Returns the area key - hand it to
+    ``boarding_invite(..., area=...)`` to put a party aboard - or None when the hull has
+    no interior plan.
+
+        deck = boarding_deck_for(enemy_id, title="Kralien cruiser")
+        boarding_invite(player_ship, [], title="Boarding", area=deck)
+    """
+    from .query import to_id, to_object
+    sid = to_id(ship)
+    so = to_object(sid)
+    if so is None:
+        return None
+    key = f"deck_{sid}"
+    if key not in _DECKS:
+        plan = boarding_deck_plan(sid)
+        if plan is None:
+            return None
+        if boarding_deck_build(plan, key, title=title or getattr(so, "name", None),
+                               tileset=tileset) is None:
+            return None
+    if watch:
+        boarding_deck_watch(key, sid)
+    return key
+
+
 def boarding_deck_clear():
+    for rec in _DECKS.values():
+        task = rec.get("watch")
+        if task is not None:
+            try:
+                task.stop()
+            except Exception:                                # noqa: BLE001
+                pass
     _DECKS.clear()
     _OVERRIDES.clear()
 

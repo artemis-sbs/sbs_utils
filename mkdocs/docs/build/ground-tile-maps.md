@@ -218,6 +218,21 @@ area = boarding_deck_build(boarding_deck_plan(ship), "boarded_deck", title="Enem
 `boarding_deck_plan(ship)` reads a live ship's layout and hull map. For a `.grid` file, use
 `boarding_deck_plan_ascii(text)`.
 
+For a live ship, one call does all of it:
+
+```python
+deck = boarding_deck_for(enemy_id, title="Kralien cruiser")   # built once, then reused
+boarding_invite(player_ship, [], title="Boarding", area=deck)
+```
+
+The deck then follows its ship. `boarding_deck_watch` checks it every second, and
+`boarding_deck_sync` does one check on demand:
+
+- a damaged node's kit goes dark, with rubble beside it that can be walked over;
+- a repaired node comes back;
+- each damage-control team stands where Engineering has it, walks when it moves, lies down
+  at 0 HP, and leaves when it is gone.
+
 The furniture is scenery, and the same plan always gives the same deck. To furnish a kind
 of room your own way, use `boarding_deck_kit("cargo", furniture=["prop:barrel"])`. To start
 from the generated deck and edit it by hand, `boarding_deck_text(layout, key)` gives it as
