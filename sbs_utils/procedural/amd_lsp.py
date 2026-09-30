@@ -332,12 +332,89 @@ def _mast_diagnostics(text):
     return diags
 
 
+def _is_tiles(uri):
+    """A tile area (.tiles) or tileset (.tileset): diagnostics, and the tile editor's
+    own `tiles/*` requests - nothing that reads the AMD model."""
+    return str(uri).lower().endswith((".tiles", ".tileset"))
+
+
+# The mission's tile world (every .tileset and .tiles, parsed), per mission root. Kept
+# apart from the AMD index: typing in an .amd cannot change it, so it is dropped only
+# when a tile file changes.
+_tiles_cache = {}
+
+
+def _tile_world(uri, docs):
+    from sbs_utils.procedural.tilemap_lint import tilemap_world
+    root = _mission_root(_uri_to_path(uri))
+    if root is None:
+        return None, {"tilesets": None, "areas": {}}
+    if root not in _tiles_cache:
+        texts = {p: t for p, (t, _u) in _open_by_path(docs).items()
+                 if _is_tiles(p)}
+        _tiles_cache[root] = tilemap_world(root, texts)
+    return root, _tiles_cache[root]
+
+
+def _finding_diags(findings, text, source):
+    """Linter findings -> LSP Diagnostics, ranged where the finding knows its columns."""
+    lines = text.splitlines()
+    diags = []
+    for f in findings:
+        l0 = max(0, (f.line or 1) - 1)
+        ln = lines[l0] if l0 < len(lines) else ""
+        if f.col is not None:
+            start, end = f.col, f.end_col if f.end_col is not None else f.col + 1
+        else:
+            start, end = 0, max(1, len(ln))
+        diags.append({"range": {"start": {"line": l0, "character": start},
+                                "end": {"line": l0, "character": end}},
+                      "severity": 1 if f.is_error() else 2,
+                      "source": source, "code": f.code, "message": f.message})
+    return diags
+
+
+def _tile_diagnostics(uri, text, docs):
+    from sbs_utils.procedural import tilemap_lint as TL
+    if str(uri).lower().endswith(".tileset"):
+        return _finding_diags(TL.tilemap_lint_tileset(text), text, "tiles")
+    _root, world = _tile_world(uri, docs)
+    return _finding_diags(TL.tilemap_lint_area(text, world), text, "tiles")
+
+
+def _placement_diagnostics(uri, text, docs):
+    """Where an .amd puts props and people on the tile areas - nothing for a mission
+    without tile areas."""
+    _root, world = _tile_world(uri, docs)
+    if not world.get("areas"):
+        return []
+    from sbs_utils.procedural.tilemap_lint import tilemap_lint_placements
+    return _finding_diags(tilemap_lint_placements(text, world), text, "tiles")
+
+
+def _tiles_preview(uri, text, docs, sets=None):
+    """`tiles/preview`: what the area in `text` looks like, for the tile editor."""
+    from sbs_utils.procedural.tilemap_preview import tilemap_preview
+    root, world = _tile_world(uri, docs)
+    out = tilemap_preview(text, root, sets=sets or None, world=world)
+    if out.get("ok"):
+        out["problems"] = _tile_diagnostics(uri, text, docs)
+        out["missionRoot"] = root
+    return out
+
+
 def _publish(stdout, uri, text, docs):
     try:
         if _is_mast(uri):
             diags = _mast_diagnostics(text)
+        elif _is_tiles(uri):
+            diags = _tile_diagnostics(uri, text, docs)
         else:
             diags = _diagnostics(text, _index_for(uri, docs))
+            try:
+                diags += _placement_diagnostics(uri, text, docs)
+            except Exception:
+                pass       # the tile pass must never cost the AMD diagnostics
     except Exception:
         diags = []
     _write_message(stdout, {"jsonrpc": "2.0", "method": "textDocument/publishDiagnostics",
@@ -1727,7 +1804,9 @@ def serve(stdin=None, stdout=None):
         _params = msg.get("params") if isinstance(msg, dict) else None
         _td = _params.get("textDocument") if isinstance(_params, dict) else None
         _uri = _td.get("uri", "") if isinstance(_td, dict) else ""
-        if (_is_mast(_uri) and method not in (
+        # A tile file is the same, except for the tile editor's own `tiles/*` requests.
+        if ((_is_mast(_uri) or (_is_tiles(_uri) and not str(method).startswith("tiles/")))
+                and method not in (
                 "textDocument/didOpen", "textDocument/didChange",
                 "textDocument/didSave", "textDocument/didClose")):
             if mid is not None:
@@ -1769,11 +1848,34 @@ def serve(stdin=None, stdout=None):
                     text = params.get("text") or docs.get(uri, "")
                 docs[uri] = text
                 _invalidate()                 # a buffer changed -> rebuild the index
+                if _is_tiles(uri):
+                    _tiles_cache.clear()
                 _publish(stdout, uri, text, docs)
+                if _is_tiles(uri):
+                    # An area's exits and a prop's Mark: are checked against the OTHER
+                    # files: the open areas follow every edit, the .amd on a save (a
+                    # full AMD lint per keystroke in the tile editor would be felt).
+                    for other, other_text in list(docs.items()):
+                        if other == uri:
+                            continue
+                        if _is_tiles(other) or (method == "textDocument/didSave"
+                                                and other.lower().endswith(".amd")):
+                            _publish(stdout, other, other_text, docs)
+            elif method == "tiles/preview":
+                p = msg.get("params", {})
+                uri = p.get("textDocument", {}).get("uri", "")
+                text = p.get("text")
+                if text is None:
+                    text = docs.get(uri) or _read(_uri_to_path(uri)) or ""
+                _write_message(stdout, {"jsonrpc": "2.0", "id": mid,
+                                        "result": _tiles_preview(uri, text, docs,
+                                                                 p.get("sets"))})
             elif method == "textDocument/didClose":
                 uri = msg.get("params", {}).get("textDocument", {}).get("uri", "")
                 docs.pop(uri, None)
                 _invalidate()
+                if _is_tiles(uri):
+                    _tiles_cache.clear()
                 _write_message(stdout, {"jsonrpc": "2.0", "method": "textDocument/publishDiagnostics",
                                         "params": {"uri": uri, "diagnostics": []}})
             elif method == "textDocument/formatting":

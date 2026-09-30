@@ -32,7 +32,10 @@ drawn black). ``#`` is fine as a legend key: a comment is only a ``#`` in column
 THE PIECES:
 
 - **Tile kinds** belong to a TILESET: what a kind looks like (an atlas key) and whether it
-  can be walked and seen through. ``tilemap_tileset``.
+  can be walked and seen through. ``tilemap_tileset``, or a ``.tileset`` file read with
+  ``tilemap_tileset_load`` - the file is what the linter and the editor read, so a
+  mission that writes one gets both. By convention ``tileset: X`` names ``X.tileset``
+  in the same folder as the area.
 - **Marks** name cells: a place a scene belongs to, where a prop stands, an exit. A mark
   can cover many cells. Stepping onto a mark emits ``tilemap_entered``.
 - **Actors** are agents (a crew body, a hostile, a survivor) placed on a cell. They walk
@@ -152,6 +155,107 @@ def tilemap_tileset(name, kinds):
                               "fringe": spec.get("fringe"), "over": spec.get("over")}
     _TILESETS[_norm(name)] = table
     return table
+
+
+#: A `.tileset` kind line: the rules a kind HAS, and the values it carries.
+_TILESET_FLAGS = ("walk", "see", "tall")
+_TILESET_VALUES = ("look", "cell", "color", "over")
+
+
+def tilemap_tileset_parse(text):
+    """Read a tileset file. Raises TilemapError rather than guessing.
+
+    A TILESET FILE::
+
+        tileset: mereth
+        title: Mereth surface
+        kinds:
+          dust:   walk see   look=dirt      # walked and seen across
+          brine:  see        look=water     # seen across, never walked
+          rock:              look=rock      # neither
+          door:   walk       color=#a86
+
+    Each word on a kind line is a rule the kind HAS, so a kind that names neither
+    ``walk`` nor ``see`` blocks both - a typo is an error, never a silent wall. ``tall``
+    stands up (the kind south of it takes its ``shade``). ``look=`` names the ground an
+    art set draws it with, ``cell=`` a sprite key to draw without one, ``color=`` a tint,
+    ``over=`` which of two kinds' fringes goes on top. A ``#`` that starts a word ends
+    the line, so ``color=#a86`` is a color and ``  # note`` a comment.
+
+    Returns:
+        dict: ``{"name", "title", "kinds": {kind: spec}, "lines": {kind: line number}}``
+        - ``kinds`` is what ``tilemap_tileset`` takes; ``lines`` is for tools.
+    """
+    if not text:
+        raise TilemapError("empty tileset")
+    header, kinds, lines = {}, {}, {}
+    block = None
+    for n, raw in enumerate(text.replace("\r\n", "\n").replace("\r", "\n").split("\n"), 1):
+        stripped = raw.strip()
+        # Unlike an area's legend, no key here is one character, so a `#` line is a
+        # comment however far it is indented.
+        if not stripped or stripped.startswith("#"):
+            continue
+        if raw[:1] not in (" ", "\t"):
+            key, _, value = stripped.partition(":")
+            key = key.strip().lower()
+            if key == "kinds" and not value.strip():
+                block = key
+                continue
+            block = None
+            header[key] = value.strip()
+            continue
+        if block != "kinds":
+            raise TilemapError(f"line {n}: indented line outside kinds:")
+        kind, colon, rest = stripped.partition(":")
+        kind = _norm(kind)
+        if not colon or not kind or " " in kind:
+            raise TilemapError(f"line {n}: a kind line is 'name: rules' - got {stripped!r}")
+        if kind in kinds:
+            raise TilemapError(f"line {n}: kind {kind!r} is declared twice")
+        spec = {"walk": False, "see": False}
+        for word in rest.split():
+            if word.startswith("#"):
+                break
+            name, eq, value = word.partition("=")
+            name = name.lower()
+            if not eq and name in _TILESET_FLAGS:
+                spec[name] = True
+            elif eq and name in _TILESET_VALUES and value:
+                if name == "over":
+                    try:
+                        value = int(value)
+                    except ValueError:
+                        raise TilemapError(f"line {n}: over= wants a whole number, "
+                                           f"got {value!r}")
+                spec[name] = value
+            else:
+                raise TilemapError(
+                    f"line {n}: {word!r} is not a rule - a kind line takes "
+                    f"{', '.join(_TILESET_FLAGS)} and "
+                    f"{', '.join(v + '=' for v in _TILESET_VALUES)}")
+        kinds[kind] = spec
+        lines[kind] = n
+    name = _norm(header.get("tileset"))
+    if not name:
+        raise TilemapError("no 'tileset:' name")
+    if not kinds:
+        raise TilemapError("no kinds: block, so the tileset has no kinds")
+    return {"name": name, "title": header.get("title") or name,
+            "kinds": kinds, "lines": lines}
+
+
+def tilemap_tileset_load(text):
+    """Read a tileset file and declare it (``tilemap_tileset``). Returns its name, or
+    None when it cannot be read - logged, like an area that cannot be."""
+    try:
+        rec = tilemap_tileset_parse(text)
+    except TilemapError as e:
+        from .execution import log
+        log(f"tileset not loaded: {e}", "tilemap", "warning")
+        return None
+    tilemap_tileset(rec["name"], rec["kinds"])
+    return rec["name"]
 
 
 def tilemap_kind(area, x, y):

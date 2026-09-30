@@ -1,5 +1,9 @@
 # Tile maps
 
+!!! note "Looking for walkable ground?"
+    This page lays out **space** from an ASCII string. For the ground an away team walks,
+    see [Ground tile maps](ground-tile-maps.md).
+
 For large, structured worlds, build the map from an **ASCII string**: map each
 character to a **deck** of terrain prefabs, then fill a tile grid from the art.
 It's a compact way to lay out sectors of space (used by HereThereBeMonsters and

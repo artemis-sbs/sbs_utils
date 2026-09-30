@@ -1,0 +1,200 @@
+# Ground tile maps (experimental)
+
+!!! warning "Experimental"
+    New in v1.4.0 and still settling. The file formats below are what LandingParty
+    (Dawnline) ships with and what the linter and the
+    [Tile Map Editor](../tooling/tile-editor.md) read, but field names and checks may
+    still change. Try it, and report what works and what does not.
+
+A **ground tile map** is walkable ground for an away team: a ridge, a colony street, a cave
+system. Each place is an **area** drawn as ASCII in its own file, a party of crew figures
+walks it one cell at a time, and a console draws it with `gui_tilemap`. Nothing on it is a
+space object.
+
+This is not the same thing as [Tile maps](tile-maps.md), which lay out a sector of
+**space** from an ASCII string of terrain decks.
+
+A mission's ground is made of three kinds of file:
+
+| File | What it holds | Read by |
+|---|---|---|
+| `<area>.tiles` | One area: its map, legend, marks and exits | `tilemap_load` |
+| `<name>.tileset` | The tile kinds: which can be walked or seen across, and how each one looks | `tilemap_tileset_load` |
+| `media/tileart/<set>/manifest.json` | An **art set**: the pictures | `tilemap_art_use` |
+
+Props, people and hostiles that stand on the ground are placed from an `.amd` file (see
+[Placing things on the ground](#placing-things-on-the-ground)).
+
+## An area file
+
+```
+area: ridge
+title: Landing Ridge
+tileset: mereth
+entry: landing                  # a mark name, or "x, y"
+legend:
+  .: dust
+  ,: scrub
+  #: rock
+  ~: brine
+  L: dust @landing              # a tile kind, and a MARK on the cell
+  c: path @to_colony            # a mark named to_<area> is an exit there
+exits:
+  to_colony: colony @to_ridge   # optional - where an exit leads, and to which mark
+---
+###########
+#...,,..c.#
+#..L......#
+###########
+```
+
+Everything after `---` is the map, row 0 first, and `x` counts columns from the left. A
+**space** is *nothing*: never walked, and drawn black.
+
+**Header:**
+
+| Key | Meaning |
+|---|---|
+| `area:` | The area's name. Required. |
+| `title:` | What the players see. Defaults to the name. |
+| `tileset:` | Which tileset its kinds come from. |
+| `entry:` | Where somebody beamed down stands: a mark, or `x, y`. Without it, the walkable cell nearest the middle. |
+| `known:` | `no` hides the area until a scan reveals it (`tilemap_reveal_area`). |
+| `beam:` | `no` means the transporter cannot lock on here. |
+| `size:` | `WxH`. Fixes the size instead of taking it from the longest row. The editor writes it when you resize. |
+
+**Legend.** Each line is **one character**, a colon, and a tile kind. Because the key is
+one character, `#` and `:` are fine as keys: a comment is only a `#` in column 0.
+A legend line can also put a **mark** on every cell drawn with that character. For
+example, `pppppp` drawn with `p: deck @pad` makes a six-cell mark called `pad`.
+
+**Marks** name places. A scene can belong to one, and a prop can stand on one. When an
+actor steps onto a mark, the `tilemap_entered` signal fires.
+
+**Exits.** A mark called `to_<area>` is a way out to that area. The `exits:` block is only
+needed to choose where the party arrives in the other area. Without it, they stand beside
+that area's way back.
+
+## A tileset file
+
+```
+tileset: mereth
+title: Mereth surface
+kinds:
+  dust:    walk see   look=dirt
+  salt:    walk see   look=salt
+  brine:        see   look=water     # seen across, never walked
+  cliff:        see   look=cliff
+  rock:               look=rock      # neither
+  wall:    tall       look=wall_metal
+  door:    walk       color=#a86
+```
+
+Each word on a kind line is a **rule the kind has**. A kind that names neither `walk` nor
+`see` blocks both. A misspelled word is an error, never a silent wall.
+
+| Word | Meaning |
+|---|---|
+| `walk` | Can be walked on. |
+| `see` | Can be seen across. Fog of war looks through it. A kind you can see across but not walk, such as water, is what makes a map readable. |
+| `tall` | Stands up. The ground just south of it takes its art set's `shade` look. |
+| `look=` | Which ground look an art set draws it with. The default is the kind's own name. |
+| `cell=` | A sprite key to draw it with when no art set dresses it. |
+| `color=` | A tint. The editor also uses it as the kind's color. |
+| `over=` | When two kinds meet, the higher `over` has its fringe drawn on top. |
+
+A `#` that starts a word ends the line, so `color=#a86` is a color and `  # note` is a
+comment.
+
+By convention, `tileset: mereth` in an area file names `mereth.tileset` **in the same
+folder**. That is how the linter and the editor find it.
+
+!!! note "A tileset declared in Python still works"
+    `tilemap_tileset(name, {kind: {"walk": ..., "see": ..., "look": ...}})` is the same
+    thing as a dict. The game treats both the same. Without a `.tileset` file, however,
+    the linter and the editor cannot tell what can be walked. Their checks that need it are
+    skipped, and the editor cannot hatch the cells nobody can walk.
+
+## Loading it
+
+A mission's own Python (LandingParty's `lp_world.py`, slightly trimmed):
+
+```python
+def lp_setup_tiles(*sets):
+    from sbs_utils.procedural.media import media_read_relative_file as read
+    from sbs_utils.procedural.tilemap import tilemap_tileset_load
+    from sbs_utils.procedural.tilemap_art import tilemap_art_use
+    tileset = tilemap_tileset_load(read("surface/mereth.tileset"))
+    return tilemap_art_use(*sets, tileset=tileset)     # builtin, then TILE_ART
+
+def lp_load_areas():
+    from sbs_utils.procedural.media import media_read_relative_file as read
+    from sbs_utils.procedural.tilemap import tilemap_load
+    return sum(1 for key in ("ridge", "colony", "flats")
+               if tilemap_load(read("surface/%s.tiles" % key)))
+```
+
+Load the tileset **before** the art, because an art set dresses the kinds of a tileset
+that already exists. An area or tileset that cannot be read is **logged and skipped**,
+not raised: one bad file should not take a mission down. That is why the
+[checks](#checking-your-maps) matter.
+
+## Art sets
+
+A mission names logical keys only (`fig:crew_eva`, `prop:hatch`, ground looks like
+`dirt`). An **art set** says what they look like: a folder
+`media/tileart/<set>/` with PNG sheets and a `manifest.json`. `tilemap_art_use()` loads
+the mission's own `builtin` set, then whatever the `TILE_ART` setting names. A set can
+come from this mission or from a pinned media pack. A later set wins key by key, so a
+pack that only redraws the people is a valid pack. The manifest format is documented in
+`sbs_utils/procedural/tilemap_art.py`.
+
+## Placing things on the ground
+
+Props, people and hostiles live in `.amd` sections (`## [Props](props)`,
+`## [People](people)`, `## [Hostiles](hostiles)`) and name their spot in one of two ways:
+
+```
+### [Survey drone](drone)
+---
+Area: ridge
+Mark: drone              # a mark in the area file
+Sprite: prop:drone_wreck
+---
+
+### [Glassback](gb_1)
+---
+Area: caves
+At: 18, 3                # or a cell, x then y
+Patrol: 18 3; 25 4; 18 5
+Sprite: fig:glassback
+---
+```
+
+A mark name goes in `Mark:`, never in `At:`. `At:` reads coordinates only, so a word
+there reads as nothing and the prop is never placed.
+
+## Checking your maps
+
+`sbs lint` checks area files, tileset files, and every placement in the mission's `.amd`.
+The same findings appear as squiggles in VS Code while you type (Artemis AMD extension).
+
+| Code | Level | What it catches |
+|---|---|---|
+| `tiles-unknown-char` | error | A map character the legend does not have. The whole area will not load, and every such character is named with its column. |
+| `tiles-unknown-kind` | error | A legend kind the tileset does not declare. It draws nothing and cannot be walked. |
+| `tiles-syntax` / `tileset-syntax` | error | A file the parser cannot read, such as one with no `---` or a misspelled rule. |
+| `tiles-unknown-tileset` | warning | `tileset: X` with no `X.tileset` in the mission. |
+| `tiles-legend-duplicate` | warning | The same character in the legend twice. The later line wins. |
+| `tiles-mark-unplaced` | warning | A mark in the legend that is never drawn on the map. |
+| `tiles-entry` | error/warning | `entry:` names nothing, or puts the party on ground it cannot move from. |
+| `tiles-exit` | warning | An exit to an area that does not exist, an arrival mark that is not there, or an exit on ground nobody can walk onto. |
+| `tiles-unknown-area` / `tiles-unknown-mark` | warning | A placement's `Area:` or `Mark:` names nothing. It is never placed. |
+| `tiles-at-not-a-cell` | warning | A mark name written in `At:`. |
+| `tiles-off-map` | warning | An `At:` or `Patrol:` cell outside the area. |
+| `tiles-unwalkable` | warning | Someone who walks is placed on, or patrols through, ground that cannot be walked. A prop may stand anywhere. |
+
+## Editing visually
+
+The **Tile Map Editor** in VS Code paints `.tiles` files and shows them with the
+mission's own art, as the game draws them. See [Tile Map Editor](../tooling/tile-editor.md).

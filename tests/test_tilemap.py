@@ -116,6 +116,58 @@ class TestParsing(TileBase):
         self.assertIsNone(T.tilemap_load("no separator here"))
 
 
+TILESET = """# the test world's rules
+tileset: Filed
+title: A filed tileset
+kinds:
+  dirt:   walk see  look=dust    # a trailing comment
+  rock:             look=rock
+  water:  see       color=#48c
+  door:   walk      over=2
+  # an indented comment
+  wall:   tall
+"""
+
+
+class TestTilesetFile(TileBase):
+    """A tileset written as a FILE - what the linter and the editor read - declares the
+    same thing `tilemap_tileset` does from a dict."""
+
+    def test_each_word_is_a_rule_the_kind_has(self):
+        kinds = T.tilemap_tileset_parse(TILESET)["kinds"]
+        self.assertEqual((kinds["dirt"]["walk"], kinds["dirt"]["see"]), (True, True))
+        self.assertEqual((kinds["rock"]["walk"], kinds["rock"]["see"]), (False, False))
+        self.assertEqual((kinds["water"]["walk"], kinds["water"]["see"]), (False, True))
+        self.assertEqual((kinds["door"]["walk"], kinds["door"]["see"]), (True, False))
+        self.assertTrue(kinds["wall"]["tall"])
+
+    def test_values_and_a_color_that_starts_with_a_hash(self):
+        rec = T.tilemap_tileset_parse(TILESET)
+        self.assertEqual(rec["kinds"]["dirt"]["look"], "dust")
+        self.assertEqual(rec["kinds"]["water"]["color"], "#48c")
+        self.assertEqual(rec["kinds"]["door"]["over"], 2)
+        self.assertEqual((rec["name"], rec["title"]), ("filed", "A filed tileset"))
+        self.assertEqual(rec["lines"]["dirt"], 5)
+
+    def test_loading_declares_it(self):
+        self.assertEqual(T.tilemap_tileset_load(TILESET), "filed")
+        self.assertFalse(T._TILESETS["filed"]["water"]["walk"])
+        self.assertTrue(T._TILESETS["filed"]["water"]["see"])
+
+    def test_A_TYPO_IS_AN_ERROR_NOT_A_WALL(self):
+        """`wlak` quietly meaning "not walkable" would seal a corridor nobody can see."""
+        with self.assertRaises(T.TilemapError):
+            T.tilemap_tileset_parse("tileset: t\nkinds:\n  dirt: wlak see\n")
+
+    def test_bad_files_say_why(self):
+        for text in ("", "kinds:\n  dirt: walk\n", "tileset: t\n",
+                     "tileset: t\nkinds:\n  dirt: walk\n  dirt: see\n",
+                     "tileset: t\nkinds:\n  door: over=high\n"):
+            with self.assertRaises(T.TilemapError, msg=text):
+                T.tilemap_tileset_parse(text)
+        self.assertIsNone(T.tilemap_tileset_load("tileset: t\n"))
+
+
 class TestWalking(TileBase):
     def setUp(self):
         super().setUp()
