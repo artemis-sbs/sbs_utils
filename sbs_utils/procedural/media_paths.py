@@ -161,23 +161,45 @@ def _ensure_unpacked(lib_media, pack):
     from a repo that ships several (`artemis-sbs.Cosmos-Tiles.frontier.v0.1.0.zip`) is
     not named that way. So the mission does it itself, the way `Mast.expand_resources`
     unpacks `resources`: into a temp folder, then renamed into place, so an interrupted
-    unpack never leaves half a pack behind. A pack already unpacked is left alone.
+    unpack never leaves half a pack behind.
+
+    A pack already unpacked is left alone - unless its zip is NEWER than the unpacked
+    folder. A tag can be released again (`sbs release -u`) and a pack rebuilt locally
+    under the same name, and an unpacked copy that never refreshes would go on drawing
+    the old art with nothing to say so.
     """
     dest = os.path.join(lib_media, pack)
-    if os.path.isdir(dest):
-        return False
     archive = os.path.join(os.path.dirname(lib_media), pack + ".zip")
     if not os.path.isfile(archive):
         return False
+    stale = False
+    if os.path.isdir(dest):
+        try:
+            stale = os.path.getmtime(archive) > os.path.getmtime(dest) + 2.0
+        except OSError:
+            stale = False
+        if not stale:
+            return False
+    import shutil
     import zipfile
     tmp = dest + ".unpacking"
+    old = dest + ".old"
     try:
+        shutil.rmtree(tmp, ignore_errors=True)
         with zipfile.ZipFile(archive) as zf:
             zf.extractall(tmp)
+        if stale:
+            shutil.rmtree(old, ignore_errors=True)
+            os.replace(dest, old)
         os.replace(tmp, dest)
-        _log_pack(f"media pack unpacked: {pack}")
+        if stale:
+            shutil.rmtree(old, ignore_errors=True)
+        _log_pack(f"media pack {'refreshed' if stale else 'unpacked'}: {pack}")
         return True
     except Exception as e:                               # noqa: BLE001
+        shutil.rmtree(tmp, ignore_errors=True)
+        if stale and not os.path.isdir(dest) and os.path.isdir(old):
+            os.replace(old, dest)                        # put the old copy back
         _log_pack(f"media pack {pack} could not be unpacked: {e}")
         return False
 

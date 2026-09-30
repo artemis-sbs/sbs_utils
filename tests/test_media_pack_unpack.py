@@ -53,6 +53,19 @@ class TestPinnedPackUnpack(unittest.TestCase):
         MP.media_roots()
         self.assertEqual(os.listdir(dest), [])            # not re-extracted over
 
+    def test_an_unpacked_copy_OLDER_than_its_zip_is_refreshed(self):
+        """The same tag, released again: the zip is new, the unpacked copy is not."""
+        dest = os.path.join(self.lib, "media", PACK)
+        os.makedirs(os.path.join(dest, "tileart", "frontier"))
+        with open(os.path.join(dest, "tileart", "frontier", "stale.png"), "w") as f:
+            f.write("old art")
+        long_ago = os.path.getmtime(os.path.join(self.lib, PACK + ".zip")) - 3600
+        os.utime(dest, (long_ago, long_ago))
+        MP.media_roots()
+        here = os.listdir(os.path.join(dest, "tileart", "frontier"))
+        self.assertEqual(here, ["manifest.json"])
+        self.assertFalse(os.path.exists(dest + ".old"))
+
     def test_a_pack_that_is_not_there_is_not_an_error(self):
         os.remove(os.path.join(self.lib, PACK + ".zip"))
         MP.media_roots()
