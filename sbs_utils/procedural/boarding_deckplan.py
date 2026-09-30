@@ -30,6 +30,8 @@ rather start from the generated deck than from nothing.
 """
 from collections import deque
 
+from .tilemap_art import tilemap_sprite_cells
+
 #: Tiles per plan cell. 3 leaves a 2 x 2 floor in a one-cell room once its bulkheads
 #: are up - room for one piece of kit and a way past it.
 SCALE = 3
@@ -427,9 +429,9 @@ def boarding_deck_layout(plan, scale=SCALE):
         x, y = t
         return 0 <= x < TW and 0 <= y < TH and t in tile_region and t not in blocked
 
-    def still_one(rid, t):
+    def still_one(rid, foot):
         region_tiles = [u for u, r in tile_region.items() if r == rid and u not in blocked
-                        and u != t]
+                        and u not in foot]
         if not region_tiles:
             return False
         seen = {region_tiles[0]}
@@ -437,15 +439,19 @@ def boarding_deck_layout(plan, scale=SCALE):
         while q:
             u = q.popleft()
             for n in _neighbours(u):
-                if n != t and n not in seen and walkable(n) and tile_region.get(n) == rid:
+                if n not in foot and n not in seen and walkable(n) and tile_region.get(n) == rid:
                     seen.add(n)
                     q.append(n)
         return len(seen) == len(region_tiles)
 
     def place(sprite, t, rid, system_cell=None):
-        if t in blocked or t in near_door or t in entry_set or not still_one(rid, t):
+        # Every tile the piece stands on (a big one covers several - its art's `base`)
+        # must be this room's floor, and clear of doors and the way in.
+        foot = {(t[0] + dx, t[1] + dy) for dx, dy in tilemap_sprite_cells(sprite)}
+        if any(tile_region.get(u) != rid or u in blocked or u in near_door or u in entry_set
+               for u in foot) or not still_one(rid, foot):
             return False
-        blocked.add(t)
+        blocked.update(foot)
         furniture.append((sprite, t[0], t[1], system_cell))
         return True
 

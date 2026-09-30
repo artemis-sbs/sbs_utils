@@ -131,6 +131,30 @@ class TestLayout(unittest.TestCase):
         self.assertEqual({f[0] for f in L["furniture"] if (f[1], f[2]) in cargo},
                          {"prop:barrel"})
 
+    def test_A_BIG_PIECE_FITS_ITS_ROOM_AND_NEVER_CUTS_THE_DECK(self):
+        """A crate three tiles wide covers three tiles: all of them in its room, none by
+        a door, and the deck still one walk with every one of them taken out."""
+        from sbs_utils.procedural import tilemap_art as TA
+        TA.tilemap_sprite_base("prop:crate_wide", (-1.3, -0.3, 1.3, 0.3))
+        self.addCleanup(TA.tilemap_art_clear)
+        D.boarding_deck_kit("cargo", furniture=["prop:crate_wide"])
+        L = D.boarding_deck_layout(self.plan)
+        cargo = L["rooms"]["room:cargo"]
+        wide = [f for f in L["furniture"] if f[0] == "prop:crate_wide"]
+        self.assertTrue(wide)
+        near_door = {n for d in L["doors"] for n in ((d[0] + 1, d[1]), (d[0] - 1, d[1]),
+                                                    (d[0], d[1] + 1), (d[0], d[1] - 1))}
+        taken = set()
+        for sprite, x, y, _ in L["furniture"]:
+            foot = {(x + dx, y + dy) for dx, dy in TA.tilemap_sprite_cells(sprite)}
+            if sprite == "prop:crate_wide":
+                self.assertEqual(len(foot), 3)
+                self.assertLessEqual(foot, cargo)
+            self.assertFalse(foot & (L["doors"] | near_door), (sprite, x, y))
+            taken |= foot
+        tiles = walkable(L) - taken
+        self.assertEqual(reach(tiles, L["entry"][0]), tiles)
+
     def test_the_text_is_an_area_file(self):
         rec = T.tilemap_parse(D.boarding_deck_text(self.layout, "deck_test"))
         self.assertEqual((rec["w"], rec["h"]), (self.layout["w"], self.layout["h"]))

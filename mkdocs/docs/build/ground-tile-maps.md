@@ -190,6 +190,31 @@ Blocks: yes
 ---
 ```
 
+### Big things cover more than one cell
+
+A prop stands on one cell, but a parked car, a barn or a landed shuttle covers several.
+The art set says how much ground each sprite stands on (its `base`), and a prop that
+`Blocks:` blocks every cell it covers: nobody walks through a taxi. A cell counts as
+covered when more than half of it is under the thing, each way, so a bunk one and a half
+tiles long still takes one cell.
+
+The prop is AT every cell it covers. A click on any of them is a click on it, and
+"within reach" and the distances the device shows are measured to its nearest cell: you
+use a car from its bumper, not by walking round to the middle. The `Mark:` or `At:` cell
+is the middle of the thing, so leave room round it.
+
+| Pack | Props over one cell |
+|---|---|
+| city | cars and taxis 1x3 (nose south), garbage truck 3x5 |
+| countryside | barn 5x7, farmhouse 5x5, harvester 3x5, greenhouse and small barn 3x3, tractors 1x3, and a few more |
+| frontier | hauler 3x1 |
+| station | shuttle 3x3 |
+
+A mission can give its own art a base with
+`tilemap_sprite_base("prop:wagon", (-1.4, -0.5, 1.4, 0.5))`: left, top, right, bottom in
+tiles from the centre of its cell, x east and y south. `tilemap_sprite_cells(key)` says
+which cells that covers.
+
 ## A ship's deck, drawn for you
 
 Any hull with an interior plan (the one Engineering shows) can be boarded on a tile map
@@ -254,7 +279,9 @@ Every doorway has a door, drawn front-on or side-on to match its wall. Doors nev
 the sparks and fire. `boarding_deck_watch` starts it; for a deck with no ship behind it,
 call `boarding_deck_animate(area)` yourself.
 
-The furniture is scenery, and the same plan always gives the same deck. To furnish a kind
+The furniture is scenery, and the same plan always gives the same deck. A piece that
+covers more than one cell is placed only where all of its cells are that room's floor,
+clear of the doors, and where it cannot cut the room in two. To furnish a kind
 of room your own way, use `boarding_deck_kit("cargo", furniture=["prop:barrel"])`. To start
 from the generated deck and edit it by hand, `boarding_deck_text(layout, key)` gives it as
 a `.tiles` file.

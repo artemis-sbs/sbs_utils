@@ -13,7 +13,9 @@ AN ART SET is a folder ``media/tileart/<set>/`` holding its sheets and a
       "sprites": {
         "away:crew_s_a": {"sheet": "chars", "rect": [0, 0, 128, 192],
                           "cells": [1, 1.5], "anchor": [0.5, 1.0]},
-        "away:crate":    {"sheet": "chars", "rect": [128, 0, 256, 128]}
+        "away:crate":    {"sheet": "chars", "rect": [128, 0, 256, 128]},
+        "away:taxi":     {"sheet": "chars", "rect": [256, 0, 640, 256],
+                          "cells": [3, 2], "base": [-1.6, -0.55, 1.6, 0.55]}
       },
       "ground": {
         "dust": {"cell": "away:dust", "variants": ["away:dust_v2"],
@@ -30,6 +32,10 @@ AN ART SET is a folder ``media/tileart/<set>/`` holding its sheets and a
   seen in 3/4 is taller than its cell, a landed ship is several cells wide); ``anchor`` is
   the point of the sprite, as fractions of it, that sits on the bottom-center of the
   actor's cell. Both default to one cell, anchored at the bottom - the old flat tile.
+  ``base`` is the GROUND the thing stands on, ``[left, top, right, bottom]`` in tiles
+  from the centre of its cell (x east, y south): a blocking prop blocks every cell it
+  covers, and a click on any of them is a click on it (``tilemap_sprite_cells``).
+  ``cells`` cannot say this - it is the picture, height and shadow included.
 - ``ground`` gives a tileset kind its LOOK - never whether it can be walked or seen
   through, which are the mission's rules, not art.
 
@@ -44,15 +50,23 @@ every ``shared_media`` pack in ``story.json`` - and one that is not found is rep
 and skipped: the mission keeps drawing with what it has.
 """
 import json
+import math
 import os
 
 _SIZES = {}          # atlas key -> (w cells, h cells, anchor x, anchor y)
+_BASES = {}          # atlas key -> (l, t, r, b) ground, in tiles from its cell's centre
+_COVER = {}          # atlas key -> the (dx, dy) cells that ground covers (derived)
 _ORIGIN = {}         # atlas key -> the set that supplied it
 _LOADED = []         # set names, in load order
 _WARNED = set()
 _REGISTERED = set()  # atlas keys this module put in ImageAtlas.all, so clear can take them out
 
 DEFAULT_FOOTPRINT = (1.0, 1.0, 0.5, 1.0)
+ONE_CELL = frozenset({(0, 0)})
+#: A cell is covered when a base holds its centre by more than this: the thing covers
+#: MORE than half of the cell, each way. So a bunk two tiles long, centred on its cell,
+#: reaches exactly to its neighbours' centres and covers its own cell only.
+COVER_MARGIN = 0.05
 
 
 def _log(text, level="warning"):
@@ -76,6 +90,46 @@ def tilemap_sprite_size(key, w=1.0, h=1.0, anchor=(0.5, 1.0)):
 def tilemap_sprite_footprint(key):
     """``(w, h, anchor x, anchor y)`` for a sprite - one flat cell unless told."""
     return _SIZES.get(key, DEFAULT_FOOTPRINT)
+
+
+def tilemap_sprite_base(key, rect=None):
+    """Say how much GROUND a sprite stands on, so a big prop blocks all of it.
+
+    Args:
+        key (str): the atlas key.
+        rect: ``(left, top, right, bottom)`` in tiles, from the centre of the actor's cell
+            (x east, y south). A parked car three tiles long, nose east, is about
+            ``(-1.6, -0.55, 1.6, 0.55)``. ``None`` forgets it: one cell, the old way.
+    """
+    _COVER.pop(key, None)
+    if rect is None:
+        _BASES.pop(key, None)
+        return
+    l, t, r, b = (float(v) for v in rect)
+    _BASES[key] = (min(l, r), min(t, b), max(l, r), max(t, b))
+
+
+def tilemap_sprite_cells(key):
+    """The cells a sprite covers, as ``(dx, dy)`` offsets from its actor's own cell.
+
+    Always holds ``(0, 0)``; a sprite with no ``base`` covers just that. Every other
+    cell is covered when more than half of it is under the base, each way."""
+    got = _COVER.get(key)
+    if got is not None:
+        return got
+    base = _BASES.get(key)
+    if base is None:
+        return ONE_CELL
+    l, t, r, b = base
+    m = COVER_MARGIN
+
+    def span(lo, hi):
+        inside = [d for d in range(math.floor(lo), math.ceil(hi) + 1) if lo + m < d < hi - m]
+        return range(min(inside + [0]), max(inside + [0]) + 1)
+
+    got = frozenset((dx, dy) for dx in span(l, r) for dy in span(t, b))
+    _COVER[key] = got
+    return got
 
 
 # --- sets ---------------------------------------------------------------------------
@@ -141,6 +195,9 @@ def tilemap_art_load(manifest, folder, name="set", tileset=None):
             ImageAtlas(key, f"{folder}/{sheet}", color=color)
         cells = spec.get("cells") or (1, 1)
         tilemap_sprite_size(key, cells[0], cells[1], spec.get("anchor"))
+        # A later set's look for the key brings its own ground, or none.
+        base = spec.get("base")
+        tilemap_sprite_base(key, base if base and len(base) == 4 else None)
         _ORIGIN[key] = name
         _REGISTERED.add(key)
         keys.append(key)
@@ -239,6 +296,8 @@ def tilemap_art_clear():
         ImageAtlas.all.pop(key, None)
     _REGISTERED.clear()
     _SIZES.clear()
+    _BASES.clear()
+    _COVER.clear()
     _ORIGIN.clear()
     _LOADED.clear()
     _WARNED.clear()
@@ -246,4 +305,4 @@ def tilemap_art_clear():
 
 def tilemap_art_count():
     """For the reset ledger."""
-    return len(_SIZES) + len(_LOADED)
+    return len(_SIZES) + len(_BASES) + len(_LOADED)

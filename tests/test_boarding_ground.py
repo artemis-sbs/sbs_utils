@@ -265,6 +265,41 @@ class TestScenery(GroundBase):
         self.assertNotIn("bunk", used)
 
 
+class TestBigProps(GroundBase):
+    """A hauler parked across three cells of the yard's top room (7..9, row 2)."""
+
+    def setUp(self):
+        super().setUp()
+        from sbs_utils.procedural import tilemap_art as TA
+        TA.tilemap_sprite_base("g:hauler", (-1.6, -0.5, 1.6, 0.5))
+        self.addCleanup(TA.tilemap_art_clear)
+        P.boarding_props_declare({"children": PROPS["children"] + [
+            {"key": "hauler", "display_text": "Hauler", "description": "Its hatch is open.",
+             "data": {"area": "yard", "at": "8, 2", "sprite": "g:hauler", "blocks": "yes"}},
+        ]})
+        P.boarding_props_place()
+        self.down()
+
+    def test_A_CLICK_ON_ITS_FAR_END_WALKS_TO_ITS_NEAR_END_AND_USES_IT(self):
+        self.click(9, 2)
+        self.advance(4)
+        at = BT.boarding_tile_where(CID)
+        self.assertEqual(at[1:], (6, 2))              # beside the bumper, not the middle
+        used = [d["BOARDING_PROP"] for n, d in self.seen if n == "boarding_interacted"]
+        self.assertEqual(used[-1:], ["hauler"])
+
+    def test_look_offers_it_from_beside_the_bumper(self):
+        T.tilemap_place(self.bodies[CID], "yard", 6, 2)
+        self.assertIn("hauler", P.boarding_props_near(self.bodies[CID], 1))
+
+    def test_its_distance_is_to_its_nearest_cell(self):
+        from sbs_utils.procedural.boarding_hints import boarding_points_of_interest
+        far = {t[1]: t[3] for t in boarding_points_of_interest(CID)}
+        self.assertEqual(far.get("hauler"), 5)        # (2,2) to (7,2), not to (8,2)
+        T.tilemap_place(self.bodies[CID], "yard", 6, 2)
+        self.assertNotIn("hauler", [t[1] for t in boarding_points_of_interest(CID)])
+
+
 class TestChecksInDialogue(GroundBase):
     SCENES = {
         "fix": {"key": "fix", "display_text": "fix", "data": {},

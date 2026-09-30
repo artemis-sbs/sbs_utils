@@ -25,6 +25,7 @@ BUILTIN = {
         "ta:crew": {"sheet": "all", "rect": [0, 0, 64, 64]},
         "ta:crate": {"sheet": "all", "rect": [64, 0, 128, 64]},
         "ta:dust": {"sheet": "all", "rect": [128, 0, 192, 64]},
+        "ta:cart": {"sheet": "all", "rect": [192, 0, 320, 64], "base": [-1.3, -0.3, 1.3, 0.3]},
     },
     "ground": {"dust": {"cell": "ta:dust"}},
 }
@@ -36,6 +37,9 @@ FANCY = {
         "ta:crew_e_a": {"sheet": "chars", "rect": [128, 0, 256, 192], "cells": [1, 1.5]},
         "ta:dust_v2": {"sheet": "ground", "rect": [128, 0, 256, 128]},
         "ta:rock_we": {"sheet": "ground", "rect": [256, 0, 384, 128]},
+        "ta:cart": {"sheet": "chars", "rect": [256, 0, 384, 128]},
+        "ta:taxi": {"sheet": "chars", "rect": [384, 0, 768, 256], "cells": [3, 2],
+                    "base": [-1.6, -0.55, 1.6, 0.55]},
     },
     "ground": {"dust": {"variants": ["ta:dust_v2"]},
                "rock": {"cell": "ta:rock_we", "tall": True, "walk": True},
@@ -124,6 +128,50 @@ class TestGround(ArtBase):
         TA.tilemap_art_use("builtin", "fancy", tileset="tt")
         self.assertFalse(T._TILESETS["tt"]["rock"]["walk"])     # the manifest said walk
         self.assertNotIn("lava", T._TILESETS["tt"])              # nor adds kinds
+
+
+class TestBase(ArtBase):
+    """A big thing's GROUND - what it blocks - is its own field, never guessed from the
+    picture, which is taller than the thing and carries its shadow."""
+
+    def cells(self, rect):
+        TA.tilemap_sprite_base("ta:probe", rect)
+        return sorted(TA.tilemap_sprite_cells("ta:probe"))
+
+    def test_no_base_is_one_cell(self):
+        self.assertEqual(sorted(TA.tilemap_sprite_cells("ta:nothing")), [(0, 0)])
+
+    def test_a_car_covers_three_cells_nose_to_tail(self):
+        self.assertEqual(self.cells((-1.6, -0.55, 1.6, 0.55)), [(-1, 0), (0, 0), (1, 0)])
+
+    def test_ONLY_A_CELL_MOSTLY_UNDER_IT_IS_COVERED(self):
+        """A bunk 1.5 tiles long overhangs its neighbours by a quarter each: one cell. Two
+        tiles long reaches exactly HALF way into each: still one."""
+        self.assertEqual(self.cells((-0.77, -0.4, 0.77, 0.4)), [(0, 0)])
+        self.assertEqual(self.cells((-1.0, -0.4, 1.0, 0.4)), [(0, 0)])
+        self.assertEqual(self.cells((-1.2, -0.4, 1.2, 0.4)), [(-1, 0), (0, 0), (1, 0)])
+
+    def test_a_barn_covers_its_whole_floor(self):
+        got = self.cells((-3.4, -2.4, 3.4, 2.4))
+        self.assertEqual(len(got), 7 * 5)
+        self.assertIn((-3, -2), got)
+        self.assertIn((3, 2), got)
+
+    def test_ground_off_to_one_side_still_holds_its_own_cell(self):
+        self.assertEqual(self.cells((0.2, -0.3, 1.8, 0.3)), [(0, 0), (1, 0)])
+
+    def test_the_manifest_carries_it_and_a_later_look_owns_the_key(self):
+        TA.tilemap_art_use("builtin")
+        self.assertEqual(len(TA.tilemap_sprite_cells("ta:cart")), 3)
+        TA.tilemap_art_use("builtin", "fancy")
+        # fancy redraws the cart with no base: its ground went with the old picture.
+        self.assertEqual(sorted(TA.tilemap_sprite_cells("ta:cart")), [(0, 0)])
+        self.assertEqual(len(TA.tilemap_sprite_cells("ta:taxi")), 3)
+
+    def test_clear_forgets_it(self):
+        TA.tilemap_art_use("builtin", "fancy")
+        TA.tilemap_art_clear()
+        self.assertEqual(sorted(TA.tilemap_sprite_cells("ta:taxi")), [(0, 0)])
 
 
 class TestSetsFromSettings(unittest.TestCase):

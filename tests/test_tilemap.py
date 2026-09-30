@@ -7,6 +7,7 @@ The properties under test are the ones a player notices:
 * **Stepping onto a marked place says so, once**, so a scene can belong to a place.
 * **An exit takes a crew member to the next area, beside the way back** - never onto it.
 * **The map shows only what the crew has seen**, and never an actor out of sight.
+* **Nobody walks through a parked car** - a big thing blocks all the ground it covers.
 """
 from sbs_utils.fs import test_set_exe_dir
 test_set_exe_dir()
@@ -15,6 +16,7 @@ import unittest
 
 from sbs_utils.agent import clear_shared
 from sbs_utils.procedural import tilemap as T
+from sbs_utils.procedural import tilemap_art as TA
 from sbs_utils.procedural.signal import signal_observe, signal_unobserve
 
 TILES = {
@@ -221,6 +223,56 @@ class TestWalking(TileBase):
         T.tilemap_walk(A, 1, 1, intent=got.append)
         self.run_until_still(A)
         self.assertEqual(got, [A])
+
+
+class TestBigThings(TileBase):
+    """A car three tiles long, parked on the ridge's open row 4 (x 1..8)."""
+
+    CAR = 201
+
+    def setUp(self):
+        super().setUp()
+        TA.tilemap_sprite_base("t:car", (-1.6, -0.5, 1.6, 0.5))
+        self.addCleanup(TA.tilemap_art_clear)
+        T.tilemap_place(A, "ridge", 1, 4, party=True)
+
+    def park(self, blocks=True):
+        T.tilemap_place(self.CAR, "ridge", 5, 4, sprite="t:car", blocks=blocks, fixed=True)
+
+    def test_it_blocks_every_cell_it_covers(self):
+        self.park()
+        for x in (4, 5, 6):
+            self.assertFalse(T.tilemap_is_open("ridge", x, 4), x)
+        self.assertTrue(T.tilemap_is_open("ridge", 3, 4))
+        self.assertTrue(T.tilemap_is_open("ridge", 7, 4))
+
+    def test_NOBODY_WALKS_THROUGH_IT(self):
+        self.park()
+        path = T.tilemap_path("ridge", (1, 4), (8, 4), ignore=A)
+        self.assertEqual(path[-1], (8, 4))
+        for cell in ((4, 4), (5, 4), (6, 4)):
+            self.assertNotIn(cell, path)
+
+    def test_it_is_at_each_cell_it_covers(self):
+        self.park()
+        self.assertEqual(T.tilemap_actors_at("ridge", 6, 4), [self.CAR])
+        self.assertEqual(T.tilemap_actor_cells(self.CAR), [(4, 4), (5, 4), (6, 4)])
+        self.assertEqual(T.tilemap_actor_distance(self.CAR, 3, 4), 1)
+
+    def test_beside_the_bumper_is_beside_it(self):
+        self.park()
+        T.tilemap_place(A, "ridge", 3, 4)
+        self.assertIn(self.CAR, T.tilemap_actors_near(A, 1))
+
+    def test_a_thing_that_does_not_block_blocks_nothing(self):
+        self.park(blocks=False)
+        self.assertTrue(T.tilemap_is_open("ridge", 4, 4))
+
+    def test_without_its_art_it_is_one_cell_again(self):
+        self.park()
+        TA.tilemap_art_clear()
+        self.assertTrue(T.tilemap_is_open("ridge", 4, 4))
+        self.assertFalse(T.tilemap_is_open("ridge", 5, 4))
 
 
 class TestMarks(TileBase):

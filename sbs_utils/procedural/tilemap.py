@@ -39,7 +39,9 @@ THE PIECES:
 - **Marks** name cells: a place a scene belongs to, where a prop stands, an exit. A mark
   can cover many cells. Stepping onto a mark emits ``tilemap_entered``.
 - **Actors** are agents (a crew body, a hostile, a survivor) placed on a cell. They walk
-  one cell per step at their own speed, around anything that cannot be walked.
+  one cell per step at their own speed, around anything that cannot be walked. A big
+  one - a parked car, a barn - covers every cell its sprite's ``base`` covers
+  (``tilemap_sprite_cells``): it blocks them all, and it is AT each of them.
 - **Blocked cells** close a walkable tile for now: a shut door, a rockfall.
 - **Fog.** Party actors reveal what they can SEE (line of sight through see-through tiles,
   within a radius). A view draws what was never seen as black and what was seen but is not
@@ -59,6 +61,7 @@ from collections import deque
 
 from ..agent import Agent
 from .query import to_id
+from .tilemap_art import tilemap_sprite_cells
 
 # --- state ---------------------------------------------------------------------------
 #
@@ -661,9 +664,15 @@ def tilemap_set_tile(area, x, y, kind):
     return True
 
 
+def _covers(a, x, y):
+    """Whether an actor record covers a cell: its own, or one under its sprite's base."""
+    dx, dy = x - a["x"], y - a["y"]
+    return (dx == 0 and dy == 0) or (dx, dy) in tilemap_sprite_cells(a["sprite"])
+
+
 def _blocking_actor_at(area, x, y, ignore=None):
     for aid, a in _ACTORS.items():
-        if aid != ignore and a["blocks"] and a["area"] == area and (a["x"], a["y"]) == (x, y):
+        if aid != ignore and a["blocks"] and a["area"] == area and _covers(a, x, y):
             return True
     return False
 
@@ -819,19 +828,40 @@ def tilemap_actors(area=None):
 
 
 def tilemap_actors_at(area, x, y):
+    """Actors covering a cell - standing on it, or a big prop whose base reaches it."""
     area = _norm(area)
-    return sorted(a for a, r in _ACTORS.items()
-                  if r["area"] == area and (r["x"], r["y"]) == (int(x), int(y)))
+    x, y = int(x), int(y)
+    return sorted(a for a, r in _ACTORS.items() if r["area"] == area and _covers(r, x, y))
+
+
+def tilemap_actor_cells(agent):
+    """The cells an actor covers: its own, plus any its sprite's base reaches."""
+    rec = _ACTORS.get(to_id(agent))
+    if rec is None:
+        return []
+    return sorted((rec["x"] + dx, rec["y"] + dy)
+                  for dx, dy in tilemap_sprite_cells(rec["sprite"]))
+
+
+def tilemap_actor_distance(agent, x, y):
+    """Steps (Manhattan) from a cell to the nearest cell an actor covers - so standing
+    beside a car's bumper is beside the car. None for an unknown actor."""
+    cells = tilemap_actor_cells(agent)
+    if not cells:
+        return None
+    return min(abs(cx - int(x)) + abs(cy - int(y)) for cx, cy in cells)
 
 
 def tilemap_actors_near(agent, reach=1):
-    """Actors within ``reach`` steps (Manhattan) of this one, in its area."""
+    """Actors within ``reach`` steps (Manhattan) of this one, in its area - measured to
+    the nearest cell each covers, so a big prop is near from any side."""
     me = _ACTORS.get(to_id(agent))
     if me is None:
         return []
     return sorted(a for a, r in _ACTORS.items()
                   if a != to_id(agent) and r["area"] == me["area"]
-                  and abs(r["x"] - me["x"]) + abs(r["y"] - me["y"]) <= reach)
+                  and min(abs(r["x"] + dx - me["x"]) + abs(r["y"] + dy - me["y"])
+                          for dx, dy in tilemap_sprite_cells(r["sprite"])) <= reach)
 
 
 def _facing(dx, dy):

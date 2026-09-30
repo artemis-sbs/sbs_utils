@@ -176,7 +176,7 @@ def boarding_points_of_interest(client_id, reach=1):
     from .boarding import boarding_me
     from .boarding_props import _PROPS, boarding_prop_is_scenery
     from .boarding_combat import _HOSTILES
-    from .tilemap import tilemap_where, tilemap_visible, tilemap_area
+    from .tilemap import tilemap_where, tilemap_visible, tilemap_area, tilemap_actor_distance
     me = boarding_me(client_id)
     at = tilemap_where(me) if me is not None else None
     if at is None:
@@ -192,7 +192,8 @@ def boarding_points_of_interest(client_id, reach=1):
         p = tilemap_where(aid)
         if p is None or p[0] != area or (p[1], p[2]) not in seen:
             return
-        d = abs(p[1] - mx) + abs(p[2] - my)
+        # To its nearest cell: a big prop within reach from its bumper is in Look.
+        d = tilemap_actor_distance(aid, mx, my)
         if d <= reach:
             return
         hint = hints.get((p[1], p[2]), "")

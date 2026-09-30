@@ -288,8 +288,10 @@ def boarding_prop_at(area, x, y):
 
 
 def boarding_props_near(lifeform, reach=1):
-    """Props within ``reach`` of this character, nearest first. Scenery is left out."""
-    from .tilemap import tilemap_where
+    """Props within ``reach`` of this character, nearest first. Scenery is left out. A big
+    prop is measured to its nearest cell, so the far end of a car is as near as the end
+    you are standing by."""
+    from .tilemap import tilemap_where, tilemap_actor_distance
     at = tilemap_where(lifeform)
     if at is None:
         return []
@@ -298,9 +300,9 @@ def boarding_props_near(lifeform, reach=1):
         if rec["id"] is None or rec["area"] != at[0] or boarding_prop_is_scenery(rec):
             continue
         p = tilemap_where(rec["id"])
-        if p is None:
+        if p is None or p[0] != at[0]:
             continue
-        d = abs(p[1] - at[1]) + abs(p[2] - at[2])
+        d = tilemap_actor_distance(rec["id"], at[1], at[2])
         if d <= max(reach, rec["reach"]):
             out.append((d, key))
     return [k for _, k in sorted(out)]
@@ -476,7 +478,7 @@ def boarding_last_note(client_id):
 def boarding_prop_click(client_id, area, x, y):
     """The tile-click handler: use a prop in reach, or walk up to one and use it there."""
     from .boarding import boarding_me
-    from .tilemap import tilemap_where, tilemap_walk, tilemap_path, tilemap_is_open
+    from .tilemap import tilemap_where, tilemap_actor_distance, tilemap_actor_cells
     key = boarding_prop_at(area, x, y)
     if key is None or boarding_prop_is_scenery(key):
         return False                       # not a prop to use: the click walks there
@@ -485,36 +487,56 @@ def boarding_prop_click(client_id, area, x, y):
     at = tilemap_where(lf)
     if at is None:
         return False
-    if abs(at[1] - x) + abs(at[2] - y) <= rec["reach"]:
+    if tilemap_actor_distance(rec["id"], at[1], at[2]) <= rec["reach"]:
         boarding_interact(client_id, key)
         return True
     _walk_beside(client_id, lf, area, x, y, rec["reach"],
-                 lambda _agent, _c=client_id, _k=key: boarding_interact(_c, _k))
+                 lambda _agent, _c=client_id, _k=key: boarding_interact(_c, _k),
+                 cells=tilemap_actor_cells(rec["id"]))
     return True
 
 
-def _walk_beside(client_id, lf, area, x, y, reach, intent):
-    """Walk to the nearest open cell within ``reach`` of (x, y); run ``intent`` there."""
-    from .tilemap import tilemap_where, tilemap_walk, tilemap_path, tilemap_is_open
+def _walk_beside(client_id, lf, area, x, y, reach, intent, cells=None):
+    """Walk to the nearest open cell within ``reach`` of (x, y) - or of any of ``cells``,
+    for something bigger than one - and run ``intent`` there."""
+    from collections import deque
+    from .tilemap import tilemap_where, tilemap_walk, tilemap_is_open
     at = tilemap_where(lf)
-    best = None
-    for dx in range(-reach, reach + 1):
-        for dy in range(-reach, reach + 1):
-            if abs(dx) + abs(dy) > reach or (dx, dy) == (0, 0):
-                continue
-            cx, cy = x + dx, y + dy
-            if not tilemap_is_open(area, cx, cy, ignore=lf):
-                continue
-            path = tilemap_path(area, (at[1], at[2]), (cx, cy), ignore=lf)
-            if path is not None and (not path or path[-1] == (cx, cy)):
-                if best is None or len(path) < best[0]:
-                    best = (len(path), (cx, cy))
-    if best is None:
+    targets = set(cells or ()) | {(x, y)}
+    near = set()
+    for tx, ty in targets:
+        for dx in range(-reach, reach + 1):
+            for dy in range(-reach, reach + 1):
+                if abs(dx) + abs(dy) <= reach and (tx + dx, ty + dy) not in targets:
+                    near.add((tx + dx, ty + dy))
+    # ONE search outward from where they stand: the first ring holding any of those cells
+    # is the nearest, and the lowest (x, y) in it wins a tie. (A search per candidate was
+    # one per cell round a barn.)
+    start = (at[1], at[2])
+    dist = {start: 0}
+    q = deque([start])
+    found, best_d = [], None
+    while q:
+        cur = q.popleft()
+        d = dist[cur]
+        if best_d is not None and d > best_d:
+            break
+        if cur in near and tilemap_is_open(area, *cur, ignore=lf):
+            found.append(cur)
+            best_d = d
+            continue
+        cx, cy = cur
+        for nxt in ((cx + 1, cy), (cx - 1, cy), (cx, cy + 1), (cx, cy - 1)):
+            if nxt not in dist and tilemap_is_open(area, *nxt, ignore=lf):
+                dist[nxt] = d + 1
+                q.append(nxt)
+    if not found:
         from .signal import signal_emit
         signal_emit("tilemap_blocked", {"TILEMAP_AGENT": lf, "TILEMAP_AREA": area,
                                         "TILEMAP_X": x, "TILEMAP_Y": y})
         return False
-    tilemap_walk(lf, best[1][0], best[1][1], intent=intent)
+    best = min(found)
+    tilemap_walk(lf, best[0], best[1], intent=intent)
     return True
 
 
