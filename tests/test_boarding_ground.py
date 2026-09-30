@@ -206,6 +206,20 @@ class TestProps(GroundBase):
         self.assertEqual(P.boarding_party_holding("coil"), 1)
         self.assertIsNone(P.boarding_prop_at("yard", 9, 6))
 
+    def test_WHAT_WAS_PICKED_UP_IS_IN_THE_ACT_TRANSCRIPT_WITH_ITS_PICTURE(self):
+        from sbs_utils.procedural.gui.image import ImageAtlas, gui_image_add_atlas
+        gui_image_add_atlas("g:dirt", "media/probe/rt_sheet", 0, 0, 8, 8)
+        self.addCleanup(ImageAtlas.all.pop, "g:dirt", None)
+        P.boarding_prop_open("door")
+        T.tilemap_place(self.bodies[CID], "yard", 9, 5)
+        self.assertEqual(P.boarding_interact(CID, "coil")[0], "picked")
+        self.assertTrue(A.boarding_reader_has_text(CID))
+        text = A.boarding_reader_text(CID)
+        self.assertIn("![](image://g:dirt?size=2) Kovac picked up Coil.", text)
+        # A note is not a beat: reading the transcript again adds nothing after it.
+        self.assertEqual(A.boarding_reader_text(CID), text)
+        self.assertNotIn("The conversation is over.", text)
+
     def test_a_cut_shot_opens_the_gate(self):
         T.tilemap_place(self.bodies[CID], "yard", 7, 2)
         boarding_arm(CID, "cut")

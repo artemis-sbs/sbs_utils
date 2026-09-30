@@ -99,7 +99,7 @@ each of them a different story, which reads as a fault in the writing rather tha
 code. `boarding_scene_begin` picks the line once and `boarding_line()` gives every console the same
 one.
 
-## Faces in the transcript
+## Faces and pictures in the transcript
 
 The xESS **Act** app shows a conversation as a transcript (`boarding_reader`), and a face
 appears wherever someone in particular is speaking:
@@ -115,8 +115,18 @@ appears wherever someone in particular is speaking:
   it, on every console in the conversation, so a party of several consoles can see who
   said what.
 
-Narration, a prop, a crowd, or anyone with no `Face:` gets no face. That is on purpose: a
-face there would claim a speaker the scene does not have.
+Where there is no face, a **picture** of what the scene is about stands in, drawn from the
+mission's tile art:
+
+- **A prop.** Using a terminal, a wreck or a hatch shows the prop's sprite beside its
+  lines, or its open look once opened.
+- **A person with no `Face:`.** Their map figure, facing you, so an alien the face art
+  cannot draw still has a portrait.
+- **Something picked up.** A line in that console's transcript says who picked up what,
+  with the picture it lay on the map with.
+
+Narration and a crowd get neither. Neither does a sprite the mission's art does not
+have: a mission with no tile art simply shows words.
 
 ```markdown
 ### [Magistrate Ines Oyelaran](oyelaran)

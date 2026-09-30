@@ -620,6 +620,45 @@ def boarding_line_face(channel=None):
     return None
 
 
+def boarding_line_image(channel=None):
+    """The picture of what a beat is about when nobody's FACE is (``boarding_line_face``):
+    an atlas key, or None.
+
+    A prop's scene shows the prop - its open look once opened - and a person with no
+    ``Face:`` shows the figure the map draws them with, facing the camera: the aliens
+    the face art cannot draw still get a portrait. Only a key the art has registered
+    counts, so a mission without the art shows nothing rather than a broken picture.
+    """
+    ch = channel or PARTY
+    if _record(ch).get("parsed") is None:
+        return None
+    key = None
+    if ch.startswith("prop:"):
+        from .boarding_props import boarding_prop
+        prop = boarding_prop(ch[len("prop:"):])
+        if prop is not None:
+            key = prop.get("open_sprite") if (prop.get("opens") and prop.get("open")
+                                              and prop.get("open_sprite")) else prop.get("sprite")
+    elif ch.startswith("talk:"):
+        from .boarding_combat import boarding_hostile
+        person = boarding_hostile(ch[len("talk:"):])
+        if person is not None and person.get("sprite"):
+            from .tilemap import tilemap_sprite_look
+            key = tilemap_sprite_look({"sprite": person["sprite"], "facing": "s", "stride": 0})
+    return _drawable(key)
+
+
+def _drawable(key):
+    from .gui.image import ImageAtlas
+    return key if key and key in ImageAtlas.all else None
+
+
+def _image_md(key, size):
+    """A lead picture from the image atlas, made safe to sit inside `image://...)`."""
+    safe = str(key).strip().replace(")", "").replace("?", "").replace("]", "")
+    return f"![](image://{safe}?size={size})" if safe else ""
+
+
 def _face_md(face, size):
     """A lead face for a transcript line, made safe to sit inside `face://...)`: a `)`
     or `?` in the string would end the reference or start its options."""
@@ -754,6 +793,7 @@ def boarding_answer(client_id, index, seq=None, agent=None):
     actor = choice.get("agent") or boarding_me(cid)
     _REDIRECT.clear()
     _ANSWERED["actor"] = actor          # who answered: the reader credits them
+    _ANSWERED["label"] = choice.label   # and with what, whatever words the press sent
     if dialogue_apply(actor, speaker, choice.outcomes) is False:
         # A handler refused (a cost that cannot be paid). The token has ALREADY moved, so
         # every console is holding a stale one and the beat is briefly unanswerable - which
@@ -889,8 +929,14 @@ def _boarding_beat_text(client_id, agent=None):
     choices = (boarding_choices_for(client_id, agent) if agent is not None
                else boarding_choices(client_id))
     line = str(boarding_line(ch) or "")
-    face = boarding_line_face(ch) if line.strip() else None
-    lead = _face_md(face, READER_SPEAKER_FACE_LINES) if face else ""
+    lead = ""
+    if line.strip():
+        face = boarding_line_face(ch)
+        if face:
+            lead = _face_md(face, READER_SPEAKER_FACE_LINES)
+        else:
+            image = boarding_line_image(ch)
+            lead = _image_md(image, READER_SPEAKER_FACE_LINES) if image else ""
     lines = [f"{lead} {line}" if lead else line]
     if choices:
         lines.append("")
@@ -944,6 +990,27 @@ def boarding_reader_text(client_id, agent=None):
         state["agent"] = to_id(agent)
         state["seq"] = None
     return _boarding_reader_sync(client_id)
+
+
+def boarding_reader_note(client_id, text):
+    """Add a line to this console's transcript that is not a beat - something picked up.
+
+    It goes below whatever is there, and the Act app then has something to show. A
+    console with no transcript yet starts one at the beat it is on, so the next sync
+    does not add a beat that is not happening."""
+    if not text:
+        return
+    state = _READERS.get(client_id)
+    if state is None:
+        ch = boarding_channel_of(client_id)
+        state = _READERS[client_id] = {"text": "", "seq": boarding_seq(ch), "agent": None,
+                                       "area": None, "channel": ch}
+    state["text"] = f"{state['text']}\n\n{text}" if state["text"] else text
+    # The revision moves either way: an xESS Act app polls it, and one showing nothing
+    # yet has no area here to write to.
+    state["rev"] = state.get("rev", 0) + 1
+    if not state.get("in_region") and state.get("area") is not None:
+        state["area"].value = state["text"]
 
 
 def boarding_reader_has_text(client_id):
@@ -1023,6 +1090,11 @@ def _boarding_reader_on_pick(name, data):
     # the chip alone does not say. Only for a pick that was taken: a stale press
     # changed nothing, so it credits nobody.
     by = _chooser_line(_ANSWERED.get("actor")) if accepted else None
+    if accepted and _ANSWERED.get("label"):
+        # The words of the choice TAKEN, not whatever the press carried: they are what
+        # every reader writes down, including ones that were never offered it.
+        from .amd import amd_choice_label
+        chosen = amd_choice_label(_ANSWERED["label"])
     # Every reader in that channel, the one that pressed included: whoever answered, the
     # beat moved on for all of them. A refused press (stale seq) still resyncs, which
     # shows the presser the beat somebody else moved to. A reader in ANOTHER channel is

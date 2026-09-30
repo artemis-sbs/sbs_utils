@@ -250,6 +250,15 @@ class FaceTests(ReaderTests.__bases__[0]):
                             lines[chip - 1])
             self.assertTrue(lines[chip - 1].endswith(" Dr Sorel"))
 
+    def test_THE_TRANSCRIPT_SAYS_THE_CHOICE_TAKEN_NOT_THE_WORDS_SENT(self):
+        doc = self.area(101)
+        A._boarding_reader_on_pick("boarding_pick", {
+            "SIGNAL_CLIENT_ID": 101, "i": "0", "seq": str(A.boarding_seq_for(101)),
+            "SIGNAL_CHOICE": "probe"})
+        text = A.boarding_reader_text(101)
+        self.assertIn("[Examine the body](chosen://", text)
+        self.assertNotIn("[probe]", text)
+
     def test_a_stale_press_credits_nobody(self):
         doc = self.area(101)
         eng = self.area(102)
@@ -287,6 +296,49 @@ class FaceTests(ReaderTests.__bases__[0]):
         text = A._boarding_beat_text(101)
         self.assertTrue(text.startswith("![](face://ter #fff 1 0;ter #fff 2 1;?size=3) "),
                         text)
+
+    def art(self, *keys):
+        from sbs_utils.procedural.gui.image import ImageAtlas, gui_image_add_atlas
+        for key in keys:
+            gui_image_add_atlas(key, "media/probe/rt_sheet", 0, 0, 8, 8)
+            self.addCleanup(ImageAtlas.all.pop, key, None)
+
+    def prop(self, **fields):
+        from sbs_utils.procedural import boarding_props as P
+        self.addCleanup(P.boarding_props_clear)
+        P.boarding_prop_add("drone", "yard", (1, 1), name="Drone", **fields)
+
+    def test_A_PROPS_SCENE_SHOWS_THE_PROP(self):
+        self.art("prop:rt_drone")
+        self.prop(sprite="prop:rt_drone", scene="lab", desc="A wreck.")
+        A.boarding_encounter(_scenes(), "lab", 101, channel="prop:drone")
+        self.assertTrue(A._boarding_beat_text(101).startswith(
+            "![](image://prop:rt_drone?size=3) The body is cold."))
+
+    def test_an_opened_prop_shows_its_open_look(self):
+        from sbs_utils.procedural import boarding_props as P
+        self.art("prop:rt_hatch", "prop:rt_hatch_open")
+        self.prop(sprite="prop:rt_hatch", open_sprite="prop:rt_hatch_open", opens="cut",
+                  scene="lab")
+        P.boarding_prop_open("drone")
+        A.boarding_encounter(_scenes(), "lab", 101, channel="prop:drone")
+        self.assertIn("image://prop:rt_hatch_open?", A._boarding_beat_text(101))
+
+    def test_A_FACELESS_PERSON_SHOWS_THEIR_FIGURE_FACING_YOU(self):
+        from sbs_utils.procedural import boarding_combat as K
+        self.art("fig:rt_gb", "fig:rt_gb_s_idle")
+        K.boarding_hostiles_declare({"children": [
+            {"key": "vhesk", "display_text": "Vhesk",
+             "data": {"area": "yard", "calm": "yes", "talk_scene": "lab",
+                      "sprite": "fig:rt_gb"}}]})
+        A.boarding_encounter(_scenes(), "lab", 101, channel="talk:vhesk")
+        self.assertTrue(A._boarding_beat_text(101).startswith(
+            "![](image://fig:rt_gb_s_idle?size=3) "))
+
+    def test_art_the_mission_does_not_have_draws_nothing(self):
+        self.prop(sprite="prop:nothing_registered", scene="lab")
+        A.boarding_encounter(_scenes(), "lab", 101, channel="prop:drone")
+        self.assertTrue(A._boarding_beat_text(101).startswith("The body is cold."))
 
     def test_someone_with_no_face_is_just_their_words(self):
         from sbs_utils.procedural import boarding_combat as K

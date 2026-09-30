@@ -431,6 +431,7 @@ def boarding_interact(client_id, key):
         except Exception:                                # noqa: BLE001
             pass
         result, text = "picked", f"Picked up {rec['name']}."
+        _pickup_note(client_id, lf, rec)
     elif rec["scene"] and _SCENES["doc"] is not None:
         # Whoever is standing with them hears it too.
         from .tilemap import tilemap_actors_near
@@ -452,6 +453,17 @@ def boarding_interact(client_id, key):
                                         "BOARDING_RESULT": result, "BOARDING_TEXT": text})
     _note(client_id, text)
     return result, text
+
+
+def _pickup_note(client_id, lf, rec):
+    """What was picked up, in this console's Act transcript - with its picture, which is
+    the sprite it lay on the map with."""
+    from .boarding import (boarding_reader_note, _drawable, _image_md, _name_of,
+                           READER_CHOOSER_FACE_LINES)
+    image = _drawable(rec.get("sprite"))
+    lead = _image_md(image, READER_CHOOSER_FACE_LINES) if image else ""
+    line = f"{_name_of(lf)} picked up {rec['name']}."
+    boarding_reader_note(client_id, f"{lead} {line}" if lead else line)
 
 
 def _needs_ok(needs, lf):
