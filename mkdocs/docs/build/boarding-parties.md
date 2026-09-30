@@ -125,6 +125,10 @@ mission's tile art:
 - **Something picked up.** A line in that console's transcript says who picked up what,
   with the picture it lay on the map with.
 
+A scene can also name its own picture with `Backdrop:` - an atlas key - and when the art
+has it, that is the picture whatever opened the scene. It is how a relic's places are
+illustrated.
+
 Narration and a crowd get neither. Neither does a sprite the mission's art does not
 have: a mission with no tile art simply shows words.
 
@@ -139,6 +143,24 @@ Calm: yes
 Talk scene: oyelaran
 ---
 ```
+
+## In a relic: a party in suits
+
+A boarding party in a ruin wears SUITS - each crew member flies their own, by destination,
+through a relic volume ([Relics](relics.md)). The same xESS and the same transcript go
+with them, and most of the above carries over unchanged:
+
+| On the ground | In a suit |
+|---|---|
+| Walking up to a prop opens its scene | Arriving at a place with `Scene:` opens it, once, for whoever is near |
+| A prop's sprite is the picture | The scene's `Backdrop:` is the picture (`Backdrop:` works on the ground too, and beats the prop's sprite) |
+| Crew in the next tile help a check | Other suits within reach with the same job help a check |
+| Look / Pack / Tasks / Scan | **Scan** reads the room and the nearest place's `Scan:`, and lists the finds in reach with a **Read** button; **Tasks** lists the crew member's stories, and its leads fly the suit there; **Nav** marks leads `>` and places with something still to take `+` |
+| Picked up into the pack | Hooked with the tether and collected for the SHIP the suit came from; the transcript notes it with the item's `Sprite:` |
+
+A find a suit reads with **Read** is a scan the mission hears as `eva_scanned`
+(`EVA_CLIENT`, `EVA_TARGET`, `EVA_RELIC`, `EVA_ITEM`) - Storm's Beacon treats a Beacon piece
+read from a suit exactly like one scanned from the ship.
 
 ## Ending a scene
 

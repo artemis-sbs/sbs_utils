@@ -156,6 +156,87 @@ The built styles use the game's own generic primitives — `generic-rectangle` i
 100 x 100 x 1.25 slab, `generic-cube` is 40 a side — stretched per axis and rotated onto
 the surface. No mod, no media pack, no new art.
 
+### Kits: walls from an art pack
+
+The styles above are the game's own primitives - grey slabs and asteroids. A **kit** is the
+same build pass with real architecture: an art pack ships wall, floor and ceiling pieces,
+trims, pillars and set pieces, and every kit it carries becomes a style you can name.
+
+```
+volume_kit_load("ruins")        # at the top of story.mast, before anyone connects
+```
+
+```
+### [The Voice](voice)
+---
+Walls: torgoth, plates
+---
+```
+
+**`Walls:` is a fallback chain.** The first style that is loaded wins: the Torgoth kit when
+the mission has the `ruins` pack pinned, plain plates when it does not. End every chain with
+a built-in style (`sbs lint` warns when one does not - `relic-unknown-walls`), so a mission
+without the pack still gets a ruin rather than bare rock.
+
+What a kit does with a room:
+
+| | |
+|---|---|
+| **Floor, ceiling, walls** | A box's bottom face takes floor pieces, its top ceiling pieces, the rest wall pieces - each placed upright, facing into the room. |
+| **Curved rooms** | A chamber or passage is tiled, and each tile is a floor, wall or ceiling piece by which way it faces, so a round cave still has a floor. |
+| **Trims and pillars** | A trim runs along every edge where a wall meets the floor or ceiling, and a pillar stands in every vertical corner - except where the room opens into the next one. |
+| **Doorways** | Nothing is laid where two rooms meet, exactly as with plates. |
+| **Solids** | A box solid is clad in the kit, looked at from outside; a curved one is tiled. |
+| **The budget** | Kit pieces have a size of their own, so they grow together until the relic fits its prop budget rather than running to thousands. |
+
+A kit ignores `Art:`. That is what lets an old relic keep its asteroids as its fallback -
+`Walls: cave, rock` with `Art: plain_asteroid_6, plain_asteroid_9` is carved stone with the
+pack and the same rocks as before without it.
+
+The pack is **checked before anything is registered**: if its ship data would point the
+engine at art that is not on disk - a pack unpacked under another release tag, say - or
+`EXTRA_SHIP_DATA` is off, nothing is loaded and the relics use their fallbacks. A kit piece
+the engine cannot find would otherwise assert on the first client that draws it.
+
+### Set pieces
+
+`Dress:` puts one piece of art on a part - the machine in the cradle, a statue at the
+shaft mouth, a gate at the top of the throat:
+
+```
+### [the cradle](cradle_solid)
+---
+Relic: voice
+Solid: box, 600, -3000, 0, 320, 200, 320
+Dress: ruins_tg_cradle
+Facing: at_bay
+---
+
+### [the inner gate](inner_gate)
+---
+Relic: voice
+Prop: -1860, 0, 0
+Dress: ruins_tg_gate 1.6
+Facing: 1, 0, 0
+---
+```
+
+| On | The piece |
+|---|---|
+| a **Solid** | is fitted inside it, turned to its `Facing:`, and replaces the grey primitive. The route already goes round a solid, so the piece never sits in anybody's way. |
+| a **Point** | stands upright on the spot. A point is also a destination, so use this for things the crew fly TO. |
+| a **Prop** | stands upright on the spot, and that is all a `Prop:` is: scenery, not a place. It is on nobody's destination list and takes nothing out of the space - a gate you fly through. |
+| a **Barrier** | is what the shootable barrier is drawn as, fitted to its radius. |
+
+`Dress:` is also a chain - `ruins_tg_statue 1.5, generic-cylinder` - with an optional size
+after each key, and the first key the engine knows is used. `Facing:` names another place
+or part to look at, or gives a direction as `x, y, z`; without it a piece faces the middle
+of its room. Pieces stay upright: they turn to face, they never tip.
+
+`relic_walls(key, roles=...)` does all of this for a built relic - the walls in the
+authored style, the set pieces, and the fallbacks - and is what Open Universe dresses
+every ruin with.
+
 ### Two rules the SCATTERED style encodes, worth knowing even if you never write one
 
 These govern `rock`, and they are why a scattered wall is harder than it looks.
@@ -280,6 +361,77 @@ marker_point(*relic_point("ossuary", "mouth"), "The Ossuary")
 
 `relic_points("ossuary", "spawn")` gives every point with a role, for when there are
 several.
+
+## What a place says
+
+A crew in suits flies to places by name, and a place can **say something when they get
+there**. `Scene:` names a scene in the relic file's own `## Dialogue` section; the first
+suit to arrive opens it in that crew member's Act transcript, and anyone floating nearby is
+pulled into the same conversation. It plays once - a crew member who arrives later, or
+comes back, reads the place's `Scan:` instead.
+
+```
+### [the shaft head](at_shaft)
+---
+Relic: voice
+Point: 600, -600, 0
+Roles: voice_shaft
+Scene: voice_shaft_look
+Scan: The shaft drops straight down into the dark. A maintenance grate is seized across it a little way below.
+---
+```
+
+```
+## [Dialogue](dialogue)
+
+### [The Shaft Head](voice_shaft_look)
+---
+Backdrop: pic:tg_wall_c
+---
+% The shaft drops straight down through the station. A little way below the lip a maintenance grate is seized across it, wall to wall.
+
+- [Work the grate free](voice_grate_free) if engineering ; check engineering 9 else voice_grate_stuck, open shaft_grate
+- [Ask Vex](voice_grate_vex)
+- [Not yet]()
+```
+
+- **`Scan:`** is what the xESS Scan app says about a place, and it is the only text about a
+  part a player ever sees. A part's prose is for the author - never write the player's
+  words there.
+- **`Backdrop:`** is the picture beside a narrated line, from the mission's tile art. A beat
+  with a `Speaker:` who has a face shows the face instead: Storm on the suit radio, the
+  chief engineer, anybody in the cast.
+- **Checks** roll the crew member's skill in the job, a d10, and one more for every other
+  suit within reach with the same job. A **failed check stops the choice** - everything
+  written after it is what success does, so `check engineering 9 else stuck, open grate`
+  opens the grate only on a success. The roll goes in the transcript either way.
+- **`open <barrier>`** opens one of the relic's barriers, and **`reveal <place>`** puts a
+  `Hidden:` place on the destination list and lights its marker - the same verbs a boarding
+  party's props use. Pair a reveal with a `signal` and a `Starts when: signal` on the
+  place's contents, and the find does not even exist until somebody works out it is there.
+- A barrier can be worked open by hand as well as cut: `Clear with: beam, check engineering
+  9` offers the suit's Fire app a **WORK** verb that rolls the check after a few seconds of
+  effort, with a wait before the same console may try again.
+
+`relic_marker_lit` is emitted the first time a place's marker lights (`RELIC_KEY`,
+`RELIC_POINT`, `RELIC_BY`, and `RELIC_SUIT` - whether a crew member found it rather than
+the ship's sensors), for anything a mission wants to hang on the moment.
+
+### Stories inside a ruin
+
+A relic file can carry its own `## Side Stories`, one per job, and the crew who go inside
+pick up the ones for their jobs:
+
+```
+//shared/signal/eva_went_out
+    boarding_quests_grant(relic_section(EVA_RELIC, "side_stories"))
+```
+
+`relic_section(key, section)` reads any section of the file a relic came from. A story's
+`Leads to:` names places in that relic and marks them on the crew member's Nav list and
+their Tasks app, where one press flies the suit there.
+
+A quest's `reach <role>` now counts a crew member's suit arriving, as well as the ship.
 
 ## How it is navigated
 
@@ -409,6 +561,15 @@ Something worth the trip. Nothing here until the crew reaches the vault door.
 | `Qty:` | how many of it |
 | `Spawn:` | what wakes up here - `raider x2`, `skaraan 4` |
 | `Starts when:` | when any of it appears. Leave it out and it is simply there |
+
+What an item LOOKS like is on the item, not the relic: `Art:` is its 3D mesh and `Sprite:`
+its picture in a transcript. `Art:` may be a fallback chain - `Art: ruins_tg_slate,
+alien_1a` - and the first key the ship data knows is used, so an item drawn from an art
+pack still spawns as something collectable in a mission without the pack. Collectable is
+the point: whether a hull scoops a pickup up is decided by its art's `interactionradius`,
+and the `unknown` placeholder has none - an item left at `Art: unknown` can be seen and
+never taken. A piece that must be CARRIED out rather than scooped wants art with no
+interaction radius at all.
 
 `Item:` is a **reference**, not free text, so a typo is a lint error with a line number
 rather than a beacon that never appears:
@@ -603,7 +764,9 @@ What comes back for free:
 ### Your half: the art
 
 The props scattered over the walls are yours, and nothing in the library knows what they
-are. After a rebuild it emits `relic_rebuilt`, carrying `key`, `volume` and `file`:
+are. (Open Universe answers this itself: its relics are dressed with `relic_walls`, and a
+live edit re-dresses them.) After a rebuild it emits `relic_rebuilt`, carrying `key`,
+`volume` and `file`:
 
 ```
 //shared/signal/relic_rebuilt

@@ -22,6 +22,7 @@ tools, and finally the library changes. Links go to the relevant docs.
 | **[Command your allies](#orders)** | Every friendly ship, turret and starbase takes the orders it can actually carry out: escort, patrol, retreat, investigate, return to base, hold fire. |
 | **[The old missions fly again](#old-missions)** | All 27 Artemis 2.8 missions in our archive crossed over, and they play — same fleets, same tempers, same voice over comms. |
 | **[A living bestiary](#a-living-bestiary)** | Seven new species over one behavior, each one aging from Young to Ancient. Scan it before you shoot it. |
+| **[Suit up into the ruins](#suit-up)** | The crew leave the ship in pressure suits and fly the inside of a giant's ruin themselves - every room says something, every job has something to do, and the walls are finally walls. |
 | **[Grav-tether](#grav-tether)** | Reel, tow and lock — on a beam that now feels the weight, and tells you when it is struggling. |
 | **[Engineering has something to do](#engineering)** | Systems wear, and a well-run ship can be tuned above spec. Work orders, a four-tab panel rebuilt for touch, and eight efficiency numbers nobody could see before. |
 | **[New faces](#new-faces)** | Every portrait in the game redrawn - faces that frown, glare, blink and talk, skin in any color you like, and a Randomize button. |
@@ -94,6 +95,40 @@ and the route keeps its own `if`, which is still what decides whether the app is
 at all.
 
 Docs: [The ePADD](build/epadd.md).
+
+---
+
+#### 🧑‍🚀 Suit up into the ruins { #suit-up }
+
+A ruin used to be somewhere your SHIP flew. Now it is somewhere your CREW go. Each crew
+member takes a pressure suit out of the airlock and flies it through the inside of the
+structure from their own console - picking a destination, and letting the suit's
+autopilot thread the corridors.
+
+- **Every room has something to say.** Arrive somewhere that matters and your handheld
+  opens the moment: what you are looking at, a picture of it, and what you can do about
+  it. Anyone floating beside you is in the same conversation.
+- **Your job is your edge.** The engineer can work a seized grate free that nobody else
+  can shift; the science officer reads the wall script; comms hears the carrier under the
+  hiss. It is a roll - your skill, a die, and one more for every crewmate alongside with
+  the same job - and you see the roll. Two engineers at a stuck door is a better plan than
+  one.
+- **The people you know are on the radio.** Professor Storm, the Chief Engineer and a
+  certain dealer in salvage speak in the transcript with their own faces when you find
+  something worth their time.
+- **Everyone has a story in there.** Suit up and each crew member picks up a job of their
+  own for that ruin - the helm officer's hidden alcove, the weapons officer's live
+  statues - with the places it points at marked on their navigation list.
+- **Finds are yours to take.** Hook something with the tether and it is reeled in and
+  collected for your ship; your handheld notes it with a picture.
+- **The walls are finally walls.** Ruins are built from real architecture now - floors,
+  ceilings, carved walls, the trim where they meet, pillars in the corners - and dressed
+  with the machines, statues and wreckage that tell you whose ruin it is. A Torgoth
+  station looks built, a bored warren looks dug, and a shrine looks loved.
+
+Storm's Beacon is where to try it: all seven ruins have been rebuilt around it.
+
+Docs: [Relics](build/relics.md), [Boarding parties](build/boarding-parties.md).
 
 ---
 
