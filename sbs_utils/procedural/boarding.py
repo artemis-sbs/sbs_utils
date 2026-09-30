@@ -630,8 +630,20 @@ def boarding_line_image(channel=None):
     counts, so a mission without the art shows nothing rather than a broken picture.
     """
     ch = channel or PARTY
-    if _record(ch).get("parsed") is None:
+    rec = _record(ch)
+    if rec.get("parsed") is None:
         return None
+    # THE SCENE'S OWN PICTURE FIRST. A scene that names a `Backdrop:` has said what it is
+    # about, whatever opened it - a relic place, a prop, a site. Only a key the art has
+    # registered counts, so a scene written against a pack the mission does not load
+    # falls through to the rest instead of drawing a broken picture.
+    try:
+        node = dialogue_get(rec.get("scenes") or {}, rec.get("key"))
+        backdrop = ((node or {}).get("data") or {}).get("backdrop")
+    except Exception:                                    # noqa: BLE001
+        backdrop = None
+    if _drawable(backdrop):
+        return backdrop
     key = None
     if ch.startswith("prop:"):
         from .boarding_props import boarding_prop
@@ -1011,6 +1023,16 @@ def boarding_reader_note(client_id, text):
     state["rev"] = state.get("rev", 0) + 1
     if not state.get("in_region") and state.get("area") is not None:
         state["area"].value = state["text"]
+
+
+def boarding_find_note(client_id, who, text, sprite=None):
+    """A transcript line about something found - `who` did `text` - led by its picture
+    when the art has one. Shared by the ground's pickups and a suit's hauls, so a find
+    reads the same whichever body found it."""
+    image = _drawable(sprite)
+    lead = _image_md(image, READER_CHOOSER_FACE_LINES) if image else ""
+    line = f"{_name_of(who)} {text}" if who is not None else str(text)
+    boarding_reader_note(client_id, f"{lead} {line}" if lead else line)
 
 
 def boarding_reader_has_text(client_id):

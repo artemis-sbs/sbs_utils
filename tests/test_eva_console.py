@@ -330,6 +330,36 @@ class NavIsOnlyThereWhenYouAreFlying(_DrawBase):
         self.assertTrue(self.emitted.saying("Hold station"))
 
 
+class TheSuitsOtherApps(_DrawBase):
+    """Scan and Tasks follow the crew member into a suit, and the Fire app offers WORK
+    only where something in reach can be worked by hand."""
+
+    def test_scan_and_tasks_are_offered_to_a_suit(self):
+        self.build()
+        tags = self.emitted.click_tags()
+        self.assertIn("xess-app-scan", tags)
+        self.assertIn("xess-app-tasks", tags)
+
+    def test_scan_reads_the_room_and_never_the_prose(self):
+        from sbs_utils.procedural import amd_relics as R
+        R._RELIC_RECORDS[RELIC]["part_info"] = {
+            "the cradle": {"kind": "point", "display": "The Cradle",
+                           "scan": "A cradle, still warm."}}
+        self.suit_obj().pos = __import__("sbs_utils.vec", fromlist=["Vec3"]).Vec3(900, 0, 0)
+        X.xess_open(CID, X.APP_SCAN)
+        self.build()
+        self.assertTrue(self.emitted.saying("A cradle, still warm."),
+                        "Scan said: %s" % [t[1] for t in self.emitted.texts])
+
+    def test_the_fire_app_offers_work_only_when_something_can_be_worked(self):
+        X.xess_open(CID, X.APP_WORK)
+        self.build()
+        self.assertFalse(self.emitted.saying("WORK"))
+
+    def suit_obj(self):
+        return to_object(self.suit)
+
+
 class TheCameraHoldsStill(_DrawBase):
     """A pilot's view, not a director's.
 

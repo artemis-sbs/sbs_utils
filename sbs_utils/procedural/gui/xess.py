@@ -258,6 +258,11 @@ def xess_clear():
     _BADGE_RUNNING.clear()
     _BADGE_REPORTED.clear()
     _register_builtins()
+    try:
+        from .xess_ground import xess_ground_register
+        xess_ground_register()
+    except ImportError:
+        pass                     # mid-import: xess_ground registers itself when it loads
 
 
 def xess_app_count(surface=None):
@@ -1286,6 +1291,9 @@ def _scan_app(client_id):
     if boarding_tile_on(client_id):
         _scan_ground(client_id)
         return
+    if _in_a_suit(client_id):
+        _scan_suit(client_id)
+        return
     at = boarding_where(client_id)
     if at is None:
         gui_row("row-height: 1fr;")
@@ -1345,6 +1353,58 @@ def _scan_ground(client_id):
         lines.append("Nothing in sight worth a reading.")
     gui_row("row-height: 1fr;")
     gui_text_area("\n".join(lines))
+
+
+def _scan_suit(client_id):
+    """Scan from a suit: the room, the nearest named place, and the finds in reach.
+
+    The words are the relic's `Scan:` fields - written for the PLAYER - and never a part's
+    prose, which in a shipped relic is notes to the author. A find shows its picture (its
+    ITEM `Sprite:`) and can be READ, which is a scan the mission hears as `eva_scanned`.
+    """
+    from .row import gui_row
+    from .text import gui_text_area
+    from .button import gui_button
+    from ..eva import eva_my_relic, eva_my_suit
+    from ..eva_tools import eva_targets, eva_scan_target, _pos as _tool_pos, _dist
+    from ..amd_relics import (relic_part_at, relic_part_info, relic_part_scan,
+                              relic_points, relic_point_display)
+    from ..boarding import _drawable, _image_md, READER_CHOOSER_FACE_LINES
+    from ..items import item_meta
+    from ..inventory import get_inventory_value as _inv
+    relic = eva_my_relic(client_id)
+    here = _tool_pos(eva_my_suit(client_id))
+    room = relic_part_at(relic, here) if relic else None
+    title = relic_part_info(relic, room).get("display") if room else None
+    lines = ["## %s" % (title or "Open space"), ""]
+    said = relic_part_scan(relic, room) if room else None
+    if said:
+        lines.append(str(said))
+    # The nearest named place, when it has something to say and is close enough to see.
+    best, best_d = None, 1500.0
+    for name, pos in (relic_points(relic) or {}).items() if relic else ():
+        d = _dist(here, pos)
+        if d < best_d and relic_part_scan(relic, name):
+            best, best_d = name, d
+    if best is not None and best != room:
+        lines += ["", "**%s** - %s" % (relic_point_display(relic, best),
+                                       relic_part_scan(relic, best))]
+    finds = [(key, label) for key, label, kind, _gap, _v in eva_targets(client_id)
+             if kind == "haul"]
+    for key, label in finds:
+        item = _inv(key, "item_key", None)
+        image = _drawable(item_meta(item, "sprite", None)) if item else None
+        lead = _image_md(image, READER_CHOOSER_FACE_LINES) if image else ""
+        lines += ["", ("%s **%s**" % (lead, label)) if lead else "**%s**" % label]
+    if len(lines) == 2:
+        lines.append("Nothing here worth a reading.")
+    gui_row("row-height: 1fr;")
+    gui_text_area("\n".join(lines))
+    for key, label in finds[:3]:
+        gui_row("row-height: 2.0em; font:gui-2;")
+        # ZERO-ARG CLOSURE, bound by default args - `on_press` calls with no arguments.
+        gui_button("Read %s" % label,
+                   on_press=lambda _cid=client_id, _k=key: eva_scan_target(_cid, _k))
 
 
 # The grid's own colors for a node's condition (engineering draws the same four), so
@@ -1491,9 +1551,11 @@ def _work_app(client_id):
     from .button import gui_button
     from .listbox import gui_list_box
     from .message import gui_message_callback
-    from ..eva_tools import (VERB_BEAM, VERB_TETHER, eva_abort, eva_aim, eva_arm,
-                             eva_armed, eva_disarm, eva_reach, eva_selected_target,
-                             eva_targets, eva_use, eva_working)
+    from ..eva_tools import (VERB_BEAM, VERB_TETHER, VERB_WORK, eva_abort, eva_aim,
+                             eva_arm, eva_armed, eva_barrier_check, eva_disarm,
+                             eva_reach, eva_selected_target, eva_targets, eva_use,
+                             eva_working)
+    from ..eva import eva_my_relic
 
     gui_xess_head(client_id, "Fire")
 
@@ -1508,8 +1570,14 @@ def _work_app(client_id):
         return
 
     held = eva_armed(client_id) or VERB_BEAM
+    targets = eva_targets(client_id)
+    # WORK only when something in reach can be worked open by hand - a third button that
+    # is always there reads as a tool that is always useful, and mostly it is not.
+    tools = [VERB_BEAM, VERB_TETHER]
+    if held == VERB_WORK or any(VERB_WORK in row[4] for row in targets):
+        tools.append(VERB_WORK)
     gui_row("row-height: 2.2em; font:gui-2;")
-    for value in (VERB_BEAM, VERB_TETHER):
+    for value in tools:
         on = value == held
         # BOUND DEFAULTS. Built in a LOOP, and `on_press` calls a callable with NO
         # arguments - a closure over the loop variable gives every button the last verb.
@@ -1522,9 +1590,14 @@ def _work_app(client_id):
     aimed = eva_selected_target(client_id)
 
     rows = []
-    for key, label, kind, gap, verbs in eva_targets(client_id):
+    relic = eva_my_relic(client_id)
+    for key, label, kind, gap, verbs in targets:
         ok = held in verbs
         mark = "" if ok else "  (wrong tool)"
+        if ok and held == VERB_WORK:
+            spec = eva_barrier_check(relic, key) if relic else None
+            if spec:
+                mark = "  (%s %d)" % (spec[0], spec[1])
         on = (key == aimed)
         rows.append((key, "%s%s   %d%s" % ("> " if on else "", label, int(gap), mark),
                      on, ok, kind))
@@ -1553,8 +1626,9 @@ def _work_app(client_id):
 
     gui_row("row-height: 1.4em; font:gui-1;")
     gui_text("$text:%s;font:gui-1;color:%s;"
-             % (_esc("Reach %d. BEAM cuts a way open; TETHER hauls a find in."
-                     % int(eva_reach(client_id))), DIM))
+             % (_esc("Reach %d. BEAM cuts a way open; TETHER hauls a find in.%s"
+                     % (int(eva_reach(client_id)),
+                        " WORK tries it by hand." if VERB_WORK in tools else "")), DIM))
 
     gui_row("row-height: 2.2em; font:gui-2;")
     gui_button("Stow", on_press=lambda _cid=client_id: eva_disarm(_cid))
@@ -1634,10 +1708,18 @@ def _nav_app(client_id):
 
     # The row carries what the RENDERER needs, which is not what `eva_points` returns -
     # that is a three-tuple its callers destructure, so the flags are asked for here.
-    from ..eva import eva_seen, eva_visited
+    from ..eva import eva_my_relic, eva_point_hint, eva_seen, eva_visited
+    from ..boarding_hints import eva_leads
+    from ..amd_relics import relic_finds
+    leads = eva_leads(client_id)
+    finds = relic_finds(eva_my_relic(client_id))
     rows = [(name, "%s   %s" % (label, _nav_far(client_id, pos)),
-             eva_visited(client_id, name), eva_seen(client_id, name))
+             eva_visited(client_id, name), eva_seen(client_id, name),
+             eva_point_hint(client_id, name, leads=leads, finds=finds))
             for name, label, pos in places]
+    # LEADS FIRST. The list is otherwise nearest-first, which is right for wandering and
+    # wrong for a crew with somewhere to be. Stable, so the rest keep their order.
+    rows.sort(key=lambda row: 0 if row[4] == "lead" else 1)
     gui_row("row-height: 1fr; padding: 4px, 8px, 4px, 8px;")
     lb = gui_list_box(rows, "item-gap: 0.3em;", item_template=_nav_row,
                       select=True, reveal=True)
@@ -1730,6 +1812,8 @@ def _nav_far(client_id, pos):
 
 #: What a destination's row says about itself. ASCII, because the engine draws no others,
 #: and two characters wide so the names still line up.
+NAV_MARK_LEAD = "> "        # an open quest points here
+NAV_MARK_FIND = "+ "        # something is still there to take
 NAV_MARK_VISITED = "* "     # been there
 NAV_MARK_SEEN = "- "        # its marker lit, but the suit never arrived
 NAV_MARK_NEW = "  "
@@ -1738,9 +1822,15 @@ NAV_MARK_NEW = "  "
 def _nav_mark(item):
     """The prefix for one destination. Visited beats seen - arriving implies seeing.
 
-    A nav row is ``(name, label, visited, seen)``; anything shorter is a caller that
-    predates the marks and draws a blank rather than raising.
+    A nav row is ``(name, label, visited, seen, hint)``; anything shorter is a caller
+    that predates the marks and draws a blank rather than raising. A lead beats a find,
+    and both beat where the crew has been: they are about what is still to DO.
     """
+    hint = item[4] if len(item) > 4 else ""
+    if hint == "lead":
+        return NAV_MARK_LEAD
+    if hint == "find":
+        return NAV_MARK_FIND
     if len(item) > 2 and item[2]:
         return NAV_MARK_VISITED
     if len(item) > 3 and item[3]:
@@ -1783,7 +1873,9 @@ def _nav_row(item, **kwargs):
     """
     from .row import gui_row
     from .text import gui_text
-    visited = len(item) > 2 and item[2]
+    # Still something to do there - a lead, a find - and it is not done, however many
+    # times the crew has flown through.
+    visited = len(item) > 2 and item[2] and not (len(item) > 4 and item[4])
     gui_row("row-height: 1.6em; padding: 6px, 4px, 6px, 4px; background: %s;" % PANEL_HI)
     gui_text("$text:%s;font:gui-2;overflow:shrink;color:%s;"
              % (_esc(_nav_mark(item) + str(item[1])), DIM if visited else ACCENT))
@@ -1849,6 +1941,11 @@ def _standing_somewhere(client_id):
     return boarding_where(client_id) is not None
 
 
+def _scan_available(client_id):
+    """SCAN reads where a body IS - a floor, or a suit's place in a relic."""
+    return _standing_somewhere(client_id) or _in_a_suit(client_id)
+
+
 def _boarding_home_text(client_id):
     from ..boarding import boarding_line, boarding_channel_of
     return boarding_line(boarding_channel_of(client_id)) or ""
@@ -1872,7 +1969,7 @@ def _register_builtins():
                   draw=_act_app, badge=_act_badge)
     xess_register(APP_SCAN, title="Scan", icon="epadd.status", sort=30,
                   blurb="Read the room you are in",
-                  draw=_scan_app, available=_standing_somewhere)
+                  draw=_scan_app, available=_scan_available)
     xess_register(APP_WORK, title="Fire", icon="epadd.damage", sort=35,
                   blurb="What is in reach, and what to do about it",
                   draw=_work_app, badge=_work_badge, available=_in_a_suit_with_tools)

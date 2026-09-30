@@ -55,6 +55,17 @@ HAUL_CLEAR = 220.0
 #: Verbs.
 VERB_TETHER = "tether"
 VERB_BEAM = "beam"
+#: WORK is hands, not tools: a skill check - `Clear with: check engineering 12` - rolled by
+#: whoever is in the suit, with the suits floating next to it helping. A seized hatch the
+#: engineer can coax open is a different decision from one the beam has to cut.
+VERB_WORK = "work"
+
+#: How long a worked job takes before the roll. Shorter than a cut: it is a try, and a
+#: failure should leave time to try something else.
+WORK_SECONDS = 6.0
+
+#: After a failed try, how long before the same console may try the same barrier again.
+WORK_RETRY_SECONDS = 20.0
 
 #: Roles worth offering as a target. Markers are NAVIGATION - a post measuring where the
 #: crew has been - so they are deliberately not on this list, however much they look like
@@ -64,6 +75,7 @@ HAUL_ROLES = "item,upgrade,relic_piece,salvage"
 #: Per-console state.
 KEY_WORK = "EVA_WORK"        # {"target","verb","until","kind"} while something is running
 KEY_ARMED = "EVA_ARMED"      # which verb the console is holding
+KEY_RETRY = "EVA_RETRY"      # {barrier: sim time it may be worked again} after a failure
 
 _TICK_KEY = "__EVA_TOOLS_TICK__"
 
@@ -118,7 +130,7 @@ def eva_targets(client_id, reach=None):
         if gap > reach:
             continue
         spec = authored.get(bkey) or []
-        verbs = tuple(spec[5]) if len(spec) > 5 and spec[5] else (VERB_BEAM,)
+        verbs = _barrier_verbs(spec[5] if len(spec) > 5 else None)
         out.append((bkey, bar.get("display") or bkey, "barrier", gap, verbs))
 
     # THE SUIT ITSELF IS IN `role()` FOR SOME OF THESE. A suit is a player hull with
@@ -139,6 +151,34 @@ def eva_targets(client_id, reach=None):
 
     out.sort(key=lambda row: row[3])
     return out
+
+
+def _barrier_verbs(clear_with):
+    """`Clear with:` as verbs. `check <skill> <dc>` is the WORK verb; nothing authored
+    means the beam, as it always did."""
+    if not clear_with:
+        return (VERB_BEAM,)
+    out = []
+    for entry in clear_with:
+        word = str(entry).split()[0].lower() if str(entry).split() else ""
+        verb = VERB_WORK if word == "check" else word
+        if verb and verb not in out:
+            out.append(verb)
+    return tuple(out) or (VERB_BEAM,)
+
+
+def eva_barrier_check(relic_key, barrier):
+    """``(skill, dc)`` when a barrier can be worked open by hand, else None."""
+    from .amd_relics import relic_barriers
+    spec = (relic_barriers(relic_key) or {}).get(barrier) or []
+    for entry in (spec[5] if len(spec) > 5 and spec[5] else ()):
+        bits = str(entry).split()
+        if len(bits) >= 3 and bits[0].lower() == "check":
+            try:
+                return (bits[1].lower(), int(bits[2]))
+            except ValueError:
+                return None
+    return None
 
 
 # --- the console's own selection --------------------------------------------------------
@@ -236,7 +276,7 @@ def eva_target_verbs(client_id, target):
 
 def eva_arm(client_id, verb=VERB_BEAM):
     """Hold a verb ready. Two decisions on purpose - choose, then use."""
-    if verb not in (VERB_BEAM, VERB_TETHER):
+    if verb not in (VERB_BEAM, VERB_TETHER, VERB_WORK):
         return False
     set_inventory_value(client_id, KEY_ARMED, verb)
     return True
@@ -287,6 +327,13 @@ def eva_use(client_id, target, verb=None):
         return _report(client_id, target, verb, "wrong tool", display)
     if get_inventory_value(client_id, KEY_WORK, None):
         return _report(client_id, target, verb, "already working", display)
+    if verb == VERB_WORK:
+        # Hands, not weapons: nothing to lock, and a failed try has to be waited out.
+        from ..helpers import FrameContext
+        retry = (get_inventory_value(client_id, KEY_RETRY, None) or {}).get(str(target))
+        if retry is not None and (FrameContext.sim_seconds or 0.0) < float(retry):
+            return _report(client_id, target, verb, "not yet", display)
+        return _eva_work(client_id, target, verb, display, seconds=WORK_SECONDS)
     # LOCK FIRST. Working on a thing and having the weapons pointed at it are the same
     # intention, and a beam that has to be aimed separately from the app that started it
     # is two controls for one act.
@@ -326,8 +373,23 @@ def _eva_haul(client_id, target, display):
     # tow it is coming with them, and leaving it on the destination list offers a course
     # to a thing that is following you. The NODE goes; the object is untouched.
     _eva_unlist(client_id, target)
+    _eva_find_note(client_id, target, display)
     eva_tools_watch()
     return _report(client_id, target, VERB_TETHER, "ok", display)
+
+
+def _eva_find_note(client_id, target, display):
+    """"Lt Vasquez hooked the manifest." in this console's Act transcript, with the
+    item's picture (its ITEM `Sprite:`) when the art has one. Never raises."""
+    try:
+        from .boarding import boarding_find_note, boarding_me
+        from .items import item_meta
+        key = get_inventory_value(to_id(target), "item_key", None)
+        sprite = item_meta(key, "sprite", None) if key else None
+        boarding_find_note(client_id, boarding_me(client_id), f"hooked {display}.", sprite)
+    except Exception as e:                                # noqa: BLE001
+        from .execution import log
+        log(f"find note for '{display}': {e}", "eva", "warning")
 
 
 def _eva_unlist(client_id, target):
@@ -352,13 +414,14 @@ def _eva_unlist(client_id, target):
     return False
 
 
-def _eva_work(client_id, target, verb, display):
-    """Start a timed job on a barrier - a cut, or a haul on the blockage itself."""
+def _eva_work(client_id, target, verb, display, seconds=CUT_SECONDS):
+    """Start a timed job on a barrier - a cut, a haul on the blockage itself, or a try
+    by hand."""
     from ..helpers import FrameContext
     now = FrameContext.sim_seconds or 0.0
     set_inventory_value(client_id, KEY_WORK, {
         "target": target, "verb": verb, "kind": "barrier",
-        "until": now + CUT_SECONDS, "display": display})
+        "until": now + float(seconds), "display": display})
     eva_tools_watch()
     return _report(client_id, target, verb, "ok", display)
 
@@ -396,9 +459,63 @@ def eva_tools_tick(t=None):
             continue
         set_inventory_value(cid, KEY_WORK, None)
         key = eva_my_relic(cid)
+        if work["verb"] == VERB_WORK:
+            _eva_try(cid, key, work, now)
+            continue
         opened = relic_open_barrier(key, work["target"]) if key else False
         _report(cid, work["target"], work["verb"],
                 "opened" if opened else "no effect", work.get("display"))
+    return True
+
+
+def _eva_try(client_id, relic_key, work, now):
+    """A worked job is done: roll the check. The roll goes in the transcript either way,
+    so a failure is a number the crew can see rather than a door that did not move."""
+    from .amd_relics import relic_open_barrier
+    from .boarding import boarding_me, boarding_reader_note
+    from .boarding_checks import boarding_check
+    target, display = work["target"], work.get("display")
+    spec = eva_barrier_check(relic_key, target) if relic_key else None
+    who = boarding_me(client_id)
+    if spec is None or who is None:
+        return _report(client_id, target, VERB_WORK, "no effect", display)
+    result = boarding_check(who, spec[0], spec[1])
+    boarding_reader_note(client_id, result["text"])
+    if result["ok"]:
+        opened = relic_open_barrier(relic_key, target)
+        return _report(client_id, target, VERB_WORK, "opened" if opened else "no effect",
+                       display)
+    retry = dict(get_inventory_value(client_id, KEY_RETRY, None) or {})
+    retry[str(target)] = now + WORK_RETRY_SECONDS
+    set_inventory_value(client_id, KEY_RETRY, retry)
+    return _report(client_id, target, VERB_WORK, "failed", result["text"])
+
+
+def eva_scan_target(client_id, target):
+    """Read a find from a suit - the handheld's answer to the ship's science scan.
+
+    Emits `eva_scanned` (EVA_CLIENT, EVA_TARGET, EVA_RELIC, EVA_ITEM) so a mission can
+    treat it exactly as it treats its ship scanning the same object - Storm's Beacon's
+    pieces are identified by a scan, and a crew standing next to one should not have to
+    ask the bridge. Files the reading to the survey log. True when there was a thing.
+    """
+    from .eva import eva_my_relic
+    from .signal import signal_emit
+    obj = to_object(target)
+    if obj is None:
+        return False
+    oid = to_id(obj)
+    item = get_inventory_value(oid, "item_key", None)
+    signal_emit("eva_scanned", {"EVA_CLIENT": client_id, "EVA_TARGET": oid,
+                                "EVA_RELIC": eva_my_relic(client_id), "EVA_ITEM": item})
+    try:
+        from .items import item_meta
+        from .survey_log import xess_log
+        desc = (item_meta(item, "description", None) or "") if item else ""
+        xess_log("scan", getattr(obj, "name", None) or str(item or oid), desc,
+                 by=client_id)
+    except Exception:                                    # noqa: BLE001
+        pass
     return True
 
 
@@ -440,6 +557,7 @@ def eva_tools_clear(client_id=None):
     for cid in ([client_id] if client_id is not None else eva_drivers()):
         set_inventory_value(cid, KEY_WORK, None)
         set_inventory_value(cid, KEY_ARMED, None)
+        set_inventory_value(cid, KEY_RETRY, None)
     if client_id is None:
         eva_tools_unwatch()
     return True

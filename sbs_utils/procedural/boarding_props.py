@@ -458,12 +458,8 @@ def boarding_interact(client_id, key):
 def _pickup_note(client_id, lf, rec):
     """What was picked up, in this console's Act transcript - with its picture, which is
     the sprite it lay on the map with."""
-    from .boarding import (boarding_reader_note, _drawable, _image_md, _name_of,
-                           READER_CHOOSER_FACE_LINES)
-    image = _drawable(rec.get("sprite"))
-    lead = _image_md(image, READER_CHOOSER_FACE_LINES) if image else ""
-    line = f"{_name_of(lf)} picked up {rec['name']}."
-    boarding_reader_note(client_id, f"{lead} {line}" if lead else line)
+    from .boarding import boarding_find_note
+    boarding_find_note(client_id, lf, f"picked up {rec['name']}.", rec.get("sprite"))
 
 
 def _needs_ok(needs, lf):
@@ -568,16 +564,43 @@ def _take_outcome(agent_id, speaker, tokens):
     return None
 
 
+# `open` and `reveal` are ONE verb each, shared by every body model: the registry keeps a
+# single handler per verb, so a relic registering its own would silently have replaced the
+# props'. A prop key wins; anything else is tried as a relic barrier (`open`) or a relic
+# point (`reveal`) - the relic the actor's suit is in first, then any relic that has it.
+
 def _open_outcome(agent_id, speaker, tokens):
     if tokens:
-        boarding_prop_open(tokens[0], "scene")
+        if boarding_prop(tokens[0]) is not None:
+            boarding_prop_open(tokens[0], "scene")
+        else:
+            _relic_verb("open", agent_id, tokens[0])
     return None
 
 
 def _reveal_outcome(agent_id, speaker, tokens):
     if tokens:
-        boarding_prop_reveal(tokens[0])
+        if boarding_prop(tokens[0]) is not None:
+            boarding_prop_reveal(tokens[0])
+        else:
+            _relic_verb("reveal", agent_id, tokens[0])
     return None
+
+
+def _relic_verb(verb, agent_id, name):
+    """`open <barrier>` / `reveal <point>` against a relic. Never raises."""
+    try:
+        from .amd_relics import relic_open_barrier, relic_reveal_point, relic_find_part
+        relic = relic_find_part(name, near=agent_id)
+        if relic is None:
+            return False
+        if verb == "open":
+            return relic_open_barrier(relic, name)
+        return relic_reveal_point(relic, name)
+    except Exception as e:                               # noqa: BLE001
+        from .execution import log
+        log(f"`{verb} {name}`: {e}", "boarding", "warning")
+        return False
 
 
 def _holding_metric(rest, agent_id):

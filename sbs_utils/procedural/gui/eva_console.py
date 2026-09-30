@@ -135,7 +135,26 @@ def eva_console_revision(client_id=None):
     cid = _client(client_id)
     if cid is None:
         return 0
-    return (boarding_me(cid), eva_my_suit(cid), eva_where(cid), xess_revision(cid))
+    return (boarding_me(cid), eva_my_suit(cid), eva_where(cid), xess_revision(cid),
+            _hint_revision(cid))
+
+
+def _hint_revision(cid):
+    """What the Nav marks are drawn from: the leads, and how many finds are still lying
+    about. A haul or a quest moving changes a row's mark without moving the suit, and a
+    revision that does not carry it is a list that silently goes stale."""
+    try:
+        from ..boarding_hints import eva_leads
+        from ..amd_relics import relic_finds
+        from ..eva import eva_my_relic
+        from ..quest import quest_generation
+        finds = relic_finds(eva_my_relic(cid))
+        # quest_generation: the Tasks app lists quests, and one granted or finished while
+        # it is open must show without the suit having to move.
+        return (tuple(eva_leads(cid)), sum(len(v) for v in finds.values()),
+                quest_generation())
+    except Exception:                                    # noqa: BLE001
+        return None
 
 
 #: How much of the map column the corner radar takes, as a percentage of the SCREEN, and

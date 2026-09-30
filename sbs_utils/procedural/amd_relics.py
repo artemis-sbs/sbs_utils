@@ -60,6 +60,10 @@ _RELIC_RECORDS = {}
 
 _HOLDS = {"tractor": HOLD_TRACTOR, "clamp": HOLD_CLAMP, "none": HOLD_NONE}
 
+#: Worn by everything a relic PLACES in the world (a find, a spawn), beside the roles of
+#: its place - so "what is still lying about in this ruin" is one role query.
+RELIC_PLACED_ROLE = "relic_placed"
+
 
 def _amd_relic_numbers(value):
     """Every number in a value, comma or space separated. Non-numeric words are skipped,
@@ -130,6 +134,12 @@ def amd_relic_facts():
         elif label == "point":
             nums = _amd_relic_numbers(value)
             data["point"] = nums[:3] if len(nums) >= 3 else None
+        elif label == "prop":
+            # SCENERY, not a place: where a set piece stands. Unlike a `Point:` it is
+            # nowhere the crew can be sent and takes nothing out of the navigable space -
+            # a gate you fly through, a lamp on a gantry.
+            nums = _amd_relic_numbers(value)
+            data["prop"] = nums[:3] if len(nums) >= 3 else None
         elif label == "roles":
             data["roles"] = [w.strip().lower() for w in str(value).split(",") if w.strip()]
         elif label == "item":
@@ -159,6 +169,15 @@ def amd_relic_facts():
                                   for w in str(value).split(",") if w.strip()]
         elif label == "hidden":
             data["hidden"] = str(value).strip().lower() in ("yes", "true", "on", "1")
+        elif label in ("scene", "scan", "facing"):
+            # Player-facing words and a scene key. Stored as written: a scene key is
+            # matched lowercased when it is looked up, and scan text is shown verbatim.
+            data[label] = str(value).strip()
+        elif label == "dress":
+            # `Dress: ruins_tg_statue 2, generic-cylinder` - art keys in order of
+            # preference, each with an optional size multiplier. The first one the engine
+            # knows is used, so a mission without the art pack still gets SOMETHING.
+            data["dress"] = _amd_relic_pairs(value)
         elif label in ("rail step", "rail_step"):
             nums = _amd_relic_numbers(value)
             data["rail_step"] = nums[0] if nums else None
@@ -231,11 +250,16 @@ def relics_from_section(section, source=None, section_key=None):
             # through: a plated hall opens into a cave that came down on top of it.
             "part_art": {},
             "part_walls": {},
+            # Per-part extras that are not geometry: the scene a place opens, what the
+            # Scan app says about it, and what it is dressed with. Keyed by part name and
+            # kept OUT of `points` - that list is positional and its readers index it.
+            "part_info": {},
             "chambers": {},
             "passages": [],
             "boxes": {},
             "solids": [],
             "points": {},
+            "props": {},
             "barriers": {},
             "contents": [],
             "parts": [],
@@ -255,6 +279,19 @@ def relics_from_section(section, source=None, section_key=None):
             rec.part_art[name] = data.get("art")
         if data.get("walls"):
             rec.part_walls[name] = data.get("walls")
+        info = {"kind": ("point" if data.get("point") else "prop" if data.get("prop")
+                         else "chamber" if data.get("chamber")
+                         else "box" if data.get("box") else "solid" if data.get("solid")
+                         else "barrier" if data.get("barrier") else None),
+                "display": node.get("display_text") or name}
+        for k in ("scene", "scan", "dress", "facing"):
+            if data.get(k):
+                info[k] = data.get(k)
+        if data.get("solid"):
+            # Which entry of `solids` this part is, so a set piece can stand in for the
+            # generic primitive that would otherwise dress it.
+            info["solid_index"] = len(rec.solids)
+        rec.part_info[name] = info
         if data.get("chamber"):
             c = data["chamber"]
             rec.chambers[name] = [c[0], c[1], c[2], c[3]]
@@ -276,6 +313,8 @@ def relics_from_section(section, source=None, section_key=None):
             rec.points[name] = [pt[0], pt[1], pt[2], data.get("roles") or [],
                                 node.get("display_text") or name,
                                 bool(data.get("hidden"))]
+        if data.get("prop"):
+            rec.props[name] = list(data["prop"][:3])
         if data.get("barrier"):
             # [x, y, z, radius, opens_when, clear_with, display]. A barrier is not
             # navigable space and it is not subtracted from it either - the geometry is
@@ -305,7 +344,7 @@ def relics_from_section(section, source=None, section_key=None):
     return [relics[k] for k in order]
 
 
-def relics_load(file_path, section_key="relics", content=None):
+def relics_load(file_path, section_key="relics", content=None, scenes=True):
     """Read relics straight from an `.amd` file. The verb a mission actually wants.
 
     Without this every mission repeats the same three lines - load the document with the
@@ -325,8 +364,57 @@ def relics_load(file_path, section_key="relics", content=None):
     from sbs_utils.procedural.quest import document_get_amd_file
     doc = document_get_amd_file(file_path, content=content,
                                 data_parser=lambda t: amd_parse_facts(t, amd_relic_facts()))
+    if content is not None:
+        _RELIC_TEXT[file_path] = content
+    if scenes:
+        # A relic file's own `## Dialogue` is what its places' `Scene:` names. Registered
+        # here so a mission that loads relics directly gets them; Open Universe also
+        # registers them itself (`universe_relic_declare_scenes`), which is harmless -
+        # last registration wins, quietly.
+        _relic_register_dialogue(file_path, content)
     return relics_register(amd_section(doc, section_key),
                            source=file_path, section_key=section_key)
+
+
+#: The text a relic file was loaded from, when the caller handed it over - a relic inside a
+#: packaged addon cannot be re-opened by path.
+_RELIC_TEXT = {}
+
+
+def relic_section(relic_key, section_key):
+    """Another section of the file a relic came from - its `side_stories`, its `items`.
+
+    A relic file is self-contained: the space, what is in it, what is said in it and the
+    stories told in it open as one document. This is how a mission reaches the parts the
+    library does not read itself - `boarding_quests_grant(relic_section(key,
+    "side_stories"))` gives the crew who go inside the stories that belong to that ruin.
+    None when the relic or the section is unknown.
+    """
+    rec = _RELIC_RECORDS.get(relic_key)
+    source = rec.get("source") if rec is not None else None
+    if not source:
+        return None
+    try:
+        from sbs_utils.procedural.quest import document_get_amd_file
+        doc = document_get_amd_file(source, content=_RELIC_TEXT.get(source))
+        return amd_section(doc, section_key)
+    except Exception as e:                                # noqa: BLE001
+        log(f"relic '{relic_key}': section '{section_key}' not read: {e}", "relics",
+            "warning")
+        return None
+
+
+def _relic_register_dialogue(file_path, content=None):
+    """Register a relic file's `## Dialogue` scenes. Never raises; returns how many."""
+    try:
+        from sbs_utils.procedural.quest import document_get_amd_file
+        from sbs_utils.procedural.amd_dialogue import dialogue_register_scenes
+        doc = document_get_amd_file(file_path, content=content)
+        section = amd_section(doc, "dialogue")
+        return len(dialogue_register_scenes(section)) if section is not None else 0
+    except Exception as e:                                # noqa: BLE001
+        log(f"relic dialogue in '{file_path}' not registered: {e}", "relics", "warning")
+        return 0
 
 
 def relics_build(file_path, section_key="relics", name=None):
@@ -626,10 +714,31 @@ def relic_barriers_spawn(relic_key, name=None):
             continue
         pos = bar["pos"]
         label = bar.get("display") or bkey
+        # A barrier may be DRESSED - a seized hatch, a grate - and is then drawn as that
+        # piece, fitted to its radius. Otherwise the plain sphere it always was.
+        art, mult = _relic_dress_pick(relic_part_info(relic_key, bkey).get("dress"))
         try:
             obj = terrain_spawn(pos[0], pos[1], pos[2], str(label),
                                 "#," + RELIC_BARRIER_ROLE,
-                                "generic-sphere", "behav_selection")
+                                art or "generic-sphere", "behav_selection")
+            if art:
+                from .volume_dress import _mesh_size
+                size = _mesh_size(art, (200.0, 200.0, 200.0))
+                s = 2.0 * float(bar.get("radius") or 200.0) / max(size) * mult
+                for axis in "xyz":
+                    obj.data_set.set("local_scale_%s_coeff" % axis, s, 0)
+                # `Facing: 0, 1, 0` lays a grate ACROSS a vertical shaft: a barrier is
+                # not upright scenery, so its facing is taken as given, not flattened.
+                nums = _amd_relic_numbers(relic_part_info(relic_key, bkey).get("facing")
+                                          or "")
+                if len(nums) >= 3:
+                    try:
+                        import sbs
+                        from .volume import volume_look_quat
+                        w, qx, qy, qz = volume_look_quat(nums[:3])
+                        obj.engine_object.rot_quat = sbs.quaternion(w, qx, qy, qz)
+                    except Exception:                    # noqa: BLE001
+                        pass
             # NO EXCLUSION RADIUS. Containment and the rails already keep a suit off the
             # geometry; a prop that shoves ships would fight the route that was solved to
             # fly right up to this thing and cut it.
@@ -720,6 +829,321 @@ def relic_point_hidden(relic_key, name):
         return False
     pt = (rec.get("points") or {}).get(name)
     return bool(pt[5]) if pt is not None and len(pt) > 5 else False
+
+
+def relic_part_info(relic_key, name):
+    """The non-geometry facts of one part - `scene`, `scan`, `dress`, `facing`, `kind`,
+    `display`. An empty dict for an unknown part."""
+    rec = _RELIC_RECORDS.get(relic_key)
+    info = (rec.get("part_info") or {}).get(name) if rec is not None else None
+    return dict(info or {})
+
+
+def relic_part_scene(relic_key, name):
+    """The scene key a place opens when a suit arrives there, or None."""
+    scene = relic_part_info(relic_key, name).get("scene")
+    return str(scene).strip().lower() if scene else None
+
+
+def relic_part_scan(relic_key, name):
+    """What the xESS Scan app says about a place, or None.
+
+    Never the part's prose: in a shipped relic that is written for the AUTHOR ("the
+    cradle is a box solid so the rails skirt it") and must never reach a player."""
+    return relic_part_info(relic_key, name).get("scan") or None
+
+
+def relic_part_at(relic_key, pos):
+    """The room (chamber or box) a world position is in, else the nearest one, else None.
+
+    Boxes count - `volume_chamber_at` only knows chambers, and four of Storm's Beacon's
+    seven ruins are built from boxes, so it answered "open space" in the middle of a hall.
+    """
+    rec = _RELIC_RECORDS.get(relic_key)
+    if rec is None or pos is None:
+        return None
+    base = relic_pos(rec)
+    p = (float(pos[0]) - base[0], float(pos[1]) - base[1], float(pos[2]) - base[2])
+    best, best_d = None, float("inf")
+    for name, (x, y, z, r) in (rec.get("chambers") or {}).items():
+        d = ((p[0] - x) ** 2 + (p[1] - y) ** 2 + (p[2] - z) ** 2) ** 0.5 - r
+        if d < best_d:
+            best, best_d = name, d
+    for name, (x, y, z, hx, hy, hz) in (rec.get("boxes") or {}).items():
+        # Signed distance to a box: negative inside, the deepest box wins overlaps.
+        q = (abs(p[0] - x) - hx, abs(p[1] - y) - hy, abs(p[2] - z) - hz)
+        out = sum(max(c, 0.0) ** 2 for c in q) ** 0.5
+        d = out if out > 0 else max(q)
+        if d < best_d:
+            best, best_d = name, d
+    return best
+
+
+def relic_find_part(name, near=None):
+    """Which relic has a barrier or point called `name`, or None.
+
+    `near` is anything a suit can be traced from - a lifeform, a suit, or a console - and
+    that suit's relic is asked first, because two relics may well both have a `door`.
+    """
+    prefer = _relic_of(near) if near is not None else None
+    keys = ([prefer] if prefer else []) + [k for k in _RELIC_RECORDS if k != prefer]
+    for key in keys:
+        rec = _RELIC_RECORDS.get(key)
+        if rec is None:
+            continue
+        if name in (rec.get("barriers") or {}) or name in (rec.get("points") or {}):
+            return key
+    return None
+
+
+def _relic_of(thing):
+    """The relic a suit - or the person in it, or the console flying it - is inside."""
+    try:
+        from .eva import KEY_RELIC, eva_suit_of
+        from .inventory import get_inventory_value
+        for probe in (thing, eva_suit_of(thing)):
+            if probe is None:
+                continue
+            key = get_inventory_value(probe, KEY_RELIC, None)
+            if key:
+                return key
+    except Exception:                                    # noqa: BLE001
+        pass
+    return None
+
+
+def relic_finds(relic_key):
+    """The things a relic put in the world that are still there, as `{part: [ids]}`.
+
+    Matched by the `relic_key` / `relic_part` stamp `_relic_mark_placed` puts on everything
+    it places, so a find is traced to its spot without guessing from names or positions."""
+    from .query import to_object
+    from .roles import role
+    from .inventory import get_inventory_value
+    out = {}
+    for oid in role(RELIC_PLACED_ROLE):
+        if get_inventory_value(oid, "relic_key", None) != relic_key:
+            continue
+        if to_object(oid) is None:
+            continue
+        part = get_inventory_value(oid, "relic_part", None)
+        if part:
+            out.setdefault(part, []).append(oid)
+    return out
+
+
+# --- the look: walls and set pieces ---------------------------------------------------------
+
+#: The same numbers Open Universe dressed its relics with, now the library's defaults.
+RELIC_WALL_DEPTH = 40.0
+RELIC_GAPS = 0.06
+RELIC_DEBRIS = 60
+RELIC_PROPS = 600
+
+
+def relic_walls(relic_key, n=RELIC_PROPS, roles="", wall_depth=RELIC_WALL_DEPTH,
+                seed=None, name=None, setpieces=True):
+    """Dress a built relic: its walls in the authored style, and its set pieces.
+    Returns how many objects were made.
+
+    The AMD-to-`volume_dress` mapping every mission was about to write for itself:
+    `Walls:` (a fallback chain - `torgoth, plates`), `Art:`, per-part looks, `Plate:`,
+    `Gaps:`, `Debris:`, `Seed:`. Then every part carrying `Dress:` gets its set piece, and
+    a solid dressed that way is not ALSO dressed as a generic primitive.
+
+    `roles` go on everything made, and are how the caller tears it down again. Not
+    idempotent on its own - a caller guards on its role, the way Open Universe does.
+    """
+    from .volume_dress import volume_dress, DEFAULT_STYLE
+    rec = _RELIC_RECORDS.get(relic_key)
+    if rec is None:
+        return 0
+    vol = volume_get(relic_volume_name(rec, name))
+    if vol is None:
+        return 0
+    made = 0
+    skip = set()
+    if setpieces:
+        got, skip = relic_setpieces_place(relic_key, roles=roles, name=name)
+        made += got
+
+    def num(field, default, cast=float):
+        value = rec.get(field)
+        try:
+            return cast(value) if value not in (None, "") else default
+        except (TypeError, ValueError):
+            return default
+    made += volume_dress(
+        vol, n=int(n), seed=int(seed if seed is not None else num("seed", 7, int)),
+        roles=roles, wall_depth=float(wall_depth),
+        plate=num("plate", 0.0), gaps=num("gaps", RELIC_GAPS),
+        debris=num("debris", RELIC_DEBRIS, int),
+        style=rec.get("walls") or DEFAULT_STYLE, art=rec.get("art"),
+        part_styles=rec.get("part_walls"), part_art=rec.get("part_art"),
+        solid_skip=skip)
+    return made
+
+
+def relic_setpieces(relic_key):
+    """Every part carrying `Dress:`, as `[{part, kind, dress, facing, solid_index}]`."""
+    rec = _RELIC_RECORDS.get(relic_key)
+    if rec is None:
+        return []
+    out = []
+    for part, info in (rec.get("part_info") or {}).items():
+        if info.get("dress"):
+            out.append({"part": part, "kind": info.get("kind"), "dress": info["dress"],
+                        "facing": info.get("facing"),
+                        "solid_index": info.get("solid_index")})
+    return out
+
+
+def _relic_dress_pick(dress):
+    """The first `(art, size)` in a `Dress:` list the engine knows, or (None, 1.0)."""
+    from .volume_dress import _known_art
+    for art, mult in dress or ():
+        if _known_art([art]):
+            return art, float(mult) if mult else 1.0
+    return None, 1.0
+
+
+def _relic_facing(rec, relic_key, spec, pos, base):
+    """Which way a set piece looks, flattened so it stays upright: `Facing:` a named
+    place, or `Facing: x, y, z` as a direction; else the middle of the room it stands in.
+    """
+    target = None
+    if spec:
+        nums = _amd_relic_numbers(spec)
+        if len(nums) >= 3 and not _amd_relic_words(spec):
+            d = (nums[0], 0.0, nums[2])
+            return d if abs(d[0]) + abs(d[2]) > 1e-6 else (0.0, 0.0, 1.0)
+        target = relic_point(relic_key, spec) or _relic_part_pos(rec, spec, base)
+        if target is None and spec in (rec.get("props") or {}):
+            pr = rec["props"][spec]
+            target = (base[0] + pr[0], base[1] + pr[1], base[2] + pr[2])
+    if target is None:
+        room = relic_part_at(relic_key, pos)
+        target = _relic_part_pos(rec, room, base) if room else None
+    if target is not None:
+        d = (target[0] - pos[0], 0.0, target[2] - pos[2])
+        if abs(d[0]) + abs(d[2]) > 1e-6:
+            return d
+    return (0.0, 0.0, 1.0)
+
+
+def relic_setpieces_place(relic_key, roles="", name=None):
+    """Place a relic's set pieces. Returns `(made, solid_indices_dressed)`.
+
+    A POINT or a PROP gets its piece standing upright on the spot, facing its `Facing:`
+    (else the middle of its room). A SOLID gets its piece fitted to the solid's size, so
+    the cradle a route already skirts is drawn as the cradle rather than as a grey cube -
+    turned the same way, and fitted AFTER the turn. Size is the kit's scale for a kit
+    piece, times the optional number after the key.
+    """
+    from .volume import volume_look_quat
+    from .volume_dress import _dress_finish, _mesh_size
+    from .spawn import terrain_spawn
+    rec = _RELIC_RECORDS.get(relic_key)
+    if rec is None:
+        return 0, set()
+    base = relic_pos(rec)
+    made, skip = 0, set()
+    for sp in relic_setpieces(relic_key):
+        art, mult = _relic_dress_pick(sp["dress"])
+        if art is None:
+            continue                     # nothing known: the part keeps its default look
+        size = _mesh_size(art, (100.0, 100.0, 100.0))
+        kit_scale = 1.0
+        try:
+            from .volume_kit import volume_kit, volume_kit_piece
+            piece = volume_kit_piece(art)
+            kit = volume_kit(piece.get("kit")) if piece else None
+            if kit is not None:
+                kit_scale = kit["scale"]
+        except Exception:                                # noqa: BLE001
+            pass
+        facing, scale, pos, up_axis = (0.0, 0.0, 1.0), None, None, None
+        if sp["kind"] in ("point", "prop"):
+            if sp["kind"] == "point":
+                pos = relic_point(relic_key, sp["part"])
+            else:
+                pr = (rec.get("props") or {}).get(sp["part"])
+                pos = (base[0] + pr[0], base[1] + pr[1], base[2] + pr[2]) if pr else None
+            if pos is None:
+                continue
+            facing = _relic_facing(rec, relic_key, sp.get("facing"), pos, base)
+            s = kit_scale * mult
+            scale = (s, s, s)
+        elif sp["kind"] == "solid" and sp.get("solid_index") is not None:
+            solid = rec.get("solids")[sp["solid_index"]]
+            kind, nums = solid[0], [float(v) for v in solid[1:]]
+            if kind == "box" and len(nums) >= 6:
+                pos = (base[0] + nums[0], base[1] + nums[1], base[2] + nums[2])
+                facing = _relic_facing(rec, relic_key, sp.get("facing"), pos, base)
+                # Turned a quarter, the piece's width runs along the other axis - fit it
+                # in the box it will actually occupy.
+                sx, sy, sz = size
+                if abs(facing[0]) > abs(facing[2]):
+                    sx, sz = sz, sx
+                s = min(2.0 * nums[3] / sx, 2.0 * nums[4] / sy, 2.0 * nums[5] / sz) * mult
+                scale = (s, s, s)
+            elif kind == "sphere" and len(nums) >= 4:
+                pos = (base[0] + nums[0], base[1] + nums[1], base[2] + nums[2])
+                facing = _relic_facing(rec, relic_key, sp.get("facing"), pos, base)
+                s = 2.0 * nums[3] / max(size) * mult
+                scale = (s, s, s)
+            elif kind == "capsule" and len(nums) >= 7:
+                a = (base[0] + nums[0], base[1] + nums[1], base[2] + nums[2])
+                b = (base[0] + nums[3], base[1] + nums[4], base[2] + nums[5])
+                pos = tuple((a[i] + b[i]) * 0.5 for i in range(3))
+                axis = tuple(b[i] - a[i] for i in range(3))
+                length = sum(v * v for v in axis) ** 0.5
+                if size[1] >= size[2]:
+                    # A TALL piece - a column, a pillar - stands along the capsule: its
+                    # local +Y up the axis, facing whichever way is across it. Laid on
+                    # +Z like a span, a column through a room lies on its side.
+                    across = (0.0, 0.0, 1.0) if abs(axis[2]) < 0.9 * length else \
+                        (1.0, 0.0, 0.0)
+                    up_axis = axis
+                    # Square the facing to the axis, so it is the AXIS that is exact:
+                    # `volume_look_quat` keeps the facing and bends `up` to fit it.
+                    u = tuple(v / (length or 1.0) for v in axis)
+                    d = sum(across[i] * u[i] for i in range(3))
+                    facing = tuple(across[i] - d * u[i] for i in range(3))
+                    scale = (2.0 * nums[6] / size[0] * mult,
+                             (length + 2.0 * nums[6]) / size[1] * mult,
+                             2.0 * nums[6] / size[2] * mult)
+                else:
+                    # Lying along the span: its local +Z down the capsule's axis.
+                    up_axis = None
+                    facing = axis
+                    scale = (2.0 * nums[6] / size[0] * mult,
+                             2.0 * nums[6] / size[1] * mult,
+                             (length + 2.0 * nums[6]) / size[2] * mult)
+            if scale is not None:
+                skip.add(sp["solid_index"])
+        if pos is None or scale is None:
+            continue
+        try:
+            p = terrain_spawn(pos[0], pos[1], pos[2], "", ("#," + roles) if roles else "#",
+                              art, "behav_asteroid")
+            if p is None:
+                continue
+            try:
+                import sbs
+                w, qx, qy, qz = volume_look_quat(facing, up_axis or (0.0, 1.0, 0.0))
+                p.engine_object.rot_quat = sbs.quaternion(w, qx, qy, qz)
+            except Exception:                            # noqa: BLE001
+                pass
+            p.blob.set("local_scale_x_coeff", scale[0], 0)
+            p.blob.set("local_scale_y_coeff", scale[1], 0)
+            p.blob.set("local_scale_z_coeff", scale[2], 0)
+            _dress_finish(p)
+            made += 1
+        except Exception as e:                           # noqa: BLE001
+            log(f"relic '{relic_key}': set piece '{art}' at '{sp['part']}' failed: {e}",
+                "relics", "warning")
+    return made, skip
 
 
 def relic_volume_name(record, name=None):
@@ -995,8 +1419,8 @@ def _relic_reveal_tick():
     A revealed marker STAYS revealed - it is a record of where the crew has been, which is
     the whole value of it in a structure where every room looks like the last one.
     """
-    from .query import to_object_list, to_object
-    from .roles import any_role, role
+    from .query import to_object_list
+    from .roles import any_role
     # `key` below is the armed marker's ("marker", relic, point) tuple - the reveal needs
     # both halves of it to tell the web which node has just been found.
     posts = [(k, v) for k, v in _ARMED.items()
@@ -1017,39 +1441,85 @@ def _relic_reveal_tick():
         r = float(rec.get("reveal") or RELIC_REVEAL_RANGE)
         r2 = r * r
         p0 = rec["pos"]
-        near = False
+        near = None
         for p in players:
             pp = p.pos
             dx, dy, dz = pp.x - p0[0], pp.y - p0[1], pp.z - p0[2]
             if dx * dx + dy * dy + dz * dz <= r2:
-                near = True
+                near = p
                 break
-        if not near:
-            continue
-        obj = to_object(rec.get("id"))
-        if obj is None:
-            rec["shown"] = True        # gone; nothing to light
-            continue
+        if near is not None:
+            _relic_light(key, rec, by=near)
+
+
+def _relic_light(key, rec, by=None):
+    """Light one armed marker, find its place on the web, and say so. Idempotent.
+
+    `key` is the armed ("marker", relic, point) tuple. `by` is whoever came near enough -
+    a ship, a suit, or None when a story beat revealed it (`relic_reveal_point`).
+    """
+    from .query import to_object, to_id
+    if rec.get("shown"):
+        return False
+    rec["shown"] = True
+    obj = to_object(rec.get("id"))
+    if obj is None:
+        return False               # gone; nothing to light
+    try:
+        # `data_set`, not `blob`. They are the SAME store under two names - a spawn
+        # hands back SpawnData whose `.blob` IS the agent's `data_set` - but only the
+        # id survives to here, and what an id resolves to is the agent. Reaching for
+        # `.blob` on it raises, inside a try, which would have made every marker
+        # quietly refuse to light.
+        obj.data_set.set("unselectable", 0, 0)
+        obj.data_set.set("radar_color_override", RELIC_MARK_COLOR, 0)
+    except Exception as e:
+        log(f"relic marker would not light: {e}", "relics", "warning")
+    # A `Hidden:` place is off the destination list until it is FOUND, and reaching it
+    # is what finds it. An ordinary place was never hidden, so this is a no-op there.
+    try:
+        from .rails import rail_reveal
+        owner = _RELIC_RECORDS.get(key[1])
+        if owner is not None:
+            rail_reveal(relic_volume_name(owner), key[2])
+    except Exception:
+        pass
+    # SOMETHING TO HANG A BEAT ON. The marker lighting was the one moment in a ruin with
+    # no signal - a place first seen, which is exactly when a crew member says "what is
+    # that". `RELIC_SUIT` tells a crew member's discovery from the ship's sensors.
+    by_id = to_id(by) if by is not None else None
+    suit = False
+    if by_id is not None:
         try:
-            # `data_set`, not `blob`. They are the SAME store under two names - a spawn
-            # hands back SpawnData whose `.blob` IS the agent's `data_set` - but only the
-            # id survives to here, and what an id resolves to is the agent. Reaching for
-            # `.blob` on it raises, inside a try, which would have made every marker
-            # quietly refuse to light.
-            obj.data_set.set("unselectable", 0, 0)
-            obj.data_set.set("radar_color_override", RELIC_MARK_COLOR, 0)
-        except Exception as e:
-            log(f"relic marker would not light: {e}", "relics", "warning")
-        # A `Hidden:` place is off the destination list until it is FOUND, and reaching it
-        # is what finds it. An ordinary place was never hidden, so this is a no-op there.
-        try:
-            from .rails import rail_reveal
-            owner = _RELIC_RECORDS.get(key[1])
-            if owner is not None:
-                rail_reveal(relic_volume_name(owner), key[2])
-        except Exception:
-            pass
-        rec["shown"] = True
+            from .roles import has_role
+            suit = bool(has_role(by_id, "eva_suit"))
+        except Exception:                                # noqa: BLE001
+            suit = False
+    signal_emit("relic_marker_lit", {"RELIC_KEY": key[1], "RELIC_POINT": key[2],
+                                     "RELIC_BY": by_id, "RELIC_SUIT": suit})
+    return True
+
+
+def relic_reveal_point(relic_key, name):
+    """Reveal a place on cue - what a scene's `reveal <point>` does, and a mission's
+    story beat can too. Lights its marker when it has one, and puts a `Hidden:` place on
+    the destination list either way. True when anything changed.
+    """
+    rec = _RELIC_RECORDS.get(relic_key)
+    if rec is None or name not in (rec.get("points") or {}):
+        return False
+    changed = False
+    armed = _ARMED.get(("marker", relic_key, name))
+    if armed is not None:
+        changed = _relic_light(("marker", relic_key, name), armed)
+    try:
+        from .rails import rail_is_hidden, rail_reveal
+        vol = relic_volume_name(rec)
+        if rail_is_hidden(vol, name):
+            changed = bool(rail_reveal(vol, name)) or changed
+    except Exception:                                    # noqa: BLE001
+        pass
+    return changed
 
 
 def _relic_trigger(phrase):
@@ -1198,7 +1668,7 @@ def _relic_mark_placed(obj, c):
     """
     if obj is None:
         return
-    for r in (c.get("roles") or []):
+    for r in [RELIC_PLACED_ROLE] + list(c.get("roles") or []):
         try:
             obj.add_role(r)
         except Exception:
@@ -1402,6 +1872,7 @@ def relic_contents_clear(relic_key=None):
 def relics_clear():
     """Drop every registered relic record. Called by reset_mission_state()."""
     _RELIC_RECORDS.clear()
+    _RELIC_TEXT.clear()
     relic_contents_clear()
 
 

@@ -384,6 +384,10 @@ def _extract_data_refs(node, fence_lines):
     # job that can never be finished, and a job whose goal a MAST route emits is NOT an
     # orphan). The optional count (`signal 5 drone_down`) is stripped exactly as
     # `amd_quest.amd_trigger` strips it, so tooling and the engine read the same name.
+    # `Done when:` is the other spelling of the same completion trigger (the one side
+    # stories use); the reader stores both as `goal`. The span was only ever looked for on
+    # a `Goal:` line, so a `Done when: signal X` produced no ref at all - and every scene
+    # that finished a side story was told its signal had no route.
     goal = _di(data, "Goal")
     if goal:
         toks = str(goal).split()
@@ -392,9 +396,11 @@ def _extract_data_refs(node, fence_lines):
             if rest and rest[0].isdigit():
                 rest = rest[1:]
             if rest:
-                r = _token_span(fence_lines, "Goal", rest[0], key, "wait_signal")
-                if r:
-                    node.refs.append(r)
+                for label in ("Goal", "Done when", "Done"):
+                    r = _token_span(fence_lines, label, rest[0], key, "wait_signal")
+                    if r:
+                        node.refs.append(r)
+                        break
 
     fail = _di(data, "Fail on signal")
     if fail:

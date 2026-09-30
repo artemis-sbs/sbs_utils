@@ -103,6 +103,27 @@ def boarding_leads(client_id):
     return out
 
 
+def eva_leads(client_id):
+    """The places in this console's relic its open quests point at (``Leads to:`` naming
+    a relic point), not yet visited by it. Its own quests first, then the party's - the
+    same order as `boarding_leads`, which answers the question for the ground."""
+    from .boarding import boarding_me
+    from .eva import eva_my_relic, eva_visited
+    from .amd_relics import relic_record
+    relic = eva_my_relic(client_id)
+    rec = relic_record(relic) if relic else None
+    if rec is None:
+        return []
+    points = rec.get("points") or {}
+    out = []
+    me = boarding_me(client_id)
+    for holder in ([me] if me is not None else []) + [Agent.SHARED_ID]:
+        for key in _leads_of(holder):
+            if key in points and key not in out and not eva_visited(client_id, key, relic):
+                out.append(key)
+    return out
+
+
 def _where_key(key):
     """(area, x, y) of a prop or person key, or None when it is not on the map."""
     from .boarding_props import boarding_prop

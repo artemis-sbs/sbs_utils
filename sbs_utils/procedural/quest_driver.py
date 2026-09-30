@@ -21,7 +21,7 @@ from sbs_utils.procedural.quest import (
     quest_agent_quests, quest_get, quest_get_state, quest_get_data,
     quest_get_key, quest_set_key, quest_get_display_name, quest_add, QuestState,
     quest_log_build_items, quest_run_action)
-from sbs_utils.procedural.roles import has_role, role
+from sbs_utils.procedural.roles import has_role, role, any_role
 from sbs_utils.procedural.query import (
     to_object, to_object_list, to_id, to_id_list, to_set, is_space_object_id,
     is_client_id)
@@ -1182,7 +1182,11 @@ def quest_tick_reach():
     R of <object>" navigation objective (absolute coords, not a sector); the sector form
     ``on_reach{sector}`` is handled event-style by :func:`quest_on_arrive`. One shared
     tick replaces a per-objective polling watcher."""
-    players = to_object_list(role("__player__"))
+    # EVA SUITS REACH TOO. A suit is a player hull with `__player__` removed on purpose
+    # (targeting, scoring, end-game), so a crew flying a ruin in suits never completed a
+    # single `reach <room>` - the relic's own triggers counted suits, the quest driver did
+    # not, and a beat written against a room simply never came.
+    players = to_object_list(any_role("__player__,eva_suit"))
     if not players:
         return
     for aid in _quest_holders():

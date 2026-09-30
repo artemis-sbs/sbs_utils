@@ -31,8 +31,8 @@ import random
 
 from .spawn import terrain_spawn
 from .volume import (volume_get, volume_surface_points, volume_solid_points,
-                     volume_inside_points, volume_align_quat, _vol_prim_area, _vol_frame,
-                     _VOL_BURIED)
+                     volume_inside_points, volume_align_quat, volume_look_quat,
+                     _vol_prim_area, _vol_frame, _VOL_BURIED)
 
 
 # Nominal world size of one prop mesh at scale 1, as (across, across, through). The
@@ -52,15 +52,28 @@ _MESH = {
 _ROCK_RADIUS = 90.0
 
 
+def _mesh_size(art, default):
+    """A mesh's world size at scale 1: a generic primitive's from `_MESH`, an art pack's
+    piece from its kit manifest, else `default`."""
+    got = _MESH.get(art)
+    if got is not None:
+        return got
+    try:
+        from .volume_kit import volume_kit_size
+        return volume_kit_size(art, default)
+    except Exception:                                    # noqa: BLE001
+        return default
+
+
 class _Style:
     """How one look places a prop: which mesh, how big for the spacing it has, and
     whether it turns to face the wall it sits on."""
 
     __slots__ = ("art", "across", "through", "orient", "roll", "jitter", "tangent",
-                 "panel", "bars")
+                 "panel", "bars", "kit")
 
     def __init__(self, art, across, through, orient=True, roll=False, jitter=0.0,
-                 tangent=False, panel=False, bars=None):
+                 tangent=False, panel=False, bars=None, kit=None):
         self.art = art              # default art keys
         self.across = across        # width, as a multiple of the spacing
         self.through = through      # depth into the wall, as a multiple of the spacing
@@ -70,6 +83,7 @@ class _Style:
         self.tangent = tangent      # align ALONG the wall instead of into it
         self.panel = panel          # a box face is a SLAB, not a field of tiles
         self.bars = bars            # art laid across a panelled wall, on top of it
+        self.kit = kit              # a wall KIT's name (volume_kit) - pieces, not a mesh
 
 
 # `across` is well over 1.0 on purpose, and the number is not a taste call: props sit on
@@ -102,14 +116,37 @@ STYLES = {
 DEFAULT_STYLE = "rock"
 
 
+#: The built-in styles, which a kit can never replace or remove.
+_BUILT_IN = frozenset(STYLES)
+
+
 def volume_style_names():
     """Every style an author may name - for lint, and for the editor's dropdown."""
     return tuple(sorted(STYLES.keys()))
 
 
+def volume_style_add_kit(name):
+    """Make a registered wall kit nameable as a style (`Walls: torgoth`). What
+    `volume_kit_register` calls; a built-in style of the same name is never replaced."""
+    key = str(name).strip().lower()
+    if key in _BUILT_IN:
+        return False
+    STYLES[key] = _Style(None, across=1.80, through=0.06, orient=True, roll=False,
+                         jitter=0.0, panel=True, kit=key)
+    return True
+
+
+def volume_style_remove_kits(names):
+    """Forget kit styles - the per-mission reset."""
+    for name in names:
+        if name not in _BUILT_IN:
+            STYLES.pop(name, None)
+
+
 def volume_dress(volume, n=600, seed=7, style=DEFAULT_STYLE, art=None, roles="",
                  part_styles=None, part_art=None, out=1.06, solids=True,
-                 wall_depth=0.0, debris=0, debris_art=None, plate=0.0, gaps=0.0):
+                 wall_depth=0.0, debris=0, debris_art=None, plate=0.0, gaps=0.0,
+                 solid_skip=()):
     """Build the props for a volume. Returns how many were made.
 
     `style` names one of `STYLES`; `part_styles` overrides it per named part, which is
@@ -134,6 +171,13 @@ def volume_dress(volume, n=600, seed=7, style=DEFAULT_STYLE, art=None, roles="",
     `gaps` is the fraction of plates left out. Both are about ruins: the engine dislikes
     big planes overlapping, and a wall with nothing missing from it is a wall rather than
     a wreck.
+
+    A KIT style (`volume_kit`) builds the same rooms from an art pack's pieces - floor,
+    ceiling, walls, trims and corner pillars, each upright - and, unlike the plates,
+    honours `n`: its pieces grow together until the relic fits.
+
+    `solid_skip` names solids (by index in `vol.solids`) that something else dresses - a
+    set piece standing in for the generic primitive (`amd_relics.relic_dress`).
     """
     vol = volume_get(volume) if isinstance(volume, str) else volume
     if vol is None or n <= 0:
@@ -168,10 +212,16 @@ def volume_dress(volume, n=600, seed=7, style=DEFAULT_STYLE, art=None, roles="",
         # which is what "floor, ceiling, four walls" means and is what a box was for.
         # Curved surfaces cannot be panelled, so spheres and capsules keep the tiling.
         tiled = []
+        # A KIT IS BUDGETED. Its pieces have a size of their own, so without this a big
+        # relic is thousands of them; they grow together until the boxes fit the share.
+        grow = 1.0
+        if spec.kit:
+            boxes = [prim for _n, prim in members if prim[0] == "box"]
+            grow = _kit_grow(spec.kit, boxes, count, plate) if boxes else 1.0
         for name, prim in members:
             if spec.orient and spec.panel and prim[0] == "box":
                 made += _dress_box_faces(rng, spec, keys, prim, roles, wall_depth,
-                                        vol, plate=plate, gaps=gaps)
+                                        vol, plate=plate, gaps=gaps, grow=grow)
             else:
                 tiled.append(name)
         if not tiled:
@@ -195,8 +245,17 @@ def volume_dress(volume, n=600, seed=7, style=DEFAULT_STYLE, art=None, roles="",
         if spec is not None:
             keys = _dress_art(art, spec)
             curved = []
-            for prim in vol.solids:
-                built = _dress_solid(rng, spec, keys, prim, roles) if spec.panel else 0
+            for index, prim in enumerate(vol.solids):
+                if index in solid_skip:
+                    continue
+                if spec.kit and prim[0] == "box":
+                    # A block in a kit room is clad in the kit, looked at from outside.
+                    built = _dress_kit_box(rng, spec.kit, prim, roles, 0.0, None,
+                                           flip=True)
+                elif spec.kit:
+                    built = 0            # curved: tiled with kit pieces below
+                else:
+                    built = _dress_solid(rng, spec, keys, prim, roles) if spec.panel else 0
                 if built:
                     made += built
                 else:
@@ -229,7 +288,7 @@ def volume_dress(volume, n=600, seed=7, style=DEFAULT_STYLE, art=None, roles="",
 
 
 def _dress_box_faces(rng, spec, art_keys, prim, roles, depth, vol=None,
-                     plate=0.0, gaps=0.0):
+                     plate=0.0, gaps=0.0, grow=1.0):
     """Build a box out of wall pieces: one primitive per surface, scaled to it.
 
     This is the build pass over a blockout, and it follows the same order anyone would in
@@ -253,9 +312,12 @@ def _dress_box_faces(rng, spec, art_keys, prim, roles, depth, vol=None,
     Where one room opens into another there is no wall at all: a plate whose place is
     navigable is simply not laid, which is the doorway.
     """
+    if spec.kit:
+        return _dress_kit_box(rng, spec.kit, prim, roles, depth, vol, plate=plate,
+                              gaps=gaps, grow=grow)
     c, h = prim[1], prim[2]
     art = art_keys[rng.randrange(len(art_keys))]
-    mesh = _MESH.get(art, (100.0, 100.0, 1.25))
+    mesh = _mesh_size(art, (100.0, 100.0, 1.25))
     thick = max(float(depth or 0.0), 40.0)
     made = 0
     for axis in range(3):
@@ -348,7 +410,7 @@ def _dress_solid(rng, spec, art_keys, prim, roles):
 
 def _dress_solid_at(roles, art, centre, half, axis):
     """Spawn one primitive at `centre`, scaled to `half` extents, its local +Z on `axis`."""
-    mesh = _MESH.get(art, (100.0, 100.0, 100.0))
+    mesh = _mesh_size(art, (100.0, 100.0, 100.0))
     p = terrain_spawn(centre[0], centre[1], centre[2], "",
                       ("#," + roles) if roles else "#", art, "behav_asteroid")
     if p is None:
@@ -370,7 +432,7 @@ def _dress_bars(rng, spec, prim, roles, normal, centre, u, v, wide, tall, thick,
     showing between them, which is a texture on a solid wall and a hole on nothing.
     """
     art = spec.bars
-    mesh = _MESH.get(art, (100.0, 100.0, 100.0))
+    mesh = _mesh_size(art, (100.0, 100.0, 100.0))
     # Along the SHORT axis of the face, so the frames read as ribs of a tube.
     along, across_axis = (u, v) if wide >= tall else (v, u)
     span = max(wide, tall)
@@ -417,15 +479,31 @@ def _dress_finish(p):
 
 def _dress_style(name):
     """The style spec for a name. An unknown name falls back to the default rather than
-    failing: a typo should be a plain wall, not a mission that will not start."""
-    return STYLES.get(str(name or DEFAULT_STYLE).strip().lower(), STYLES[DEFAULT_STYLE])
+    failing: a typo should be a plain wall, not a mission that will not start.
+
+    A comma list is a FALLBACK CHAIN - `torgoth, plates` is the art pack's kit when the
+    mission loaded it, and plates when it did not - so the first name that is registered
+    wins. `none` is a real answer (no walls), not a miss."""
+    for word in str(name or DEFAULT_STYLE).split(","):
+        key = word.strip().lower()
+        if key in STYLES:
+            return STYLES[key]
+    return STYLES[DEFAULT_STYLE]
 
 
 def _dress_art(art, spec):
-    """The art keys to use: whatever was asked for, else the style's, else asteroids."""
+    """The art keys to use: whatever was asked for, else the style's, else asteroids.
+
+    A KIT IGNORES `Art:`. Its pieces come from the kit, and a relic written for the art
+    pack keeps its old `Art:` as what the FALLBACK style wears (`Walls: cave, rock` with
+    `Art: plain_asteroid_6`): the pack present, carved stone; absent, the same rocks as
+    before. An asked-for key the ship index does not know is dropped with one line - the
+    engine would draw it as the `unknown` question mark rather than fail."""
+    if spec is not None and spec.kit:
+        return ()
     if art:
         keys = [k.strip() for k in (art.split(",") if isinstance(art, str) else art)]
-        keys = [k for k in keys if k]
+        keys = _known_art([k for k in keys if k])
         if keys:
             return tuple(keys)
     if spec.art:
@@ -440,8 +518,45 @@ def _dress_art(art, spec):
     return ("plain_asteroid_6", "plain_asteroid_7", "plain_asteroid_8")
 
 
+def _known_art(keys):
+    """The keys the ship index knows. Every key when there is no index to ask (a tool, a
+    test), so this can only ever REMOVE a key it is sure about."""
+    try:
+        from .ship_data import get_ship_data_for, get_ship_index
+        if not get_ship_index():
+            return list(keys)
+    except Exception:                                    # noqa: BLE001
+        return list(keys)
+    try:
+        # A registered kit's pieces are known: a pack is only registered once its ship
+        # data reached the engine (`volume_kit_load`).
+        from .volume_kit import volume_kit_piece
+    except Exception:                                    # noqa: BLE001
+        volume_kit_piece = None
+    out = []
+    for k in keys:
+        try:
+            ok = get_ship_data_for(k) is not None or (
+                volume_kit_piece is not None and volume_kit_piece(k) is not None)
+        except Exception:                                # noqa: BLE001
+            ok = True
+        if ok:
+            out.append(k)
+        elif k not in _TOLD_UNKNOWN:
+            _TOLD_UNKNOWN.add(k)
+            from .execution import log
+            log(f"relic art '{k}' is not a known ship key - left out rather than drawn "
+                f"as the question mark", "volume", "warning")
+    return out
+
+
+_TOLD_UNKNOWN = set()
+
+
 def _dress_prop(rng, spec, art_keys, point, roles, flip=False, depth_min=0.0):
     """One prop: spawned, sized to its spacing, and turned to face its wall."""
+    if spec.kit:
+        return _dress_kit_tile(rng, spec.kit, point, roles, flip=flip, depth_min=depth_min)
     x, y, z, nx, ny, nz, spacing = point
     art = art_keys[rng.randrange(len(art_keys))]
 
@@ -451,7 +566,7 @@ def _dress_prop(rng, spec, art_keys, point, roles, flip=False, depth_min=0.0):
     # boundary before it is held, so a wall thinner than that band is a skin the ship
     # crosses and comes out the far side of.
     through = max(spec.through * spacing * wobble, float(depth_min or 0.0), 1.0)
-    mesh = _MESH.get(art, (_ROCK_RADIUS * 2.0,) * 3)
+    mesh = _mesh_size(art, (_ROCK_RADIUS * 2.0,) * 3)
 
     if spec.orient:
         # Placed by its INNER FACE: the sample sits on the boundary, so the body goes
@@ -503,6 +618,249 @@ def _dress_prop(rng, spec, art_keys, point, roles, flip=False, depth_min=0.0):
     p.blob.set("local_scale_x_coeff", sx, 0)
     p.blob.set("local_scale_y_coeff", sy, 0)
     p.blob.set("local_scale_z_coeff", sz, 0)
+    _dress_finish(p)
+    return p
+
+
+# --- kits --------------------------------------------------------------------------------
+#
+# The same build pass as the plates, with pieces that have a TOP. Three things change:
+#
+# * Which way is up. A box's six faces are a floor, a ceiling and four walls - the plates
+#   never needed to know which, because a grey slab looks the same any way round. A wall
+#   panel with a skirting board does not, so each face takes its own kind of piece and is
+#   placed upright (`volume_look_quat`).
+# * Size follows the PIECE, not the room. A plate is stretched to whatever the room is; a
+#   kit piece is laid at its own proportions, times the kit's scale, and the count is
+#   rounded so the face is covered exactly - a small residual stretch rather than a gap.
+# * The count is BUDGETED. Plates scaled up and down freely; a kit's pieces are a fixed
+#   size, so a big relic would be thousands of them. The pieces grow together until the
+#   relic fits its budget.
+
+#: How much bigger than their authored size a kit's pieces may grow to fit the budget.
+KIT_GROW_STEPS = (1.0, 1.25, 1.5, 2.0, 2.5, 3.0, 4.0, 5.0, 6.0)
+
+#: A wall thicker than this many times its own depth stops reading as the piece.
+KIT_THICK_MAX = 4.0
+
+
+def _kit_face_kind(axis, sign, flip=False):
+    """What a box face is: the -Y face of a room is its floor, the +Y its ceiling. On a
+    solid it is the other way round - you stand on its TOP."""
+    if axis != 1:
+        return "wall"
+    bottom = sign < 0
+    if flip:
+        bottom = not bottom
+    return "floor" if bottom else "ceiling"
+
+
+def _kit_face_axes(axis):
+    """For a face across `axis`: (horizontal axis, vertical axis) of its pieces - which
+    world axis a piece's local X and local Y run along."""
+    if axis == 1:                       # floor / ceiling: pieces lie with +Y towards +Z
+        return 0, 2
+    return (2 if axis == 0 else 0), 1   # a wall: X runs along the wall, Y is up
+
+
+def _kit_plan(kit, prim, grow, plate=0.0):
+    """How many pieces a box takes at this growth: (faces, trims, pillars)."""
+    from .volume_kit import volume_kit, volume_kit_pieces
+    rec = volume_kit(kit)
+    if rec is None:
+        return 0
+    h = prim[2]
+    scale = rec["scale"] * grow
+    count = 0
+    for axis in range(3):
+        kind = _kit_face_kind(axis, -1)
+        keys = volume_kit_pieces(kit, kind) or volume_kit_pieces(kit, "wall")
+        size = _mesh_size(keys[0], (100.0, 100.0, 1.0)) if keys else (100.0, 100.0, 1.0)
+        a, b = _kit_face_axes(axis)
+        tw = float(plate) if plate else size[0] * scale
+        th = float(plate) if plate else size[1] * scale
+        count += 2 * max(1, int(round(2.0 * h[a] / max(tw, 1.0)))) *             max(1, int(round(2.0 * h[b] / max(th, 1.0))))
+    return count
+
+
+def _kit_grow(kit, prims, budget, plate=0.0):
+    """The smallest growth at which these boxes fit `budget` pieces."""
+    for grow in KIT_GROW_STEPS:
+        if sum(_kit_plan(kit, p, grow, plate) for p in prims) <= budget:
+            return grow
+    return KIT_GROW_STEPS[-1]
+
+
+def _dress_kit_box(rng, kit, prim, roles, depth, vol=None, plate=0.0, gaps=0.0,
+                   grow=1.0, flip=False):
+    """A box as a room built from a kit: floor, ceiling and walls, each face tiled with
+    its own kind of piece, upright, plus trims along the floor and ceiling edges and
+    pillars up the corners. `flip` dresses a SOLID - looked at from outside."""
+    from .volume_kit import volume_kit, volume_kit_pieces
+    rec = volume_kit(kit)
+    if rec is None:
+        return 0
+    c, h = prim[1], prim[2]
+    scale = rec["scale"] * grow
+    made = 0
+    for axis in range(3):
+        a, b = _kit_face_axes(axis)
+        for sign in (1.0, -1.0):
+            kind = _kit_face_kind(axis, sign, flip)
+            keys = volume_kit_pieces(kit, kind)
+            if not keys:
+                continue
+            size0 = _mesh_size(keys[0], (100.0, 100.0, 1.0))
+            tw = float(plate) if plate else size0[0] * scale
+            th = float(plate) if plate else size0[1] * scale
+            cols = max(1, int(round(2.0 * h[a] / max(tw, 1.0))))
+            rows = max(1, int(round(2.0 * h[b] / max(th, 1.0))))
+            wide, tall = 2.0 * h[a] / cols, 2.0 * h[b] / rows
+            # Facing: into the room, or out of the solid.
+            face = [0.0, 0.0, 0.0]
+            face[axis] = sign if flip else -sign
+            up = (0.0, 1.0, 0.0) if axis != 1 else (0.0, 0.0, 1.0)
+            for k in range(cols):
+                for r in range(rows):
+                    at = [0.0, 0.0, 0.0]
+                    at[axis] = c[axis] + sign * h[axis]
+                    at[a] = c[a] + (2.0 * (k + 0.5) / cols - 1.0) * h[a]
+                    at[b] = c[b] + (2.0 * (r + 0.5) / rows - 1.0) * h[b]
+                    # THE DOORWAY, as for the plates: the room next door is here.
+                    if not flip and vol is not None and vol.depth(tuple(at)) < -_VOL_BURIED:
+                        continue
+                    if gaps > 0.0 and rng.random() < gaps:
+                        continue
+                    art = keys[rng.randrange(len(keys))]
+                    size = _mesh_size(art, size0)
+                    thick = size[2] * scale
+                    thick = max(thick, min(float(depth or 0.0), thick * KIT_THICK_MAX))
+                    # Placed by its FINISHED face: that face lies on the boundary and the
+                    # body goes into the rock, so nothing juts into the lane.
+                    push = thick * 0.5
+                    pos = [at[i] - face[i] * push for i in range(3)]
+                    if _kit_spawn(art, pos, face, up, (wide / size[0], tall / size[1],
+                                                       thick / size[2]), roles):
+                        made += 1
+    if not flip:
+        made += _dress_kit_edges(rng, kit, prim, roles, vol, scale)
+    return made
+
+
+def _dress_kit_edges(rng, kit, prim, roles, vol, scale):
+    """Trims where the walls meet the floor and ceiling, and pillars up the corners.
+    Skipped wherever the room opens into the next one - a trim across a doorway is a bar
+    across a doorway."""
+    from .volume_kit import volume_kit_pieces
+    c, h = prim[1], prim[2]
+    made = 0
+    inset = 1.02
+    trims = volume_kit_pieces(kit, "trim")
+    if trims:
+        for axis in (0, 2):                         # the four walls
+            along = 2 if axis == 0 else 0
+            for sign in (1.0, -1.0):
+                face = [0.0, 0.0, 0.0]
+                face[axis] = -sign
+                for ysign in (-1.0, 1.0):           # floor edge, ceiling edge
+                    art = trims[rng.randrange(len(trims))]
+                    size = _mesh_size(art, (100.0, 10.0, 5.0))
+                    length = size[0] * scale
+                    n = max(1, int(round(2.0 * h[along] / max(length, 1.0))))
+                    seg = 2.0 * h[along] / n
+                    for i in range(n):
+                        at = [0.0, 0.0, 0.0]
+                        at[axis] = c[axis] + sign * h[axis]
+                        at[1] = c[1] + ysign * h[1]
+                        at[along] = c[along] + (2.0 * (i + 0.5) / n - 1.0) * h[along]
+                        probe = list(at)
+                        probe[axis] = c[axis] + sign * h[axis] * inset
+                        if vol is not None and (vol.depth(tuple(at)) < -_VOL_BURIED or
+                                                vol.depth(tuple(probe)) < 0.0):
+                            continue
+                        # Tucked into the corner: half its height up off the floor (down
+                        # off the ceiling), half its depth off the wall.
+                        tall = size[1] * scale
+                        thick = size[2] * scale
+                        pos = list(at)
+                        pos[1] -= ysign * tall * 0.5
+                        pos[axis] -= sign * thick * 0.5
+                        up = (0.0, -ysign, 0.0) if ysign > 0 else (0.0, 1.0, 0.0)
+                        if _kit_spawn(art, pos, face, up, (seg / size[0], scale, scale),
+                                      roles):
+                            made += 1
+    pillars = volume_kit_pieces(kit, "pillar")
+    if pillars:
+        for sx in (1.0, -1.0):
+            for sz in (1.0, -1.0):
+                at = [c[0] + sx * h[0], c[1], c[2] + sz * h[2]]
+                probe = [c[0] + sx * h[0] * inset, c[1], c[2] + sz * h[2] * inset]
+                # A corner that is itself inside the next room is not a corner.
+                if vol is not None and (vol.depth(tuple(probe)) < 0.0 or
+                                        vol.depth((at[0], at[1], c[2] + sz * h[2] * 0.9))
+                                        < -_VOL_BURIED and
+                                        vol.depth((c[0] + sx * h[0] * 0.9, at[1], at[2]))
+                                        < -_VOL_BURIED):
+                    continue
+                art = pillars[rng.randrange(len(pillars))]
+                size = _mesh_size(art, (10.0, 100.0, 10.0))
+                facing = (-sx, 0.0, -sz)
+                if _kit_spawn(art, at, facing, (0.0, 1.0, 0.0),
+                              (scale, 2.0 * h[1] / size[1], scale), roles):
+                    made += 1
+    return made
+
+
+def _dress_kit_tile(rng, kit, point, roles, flip=False, depth_min=0.0):
+    """One kit piece on a CURVED surface (a chamber, a passage): the tiled path.
+
+    Floor, wall or ceiling by where on the surface it is - the inward normal pointing up
+    is a floor - so a round cave reads as a room with a floor rather than a ball of
+    identical tiles."""
+    from .volume_kit import volume_kit, volume_kit_pieces
+    rec = volume_kit(kit)
+    if rec is None:
+        return None
+    x, y, z, nx, ny, nz, spacing = point
+    inward = (nx, ny, nz) if flip else (-nx, -ny, -nz)
+    if inward[1] > 0.6:
+        kind = "ceiling" if flip else "floor"
+    elif inward[1] < -0.6:
+        kind = "floor" if flip else "ceiling"
+    else:
+        kind = "wall"
+    keys = volume_kit_pieces(kit, kind)
+    if not keys:
+        return None
+    art = keys[rng.randrange(len(keys))]
+    size = _mesh_size(art, (100.0, 100.0, 1.0))
+    # Covered at the spacing, the same `across` the plates use: pieces overlap slightly
+    # rather than leave the corners open.
+    across = 1.80 * spacing
+    thick = size[2] * rec["scale"]
+    thick = max(thick, min(float(depth_min or 0.0), thick * KIT_THICK_MAX))
+    push = thick * 0.5 * (-1.0 if flip else 1.0)
+    pos = (x + nx * push, y + ny * push, z + nz * push)
+    up = (0.0, 1.0, 0.0) if kind == "wall" else (0.0, 0.0, 1.0)
+    return _kit_spawn(art, pos, inward, up,
+                      (across / size[0], across / size[1], thick / size[2]), roles)
+
+
+def _kit_spawn(art, pos, facing, up, scale, roles):
+    """Spawn one kit piece: upright, facing `facing`, scaled per axis. None on failure."""
+    p = terrain_spawn(pos[0], pos[1], pos[2], "", ("#," + roles) if roles else "#", art,
+                      "behav_asteroid")
+    if p is None:
+        return None
+    try:
+        import sbs
+        w, qx, qy, qz = volume_look_quat(facing, up)
+        p.engine_object.rot_quat = sbs.quaternion(w, qx, qy, qz)
+    except Exception:                                    # noqa: BLE001
+        pass
+    p.blob.set("local_scale_x_coeff", scale[0], 0)
+    p.blob.set("local_scale_y_coeff", scale[1], 0)
+    p.blob.set("local_scale_z_coeff", scale[2], 0)
     _dress_finish(p)
     return p
 

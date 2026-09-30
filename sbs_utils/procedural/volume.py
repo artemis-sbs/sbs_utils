@@ -1186,6 +1186,47 @@ def volume_align_quat(direction, roll=0.0):
                 tuple(q[i] * cr - p[i] * sr for i in range(3)))
     # Columns are where local x, y, z end up. (p, q, u) is right-handed because
     # _vol_frame builds q as u x p.
+    return _vol_quat_from_columns(p, q, u)
+
+
+def volume_look_quat(forward, up=(0.0, 1.0, 0.0), fallback_up=(0.0, 0.0, 1.0)):
+    """A quaternion `(w, x, y, z)` turning local **+Z** onto `forward` with local **+Y**
+    as close to `up` as it can get.
+
+    The difference from `volume_align_quat` is the second axis, and it is the whole of
+    why a kit piece can be placed at all. `volume_align_quat` spins a piece about its
+    facing by whatever `_vol_frame` happens to pick, which is harmless for a square plate
+    and wrong for anything with a top: on every side wall it puts local +Y at world -Y, so
+    a wall panel with a skirting board, a door, a statue would all stand on their heads.
+
+    `fallback_up` is used when `forward` is (nearly) parallel to `up` - a floor or a
+    ceiling, whose facing IS the up direction - and decides which way the tile's own +Y
+    runs across it. Deterministic, so a floor's tiles all line up.
+    """
+    f = _vol_unit(forward)
+    if f is None:
+        return (1.0, 0.0, 0.0, 0.0)
+    y = None
+    for hint in (up, fallback_up, (1.0, 0.0, 0.0)):
+        # Project the hint onto the plane the piece faces out of.
+        d = hint[0] * f[0] + hint[1] * f[1] + hint[2] * f[2]
+        y = _vol_unit((hint[0] - d * f[0], hint[1] - d * f[1], hint[2] - d * f[2]))
+        if y is not None and abs(d) < 0.98:
+            break
+    # x = y cross z, so (x, y, z) is a proper rotation - never a mirror.
+    x = (y[1] * f[2] - y[2] * f[1], y[2] * f[0] - y[0] * f[2], y[0] * f[1] - y[1] * f[0])
+    return _vol_quat_from_columns(x, y, f)
+
+
+def _vol_unit(v):
+    length = math.sqrt(v[0] * v[0] + v[1] * v[1] + v[2] * v[2])
+    if length <= 1e-9:
+        return None
+    return (v[0] / length, v[1] / length, v[2] / length)
+
+
+def _vol_quat_from_columns(p, q, u):
+    """The quaternion of the rotation whose columns are where local x, y, z end up."""
     m00, m01, m02 = p[0], q[0], u[0]
     m10, m11, m12 = p[1], q[1], u[1]
     m20, m21, m22 = p[2], q[2], u[2]

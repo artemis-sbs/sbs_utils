@@ -485,6 +485,9 @@ ITEM = {
     "tier": integer(),
     "price": integer(),
     "modifiers": text(hint="blob_key value, blob_key2 value2"),
+    # The PICTURE of it, as opposed to `Art:` - the 3D mesh it lies in space as. What a
+    # transcript shows beside "hooked the manifest", the same word PROP uses.
+    "sprite": text(hint="an atlas key - its picture in a transcript"),
 }
 
 SIDE = {
@@ -723,7 +726,7 @@ RELIC = {
                         doc="When this barrier opens by itself. Without it, and without "
                             "`Clear with:`, nothing can ever open it - which `sbs lint` "
                             "reports as `relic-barrier-seals` if it walls anything off."),
-    "clear with": csv(hint="beam, tether   - which tool a suit can open it with"),
+    "clear with": csv(hint="beam, tether, check engineering 12   - how a suit can open it"),
     # -- what is AT a part, and when it appears
     #
     # `item` is a reference rather than free text on purpose: a typo in `Roles:` is
@@ -739,6 +742,21 @@ RELIC = {
                          key="when", aka=("when",),
                          doc="When the contents appear. Without it they are there from "
                              "the moment the relic is armed."),
+    # -- what a place SAYS, and what it looks like
+    #
+    # `Scene:` names a record in the relic file's own `## Dialogue` section; a suit
+    # arriving at the place opens it in that crew member's Act transcript, once. `Scan:`
+    # is the player's text - never the part's prose, which in a shipped relic is written
+    # for the author.
+    "scene": field(text(hint="a scene in this file's Dialogue section"),
+                   doc="Opened in the Act app when a suit arrives here - once."),
+    "scan": text(hint="what the xESS Scan app says about this place"),
+    "dress": text(hint="ruins_tg_statue 2, generic-cylinder   - set-piece art, in order "
+                       "of preference, each with an optional size"),
+    "prop": field(text(hint="x, y, z   - where a set piece stands; scenery, not a place"),
+                  doc="A set piece's spot. Unlike `Point:` it is not a destination and "
+                      "takes nothing out of the space - a gate you fly through."),
+    "facing": text(hint="another point's name - which way a set piece looks"),
 }
 
 

@@ -267,10 +267,6 @@ def _in_sight(client_id):
                  if (tilemap_actor(a)["x"], tilemap_actor(a)["y"]) in seen)
 
 
-xess_register(APP_LOOK, title="Look", icon="epadd.status", sort=22,
-              blurb="What is within reach", draw=_look_app, available=_on_ground)
-xess_register(APP_PACK, title="Pack", icon="epadd.cargo", sort=24,
-              blurb="What you are carrying", draw=_pack_app, available=_on_ground)
 
 
 APP_TASKS = "tasks"
@@ -308,6 +304,9 @@ def _leads(client_id):
     from .text import gui_text
     from .button import gui_button
     from ..boarding_hints import boarding_lead_places
+    if _in_a_suit(client_id):
+        _suit_leads(client_id)
+        return
     leads = boarding_lead_places(client_id)[:LEAD_ROWS]
     if not leads:
         return
@@ -320,6 +319,38 @@ def _leads(client_id):
                        on_press=(lambda _c=client_id, _k=key: _go_to(_c, _k)))
         else:
             gui_text("$text:%s;" % _esc("! %s - %s" % (name, where)))
+
+
+def _in_a_suit(client_id):
+    from ..eva import eva_my_suit
+    return eva_my_suit(client_id) is not None
+
+
+def _tasks_available(client_id):
+    """Tasks follow the crew member, on the ground or in a suit - a quest is theirs
+    wherever they are standing."""
+    return _on_ground(client_id) or _in_a_suit(client_id)
+
+
+def _suit_leads(client_id):
+    """In a relic: the places the open quests point at, nearest first, and a press flies
+    the suit there - the Nav app's own verb, so a lead is one press from a course."""
+    from .row import gui_row
+    from .text import gui_text
+    from .button import gui_button
+    from ..boarding_hints import eva_leads
+    from ..eva import eva_goto, eva_points
+    wanted = set(eva_leads(client_id))
+    rows = [(n, label, pos) for n, label, pos in eva_points(client_id) if n in wanted]
+    if not rows:
+        return
+    gui_row("row-height: 1.6em; font:gui-1;")
+    gui_text("$text:%s;color:%s;" % (_esc("Leads"), DIM))
+    from .xess import _nav_far
+    for name, label, pos in rows[:LEAD_ROWS]:
+        gui_row("row-height: 2.2em; font:gui-2;")
+        gui_button("> %s - %s" % (label, _nav_far(client_id, pos)),
+                   on_press=(lambda _c=client_id, _k=name: eva_goto(_c, _k)))
 
 
 def _beam_app(client_id):
@@ -359,7 +390,21 @@ def _tasks_revision(client_id):
             tuple(boarding_transport_targets(client_id)))
 
 
-xess_register(APP_TASKS, title="Tasks", icon="epadd.quests", sort=26,
-              blurb="What is asked of you", draw=_tasks_app, available=_on_ground)
-xess_register(APP_BEAM, title="Beam", icon="epadd.boarding", sort=28,
-              blurb="Where the ship can put you", draw=_beam_app, available=_on_ground)
+def xess_ground_register():
+    """Register the ground apps. At import, and again from `xess_clear` - the mission
+    reset clears every registration and used to put back only the device's built-ins, so
+    from the second run of a reused interpreter a landing party had no Look, Pack, Tasks
+    or Beam at all."""
+    xess_register(APP_LOOK, title="Look", icon="epadd.status", sort=22,
+                  blurb="What is within reach", draw=_look_app, available=_on_ground)
+    xess_register(APP_PACK, title="Pack", icon="epadd.cargo", sort=24,
+                  blurb="What you are carrying", draw=_pack_app, available=_on_ground)
+    xess_register(APP_TASKS, title="Tasks", icon="epadd.quests", sort=26,
+                  blurb="What is asked of you", draw=_tasks_app,
+                  available=_tasks_available)
+    xess_register(APP_BEAM, title="Beam", icon="epadd.boarding", sort=28,
+                  blurb="Where the ship can put you", draw=_beam_app,
+                  available=_on_ground)
+
+
+xess_ground_register()

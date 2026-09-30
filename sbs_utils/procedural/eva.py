@@ -607,6 +607,16 @@ def eva_my_home(client_id):
     return get_inventory_value(client_id, KEY_HOME, None)
 
 
+def eva_suit_home(suit):
+    """The ship a suit's wearer came from, or None - who a find a suit picks up belongs
+    to. A suit is not a player ship (it has `__player__` removed on purpose), so what it
+    collects is credited to the ship that sent it out."""
+    from .boarding import boarding_client_of
+    who = eva_lifeform_of(suit)
+    cid = boarding_client_of(who) if who is not None else None
+    return eva_my_home(cid) if cid is not None else None
+
+
 def eva_suits(relic_key=None):
     """Every suit, or only the ones in one relic."""
     suits = set(role(SUIT_ROLE))
@@ -744,6 +754,27 @@ def eva_seen(client_id, name, relic_key=None):
     if not key:
         return False
     return bool(relic_point_has_marker(key, name)) and         bool(relic_point_revealed(key, name))
+
+
+def eva_point_hint(client_id, name, leads=None, finds=None):
+    """What is worth knowing about one destination: ``"lead"`` - an open quest points at
+    it; ``"find"`` - something the relic put there is still there to take; or ``""``.
+
+    `leads` and `finds` are for a caller marking a whole list, so the quest tree and the
+    role query are walked once rather than once per row.
+    """
+    from .amd_relics import relic_finds
+    key = eva_my_relic(client_id)
+    if not key:
+        return ""
+    if leads is None:
+        from .boarding_hints import eva_leads
+        leads = eva_leads(client_id)
+    if name in leads:
+        return "lead"
+    if finds is None:
+        finds = relic_finds(key)
+    return "find" if finds.get(name) else ""
 
 
 def eva_where(client_id):
@@ -967,7 +998,15 @@ def eva_tick(t=None):
                 set_inventory_value(cid, KEY_DEST, None)
                 # BEEN THERE. Stamped on arrival rather than on proximity, so the NAV
                 # list can tell "we explored this" from "we flew past it".
-                eva_visit_note(cid, dest)
+                first = eva_visit_note(cid, dest)
+                # AND THE PLACE SAYS SOMETHING. Before the signal, so a mission's own
+                # `//signal/eva_arrived` finds the scene already open.
+                try:
+                    from .eva_places import eva_place_arrive
+                    eva_place_arrive(cid, eva_my_relic(cid), dest, first_visit=first)
+                except Exception as e:                   # noqa: BLE001
+                    from .execution import log
+                    log(f"place scene at '{dest}' failed: {e}", "eva", "warning")
                 signal_emit("eva_arrived", {"EVA_CLIENT": cid, "EVA_SUIT": suit,
                                             "EVA_RELIC": eva_my_relic(cid),
                                             "EVA_POINT": dest})

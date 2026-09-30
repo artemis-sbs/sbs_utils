@@ -613,6 +613,22 @@ def _quoted_words(mast_sources):
     return words
 
 
+def _relic_waits(doc):
+    """Signals a relic's `Starts when:` / `Opens when:` phrases wait on."""
+    out = set()
+    try:
+        nodes = _relic_nodes(doc)
+    except Exception:                                    # noqa: BLE001
+        return out
+    for _node, fields in nodes:
+        for label in ("starts when", "starts_when", "when", "opens when", "opens_when"):
+            if label in fields:
+                words = str(fields[label][1]).replace(",", " ").split()
+                if len(words) >= 2 and words[0].lower() == "signal":
+                    out.add(words[1].strip().lower())
+    return out
+
+
 def amd_lint_cross_file(doc, mast_sources=None, source_index=None):
     """Flag emitted `signal X` with no `//signal/X` route, a quest `When: signal X`
     that nothing emits, and `reach i,j` cells with no landmark `At: i,j`. WARNING.
@@ -634,9 +650,13 @@ def amd_lint_cross_file(doc, mast_sources=None, source_index=None):
         emitted = ({r.value for r in doc.refs if r.kind == "signal"}
                    | source_index["emitted"])
 
+    # A signal something in the AMD WAITS on is handled, route or no route: a quest's
+    # `Done when: signal X`, or a relic part's `Starts when:` / `Opens when:`. Flagging
+    # those told an author to write an empty route for a signal that already did its job.
+    waited = {r.value for r in doc.refs if r.kind == "wait_signal"} | _relic_waits(doc)
     for ref in doc.refs:
         if ref.kind == "signal" and source_index is not None:
-            if ref.value in routes or ref.value in DRIVER_SIGNALS:
+            if ref.value in routes or ref.value in DRIVER_SIGNALS or ref.value in waited:
                 continue
             findings.append(AmdFinding.at(
                 ref.span, WARNING, "signal-no-route",
@@ -1117,17 +1137,37 @@ def amd_lint_relics(doc):
                         f"it falls back to yellow rather than failing"))
         if "walls" in fields:
             ln, value = fields["walls"]
-            style = str(value).strip().lower()
+            # A LIST IS A FALLBACK CHAIN - `Walls: torgoth, plates` wears the art pack's
+            # kit when the mission has it and plates when it does not. Kits come from a
+            # pack lint cannot see, so only a chain with NO built-in style in it is one
+            # that can end in plain rock.
+            chain = [w.strip().lower() for w in str(value).split(",") if w.strip()]
             try:
                 from .volume_dress import volume_style_names
                 styles = volume_style_names()
             except Exception:                           # noqa: BLE001
                 styles = ()
-            if styles and style and style not in styles:
+            if styles and chain and not any(w in styles for w in chain):
                 findings.append(AmdFinding(
                     ln, "warning", "relic-unknown-walls",
-                    f"'{value}' is not a wall style ({', '.join(styles)}) - "
-                    f"this part falls back to plain rock"))
+                    f"'{value}' names no built-in wall style ({', '.join(styles)}) - "
+                    f"without the art pack it names, this part falls back to plain rock. "
+                    f"End the list with one: `{value}, plates`"))
+        # HOW A SUIT OPENS IT. An unknown word is a tool nobody holds, so the barrier
+        # reads as clearable to `relic-barrier-seals` and is not.
+        if "clear with" in fields:
+            ln, value = fields["clear with"]
+            for entry in [e.strip() for e in str(value).split(",") if e.strip()]:
+                bits = entry.split()
+                word = bits[0].lower()
+                if word in ("beam", "tether"):
+                    continue
+                if word == "check" and len(bits) >= 3 and _relic_nums(bits[2]):
+                    continue
+                findings.append(AmdFinding(
+                    ln, "warning", "relic-unknown-clear",
+                    f"'{entry}' is not a way to clear a barrier - use beam, tether, or "
+                    f"check <skill> <dc>"))
     findings.extend(_lint_relic_web(doc))
     return findings
 
@@ -1563,6 +1603,16 @@ def amd_lint_dialogue_outcomes(doc):
                                                        _dlg_parse_choice)
     except Exception:
         return []
+    # THE LIBRARY'S OWN VERBS. `give`, `take`, `open`, `reveal`, `check` and the combat
+    # words are registered by the boarding modules as they import - which a mission that
+    # never imported them by the time lint ran had not done, so a correct relic or away
+    # scene lit up with "`check` is not an outcome verb". They are the library's, so the
+    # library loads them before it judges.
+    for _mod in ("boarding_props", "boarding_checks", "boarding_combat"):
+        try:
+            __import__("sbs_utils.procedural." + _mod)
+        except Exception:                                # noqa: BLE001
+            pass
     known = set(dialogue_outcome_verbs())
     if known <= {"signal"}:
         return []                 # nothing but the built-in is loaded: cannot judge

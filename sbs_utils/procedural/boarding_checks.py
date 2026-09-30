@@ -132,13 +132,57 @@ def boarding_skill(lifeform, name):
     return JOB_SKILL if name in boarding_jobs(lf) else 0
 
 
+#: How close another SUIT has to be to lend a hand, in world units - a person's working
+#: distance inside a relic, the same order as a suit's reach.
+EVA_HELP_RADIUS = 500.0
+
+
 def _helpers(lifeform, skill):
-    """Teammates standing next to this one who have the skill."""
+    """Teammates standing next to this one who have the skill.
+
+    On the ground that is the tile map's neighbours. In a relic nobody is on a tile, and
+    `tilemap_actors_near` answers [] for a body with no cell - so a suit's check was
+    always rolled alone however many of the crew were floating beside it. There the
+    neighbours are the other SUITS within `EVA_HELP_RADIUS`.
+    """
     from .boarding import boarding_team
     from .tilemap import tilemap_actors_near
     team = set(boarding_team())
-    return [a for a in tilemap_actors_near(lifeform, 1)
+    near = [a for a in tilemap_actors_near(lifeform, 1)
             if a in team and boarding_skill(a, skill) > 0]
+    if near:
+        return near
+    return [a for a in _suit_neighbours(lifeform)
+            if a in team and boarding_skill(a, skill) > 0]
+
+
+def _suit_neighbours(lifeform):
+    """The people in the other suits near this one's suit. [] when it is not in one."""
+    try:
+        from .eva import eva_suit_of, eva_lifeform_of, eva_suits, KEY_RELIC
+    except Exception:                                    # noqa: BLE001
+        return []
+    from .query import to_object
+    suit = eva_suit_of(lifeform)
+    obj = to_object(suit) if suit else None
+    if obj is None:
+        return []
+    here = obj.pos
+    r2 = EVA_HELP_RADIUS * EVA_HELP_RADIUS
+    out = []
+    for other in eva_suits(get_inventory_value(suit, KEY_RELIC, None)):
+        if other == suit:
+            continue
+        so = to_object(other)
+        if so is None:
+            continue
+        p = so.pos
+        if (p.x - here.x) ** 2 + (p.y - here.y) ** 2 + (p.z - here.z) ** 2 > r2:
+            continue
+        who = eva_lifeform_of(other)
+        if who is not None:
+            out.append(who)
+    return out
 
 
 def boarding_check(lifeform, skill, dc, bonus=0, help=True):
@@ -183,12 +227,36 @@ def _check_outcome(agent_id, speaker, tokens):
     except ValueError:
         return None
     result = boarding_check(agent_id, skill, dc)
+    _roll_note(agent_id, result["text"])
     if not result["ok"]:
         rest = [t for t in tokens[2:]]
         if len(rest) >= 2 and rest[0].lower() == "else":
             from .boarding import boarding_redirect
             boarding_redirect(rest[1])
+        # A FAILED CHECK ENDS THE CHOICE. Everything written after it on the line is
+        # what success does - `; check engineering 12 else held ; open seal` - and it
+        # used to run anyway, so a failed roll still opened the seal.
+        from .amd_dialogue import OUTCOME_STOP
+        return OUTCOME_STOP
     return None
+
+
+def _roll_note(lifeform, text):
+    """Put the roll in the transcript of everyone in the actor's conversation - what the
+    module docstring always said happened, and never did: `boarding_check` only emitted
+    a signal, so a player saw the scene jump to the failure beat with no roll to explain
+    why."""
+    try:
+        from .boarding import (boarding_client_of, boarding_channel_of,
+                               boarding_channel_members, boarding_reader_note)
+    except Exception:                                    # noqa: BLE001
+        return
+    cid = boarding_client_of(lifeform)
+    if cid is None:
+        return
+    members = boarding_channel_members(boarding_channel_of(cid)) or {cid}
+    for member in sorted(members):
+        boarding_reader_note(member, text)
 
 
 def _checks_metric(name):

@@ -370,9 +370,17 @@ def dialogue_set_metric_resolver(fn):
     _METRIC_RESOLVER = fn
 
 
+#: What an outcome handler returns to mean "accept the pick, but stop here" - the rest of
+#: the choice's outcomes do not run. A failed `check` is the case: without it,
+#: `; check engineering 12 else held ; open seal` opened the seal on a FAILED roll too,
+#: because every outcome after the check ran regardless of how it came out.
+OUTCOME_STOP = "__outcome_stop__"
+
+
 def dialogue_register_outcome(verb, fn):
     """Register an outcome handler: fn(agent_id, speaker, tokens) - tokens are the words
-    after the verb. Returning False refuses the pick. (`signal` is built in.)"""
+    after the verb. Returning False refuses the pick; returning ``OUTCOME_STOP`` accepts
+    it but skips the outcomes after this one. (`signal` is built in.)"""
     _OUTCOME_HANDLERS[verb] = fn
 
 
@@ -490,6 +498,11 @@ def dialogue_apply(agent_id, speaker, outcomes):
                 signal_emit("quest_signal", {"SIGNAL_NAME": amd_signal_name(oc[1])})
             continue
         fn = _OUTCOME_HANDLERS.get(verb)
-        if fn is not None and fn(agent_id, speaker, tuple(oc[1:])) is False:
+        if fn is None:
+            continue
+        got = fn(agent_id, speaker, tuple(oc[1:]))
+        if got is False:
             return False
+        if got == OUTCOME_STOP:
+            break
     return True

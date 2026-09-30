@@ -211,6 +211,10 @@ def reset_mission_state():
     # on run 2.
     from .procedural.eva import eva_clear
     eva_clear()
+    from .procedural.eva_places import eva_places_clear
+    eva_places_clear()
+    from .procedural.volume_kit import volume_kits_clear
+    volume_kits_clear()
     # The EVA console's camera is a module-level choice, so a mission that set it to
     # `first_person` would hand that on to the NEXT mission in the same interpreter -
     # the reused-interpreter trap, which only shows from run 2 onward.
@@ -577,6 +581,10 @@ from .procedural.gui.eva_camera import eva_camera_watching as _eva_camera_watchi
 register_reset_state("eva camera", _eva_camera_watching)
 from .procedural.eva_tools import eva_tools_working as _eva_tools_working
 register_reset_state("eva tools", _eva_tools_working)
+from .procedural.eva_places import eva_places_count as _eva_places_count
+register_reset_state("eva places", _eva_places_count)
+from .procedural.volume_kit import volume_kits_count as _volume_kits_count
+register_reset_state("volume kits", _volume_kits_count)
 from .procedural.amd_relics import relics_count as _relics_count
 register_reset_state("relic records", _relics_count)
 from .procedural.amd_relics import relic_contents_count as _relic_contents_count

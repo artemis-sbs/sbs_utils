@@ -64,6 +64,23 @@ def items_of_category(category):
 
 
 # --- Spawning (registry-driven) ----------------------------------------------
+def _item_art(art):
+    """`Art:` may be a FALLBACK CHAIN - `ruins_tg_slate, alien_1a` - so an item drawn
+    from an art pack still spawns as something collectable in a mission without the
+    pack. The first key the ship data knows wins; a lone key is used as written."""
+    keys = [k.strip() for k in str(art or "").split(",") if k.strip()]
+    if len(keys) <= 1:
+        return keys[0] if keys else art
+    try:
+        from .ship_data import get_ship_data_for
+        for k in keys:
+            if get_ship_data_for(k) is not None:
+                return k
+    except Exception:                                    # noqa: BLE001
+        pass
+    return keys[-1]
+
+
 def item_spawn(key, x, y, z, name=None, blink=None, yaw=None, qty=None):
     """Spawn a collectible pickup for an item ``key`` at ``(x, y, z)``.
 
@@ -86,7 +103,7 @@ def item_spawn(key, x, y, z, name=None, blink=None, yaw=None, qty=None):
     if item_get(key) is None:
         log(f"item_spawn: '{key}' is not a registered item (no item/ label); "
             f"falling back to '{key}' as art", "items", "warning")
-    art = item_meta(key, "art", key)
+    art = _item_art(item_meta(key, "art", key))
     if name is None:
         name = item_meta(key, "display_text", key)
     if blink is None:
