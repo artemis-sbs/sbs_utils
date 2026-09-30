@@ -2029,6 +2029,30 @@ mission](tooling/amd-docs.md).
 
 ---
 
+#### 🗺️ See the whole map — map pages in `sbs site` *(experimental)* { #map-pages }
+
+In the game, a tile map scrolls: the view shows a slice of it and follows the party. Now
+each map also gets a page of its own, showing **the whole area at once, drawn with its
+real art**: every building, every prop, every person standing where the mission puts
+them.
+
+```
+sbs site MyMission --emit site --open
+```
+
+- **Zoom in or out, and switch layers.** Marks, props and people, patrol routes and a
+  grid can each be turned off, and hovering names the ground under the pointer.
+- **Everything links.** Click a prop or a person to read their record. Click an exit to
+  go to the map it leads to.
+- **Print it or save a PDF.** A map prints on one landscape page, or `--maps-pdf` writes
+  a PDF of every map.
+- **A handout without spoilers.** `--profile player` leaves off hidden things, hostiles,
+  patrols and every mark except the ways out.
+
+See [Maps](tooling/site.md#maps) and [Seeing a whole map](build/ground-tile-maps.md#seeing-a-whole-map).
+
+---
+
 #### 🩺 `sbs doctor` — check your setup
 
 Reports what is installed, what a mission expects, and what is missing — with the
