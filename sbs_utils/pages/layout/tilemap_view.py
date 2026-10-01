@@ -75,6 +75,7 @@ class TileView(Column):
         self._slots = {}             # actor id -> figure slot
         self._order = []             # figure slots in the order last sent (row order)
         self._listening = False
+        self._warned = False
 
     # --- where the view is looking ----------------------------------------------------
 
@@ -131,13 +132,14 @@ class TileView(Column):
         empty: see the module docstring on why every tag carries a real image."""
         from ...procedural.tilemap import tilemap_kind, tilemap_kind_spec, tilemap_cell_look
         from ...procedural.gui.image import gui_image_get_atlas
+        from ...procedural.tilemap import tilemap_tint_at
         kind = tilemap_kind(area, x, y)
         spec = tilemap_kind_spec(area, kind) if kind else None
         if spec is None or not spec.get("cell"):
             return void
         if self.fog and (x, y) not in explored:
             return void
-        color = spec.get("color") or "white"
+        color = tilemap_tint_at(area, x, y) or spec.get("color") or "white"
         if self.fog and (x, y) not in visible:
             color = "#777"
         return gui_image_get_atlas(tilemap_cell_look(spec, x, y, area)).get_props(color=color)
@@ -192,6 +194,13 @@ class TileView(Column):
             self._sent.clear()
             self._order = []
         if rec is None:
+            if not self._sent and not self._warned:
+                # Nothing sent at the build means nothing can EVER be drawn: the engine
+                # only updates tags that were in the build.
+                self._warned = True
+                from ...procedural.execution import log
+                log(f"tile view built before its area {area!r} existed - nothing will "
+                    f"draw until the page is rebuilt", "tilemap", "warning")
             return
         left, top = self._aim(area, rows)
         explored = rec["explored"]
@@ -359,6 +368,9 @@ class TileView(Column):
                 self._sent.pop(f"{self.tag}:h{i}", None)
         placed = []
         for (x, y), sprite in sorted(badges.items()):
+            # A badge is an atlas key, or (key, tint).
+            sprite, color = (tuple(sprite) + (None,))[:2] \
+                if isinstance(sprite, (tuple, list)) else (sprite, None)
             vx, vy = x - left, y - top
             if sprite and 0 <= vx < self.cols and 0 <= vy < rows:
                 r = x0 + (vx + 1) * tw
@@ -367,7 +379,8 @@ class TileView(Column):
                     t = min(t, tops[(x, y)])
                 if view is not None:
                     t = max(t, view[1])
-                placed.append((gui_image_get_atlas(sprite).get_props(),
+                atlas = gui_image_get_atlas(sprite)
+                placed.append((atlas.get_props(color=color),
                                (r - tw * HINT_SIZE, t, r, t + th * HINT_SIZE)))
         for i in range(HINT_SLOTS):
             tag = f"{self.tag}:h{i}"

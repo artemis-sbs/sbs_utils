@@ -315,6 +315,53 @@ The deck's looks come from an art set. Without the `station` pack (or another se
 draws the same looks) the deck still works, but nothing is drawn. A mission that boards
 ships therefore pins `artemis-sbs.Cosmos-Tiles.station.<tag>.zip`.
 
+## A map built in code
+
+Some maps are too big, or too procedural, to write down as a file. A galaxy with no edge
+is one example. For those, build the area from a function and rebuild it as the view
+moves. OpenUniverse's galaxy map works this way (`universe_core/universe_galaxy_map.py`):
+each console gets its own window onto the galaxy, regenerated around the system it is
+looking at.
+
+| Call | What it does |
+|---|---|
+| `tilemap_generate(key, w, h, cell, tileset)` | Builds or rebuilds an area. `cell(x, y)` returns a kind, a `(kind, tint)` pair, or `None` for nothing. |
+| `tilemap_tint(area, cells, color)` | Tints cells over their kind's own color, for things like owner, selection or warning. `color=None` clears the tint. |
+| `tilemap_tint_at(area, x, y)` | A cell's own tint, or `None`. |
+| `tilemap_unload(area)` | Drops an area and every actor in it. |
+
+```python
+def galaxy_window(client_id, ci, cj):
+    def cell(x, y):
+        i, j = ci + x - 10, cj - (y - 10)
+        kind = system_kind(i, j)
+        return ("sys_" + kind, owner_color(i, j))
+    return tilemap_generate("galaxy:%s" % client_id, 21, 21, cell, "galaxy")
+```
+
+**A rebuild that comes out identical changes nothing**, and nothing is repainted. So you
+can regenerate every second and pay only when the world actually moved. Actors stay where
+they are through a rebuild, because moving them is your job. While the size is unchanged,
+the area also keeps its explored cells, marks and blocked cells.
+
+**Pan by rebuilding, not by moving the camera.** A view that follows nobody shows the
+middle of its area. Rebuild the same-sized area around a new center and the view re-sends
+only the tiles whose look changed, using the same widgets.
+
+**Zoom is a page rebuild.** A view's column count is fixed when the page is built, because
+the engine only updates widgets that were in the build. To show more or fewer cells, change
+`cols` and rebuild the page.
+
+**The area must exist before the page is built.** For the same reason, a view whose first
+paint finds no area can never draw anything. It logs a warning once:
+`tile view built before its area ... existed`.
+
+A badge from `hints` can carry its own tint: return `(atlas key, color)` instead of a bare
+key.
+
+Actor ids do not have to be agent ids. A map token that stands for something else, such
+as a fleet, can use a name like `"gm7:f:alpha"`. Named ids sort after numbered ones.
+
 ## Checking your maps
 
 `sbs lint` checks area files, tileset files, and every placement in the mission's `.amd`.

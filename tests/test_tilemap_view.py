@@ -366,6 +366,76 @@ class TestHintBadges(ViewBase):
         later = {s[1] for s in self.paint()}
         self.assertEqual(later - built, set())
 
+    def test_a_badge_can_carry_a_tint(self):
+        self.badges = {(6, 5): ("tv:rock", "#fa0")}
+        badge = [s for s in self.paint() if ":h" in s[1] and "color:#000" not in s[2]]
+        self.assertEqual(len(badge), 1)
+        self.assertIn("color:#fa0", badge[0][2])
+
+
+class TestTintsAndGeneratedWindows(ViewBase):
+    """A generated window (a galaxy around what the console looks at) with per-cell
+    tints: panning regenerates the window, so it must reuse the build's tags."""
+
+    def setUp(self):
+        super().setUp()
+        self.origin = 0
+        self.view = TileView("gw", area="win", cols=12, fog=False,
+                             on_click=lambda *a: self.clicks.append(a))
+        self.view.set_bounds(Bounds(0, 0, 66, 100))
+        self.regen()
+
+    def regen(self):
+        o = self.origin
+        T.tilemap_generate("win", 12, 30,
+                           lambda x, y: ("rock", "#0a6") if (x + o) % 5 == 0 else "dirt",
+                           "tv")
+
+    def tile(self, sent, x, y):
+        vx, vy = self.view.view_cell(x, y)
+        return next(s for s in sent if s[1] == f"gw:t{vx}_{vy}")
+
+    def test_a_tinted_tile_is_sent_in_its_tint(self):
+        sent = self.paint()
+        self.assertIn("color:#0a6", self.tile(sent, 0, 15)[2])
+        self.assertIn("color:white", self.tile(sent, 1, 15)[2])
+
+    def test_fog_grey_wins_over_a_tint(self):
+        """Seen-but-not-in-sight is information; a tint must not hide it."""
+        self.view.fog = True
+        T.tilemap_reveal_all("win")
+        sent = self.paint()
+        self.assertIn("color:#777", self.tile(sent, 0, 15)[2])
+
+    def test_A_PAN_SENDS_NO_NEW_TAG(self):
+        built = {s[1] for s in self.paint()}
+        self.origin = 2
+        self.regen()
+        later = self.paint()
+        self.assertTrue(later)
+        self.assertEqual({s[1] for s in later} - built, set())
+
+    def test_an_identical_regeneration_sends_nothing(self):
+        self.paint()
+        self.regen()
+        self.assertEqual(self.paint(), [])
+
+    def test_a_click_names_the_window_cell(self):
+        self.paint()
+        vx, vy = self.view.view_cell(4, 15)
+        self.view.on_message(FakeEvent(CID, "gui_message", sub_tag=f"gw:c{vx}_{vy}"))
+        self.assertEqual(self.clicks[-1][1:], ("win", 4, 15))
+
+    def test_a_view_built_before_its_area_says_so(self):
+        from unittest import mock
+        late = TileView("late", area="not_yet", cols=6)
+        late.set_bounds(Bounds(0, 0, 50, 50))
+        with mock.patch("sbs_utils.procedural.execution.log") as log:
+            late.present(FakeEvent(CID, "gui_present"))
+            late.present(FakeEvent(CID, "gui_present"))
+        self.assertEqual(log.call_count, 1)
+        self.assertIn("before its area", log.call_args[0][0])
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -50,6 +50,14 @@
 
 ### sbs_utils
 
+- **A tile map can be built in code.** `tilemap_generate(key, w, h, cell, tileset)` builds an
+  area from a function and rebuilds it in place. A rebuild that comes out identical repaints
+  nothing, so a map can be regenerated every second for free. `tilemap_tint` and
+  `tilemap_tint_at` tint single cells over their kind's color, and `tilemap_unload` drops an
+  area and its actors. Hint badges may carry a tint (`(key, color)`). Named actor ids (a map
+  token for a fleet, say) now sort alongside agent ids instead of raising. A tile view
+  whose first paint finds no area now logs it: nothing sent at the build can ever be drawn
+  later. Used by OpenUniverse's galaxy map.
 - **A relic solves its own navigation once.** `procedural/rails.py` builds a ruin's
   **rail web** when the relic is built, instead of re-deriving connectivity from the
   geometry on every destination a console picks. Measured across all seven Storm's Beacon

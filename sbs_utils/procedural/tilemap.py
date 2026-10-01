@@ -490,7 +490,7 @@ def tilemap_parse(text):
         "entry": header.get("entry"),
         "w": w, "h": h, "tiles": tiles,
         "marks": marks, "mark_at": mark_at, "exits": exits,
-        "blocked": set(), "explored": set(),
+        "blocked": set(), "explored": set(), "tints": {},
         "known": header.get("known", "yes").strip().lower() not in ("no", "false", "0"),
         "beam": header.get("beam", "yes").strip().lower() not in ("no", "false", "0"),
     }
@@ -511,6 +511,102 @@ def tilemap_load(text):
     _AREAS[rec["key"]] = rec
     _bump(rec["key"])
     return rec["key"]
+
+
+def tilemap_generate(key, w, h, cell, tileset="default", title=None):
+    """Build an area from code rather than a file - or rebuild it.
+
+    For a world too big or too procedural to write down: a window onto an endless galaxy,
+    regenerated around whatever the console is looking at.
+
+    Args:
+        key (str): the area's name. Generating the same key again replaces it.
+        w, h (int): its size, in cells.
+        cell (callable): ``fn(x, y)`` -> a kind, ``(kind, tint)``, or None for nothing.
+        tileset (str): the tileset the kinds come from.
+        title (str, optional): defaults to the key.
+
+    A rebuild that comes out IDENTICAL changes nothing and repaints nothing, so a caller
+    may regenerate every tick and pay only when the world moved. Actors in the area stay
+    where they are - moving them is the caller's business - and while the size is
+    unchanged the area keeps what it held besides its tiles (explored cells, marks,
+    blocked cells).
+
+    Returns:
+        str: the area key.
+    """
+    key = _norm(key)
+    w, h = max(0, int(w)), max(0, int(h))
+    tileset = _norm(tileset or "default")
+    tiles, tints = [], {}
+    for y in range(h):
+        row = []
+        for x in range(w):
+            got = cell(x, y)
+            kind, tint = (tuple(got) + (None,))[:2] if isinstance(got, (tuple, list)) \
+                else (got, None)
+            row.append(_norm(kind) or None)
+            if tint:
+                tints[(x, y)] = tint
+        tiles.append(row)
+    title = title or key
+    old = _AREAS.get(key)
+    same_size = old is not None and old["w"] == w and old["h"] == h
+    if same_size and old["tileset"] == tileset and old["title"] == title and \
+            old["tiles"] == tiles and old.get("tints", {}) == tints:
+        return key
+    keep = old if same_size else {}
+    _AREAS[key] = {
+        "key": key, "title": title, "tileset": tileset, "entry": keep.get("entry"),
+        "w": w, "h": h, "tiles": tiles, "tints": tints,
+        "marks": keep.get("marks", {}), "mark_at": keep.get("mark_at", {}),
+        "exits": keep.get("exits", {}), "blocked": keep.get("blocked", set()),
+        "explored": keep.get("explored", set()),
+        "known": keep.get("known", True), "beam": keep.get("beam", True),
+    }
+    _bump(key)
+    return key
+
+
+def tilemap_unload(area):
+    """Drop an area and every actor in it. False when there was no such area."""
+    area = _norm(area)
+    if _AREAS.pop(area, None) is None:
+        return False
+    for aid in [a for a, r in _ACTORS.items() if r["area"] == area]:
+        del _ACTORS[aid]
+    _bump(area)
+    return True
+
+
+def tilemap_tint(area, cells, color=None):
+    """Tint cells - an owner's color, a selection, a warning - over their kind's own.
+
+    ``color=None`` clears the tint, back to the kind's. Repaints once, and only when a
+    cell actually changed. False for an unknown area.
+    """
+    rec = _AREAS.get(_norm(area))
+    if rec is None:
+        return False
+    tints = rec.setdefault("tints", {})
+    changed = False
+    for c in cells:
+        cell = (int(c[0]), int(c[1]))
+        if color:
+            if tints.get(cell) != color:
+                tints[cell] = color
+                changed = True
+        elif tints.pop(cell, None) is not None:
+            changed = True
+    if changed:
+        _bump(rec["key"])
+    return True
+
+
+def tilemap_tint_at(area, x, y):
+    """A cell's own tint, or None when it wears its kind's color."""
+    rec = _AREAS.get(_norm(area))
+    return (rec.get("tints") or {}).get((int(x), int(y))) if rec else None
 
 
 def tilemap_areas(known_only=False, beam_only=False):
@@ -835,17 +931,25 @@ def tilemap_actor(agent):
     return _ACTORS.get(to_id(agent))
 
 
+def _id_order(aid):
+    """Sort key for actor ids: agent ids in number order, then any NAMED actors (a map
+    token that stands for something, not an agent) - mixed, a plain sort would raise."""
+    return (isinstance(aid, str), aid)
+
+
 def tilemap_actors(area=None):
     """Actor ids - all, or in one area - sorted."""
     area = _norm(area) if area else None
-    return sorted(a for a, r in _ACTORS.items() if area is None or r["area"] == area)
+    return sorted((a for a, r in _ACTORS.items() if area is None or r["area"] == area),
+                  key=_id_order)
 
 
 def tilemap_actors_at(area, x, y):
     """Actors covering a cell - standing on it, or a big prop whose base reaches it."""
     area = _norm(area)
     x, y = int(x), int(y)
-    return sorted(a for a, r in _ACTORS.items() if r["area"] == area and _covers(r, x, y))
+    return sorted((a for a, r in _ACTORS.items() if r["area"] == area and _covers(r, x, y)),
+                  key=_id_order)
 
 
 def tilemap_actor_cells(agent):
@@ -872,10 +976,11 @@ def tilemap_actors_near(agent, reach=1):
     me = _ACTORS.get(to_id(agent))
     if me is None:
         return []
-    return sorted(a for a, r in _ACTORS.items()
-                  if a != to_id(agent) and r["area"] == me["area"]
-                  and min(abs(r["x"] + dx - me["x"]) + abs(r["y"] + dy - me["y"])
-                          for dx, dy in tilemap_sprite_cells(_body_key(r))) <= reach)
+    return sorted((a for a, r in _ACTORS.items()
+                   if a != to_id(agent) and r["area"] == me["area"]
+                   and min(abs(r["x"] + dx - me["x"]) + abs(r["y"] + dy - me["y"])
+                           for dx, dy in tilemap_sprite_cells(_body_key(r))) <= reach),
+                  key=_id_order)
 
 
 def _facing(dx, dy):

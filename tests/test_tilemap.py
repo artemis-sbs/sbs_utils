@@ -564,5 +564,101 @@ class TestNeighborLooks(TileBase):
         self.assertEqual(T.tilemap_cell_look(spec, 2, 2), "tile:dirt")
 
 
+
+class TestGeneratedAreas(TileBase):
+    """An area built from code: a window onto a world too big to write down."""
+
+    def grid(self, kinds):
+        return lambda x, y: kinds.get((x, y), "dirt")
+
+    def test_it_is_an_area_like_any_other(self):
+        key = T.tilemap_generate("Window", 5, 3, self.grid({(1, 1): "rock"}), "test")
+        self.assertEqual(key, "window")
+        self.assertEqual(T.tilemap_size("window"), (5, 3))
+        self.assertEqual(T.tilemap_kind("window", 1, 1), "rock")
+        self.assertEqual(T.tilemap_kind("window", 0, 0), "dirt")
+        self.assertFalse(T.tilemap_is_open("window", 1, 1))
+
+    def test_a_cell_can_carry_its_own_tint(self):
+        T.tilemap_generate("w", 3, 3, lambda x, y: ("dirt", "#123") if x == 2 else "dirt",
+                           "test")
+        self.assertEqual(T.tilemap_tint_at("w", 2, 0), "#123")
+        self.assertIsNone(T.tilemap_tint_at("w", 0, 0))
+
+    def test_none_is_nothing(self):
+        T.tilemap_generate("w", 2, 1, lambda x, y: None if x else "dirt", "test")
+        self.assertIsNone(T.tilemap_kind("w", 1, 0))
+
+    def test_AN_IDENTICAL_REBUILD_REPAINTS_NOTHING(self):
+        """A caller regenerates on a timer; only a real change may cost a repaint."""
+        T.tilemap_generate("w", 4, 4, self.grid({}), "test")
+        before = T.tilemap_revision("w")
+        T.tilemap_generate("w", 4, 4, self.grid({}), "test")
+        self.assertEqual(T.tilemap_revision("w"), before)
+        T.tilemap_generate("w", 4, 4, self.grid({(0, 0): "rock"}), "test")
+        self.assertEqual(T.tilemap_revision("w"), before + 1)
+
+    def test_actors_stay_put_through_a_rebuild(self):
+        T.tilemap_generate("w", 4, 4, self.grid({}), "test")
+        T.tilemap_place(A, "w", 2, 2)
+        T.tilemap_generate("w", 4, 4, self.grid({(3, 3): "rock"}), "test")
+        self.assertEqual(T.tilemap_where(A), ("w", 2, 2))
+
+    def test_what_was_explored_survives_unless_the_size_changes(self):
+        T.tilemap_generate("w", 4, 4, self.grid({}), "test")
+        T.tilemap_reveal_all("w")
+        T.tilemap_generate("w", 4, 4, self.grid({(3, 3): "rock"}), "test")
+        self.assertTrue(T.tilemap_explored("w", 1, 1))
+        T.tilemap_generate("w", 5, 4, self.grid({}), "test")
+        self.assertFalse(T.tilemap_explored("w", 1, 1))
+
+    def test_unload_drops_the_area_and_its_actors(self):
+        T.tilemap_generate("w", 4, 4, self.grid({}), "test")
+        T.tilemap_place(A, "w", 1, 1)
+        T.tilemap_place(B, "ridge")
+        self.assertTrue(T.tilemap_unload("w"))
+        self.assertIsNone(T.tilemap_area("w"))
+        self.assertIsNone(T.tilemap_where(A))
+        self.assertIsNotNone(T.tilemap_where(B))
+        self.assertFalse(T.tilemap_unload("w"))
+
+
+class TestTints(TileBase):
+    def test_a_tint_sets_and_clears(self):
+        T.tilemap_tint("ridge", [(1, 1), (2, 1)], "#f00")
+        self.assertEqual(T.tilemap_tint_at("ridge", 2, 1), "#f00")
+        T.tilemap_tint("ridge", [(2, 1)])
+        self.assertIsNone(T.tilemap_tint_at("ridge", 2, 1))
+        self.assertEqual(T.tilemap_tint_at("ridge", 1, 1), "#f00")
+
+    def test_one_repaint_per_call_and_none_when_nothing_changed(self):
+        before = T.tilemap_revision("ridge")
+        T.tilemap_tint("ridge", [(1, 1), (2, 1), (3, 1)], "#f00")
+        self.assertEqual(T.tilemap_revision("ridge"), before + 1)
+        T.tilemap_tint("ridge", [(1, 1)], "#f00")
+        self.assertEqual(T.tilemap_revision("ridge"), before + 1)
+
+    def test_an_unknown_area_is_false(self):
+        self.assertFalse(T.tilemap_tint("nowhere", [(0, 0)], "#f00"))
+
+    def test_the_reset_takes_the_tints(self):
+        T.tilemap_tint("ridge", [(1, 1)], "#f00")
+        T.tilemap_clear()
+        self.assertIsNone(T.tilemap_tint_at("ridge", 1, 1))
+
+
+class TestNamedActors(TileBase):
+    """A map token that stands for something - a fleet on a galaxy map - is named, not
+    an agent id. Mixed with agent ids, a plain sort raised TypeError."""
+
+    def test_named_and_numbered_actors_sort_together(self):
+        T.tilemap_place(B, "ridge", 1, 1)
+        T.tilemap_place("token:fleet", "ridge", 1, 1)
+        T.tilemap_place(A, "ridge", 1, 1)
+        self.assertEqual(T.tilemap_actors("ridge"), [A, B, "token:fleet"])
+        self.assertEqual(T.tilemap_actors_at("ridge", 1, 1), [A, B, "token:fleet"])
+        self.assertEqual(T.tilemap_actors_near(A, 1), [B, "token:fleet"])
+
+
 if __name__ == "__main__":
     unittest.main()

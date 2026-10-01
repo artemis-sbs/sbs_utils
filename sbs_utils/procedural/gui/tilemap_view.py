@@ -21,7 +21,12 @@ def gui_tilemap(follow=None, area=None, cols=17, style=None, on_click=None, fog=
         fog (bool, optional): draw only what the party has seen. On by default - a map
             must not show the crew what they do not know.
         hints (callable, optional): ``fn(client_id, area) -> {(x, y): atlas key}`` -
-            badges drawn over cells worth a look (``boarding_hint_badges``).
+            badges drawn over cells worth a look (``boarding_hint_badges``). A badge
+            may be ``(atlas key, tint)``.
+
+    The area must EXIST before the page is built - load or generate it first. The
+    engine only updates widgets that were in the build, so a view whose first paint
+    found no area can draw nothing until the page is rebuilt (it logs once).
 
     Returns:
         TileView: the layout item.
