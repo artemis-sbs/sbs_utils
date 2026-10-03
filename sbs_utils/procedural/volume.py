@@ -266,15 +266,24 @@ class Volume:
         return self
 
     def _endpoint(self, e):
-        """Resolve a passage endpoint: a chamber name, or an explicit point."""
+        """Resolve a passage endpoint: a chamber or box name, or an explicit point.
+
+        A BOX IS A ROOM TOO. A passage used to end only on a chamber, so `Passage to:`
+        written on a box - or pointing at one - raised here, and the relic it belonged to
+        was not built at all. Nothing an author can see separates the two kinds of room:
+        the plan view draws the passage, its connect gesture writes it, and lint called it
+        clean. The tunnel runs to the box's middle, exactly as it does for a chamber.
+        """
         if isinstance(e, str):
-            if e not in self.chambers:
-                known = ", ".join(sorted(self.chambers)) or "none"
-                raise ValueError(
-                    f"volume {self.name!r}: passage endpoint {e!r} is not a chamber "
-                    f"(known chambers: {known}). A bare KeyError here used to be the "
-                    f"only clue that a relic had a typo in one passage.")
-            return self.chambers[e][:3]
+            if e in self.chambers:
+                return self.chambers[e][:3]
+            if e in self.boxes:
+                return self.boxes[e][0]
+            known = ", ".join(sorted(list(self.chambers) + list(self.boxes))) or "none"
+            raise ValueError(
+                f"volume {self.name!r}: passage endpoint {e!r} is not a chamber or a "
+                f"box (known rooms: {known}). A bare KeyError here used to be the "
+                f"only clue that a relic had a typo in one passage.")
         p = _vol_xyz(e)
         if p is None:
             raise ValueError(
@@ -576,21 +585,23 @@ def volume_define(name, chambers=None, passages=None, boxes=None, solids=None,
                 f"got {c!r}")
         cx, cy, cz = _vol_shift((c[0], c[1], c[2]), origin)
         vol.add_chamber(cname, cx, cy, cz, c[3])
-    for p in (passages or []):
-        if len(p) < 3:
-            raise ValueError(
-                f"volume {name!r}: passage needs (a, b, radius), got {p!r}")
-        # A named endpoint resolves to a chamber that has already been placed; only an
-        # explicit point needs shifting.
-        a = p[0] if isinstance(p[0], str) else _vol_shift(_vol_xyz(p[0]), origin)
-        b = p[1] if isinstance(p[1], str) else _vol_shift(_vol_xyz(p[1]), origin)
-        vol.add_passage(a, b, p[2])
+    # Boxes BEFORE passages, for the same reason chambers are first: a passage may
+    # name a box, and it has to be there to be found.
     for bname, b in (boxes or {}).items():
         if len(b) < 6:
             raise ValueError(
                 f"volume {name!r}: box {bname!r} needs (x, y, z, hx, hy, hz), got {b!r}")
         bx, by, bz = _vol_shift((b[0], b[1], b[2]), origin)
         vol.add_box(bname, bx, by, bz, b[3], b[4], b[5])
+    for p in (passages or []):
+        if len(p) < 3:
+            raise ValueError(
+                f"volume {name!r}: passage needs (a, b, radius), got {p!r}")
+        # A named endpoint resolves to a room that has already been placed; only an
+        # explicit point needs shifting.
+        a = p[0] if isinstance(p[0], str) else _vol_shift(_vol_xyz(p[0]), origin)
+        b = p[1] if isinstance(p[1], str) else _vol_shift(_vol_xyz(p[1]), origin)
+        vol.add_passage(a, b, p[2])
     for sl in (solids or []):
         if not sl:
             raise ValueError(f"volume {name!r}: empty solid entry")
