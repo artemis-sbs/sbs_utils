@@ -1844,6 +1844,178 @@ def amd_lint_guards(doc):
     return findings
 
 
+_AMD_SECTION_CALL = re.compile(r"amd_section\(\s*[^,()]+,\s*[\"']([\w -]+)[\"']\s*\)")
+_RELIC_FILE_SECTIONS = ("items", "dialogue", "cutscenes", "side_stories")
+_TRIGGER_LABELS_SPACED = ("done when", "starts when", "fails when", "goal", "when")
+
+
+def amd_lint_mission_reads(doc, file_path=None, mast_sources=None):
+    """Flag content the mission will never load, and a pointer at a key where the game
+    wants a role. WARNING. Needs the mission's MAST, so it runs in a whole-mission lint.
+
+    A mission's `story.mast` reads its `.amd` one section at a time, by key:
+    `landmarks_spawn(amd_section(MISSION_DOC, "landmarks"))`. A section nothing asks for
+    is not an error anywhere - its records are parsed, typed, linted clean and never
+    used:
+
+    * `## [Places](places)` where the story asks for `landmarks`      section-not-loaded
+    * a landmark with no `Art:` (not placed), no `Loc:` (placed at the origin, inside
+      whatever stands there), no `Kind:` (made as a station, and wearing that role)
+    * `Done when: reach lifeboat 500` / `Scan of: lifeboat` where `lifeboat` is the
+      landmark's KEY and it has no `Roles: lifeboat` - quests and scans look for a
+      ROLE, so the step never finishes and the scan text never shows     role-is-a-key
+
+    Silent for a file the mission's own MAST does not name (an addon reads those its own
+    way), and whenever a section is read through a name lint cannot see.
+    """
+    findings = []
+    text = "\n".join(mast_sources or [])
+    name = os.path.basename(file_path) if file_path else ""
+    if not text or not name or name not in text:
+        return findings
+
+    # --- sections nothing reads ------------------------------------------------------
+    literal = set(m.group(1).strip().lower() for m in _AMD_SECTION_CALL.finditer(text))
+    every_call_is_literal = text.count("amd_section(") == len(_AMD_SECTION_CALL.findall(text))
+    reads_crew = "crew_load_amd(" in text or "crew_declare_amd(" in text
+    reads_relics = any(w in text for w in ("relics_spawn(", "relics_load(", "relics_build("))
+    if literal and every_call_is_literal:
+        from sbs_utils.procedural.amd_crew import CREW_KINDS
+        from sbs_utils.procedural.amd_schema import archetype_for_section
+        for node in doc.nodes:
+            top = node.parent
+            if top is None or top.key == "__root__" or not node.children:
+                continue
+            if not (top.parent is None or top.parent.key == "__root__"):
+                continue                                   # not a top-level section
+            key = str(node.key or "").strip().lower()
+            if key in literal:
+                continue
+            if any(l.strip().lower().startswith(("file:", "files:"))
+                   for _n, l in (node.fence_lines or [])):
+                continue                                   # a table of contents
+            if reads_crew and (_own_kind_word(node) in CREW_KINDS or key in CREW_KINDS):
+                continue
+            if reads_relics and (archetype_for_section(key) == "relic"
+                                 or key in _RELIC_FILE_SECTIONS):
+                continue
+            findings.append(AmdFinding.at(
+                node.display_span or node.span, WARNING, "section-not-loaded",
+                f"nothing in this mission reads a section keyed `{node.key}`, so its "
+                f"records are never loaded. The story asks this file for: "
+                f"{', '.join(sorted(literal))}. Change the key in round brackets to one "
+                f"of those, or add the line that reads it"))
+
+    # --- landmarks the bulk spawner will not place as written --------------------------
+    landmarks = [n for n in doc.nodes
+                 if str(getattr(n, "kind", "") or "").lower() == "landmark" and n.fence_lines]
+    by_key = {}
+    roles_seen = set()
+    for node in doc.nodes:
+        for _ln, value in _plain_fields(node).get("roles", []):
+            roles_seen.update(w.strip().lower() for w in value.split(",") if w.strip())
+    # Only where the WHOLE section is placed by the library's bulk spawner. A mission that
+    # places chosen records itself (`landmark_spawn(rec)`) or has its own builder (Open
+    # Universe) is free to keep a landmark that is only a position or a key.
+    spawned = "landmarks_spawn(" in text
+    for node in landmarks:
+        fields = _plain_fields(node)
+        if not spawned:
+            continue
+        by_key[str(node.key).strip().lower()] = node
+        if any(v.strip().lower() == "point" for _l, v in fields.get("kind", [])):
+            continue                 # a ZONE: a position the mission reads, not an object
+        where = node.display_span or node.span
+        if "art" not in fields:
+            findings.append(AmdFinding.at(
+                where, WARNING, "landmark-no-art",
+                f"`{node.display}` has no `Art:` line, so it is not placed in the game "
+                f"at all"))
+        if "loc" in fields:
+            ln, value = fields["loc"][0]
+            got = len(_relic_nums(value))
+            if got < 3:
+                findings.append(AmdFinding(
+                    ln, WARNING, "landmark-bad-loc",
+                    f"`Loc:` needs 3 numbers - across, height, along - and has {got}, "
+                    f"so it is not read and `{node.display}` is placed at 0, 0, 0"))
+        elif "system" not in fields:
+            findings.append(AmdFinding.at(
+                where, WARNING, "landmark-no-loc",
+                f"`{node.display}` has no `Loc:` line, so it is placed at 0, 0, 0 - "
+                f"inside whatever stands there"))
+        if "kind" not in fields:
+            findings.append(AmdFinding.at(
+                where, WARNING, "landmark-no-kind",
+                f"`{node.display}` has no `Kind:` line, so it is made as a station and "
+                f"wears the role `station` - a step that says `reach station` finishes "
+                f"at it. Say what it is: `Kind: wreck`, `Kind: station`, `Kind: ship`"))
+
+    # --- a key where the game wants a role ---------------------------------------------
+    def points_at(lineno, word, what):
+        word = word.strip().lower()
+        node = by_key.get(word)
+        if node is None or word in roles_seen:
+            return
+        findings.append(AmdFinding(
+            lineno, WARNING, "role-is-a-key",
+            f"`{word}` is the KEY of the landmark `{node.display}`, and {what} looks "
+            f"for a ROLE. Nothing wears a role called `{word}`, so this matches "
+            f"nothing. Add `Roles: {word}` to that landmark's fence"))
+
+    if by_key:
+        for node in doc.nodes:
+            fields = _plain_fields(node)
+            for label in _TRIGGER_LABELS_SPACED:
+                for lineno, value in fields.get(label, []):
+                    words = value.replace(",", " ").split()
+                    if len(words) < 2:
+                        continue
+                    for w in words[1:]:
+                        if not re.match(r"^-?\d+(\.\d+)?%?$", w):
+                            points_at(lineno, w, f"`{words[0]}`")
+                            break
+            for lineno, value in fields.get("scan of", []):
+                for w in value.split(","):
+                    if w.strip():
+                        points_at(lineno, w, "`Scan of:`")
+    return findings
+
+
+def amd_lint_kind_lines(doc):
+    """Flag a bare word on a fence's first line that is not a kind of record. WARNING.
+
+    One word alone on the first line of a fence says what KIND the record is (`Arc`,
+    `Boss`, `crew`). Any single word is taken that way, known or not - so a value written
+    without its label is swallowed as a kind nobody has heard of:
+
+        ### [The Lifeboat](lifeboat)
+        ---
+        wreck                  meant `Kind: wreck`. Read as a kind line; the landmark
+        Art: wreck             has no Kind, and is made as a station.
+        ---
+    """
+    from sbs_utils.procedural.amd_schema import _kind_to_archetype, amd_known_kinds
+    findings = []
+    for node in doc.nodes:
+        for lineno, raw in (node.fence_lines or []):
+            line = raw.strip()
+            if not line or line.startswith("//"):
+                continue
+            if ":" in line or len(line.split()) != 1:
+                break
+            if _kind_to_archetype(line) is None:
+                near = ", ".join(sorted(amd_known_kinds())[:6])
+                findings.append(AmdFinding(
+                    lineno, WARNING, "unknown-kind-line",
+                    f"`{line}` alone on the first line of a fence says what KIND of "
+                    f"record this is, and it is not a kind the game knows. If it is a "
+                    f"value, give it its label (`Kind: {line}`); a kind is a word like "
+                    f"{near}..."))
+            break
+    return findings
+
+
 _SKILL_ENTRY = re.compile(r"^[A-Za-z_][A-Za-z_ ]*\s+-?\d+$")
 
 #: Words a guard reads as a JOB when no roster says otherwise - `boarding._STOCK_JOBS`.
@@ -2531,6 +2703,8 @@ def amd_lint(file_path=None, content=None, mast_sources=None, cross_file=None,
         findings += amd_lint_dialogue_outcomes(doc)
         findings += amd_lint_guards(doc)
         findings += amd_lint_skills(doc)
+        findings += amd_lint_kind_lines(doc)
+        findings += amd_lint_mission_reads(doc, file_path, mast_sources)
         findings += amd_lint_callouts(doc)
         findings += amd_lint_images(doc, file_path)
         findings += amd_lint_named_hulls(doc)

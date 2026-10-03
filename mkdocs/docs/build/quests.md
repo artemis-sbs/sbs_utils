@@ -125,7 +125,7 @@ listens for:
 | `collect`, `recover`, `gather` | picking up an item | item key |
 | `scan`, `survey` | a science scan | role |
 | `dock` | docking | role |
-| `reach`, `travel` | arriving at a sector | sector (e.g. `reach 6, 4`) |
+| `reach`, `travel` | arriving at a sector, or near a thing | a sector (`reach 6, 4`), or a ROLE and a distance (`reach derelict 500`: within 500 of anything wearing the role `derelict`; the distance defaults to 5000). It is a role, not a key: a landmark needs `Roles: derelict` to be reached this way |
 | `signal` | a named signal — the escape hatch for any game-state milestone | signal name |
 | `all dead` | every object of a role is gone | role |
 | *a time* | `5 minutes` / `30 seconds` — a time is a trigger like any other | — |
