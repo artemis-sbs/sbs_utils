@@ -91,6 +91,15 @@ def csv(hint="comma, separated"):
     table, so distinct from `ref(csv=True)`."""
     return _d("csv", hint=hint)
 
+def named_hulls(hint="Ragnarok tsn_juggernaut, XORN tsn_light_cruiser"):
+    """Named ships - `Name hull_key, Name hull_key`: a ONE-word name, then a shipData key.
+
+    Stays `type: csv`, so it reads and edits exactly as a comma list does and an older
+    editor sees nothing new. `items` is what tells the linter each entry has a shape:
+    `Iron Duke kralien_dreadnought` is a ship named `Iron` on a hull called `Duke`, and
+    without this nothing said so."""
+    return _d("csv", hint=hint, items="named_hull")
+
 def compound(verbs, hint=None):
     """A verb-led field whose operand type depends on the verb: `When: reach i,j`
     vs `When: signal X`. `verbs` maps verb -> operand descriptor. The editor may

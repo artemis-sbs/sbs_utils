@@ -1757,6 +1757,114 @@ def amd_lint_images(doc, file_path=None):
     return findings
 
 
+def amd_lint_named_hulls(doc):
+    """Flag a `Name hull_key` entry that will not make the ship the author meant.
+
+    `Named: Iron Duke kralien_dreadnought` is a ship named `Iron` on a hull called `Duke`:
+    the reader takes the first two words and drops the rest. Nothing fails - the flagship
+    just never turns up. Applies to any field declared `named_hulls()`. WARNING.
+
+    The hull is checked against shipData only when there is a catalog to ask; with none
+    this says nothing rather than report every key as unknown."""
+    from sbs_utils.procedural.amd_schema import field_schema, amd_traits_of
+    findings = []
+    known = None
+    for node in doc.nodes:
+        if not node.kind:
+            continue
+        traits = amd_traits_of(node.data)
+        for lineno, raw, label, _value in _fence_fields(node):
+            if raw[:1] in (" ", "\t"):
+                continue                       # inside a nested block, not a field
+            if field_schema(label, node.kind, traits).get("items") != "named_hull":
+                continue
+            offset = len(raw.split(":", 1)[0]) + 1
+            for piece in raw[offset:].split(","):
+                item = piece.strip()
+                col = offset + (len(piece) - len(piece.lstrip()))
+                offset += len(piece) + 1
+                if not item:
+                    continue
+                words = item.split()
+                if len(words) == 1:
+                    findings.append(AmdFinding(
+                        lineno, WARNING, "hull-name-shape",
+                        f"`{item}` needs a name AND a hull - write `Name hull_key`",
+                        col=col, end_line=lineno, end_col=col + len(item)))
+                    continue
+                if len(words) > 2:
+                    fixed = "_".join(words[:-1]) + " " + words[-1]
+                    findings.append(AmdFinding(
+                        lineno, WARNING, "hull-name-shape",
+                        f"`{item}` reads as a ship named `{words[0]}` on a hull called "
+                        f"`{words[1]}` - a name is ONE word here. Write `{fixed}`",
+                        col=col, end_line=lineno, end_col=col + len(item)))
+                    continue
+                if known is None:
+                    known = {str(k).lower() for k in _relic_known_art()}
+                if known and words[1].lower() not in known:
+                    findings.append(AmdFinding(
+                        lineno, WARNING, "unknown-hull",
+                        f"`{words[1]}` is not a hull in shipData, so `{words[0]}` has "
+                        f"nothing to fly",
+                        col=col, end_line=lineno, end_col=col + len(item)))
+    return findings
+
+
+def _own_kind_word(node):
+    """A record's OWN kind line - the bare first word of its fence - lower-cased, else ''."""
+    for _lineno, raw in (getattr(node, "fence_lines", None) or []):
+        line = raw.strip()
+        if not line or line.startswith("//"):
+            continue
+        return line.lower() if (":" not in line and len(line.split()) == 1) else ""
+    return ""
+
+
+def _boss_names(doc):
+    return [n for n in doc.nodes if n.level == 1 and _own_kind_word(n) == "boss"]
+
+
+def amd_lint_boss_names(doc, file_path=None):
+    """Flag a `Boss` whose name another boss file in the same folder already uses.
+
+    A boss list offers bosses BY NAME, so two files that both say `# [Warlord](...)` put
+    one entry in it - and which file that entry runs is whichever was read last. Copying
+    a boss file and forgetting to rename the heading is the first thing a new author
+    does, and nothing said so: the copy linted clean and simply was not there. WARNING.
+
+    Needs the file's own path to find its neighbors, so a caller that lints bare text
+    (the language server) does not get this one."""
+    if not file_path:
+        return []
+    mine = _boss_names(doc)
+    if not mine:
+        return []
+    import glob as _glob
+    from sbs_utils.procedural.amd_core import parse as _core_parse
+    here = os.path.abspath(file_path)
+    taken = {}
+    for other in sorted(_glob.glob(os.path.join(os.path.dirname(here), "*.amd"))):
+        if os.path.abspath(other) == here:
+            continue
+        try:
+            theirs = _boss_names(_core_parse(amd_read_text(other)))
+        except Exception:                               # noqa: BLE001
+            continue        # a neighbor that cannot be read is its own finding, not ours
+        for node in theirs:
+            taken.setdefault(str(node.display).strip(), os.path.basename(other))
+    findings = []
+    for node in mine:
+        other = taken.get(str(node.display).strip())
+        if other:
+            findings.append(AmdFinding.at(
+                node.display_span or node.span, WARNING, "duplicate-boss-name",
+                f"`{node.display}` is also the name of the boss in `{other}`. A boss "
+                f"list offers bosses by name, so only one of the two can appear - give "
+                f"this one a name of its own"))
+    return findings
+
+
 def mast_labels(mast_sources):
     """Top-level MAST label names (`== name ==`) across the given sources - valid
     jump/handler targets an AMD reference may point at."""
@@ -1863,6 +1971,8 @@ def amd_lint(file_path=None, content=None, mast_sources=None, cross_file=None,
         findings += amd_lint_dialogue_outcomes(doc)
         findings += amd_lint_callouts(doc)
         findings += amd_lint_images(doc, file_path)
+        findings += amd_lint_named_hulls(doc)
+        findings += amd_lint_boss_names(doc, file_path)
         findings += amd_lint_trigger_roles(doc, source_index)
         if cross_file is not False:
             findings += amd_lint_cross_file(doc, mast_sources, source_index)
