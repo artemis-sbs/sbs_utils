@@ -224,19 +224,65 @@ _INSTALLED = False
 # The party's, not a character's: the whole design is that four people each see a piece
 # and the picture only exists once they compare. A per-character tally would be a
 # different game, and a worse one.
-_FACTS = set()
+#
+# AND THE PLACE'S, not the mission's. This was one set for the whole mission, so a
+# second place started with everything the first had taught: a site gated on
+# `learned >= 3` opened on arrival for a crew that had read three things somewhere else,
+# and a return to the same place could not be told from a first visit to another. Each
+# place keeps its own, for the length of the mission - come back and the party still
+# knows what it worked out there; go somewhere new and it knows nothing yet.
+_FACTS = {}                       # place -> the set of things worked out there
+
+#: The pool a scene writes to when it has no place at all: no visit, and no invitation
+#: with a title. A mission that drives scenes by hand and never named one gets exactly
+#: the single pool it always had.
+_NO_PLACE = ""
 
 
-def boarding_facts():
-    """Everything the party has worked out so far, as a sorted list."""
-    return sorted(_FACTS)
+def boarding_place():
+    """Where the party is, as the key its facts are filed under.
+
+    The visit's place; else the open invitation's title; else ``""``.
+    """
+    visit = Agent.SHARED.get_inventory_value(VISIT_KEY, None)
+    if isinstance(visit, dict) and visit.get("place"):
+        return str(visit.get("place"))
+    invite = Agent.SHARED.get_inventory_value(INVITE_KEY, None)
+    if isinstance(invite, dict) and invite.get("open") and invite.get("title"):
+        return str(invite.get("title"))
+    return _NO_PLACE
 
 
-def boarding_learned(fact=None):
-    """How many distinct things the party knows - or whether it knows a given one."""
+def _facts_of(place=None):
+    return _FACTS.get(boarding_place() if place is None else str(place), ())
+
+
+def boarding_facts(place=None):
+    """Everything the party has worked out HERE, as a sorted list.
+
+    ``place`` asks about somewhere else - after a visit has ended, say, with the
+    ``BOARDING_PLACE`` that ``boarding_visit_ended`` carries.
+    """
+    return sorted(_facts_of(place))
+
+
+def boarding_learned(fact=None, place=None):
+    """How many distinct things the party knows here - or whether it knows a given one."""
+    facts = _facts_of(place)
     if fact is None:
-        return len(_FACTS)
-    return 1 if str(fact).strip() in _FACTS else 0
+        return len(facts)
+    return 1 if str(fact).strip() in facts else 0
+
+
+def boarding_facts_forget(place=None):
+    """Forget what was worked out at ``place`` - or everywhere, with no argument.
+
+    For a place that RESETS: a wreck that is a different wreck each time it is found.
+    """
+    if place is None:
+        _FACTS.clear()
+    else:
+        _FACTS.pop(str(place), None)
 
 
 def _boarding_learn_outcome(agent_id, speaker, tokens):
@@ -250,7 +296,7 @@ def _boarding_learn_outcome(agent_id, speaker, tokens):
     """
     if not tokens:
         return None
-    _FACTS.add(" ".join(str(t) for t in tokens).strip())
+    _FACTS.setdefault(boarding_place(), set()).add(" ".join(str(t) for t in tokens).strip())
     return None
 
 
@@ -275,7 +321,7 @@ def _boarding_metric(name, agent_id, speaker):
     # `learned` is the PARTY's, so it is answered before the role lookup and without an
     # agent - it is the one guard word that is not about who is asking.
     if str(name).strip() == "learned":
-        return len(_FACTS)
+        return len(_facts_of())
     # A WORD AND AN ARGUMENT - `skill engineering`, `holding medkit`, `party coil` - owned
     # by the module that knows the answer (checks, the pack), registered with
     # `boarding_metric_word`, so this resolver stays one lookup.
@@ -1852,7 +1898,8 @@ VISIT_KEY = "__BOARDING_VISIT__"
 _VISIT_TASK_KEY = "__BOARDING_VISIT_TASK__"
 
 
-def boarding_visit(ship, scenes, first, title=None, cast=None, site=None, area=None):
+def boarding_visit(ship, scenes, first, title=None, cast=None, site=None, area=None,
+                   place=None):
     """Run one boarding visit from start to finish.
 
     Opens the party, begins the room ``first``, and from then on watches the scene: when it
@@ -1872,6 +1919,10 @@ def boarding_visit(ship, scenes, first, title=None, cast=None, site=None, area=N
             aboard. Hand in a cast only when the people going are deliberately not the crew.
         site, area (optional): as :func:`boarding_invite` - an interior or a tile area to
             stand the party in. Without either this is the dialogue-only party.
+        place (str, optional): the key this place's ``learn`` facts are kept under.
+            Defaults to ``title``, then to ``first``. Each place counts only its own, and
+            keeps them for the mission, so a return visit finds what was learned before.
+            Give two places the same key only if they really are one place.
 
     Returns:
         dict: the invitation - or None, with nothing opened, when a party or a scene is
@@ -1892,15 +1943,18 @@ def boarding_visit(ship, scenes, first, title=None, cast=None, site=None, area=N
         invite = boarding_invite(ship, cast, title, site=site, area=area)
     else:
         invite = boarding_invite_crew(ship, title, site=site, area=area)
-    boarding_scene_begin(scenes, first)
+    # BEFORE the first room is begun: beginning it picks its line, and a line gated on
+    # `learned` has to be asked about THIS place.
     Agent.SHARED.set_inventory_value(VISIT_KEY, {
-        "ship": to_id(ship), "title": boarding_invite_title(), "first": first})
+        "ship": to_id(ship), "title": boarding_invite_title(), "first": first,
+        "place": str(place or title or first)})
+    boarding_scene_begin(scenes, first)
     _visit_watch()
     return invite
 
 
 def boarding_visiting():
-    """The visit in progress - ``{"ship", "title", "first"}`` - or None."""
+    """The visit in progress - ``{"ship", "title", "first", "place"}`` - or None."""
     visit = Agent.SHARED.get_inventory_value(VISIT_KEY, None)
     return visit if isinstance(visit, dict) else None
 
@@ -1947,7 +2001,8 @@ def boarding_visit_end():
             # rebuilt must not be left playing somebody in a party that no longer exists.
             boarding_assign(client_id, None)
     signal_emit("boarding_visit_ended", {"BOARDING_SHIP": visit.get("ship"),
-                                         "BOARDING_TITLE": visit.get("title")})
+                                         "BOARDING_TITLE": visit.get("title"),
+                                         "BOARDING_PLACE": visit.get("place")})
     return True
 
 

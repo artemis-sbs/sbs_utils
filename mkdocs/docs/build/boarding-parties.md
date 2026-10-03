@@ -56,12 +56,54 @@ crew.
 
 | Call | Does |
 |---|---|
-| `boarding_visit(ship, scenes, first, title=, cast=, site=, area=)` | starts a visit. Returns None, and opens nothing, if one is already open or `first` names no room |
+| `boarding_visit(ship, scenes, first, title=, cast=, site=, area=, place=)` | starts a visit. Returns None, and opens nothing, if one is already open or `first` names no room |
 | `boarding_visiting()` | the visit in progress, or None |
 | `boarding_visit_end()` | ends it now &mdash; the ship is under fire, the clock ran out |
 
 Before this call a scene had a beginning and no end: the party stayed open after the last
 room, and a console that went down late arrived in an empty one.
+
+**Where the crew reads it.** A party with nowhere to walk (no `site=`, no `area=`) plays in
+the PADD: BEAM DOWN opens Messages on the first room, each room arrives as a message named
+for the room and signed by the place, and its choices are the reply buttons. When the visit
+ends each console is put back on its own station's screen.
+
+## What the party works out: `learn` and `learned`
+
+A choice can teach the party something, and a later choice or line can ask how much it
+knows:
+
+```markdown
+- [Read the name tags on the suits](suits) if medical ; learn suits
+- [Answer the log](last_entry) if learned >= 2
+
+%{learned < 2} The log is locked behind a question you cannot answer yet.
+```
+
+| | |
+|---|---|
+| `; learn <name>` | the party now knows `<name>`. A set: the same reading taken twice counts once |
+| `learned` | how many different things the party knows **at this place** |
+
+The facts are the **party's**, not one character's &mdash; the surgeon's reading and the
+engineer's both count &mdash; and they belong to the **place**. Each place counts only its
+own, and keeps them for the mission: come back and the party still knows what it worked
+out there, go somewhere new and it knows nothing yet. The place is `place=` on
+`boarding_visit`, which defaults to the title.
+
+| Call | Does |
+|---|---|
+| `boarding_learned(fact=None, place=None)` | how many things are known here, or 1/0 for one fact |
+| `boarding_facts(place=None)` | the facts, sorted |
+| `boarding_place()` | the key the current place's facts are kept under |
+| `boarding_facts_forget(place=None)` | forget one place's facts, or every place's |
+
+`boarding_visit_ended` carries `BOARDING_PLACE`, so a route can ask what was learned after
+the party has come home: `boarding_facts(BOARDING_PLACE)`.
+
+`sbs lint` reports a condition the game cannot read (`if learned => 2`), an `if` written
+after the `;`, and `learn` with no name. It cannot tell that `learned >= 5` asks for more
+than the place can teach.
 
 The rest of this page is what `boarding_visit` is built from, for a mission that has to
 drive a scene itself.
