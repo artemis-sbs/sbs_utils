@@ -1630,7 +1630,12 @@ def amd_lint_dialogue_outcomes(doc):
     # never imported them by the time lint ran had not done, so a correct relic or away
     # scene lit up with "`check` is not an outcome verb". They are the library's, so the
     # library loads them before it judges.
-    for _mod in ("boarding_props", "boarding_checks", "boarding_combat"):
+    # AND THE QUEST VERBS. `accepts`, `completes` and `fails` are registered by
+    # `quest_driver` as it imports. Loading the boarding modules above made the registry
+    # non-trivial, so the "nothing but the built-in is loaded" guard below stopped
+    # tripping - and a plain mission with no vocabulary file of its own was told that
+    # `; completes my_quest` in a hail does nothing, which is exactly what it does do.
+    for _mod in ("boarding_props", "boarding_checks", "boarding_combat", "quest_driver"):
         try:
             __import__("sbs_utils.procedural." + _mod)
         except Exception:                                # noqa: BLE001
