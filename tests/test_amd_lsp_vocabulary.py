@@ -77,5 +77,52 @@ class LearnsWithoutRunning(unittest.TestCase):
         L._learn_mission_vocabulary(["amd_register_fields('x', {"])   # must not raise
 
 
+class EveryFieldTypeIsReadable(unittest.TestCase):
+    """The editor reads a declaration only when it knows the constructor's name.
+
+    `named_hulls` was added to the schema and not to that list, so the ONE table using it -
+    LegendaryMissions' boss fields - was dropped whole, and VS Code underlined `Trigger:`,
+    `Low:`, `Flies:`, `Fleets:`, `Difficulty:` and `Named:` in every shipped boss file."""
+
+    def test_no_constructor_is_missing_from_the_list(self):
+        import inspect
+        made = set()
+        for name, fn in vars(S).items():
+            if name.startswith("_") or not inspect.isfunction(fn):
+                continue
+            if fn.__module__ != S.__name__:
+                continue
+            try:
+                source = inspect.getsource(fn)
+            except OSError:
+                continue
+            if "return _d(" in source:
+                made.add(name)
+        self.assertTrue(made, "found no field constructors - has amd_schema moved?")
+        self.assertEqual(sorted(made - set(L._DESCRIPTOR_FNS)), [])
+
+    def test_a_table_with_named_hulls_is_learned(self):
+        src = chr(10).join([
+            "amd_register_fields('ship_list', {",
+            "    'named': named_hulls(hint='Ragnarok tsn_juggernaut'),",
+            "    'fleets': integer(),",
+            "})",
+        ])
+        L._learn_mission_vocabulary([src])
+        self.assertEqual(S.field_schema("fleets", "ship_list")["type"], "int")
+        self.assertTrue(S.amd_is_declared("named", "ship_list"))
+
+    def test_one_unreadable_field_does_not_cost_the_table(self):
+        src = chr(10).join([
+            "amd_register_fields('ship_note', {",
+            "    'odd': a_type_from_the_future(),",
+            "    'plain': text(),",
+            "})",
+        ])
+        L._learn_mission_vocabulary([src])
+        self.assertTrue(S.amd_is_declared("plain", "ship_note"))
+        self.assertFalse(S.amd_is_declared("odd", "ship_note"))
+
+
 if __name__ == "__main__":
     unittest.main()

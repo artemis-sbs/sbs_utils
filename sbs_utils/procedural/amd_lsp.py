@@ -90,7 +90,7 @@ def _open_by_path(docs):
 _DESCRIPTOR_FNS = (
     "text", "multiline", "integer", "boolean", "enum", "ref", "coord2", "color", "face",
     "signal", "csv", "compound", "duration", "pct", "weighted", "makeup", "counted",
-    "kv", "reward", "trigger", "field",
+    "kv", "reward", "trigger", "field", "named_hulls", "lines",
 )
 
 
@@ -113,7 +113,10 @@ def _static_value(node, schema):
                 return None
             val = _static_value(v, schema)
             if val is None:
-                return None
+                # ONE field this cannot read costs that field, not the table. It used to
+                # return None here, which dropped the whole registration: a mission that
+                # adopted one new field type had every word it declares called unknown.
+                continue
             out[key] = val
         return out
     if isinstance(node, ast.Call) and isinstance(node.func, ast.Name)             and node.func.id in _DESCRIPTOR_FNS:
