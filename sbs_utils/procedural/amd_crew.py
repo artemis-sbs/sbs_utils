@@ -79,7 +79,7 @@ CREW_KINDS = ("crew", "crews", "roster", "rosters", "officers", "bridge")
 # apply - a rank of "1st Officer" must not become the number 1.
 _CSV_FIELDS = ("hull", "ship", "roles")
 _TEXT_FIELDS = ("name", "desc", "by", "assign", "console", "rank", "portrait", "portraits",
-                "race", "face", "sheet", "display", "color", "gender")
+                "race", "face", "sheet", "display", "color", "gender", "names")
 
 
 def _lower(data):
@@ -136,6 +136,11 @@ def crew_member_record(section, data, key, name=None, roster_key=None):
         # Section-level like Race:, so a roster whose people are all one thing says it once.
         "gender": str(data.get("gender") or section.get("gender") or "").strip().lower(),
         "console": str(data.get("console") or "").strip().lower(),
+        # ON THE RECORD, not only inside `data`. `crew._member_post` asks the member for
+        # its roles, and a record that kept them one level down answered "none" - so a
+        # `Roles: medical` line was read, stored, and never reached the console or the
+        # boarding party built from it. The surgeon boarded as "science", the seat she left.
+        "roles": _csv(data.get("roles")),
         "face": data.get("face") or "",
         "portrait": data.get("portrait") or "",
         "at": _pair(data.get("at")),
@@ -163,6 +168,10 @@ def crew_roster_record(key, section, name=None, desc=None, members=None):
         "display_name": section.get("name") or name or key,
         "desc": desc,
         "by": "person" if by.startswith("person") else "console",
+        # ANYTHING BUT `locked` IS EDITABLE. A lock is the stronger claim, so it is the one
+        # that has to be spelled right; the linter flags a value that is neither.
+        "names": ("locked" if str(section.get("names") or "").strip().lower() == "locked"
+                  else "editable"),
         "hull": _csv(section.get("hull")),
         "ship": _csv(section.get("ship")),
         "race": section.get("race") or "",

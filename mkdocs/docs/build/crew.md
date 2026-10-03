@@ -62,6 +62,7 @@ Portrait: data
 | On the section | Means |
 |---|---|
 | `By:` | `console` (a cast) or `person` (a group). Defaults to `console`. |
+| `Names:` | `editable` (the default) or `locked`. See [Locking the cast](#locking-the-cast). |
 | `Hull:` | shipData **keys** this roster crews by default &mdash; the tier a mod uses |
 | `Ship:` | ship **names** bound to this roster &mdash; the tier a mission uses |
 | `Race:` | face race for members with no `Face:` of their own |
@@ -72,6 +73,7 @@ Portrait: data
 |---|---|
 | `Rank:` | display only &mdash; "Captain", "Lt. Commander" |
 | `Console:` | which seat. Leave it off for a floating officer who fills any spare station. |
+| `Roles:` | what this person is **for** &mdash; `medical`, `engineering, security`. A boarding scene guards its choices on these words (`if medical`), and a boarding party built from the crew carries them. Leave it off and the seat they left is their role. |
 | `Face:` | a face string, or a race keyword like `terran_male` |
 | `Portrait:` | a photograph &mdash; an atlas key, or a path under `Portraits:` |
 | `At:` | this person's cell on the roster's `Sheet:` |
@@ -141,6 +143,42 @@ unless you turn it off.
 
 Two people never get the same person: a seat is taken when somebody sits in it and freed
 when they leave, so a bridge with two science stations gets two different officers.
+
+## Locking the cast
+
+Step 1 above is the strongest, and it is saved: what a player typed, built or picked lives
+on their own computer and follows them into every mission. That is right for a pick-up game
+and wrong for a story with its own people in it &mdash; anyone who has ever typed a name keeps it
+over your science officer.
+
+A roster that says `Names: locked` reverses that for the seats it fills:
+
+```markdown
+## [The Watch](watch)
+---
+crew
+Ship: Artemis
+Names: locked
+---
+```
+
+| `Names:` | A seat this roster fills | The player's saved name and face |
+|---|---|---|
+| `editable` (or no line) | the cast, until the player says otherwise | win, as step 1 says |
+| `locked` | the cast, always | ignored here &mdash; and left untouched on their machine |
+
+Three things to know:
+
+- **It is per seat.** A station the roster does not fill has no cast name to protect, so it
+  behaves as it always did.
+- **Nothing is erased.** The lock ignores what the player saved; the next mission sees it
+  exactly as it was.
+- **The picker agrees.** A locked seat shows who the console will be and offers no Edit
+  button.
+
+`CREW_EDIT: enable: false` (below) is the older, blunter control: it removes the Edit button
+for the whole mission, and it does **not** stop a name the player saved earlier from being
+applied. Use `Names: locked` when the script's cast must be the crew.
 
 ## A ship has a crew, not a client
 

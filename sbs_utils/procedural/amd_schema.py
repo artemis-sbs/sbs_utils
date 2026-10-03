@@ -449,6 +449,15 @@ CREW = {
     # pick THEMSELVES and keep their face at whatever station they take. Open, so a mission
     # that invents a third way is warned about nothing.
     "by": field(enum("console", "person", open=True), aka=("assign",)),
+    # WHETHER A PLAYER MAY ARGUE WITH THE CAST. Closed, on purpose: a typo here must not
+    # read as "editable" in silence, because the difference is whether the script's people
+    # are on the bridge at all. `locked` - on a ship this roster crews, what a player saved
+    # about themselves is not applied to a seat the roster fills (and is not erased).
+    # `editable`, the default - the cast is who you are until you say otherwise.
+    "names": field(enum("editable", "locked"),
+                   doc="Whether a player may replace the cast: `editable` (the default) - "
+                       "their own saved name and face win; `locked` - the cast is worn, "
+                       "and what they saved is ignored for this roster's seats."),
     # THE SAME descriptor ITEM["consoles"] uses - one enum, so `Console: helm` completes and
     # lints identically in both places and both learn a mod's console at once. Open because
     # console types are registered at RUNTIME from @console labels; there is no fixed list.

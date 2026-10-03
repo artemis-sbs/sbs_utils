@@ -804,7 +804,12 @@ def amd_lint_field_values(doc):
     findings = []
     for node in doc.nodes:
         fields = _fence_fields(node)
-        arch = infer_archetype([lab for _l, _r, lab, _v in fields], _section_key(node))
+        # WHAT THE RECORD IS, when the parser already worked that out. A roster says
+        # `crew` on its fence and its section is keyed whatever the author liked, so
+        # guessing from the section name and the labels found nothing - and a closed enum
+        # on a kind-line record (`Names: lokced`) was never checked at all.
+        arch = node.kind or infer_archetype([lab for _l, _r, lab, _v in fields],
+                                            _section_key(node))
         for lineno, raw, label, value in fields:
             # accepts = current values PLUS retired spellings kept alive by `aka`,
             # so a value rename never flags files written before it.

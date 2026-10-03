@@ -362,6 +362,16 @@ def crew_bind_hull(hull_key, roster_spec):
     return True
 
 
+def crew_roster_locked(roster):
+    """Whether this roster's cast is worn rather than chosen - ``Names: locked``.
+
+    The script's way to put ITS people on the bridge: on a ship this roster crews, a seat
+    it fills is that person, and what the player saved about themselves is not applied.
+    See :func:`crew_resolve`.
+    """
+    return roster is not None and _norm(roster.get("names")) == "locked"
+
+
 def crew_roster_for(ship_id, hull=None):
     """Which roster staffs this ship, and WHY: ``(roster, source)``.
 
@@ -783,6 +793,10 @@ def _post(name, rank="", face="", portrait="", key="", roster="",
         "name": _plain(name), "rank": _plain(rank),
         "face": str(face or ""), "portrait": str(portrait or ""),
         "key": str(key or ""), "roster": str(roster or ""), "source": source,
+        # WORN, NOT CHOSEN: this seat was filled by a roster that says `Names: locked`, so
+        # nothing the player saved was laid over it. A picker reads this to drop its Edit
+        # button rather than offer an edit that would be ignored.
+        "locked": False,
         # WHAT THEY ARE FOR, beside who they are. `Roles:` has always been an accepted
         # field on a crew member (`amd_crew._CSV_FIELDS`) and was read no further than
         # the roster - so a mission could write `Roles: medical` and nothing could see
@@ -924,18 +938,31 @@ def crew_resolve(client_id, ship_id, console,
 
     Does NOT write anything. :func:`crew_assign` is the one that does.
     """
+    roster, source = crew_roster_for(ship_id, hull)
+    member = _seat_pick(roster, ship_id, console, client_id) if roster is not None else None
+
+    if member is not None and crew_roster_locked(roster):
+        # THE CAST IS WORN. `Names: locked` on the roster crewing this ship: the seat it
+        # fills is that person, whatever this player saved about themselves on their own
+        # machine - a typed name, a built face, a pick out of somebody else's roster. This
+        # has to be decided BEFORE the pick below, which is otherwise the strongest tier.
+        #
+        # Ignored, not erased: nothing here writes, so the next mission sees the player's
+        # own answer exactly as it was. And only where the roster FILLS the seat - a station
+        # it leaves empty has no cast name to protect, so that falls through as it always did.
+        post = _member_post(roster, member, source)
+        post.locked = True
+        return post
+
     picked_roster, picked_member = _member_by_pick(own_pick)
     if picked_member is not None:
         # THE PICKED PERSON IS THE BASE, and what the player edited about them goes on top.
         return _own_over(_member_post(picked_roster, picked_member, "own"),
                          own_name, own_face, own_portrait)
 
-    roster, source = crew_roster_for(ship_id, hull)
-    if roster is not None:
-        member = _seat_pick(roster, ship_id, console, client_id)
-        if member is not None:
-            return _own_over(_member_post(roster, member, source),
-                             own_name, own_face, own_portrait)
+    if member is not None:
+        return _own_over(_member_post(roster, member, source),
+                         own_name, own_face, own_portrait)
 
     # NOBODY NAMED THIS CONSOLE, so name it anyway - a different person from every other
     # console in the run. Reached whether or not a roster matched: a roster that does not
@@ -1059,6 +1086,7 @@ def crew_assign(client_id, ship_id, console,
     set_inventory_value(client_id, "CREW_ROSTER", post.roster)
     set_inventory_value(client_id, "CREW_ROLES", post.get("roles", ""))
     set_inventory_value(client_id, "CREW_SOURCE", post.source)
+    set_inventory_value(client_id, "CREW_LOCKED", bool(post.get("locked", False)))
 
     if post.face:
         from ..faces import set_face
