@@ -540,6 +540,16 @@ def delete_objects_box(x,y,z, w,h,d, broad_type=0x0F, roles=None):
             continue
         pos = Vec3(obj.pos)
 
+        # THE BOX IS RE-CHECKED HERE, on all three axes. A broad test is a coarse first
+        # pass, and the engine's hands back objects that are nowhere near the rectangle
+        # asked for - measured on an Open Universe jump, where clearing the system just
+        # left (a box at the origin) returned the four objects just spawned in the
+        # destination, 250,000 units away. This used to check height only, so they were
+        # deleted and the crew arrived at a station that was not there. The mock's broad
+        # test is exact, so nothing headless saw it. The sphere version has always
+        # re-checked its distance.
+        if abs(pos.x-x) > w or abs(pos.z-z) > d:
+            continue
         if abs(pos.y-y) <= h:
             obj.delete_object()   # deferred native free (see DeleteQueue)
 
