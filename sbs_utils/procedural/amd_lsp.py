@@ -50,7 +50,14 @@ def _mission_root(path):
         if parent == d:
             break
         d = parent
-    return None
+    # Not inside a mission. A file in a SHARED folder (`common_data/bosses`) is still
+    # written in one mission's words and points at that mission's keys - without this it
+    # was served as a lone file and every field in it was called unknown.
+    try:
+        from sbs_utils.procedural.amd_vocab import shared_folder_owner
+        return shared_folder_owner(path)
+    except Exception:                                   # noqa: BLE001
+        return None
 
 
 def _read(path):
@@ -190,7 +197,14 @@ def _mission_index(root, docs):
     from sbs_utils.procedural.amd_core import parse
     open_by = _open_by_path(docs)
     amd_docs, known = [], set()
-    for p in glob.glob(os.path.join(root, "**", "*.amd"), recursive=True):
+    paths = glob.glob(os.path.join(root, "**", "*.amd"), recursive=True)
+    try:
+        # ...and the shared folders this mission reads (an author's own bosses).
+        from sbs_utils.procedural.amd_vocab import shared_amd_files
+        paths += shared_amd_files(root)
+    except Exception:                                   # noqa: BLE001
+        pass
+    for p in paths:
         ap = os.path.normcase(os.path.abspath(p))
         text, uri = open_by.get(ap, (None, None))
         if text is None:

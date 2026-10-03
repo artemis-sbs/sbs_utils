@@ -90,6 +90,175 @@ def load_mission_vocabulary(mission):
     return loaded
 
 
+# --- shared folders -----------------------------------------------------------
+#
+# A mission can read `.amd` files that are NOT in its own folder: an author's own Siege
+# bosses live in `<missions>/common_data/bosses`, beside the saves, where an update to the
+# mission cannot delete them. Those files are written in the mission's vocabulary and
+# point at the mission's keys, so every tool has to treat them as part of the mission -
+# and a tool reading a mission folder cannot know the folder exists unless the mission
+# says so.
+
+#: What the running process has been told, {name: beside}. Tooling does not read this -
+#: it reads the declaration statically (`mission_shared_folders`), so that one mission's
+#: folders never leak into another mission linted or served by the same process.
+_SHARED_FOLDERS = {}
+
+_COMMON_DATA = "common_data"
+
+
+def amd_register_shared_folder(name, beside=None):
+    """Say that this mission also reads `.amd` files from `common_data/<name>`.
+
+    Call it from the mission's vocabulary file (`*_amd.py`), with LITERAL arguments - the
+    tools read the call without running the file:
+
+        amd_register_shared_folder("bosses", beside="maps/bosses")
+
+    `beside` is the mission's own folder those files join. It is what lets a check that
+    compares neighbors - two bosses with one name - see both folders as one.
+
+    After this, `sbs lint <mission>` checks the shared files too, `sbs lint
+    common_data/<name>` checks them alone, and the editor reads a file opened there with
+    the mission's words and keys instead of calling every field unknown.
+    """
+    _SHARED_FOLDERS[str(name)] = str(beside) if beside else None
+
+
+def _static_shared_calls(source):
+    """Every `amd_register_shared_folder(...)` in `source` with literal arguments, as
+    (name, beside). Parsed, never executed."""
+    if "amd_register_shared_folder" not in source:
+        return []
+    import ast
+    try:
+        tree = ast.parse(source)
+    except SyntaxError:
+        return []
+    out = []
+    for node in ast.walk(tree):
+        if not (isinstance(node, ast.Call) and isinstance(node.func, ast.Name)
+                and node.func.id == "amd_register_shared_folder"):
+            continue
+        args = [a.value for a in node.args
+                if isinstance(a, ast.Constant) and isinstance(a.value, str)]
+        if not args:
+            continue
+        beside = args[1] if len(args) > 1 else None
+        for kw in node.keywords:
+            if (kw.arg == "beside" and isinstance(kw.value, ast.Constant)
+                    and isinstance(kw.value.value, str)):
+                beside = kw.value.value
+        out.append((args[0], beside))
+    return out
+
+
+def mission_shared_folders(mission):
+    """{name: beside} for every shared folder this mission's vocabulary files declare."""
+    root = os.path.abspath(mission)
+    found = {}
+    for pattern in _VOCAB_MODULES:
+        for path in sorted(glob.glob(os.path.join(root, "**", pattern), recursive=True)):
+            try:
+                with open(path, "r", encoding="utf-8", errors="replace") as f:
+                    source = f.read()
+            except OSError:
+                continue
+            for name, beside in _static_shared_calls(source):
+                found[name] = beside
+    return found
+
+
+def shared_amd_files(mission):
+    """Every `.amd` in the shared folders this mission reads. Sorted, absolute."""
+    root = os.path.abspath(mission)
+    base = os.path.join(os.path.dirname(root), _COMMON_DATA)
+    out = []
+    for name in sorted(mission_shared_folders(root)):
+        out += glob.glob(os.path.join(base, name, "**", "*.amd"), recursive=True)
+    return sorted(os.path.abspath(p) for p in out)
+
+
+def _shared_parts(path):
+    """(missions folder, shared folder name) for a path inside `common_data/<name>`, else
+    (None, None). `path` may be the folder itself or anything under it."""
+    parts = os.path.abspath(path).replace("\\", "/").split("/")
+    low = [p.lower() for p in parts]
+    if _COMMON_DATA not in low:
+        return None, None
+    i = len(low) - 1 - low[::-1].index(_COMMON_DATA)
+    if i + 1 >= len(parts) or not parts[i + 1]:
+        return None, None
+    if os.path.splitext(parts[i + 1])[1] and i + 2 >= len(parts):
+        return None, None                     # a FILE directly in common_data
+    return os.sep.join(parts[:i]) or os.sep, parts[i + 1]
+
+
+def shared_folder_owner(path):
+    """The mission that reads the shared folder `path` is in, or None.
+
+    A file in `common_data/bosses` belongs to no mission folder, so walking up from it
+    finds no `story.json`. The missions beside `common_data` are asked instead: the first
+    whose vocabulary file declares that folder is the one whose words the file is in.
+    """
+    missions, name = _shared_parts(path)
+    if not missions:
+        return None
+    for mission in sorted(glob.glob(os.path.join(missions, "*"))):
+        if not os.path.isdir(mission) or os.path.basename(mission) == _COMMON_DATA:
+            continue
+        if name in mission_shared_folders_shallow(mission):
+            return os.path.abspath(mission)
+    return None
+
+
+def mission_shared_folders_shallow(mission):
+    """`mission_shared_folders`, looking only at the mission's top two levels - enough
+    for a vocabulary file, and cheap enough to ask of every mission on the machine."""
+    found = {}
+    for pattern in _VOCAB_MODULES:
+        for depth in ("", "*"):
+            for path in sorted(glob.glob(os.path.join(mission, depth, pattern))):
+                try:
+                    with open(path, "r", encoding="utf-8", errors="replace") as f:
+                        source = f.read()
+                except OSError:
+                    continue
+                for name, beside in _static_shared_calls(source):
+                    found[name] = beside
+    return found
+
+
+def shared_neighbor_folders(path):
+    """The OTHER folders whose files are read together with the one `path` is in.
+
+    For a file in `common_data/bosses`: the owning mission's `maps/bosses`. For a file in
+    a mission's `maps/bosses`: `common_data/bosses`. Empty when the folder is not half of
+    such a pair.
+    """
+    here = os.path.dirname(os.path.abspath(path))
+    missions, name = _shared_parts(path)
+    if missions:
+        owner = shared_folder_owner(path)
+        beside = mission_shared_folders_shallow(owner).get(name) if owner else None
+        return [os.path.join(owner, *beside.split("/"))] if beside else []
+    d = here
+    for _ in range(24):
+        if any(os.path.isfile(os.path.join(d, m))
+               for m in ("story.json", "story.mast", "__lib__.json")):
+            out = []
+            for name, beside in mission_shared_folders_shallow(d).items():
+                if beside and os.path.normcase(os.path.join(d, *beside.split("/"))) \
+                        == os.path.normcase(here):
+                    out.append(os.path.join(os.path.dirname(d), _COMMON_DATA, name))
+            return out
+        parent = os.path.dirname(d)
+        if parent == d:
+            break
+        d = parent
+    return []
+
+
 def declared_addon_paths(mission_root):
     """Each mastlib `story.json` declares, as a source FOLDER (a clone editing its own
     addons) or the `__lib__` zip. Mirrors how the compiler resolves them."""

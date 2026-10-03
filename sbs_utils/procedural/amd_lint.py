@@ -2102,7 +2102,19 @@ def amd_lint_boss_names(doc, file_path=None):
     from sbs_utils.procedural.amd_core import parse as _core_parse
     here = os.path.abspath(file_path)
     taken = {}
-    for other in sorted(_glob.glob(os.path.join(os.path.dirname(here), "*.amd"))):
+    # The folder this file is in - and the folder read TOGETHER with it, when the mission
+    # keeps an author's own files apart from its shipped ones (`common_data/bosses` beside
+    # `maps/bosses`). One list is offered from both, so a name taken in either is taken.
+    folders = [os.path.dirname(here)]
+    try:
+        from sbs_utils.procedural.amd_vocab import shared_neighbor_folders
+        folders += shared_neighbor_folders(here)
+    except Exception:                                   # noqa: BLE001
+        pass
+    others = []
+    for folder in folders:
+        others += sorted(_glob.glob(os.path.join(folder, "*.amd")))
+    for other in others:
         if os.path.abspath(other) == here:
             continue
         try:

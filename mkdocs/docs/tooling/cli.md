@@ -192,6 +192,29 @@ new syntax (MAST just treats the key as an unused variable).
 `--format compact` emits `file:line:col:` lines for editor problem-matchers;
 `--format json` emits structured findings (with exact ranges) for tools/CI.
 
+### Files a mission reads from outside its folder
+
+A mission can read `.amd` files kept in `data\missions\common_data\<name>`, beside the
+saves, so that updating the mission does not delete an author's own work. Siege does this
+for bosses. Those files are written in the mission's words and point at its keys, so the
+mission says the folder is its own, in its vocabulary file (`*_amd.py`):
+
+```python
+from sbs_utils.procedural.amd_vocab import amd_register_shared_folder
+
+amd_register_shared_folder("bosses", beside="maps/bosses")
+```
+
+| Then | What happens |
+|---|---|
+| `sbs lint LegendaryMissions` | checks the shared files too, listed as `common_data\bosses\<file>` |
+| `sbs lint common_data\bosses` | checks only those files, with the mission's fields and keys |
+| A file opened there in the editor | is read as part of the mission, not as a lone file |
+| `beside=` | names the mission folder the files join, so a check across neighbors (two bosses with one name) sees both folders |
+
+The arguments must be written out as plain text in the call. The tools read the line
+without running the file.
+
 ## Formatting
 
 ```
