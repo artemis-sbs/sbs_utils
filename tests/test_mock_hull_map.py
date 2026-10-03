@@ -331,9 +331,27 @@ class TestArtFileRootSpellings(unittest.TestCase):
     """
 
     def _write(self, path):
+        # LEAVE THE INSTALL AS IT WAS FOUND. These tests write into the real Cosmos tree,
+        # and removing only the file left `__lib__/media/pack/ships` behind after every
+        # full run - an unpacked media pack nothing pins, which `sbs lib` then reports
+        # pruning. Remember the folders this call creates and take them away again.
+        made = []
+        folder = os.path.dirname(path)
+        while folder and not os.path.isdir(folder):
+            made.append(folder)
+            folder = os.path.dirname(folder)
         os.makedirs(os.path.dirname(path), exist_ok=True)
+        for d in reversed(made):        # cleanups run last-added first: deepest goes first
+            self.addCleanup(self._rmdir, d)
         with open(path, "wb") as f:
             f.write(b"not-a-real-png")
+
+    @staticmethod
+    def _rmdir(path):
+        try:
+            os.rmdir(path)              # only ever an EMPTY folder
+        except OSError:
+            pass
 
     def test_exe_relative_is_found(self):
         # What a mod built after v1.3.6 ships.
