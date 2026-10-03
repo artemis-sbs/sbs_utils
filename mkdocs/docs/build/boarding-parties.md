@@ -35,9 +35,9 @@ ungated — which is what keeps a menu from ever being empty.
 Most missions need none of the pieces further down. One call runs a whole visit:
 
 ```
-shared AWAY_SCENES = dialogue_scenes(amd_section(MISSION_DOC, "boarding"))
+shared BOARDING_SCENES = dialogue_scenes(amd_section(MISSION_DOC, "boarding"))
 
-boarding_visit(ship, AWAY_SCENES, "airlock", title="The Hulk")
+boarding_visit(ship, BOARDING_SCENES, "airlock", title="The Hulk")
 ```
 
 It opens the party, begins the room it is given, and from then on watches the scene. When
