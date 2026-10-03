@@ -235,6 +235,24 @@ def dialogue_entry_for(scenes, speaker_key, when=DIALOGUE_WHEN_COMMS):
 _SCENES = {}
 
 
+def _stock_guards_install():
+    """Make the stock guard words answerable from the first scene, not the first visit.
+
+    A guard's left side is answered by ONE resolver, and in a mission that is not Open
+    Universe nothing installed one until a boarding visit began. Until then every guard
+    read 0: an answer written `if tsn`, or `if learned >= 1` after a `; learn`, was never
+    offered - lint clean, no log - and the same line started working the moment a
+    boarding party went anywhere. The stock words are the acting ship's or person's
+    roles, `learned`, and `skill <name>`; the resolver composes with whatever a mission
+    installed before it, so nothing a mission answers itself changes.
+    """
+    try:
+        from .boarding import boarding_metric_install
+        boarding_metric_install()
+    except Exception:                                   # noqa: BLE001
+        pass
+
+
 def dialogue_register_scenes(source, domain=None):
     """Register a mission's scenes by key, and RETURN them.
 
@@ -252,6 +270,7 @@ def dialogue_register_scenes(source, domain=None):
     """
     if source is None:
         return {}
+    _stock_guards_install()
     if isinstance(source, dict) and "children" not in source:
         scenes = dict(source)                       # already `{key: node}`
     else:

@@ -95,8 +95,13 @@ _STYLE_FACE_ROW = "row-height: 30;"
 
 def _hail_text(value):
     """A `$text:` property with the value quoted, so a name or a line carrying `:` or
-    `;` is drawn rather than parsed as style. For TEXT widgets only."""
-    return f"$text:{gui_text_escape(value)};"
+    `;` is drawn rather than parsed as style. For TEXT widgets only.
+
+    AND AS A LITERAL. `gui_text` reads its text as a format string, and these are an
+    author's words - a caller's name, an answer. `Call me {Captain}, DS 1.` as an answer
+    was a NameError when the list was drawn."""
+    from .text import gui_text_literal
+    return f"$text:{gui_text_escape(gui_text_literal(value))};"
 
 
 def _hail_label(value):

@@ -1844,6 +1844,125 @@ def amd_lint_guards(doc):
     return findings
 
 
+_ANSWER_SHAPED = re.compile(r"^\s*(?:[-*]\s*\[|\[[^\]]*\]\s*\(|;)")
+_QUEST_OUTCOMES = ("accepts", "completes", "fails")
+
+
+def amd_lint_choices(doc, keys=None):
+    """Flag an answer the game reads as something else, or sends at nothing. WARNING.
+
+    A choice is exactly `- [words](target) if <condition> ; <outcomes>`. Near it are
+    several shapes that parse - as a SPOKEN LINE, or as a choice with part of it thrown
+    away - and say nothing:
+
+        - [Not now, DS 1.]                       no round brackets: she SAYS this line
+        * [We will tag her.](quill_offer)        a star for the dash: spoken
+        ; accepts tag_hulk                       an outcome on a line of its own: spoken
+        - [We will tag her.]() accepts tag_hulk  no `;`: the outcome is ignored
+        - [We will.]() ; accepts tag_hulkk       no such quest: the answer does nothing
+        - [We will.]() ; completes study         a step needs its arc: `first_contact/study`
+        - [We will.]() ; reveal tag_hulk         `reveal` is for `Then:`; here it is `accepts`
+        #### [The Offer](quill_offer)            a scene nested under a scene removes the
+                                                 scene ABOVE it from the game
+    """
+    try:
+        from sbs_utils.procedural.amd import RE_CHOICE
+        from sbs_utils.procedural.amd_dialogue import _dlg_parse_choice
+    except Exception:                                   # noqa: BLE001
+        return []
+    findings = []
+    # Quests in THIS file, by the id the game files them under and by leaf key.
+    paths, leaves = set(), {}
+    for node in doc.nodes:
+        if str(getattr(node, "kind", "") or "").lower() != "quest" or not node.fence_lines:
+            continue
+        path = _quest_path(node)
+        if path:
+            paths.add(path)
+            leaves.setdefault(str(node.key), set()).add(path)
+    known = set(keys or ()) | set(doc.keys)
+
+    for node in doc.nodes:
+        if str(getattr(node, "kind", "") or "").strip().lower() != "dialogue":
+            continue
+        # A SECTION is not a scene, whatever notes its author wrote under its heading:
+        # `## [Dialogue](dialogue)` with a paragraph of intent is the normal shape.
+        top = node.parent
+        is_section = (top is None or top.key == "__root__" or top.parent is None
+                      or top.parent.key == "__root__")
+        is_scene = (not is_section) and any(
+            t.strip() and not t.strip().startswith("//")
+            for _n, t in (node.body_lines or []))
+        if is_scene:
+            for child in node.children:
+                if str(getattr(child, "kind", "") or "").lower() == "dialogue":
+                    findings.append(AmdFinding.at(
+                        child.display_span or child.span, WARNING, "scene-nested",
+                        f"`{child.display}` is nested under the scene `{node.display}`, "
+                        f"and a scene with a scene under it is read as a heading, not "
+                        f"as a scene: `{node.display}` disappears from the game. Give "
+                        f"this heading {node.level} hashes, the same as the scene above"))
+        for lineno, text in (node.body_lines or []):
+            line = text.strip()
+            if not line or line.startswith("//"):
+                continue
+            m = RE_CHOICE.match(line)
+            if m is None:
+                if _ANSWER_SHAPED.match(line):
+                    findings.append(AmdFinding(
+                        lineno, WARNING, "choice-shape",
+                        "this looks like an answer and is read as a SPOKEN line. An "
+                        "answer is a dash, the words in square brackets, then round "
+                        "brackets with nothing between them: `- [words](key)`. Outcomes "
+                        "go on the same line, after a `;`"))
+                continue
+            rest = m.group("rest").split(";", 1)[0].strip()
+            if rest and not rest.lower().startswith("if "):
+                findings.append(AmdFinding(
+                    lineno, WARNING, "choice-tail-ignored",
+                    f"`{rest}` after the round brackets is neither a condition (`if "
+                    f"...`) nor an outcome (after a `;`), so it is ignored. Put a `;` in "
+                    f"front of an outcome"))
+            ch = _dlg_parse_choice(line) or {}
+            for outcome in ch.get("outcomes") or []:
+                verb = str(outcome[0]).lower()
+                toks = [str(t) for t in outcome[1:]]
+                if verb == "reveal" and len(toks) == 1 and (toks[0] in paths
+                                                            or toks[0] in leaves):
+                    findings.append(AmdFinding(
+                        lineno, WARNING, "outcome-quest-verb",
+                        f"`; reveal {toks[0]}` does nothing to a quest: `reveal` is "
+                        f"what `Then:` says. From an answer, write `; accepts "
+                        f"{toks[0]}`"))
+                if verb not in _QUEST_OUTCOMES:
+                    continue
+                if len(toks) != 1:
+                    findings.append(AmdFinding(
+                        lineno, WARNING, "outcome-quest-missing",
+                        f"`; {verb}` needs ONE quest key after it"
+                        + (f", and `{' '.join(toks)}` is {len(toks)} words. Use the "
+                           f"key in round brackets on the quest's heading, not its name"
+                           if toks else "")))
+                    continue
+                want = toks[0]
+                if want in paths:
+                    continue
+                nested = [p for p in leaves.get(want, ()) if p != want]
+                if nested:
+                    findings.append(AmdFinding(
+                        lineno, WARNING, "outcome-quest-path",
+                        f"`; {verb} {want}` - that quest is `{sorted(nested)[0]}` to "
+                        f"the game, which looks for the exact path. Write `; {verb} "
+                        f"{sorted(nested)[0]}`"))
+                elif want.split("/")[0] not in known:
+                    findings.append(AmdFinding(
+                        lineno, WARNING, "outcome-quest-missing",
+                        f"`; {verb} {want}` - no quest has the key `{want}`, so this "
+                        f"answer does nothing. Check the spelling against the quest's "
+                        f"heading"))
+    return findings
+
+
 _AMD_SECTION_CALL = re.compile(r"amd_section\(\s*[^,()]+,\s*[\"']([\w -]+)[\"']\s*\)")
 _RELIC_FILE_SECTIONS = ("items", "dialogue", "cutscenes", "side_stories")
 _TRIGGER_LABELS_SPACED = ("done when", "starts when", "fails when", "goal", "when")
@@ -2818,6 +2937,7 @@ def amd_lint(file_path=None, content=None, mast_sources=None, cross_file=None,
         findings += amd_lint_reveal_paths(doc)
         findings += amd_lint_dialogue_outcomes(doc)
         findings += amd_lint_guards(doc)
+        findings += amd_lint_choices(doc, keys)
         findings += amd_lint_skills(doc)
         findings += amd_lint_kind_lines(doc)
         findings += amd_lint_mission_reads(doc, file_path, mast_sources, source_index)

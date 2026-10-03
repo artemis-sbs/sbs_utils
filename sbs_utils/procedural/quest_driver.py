@@ -1707,9 +1707,21 @@ def quest_holders_of(quest_id, prefer=None):
 
 
 def _quest_driver_log(message):
+    """Say that a quest outcome could not be applied, where the author will see it.
+
+    `log(msg, "quest", "warning")` alone goes nowhere - a named category has no handler
+    unless the mission attached one - so "nobody holds 'tag_hulkk', so `accepts tag_hulkk`
+    did nothing" was written and thrown away, the run passed, and the answer simply did
+    not start the job. The same line goes to `mast.runtime`.
+    """
     try:
         from sbs_utils.procedural.execution import log
         log(message, "quest", "warning")
+    except Exception:
+        pass
+    try:
+        import logging
+        logging.getLogger("mast.runtime").warning("quest: %s" % message)
     except Exception:
         pass
 
