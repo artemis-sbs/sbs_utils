@@ -332,9 +332,10 @@ QUEST = {
     # Failing this ENDS the mission - "critical" said how much it mattered, not what
     # happens.
     "fatal": field(boolean(), key="critical", aka=("critical",),
-                   doc="Failing this ENDS the mission."),
+                   doc="Failing this FAILS the quest it is `Part of:`. That loses the "
+                       "game only if the parent says `Lose:`."),
     "win": field(boolean(), doc="Completing this WINS the mission."),
-    "lose": field(boolean(), doc="Completing this LOSES the mission."),
+    "lose": field(boolean(), doc="FAILING this loses the game. Completing it does not."),
     # `Win:` / `Lose:` carry their own prose; these are what that prose is STORED as.
     "win text": field(text(hint="the end-screen line"), internal=True),
     "lose text": field(text(hint="the end-screen line"), internal=True),

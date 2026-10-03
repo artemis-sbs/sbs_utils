@@ -40,6 +40,8 @@ it is — is in [The AMD file format](amd-format.md).
 | `Action:` | What the world does the moment this beat STARTS - one stage direction per line, all simultaneous. `Then:` is the other end. |  |
 | `Part of:` | The quest this one belongs under, by key. | `Parent:` |
 | `Scope:` | Who holds it - `shared` is one quest for the whole game, `ship` gives every player ship its own copy. |  |
+| `For:` | _e.g._ `engineering - or a crew member's name` |  |
+| `Leads to:` | Props or people this quest points the crew at, by key. |  |
 | `Held by:` | WHO owns the quest - a landmark key or a role, so a station's resupply job is held by the station and its deadline lands on the world rather than on a passing crew. |  |
 | `Reward:` | What COMPLETING it gives - credits, an item key, or a reputation clause. | `Pays:` |
 | `Penalty:` | What FAILING it costs - the same grammar as `Reward:`. Abandoning an accepted job fails it, so this is what walking away costs. |  |
@@ -49,9 +51,9 @@ it is — is in [The AMD file format](amd-format.md).
 | `On accept:` | What to say the moment the player accepts it. |  |
 | `On complete:` | What to say the moment it completes. |  |
 | `Required:` | Whether the mission needs this one completed to succeed. |  |
-| `Fatal:` | Failing this ENDS the mission. | `Critical:` |
+| `Fatal:` | Failing this FAILS the quest it is `Part of:`. That loses the game only if the parent says `Lose:`. | `Critical:` |
 | `Win:` | Completing this WINS the mission. |  |
-| `Lose:` | Completing this LOSES the mission. |  |
+| `Lose:` | FAILING this loses the game. Completing it does not. |  |
 | `Citation:` | The commendation read out on the end screen. |  |
 | `Scan says:` | What a SCAN of the target reads out. Not `Then: reveal`, which unlocks another quest - same word, two concepts. | `Reveals:`, `Scan text:` |
 | `Show:` | WHEN this quest is listed. `when done` runs it unseen and shows it once it resolves, reading as history; `with children` earns a row only while something under it is listed; `never` drives its events invisibly. Not the same as `Starts when: revealed`, which also stops the triggers. |  |
@@ -138,9 +140,9 @@ not hand-wired in script:
 |---|---|
 | `Part of:` | Attach this quest to a parent quest (its `key`), aggregating into that mission. |
 | `Required:` | The parent isn't won until this child completes. |
-| `Fatal:` | Failing this quest **loses** the game. |
+| `Fatal:` | Failing this quest **fails its parent** (the quest it is `Part of:`). With no parent it does nothing. The game is lost only if that parent says `Lose:`. |
 | `Win:` | Completing this quest **wins** the game. Bare flag, or prose that becomes the end-screen reason. |
-| `Lose:` | Completing (or failing) it **loses** the game. Bare flag, or prose reason. |
+| `Lose:` | **Failing** this quest loses the game. Completing it does not. Bare flag, or prose that becomes the end-screen reason. |
 | `Fails when:` | Fail the quest — `signal base_lost`, `all dead convoy`, `5 minutes`. |
 
 This is the same vocabulary Open Universe uses and the Siege bosses hang their
