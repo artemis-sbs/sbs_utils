@@ -1893,12 +1893,25 @@ def amd_lint_mission_reads(doc, file_path=None, mast_sources=None, source_index=
         from sbs_utils.procedural.amd_schema import archetype_for_section
         for node in doc.nodes:
             top = node.parent
-            if top is None or top.key == "__root__" or not node.children:
+            if top is None or top.key == "__root__":
                 continue
             if not (top.parent is None or top.parent.key == "__root__"):
                 continue                                   # not a top-level section
             key = str(node.key or "").strip().lower()
             if key in literal:
+                continue
+            if not node.children:
+                # No records under it. Either an empty section (nothing lost), or a
+                # RECORD written with one hash too few - which is now a section of its
+                # own that nothing reads, and everything it said is lost.
+                if any(":" in l for _n, l in (node.fence_lines or [])):
+                    findings.append(AmdFinding.at(
+                        node.display_span or node.span, WARNING, "section-not-loaded",
+                        f"`{node.display}` has {node.level} hashes, which makes it a "
+                        f"section of its own, and nothing in this mission reads a "
+                        f"section keyed `{node.key}`. If it is a record, give its "
+                        f"heading {node.level + 1} hashes so it sits inside the "
+                        f"section above it"))
                 continue
             if any(l.strip().lower().startswith(("file:", "files:"))
                    for _n, l in (node.fence_lines or [])):
@@ -1986,17 +1999,21 @@ def amd_lint_mission_reads(doc, file_path=None, mast_sources=None, source_index=
         vocabulary = set(source_index["quoted_words"]) | roles_seen | set(_STOCK_ROLES)
         vocabulary |= set(by_key)                # a key is reported by role-is-a-key
 
-    def worn(lineno, word, what):
+    def worn(lineno, word, what, exact=False):
         if vocabulary is None:
             return
         low = word.strip().lower()
         if not re.match(r"^[a-z_][a-z0-9_]*$", low):
             return
-        try:
-            from sbs_utils.procedural.amd_quest import _singular
-            forms = {low, _singular(low)}
-        except Exception:                               # noqa: BLE001
-            forms = {low}
+        forms = {low}
+        if not exact:
+            # A quest trigger makes its role singular before it looks; `Scan of:` is
+            # read as written, so `derelicts` there is a role nothing wears.
+            try:
+                from sbs_utils.procedural.amd_quest import _singular
+                forms.add(_singular(low))
+            except Exception:                           # noqa: BLE001
+                pass
         if forms & vocabulary:
             return
         findings.append(AmdFinding(
@@ -2017,7 +2034,7 @@ def amd_lint_mission_reads(doc, file_path=None, mast_sources=None, source_index=
                     f"a single role by that whole name, which nothing wears. Write one "
                     f"record for each role"))
                 continue
-            worn(lineno, parts[0], "this scan text")
+            worn(lineno, parts[0], "this scan text", exact=True)
             tab = (fields.get("tab", [(0, "scan")])[0][1] or "scan").strip().lower()
             first = seen_scans.setdefault((parts[0].lower(), tab), lineno)
             if first != lineno:
@@ -2027,6 +2044,22 @@ def amd_lint_mission_reads(doc, file_path=None, mast_sources=None, source_index=
                     f"tab (the first is at line {first}), and the later one replaces "
                     f"the earlier. A record with no `Tab:` line is the `scan` tab. "
                     f"Put every reading for one tab in one record"))
+            # A READING CANNOT WRAP. Each line of a scan record is one reading, so the
+            # second half of a long sentence is offered to the crew as a reading of its
+            # own - and half the time the first half is.
+            previous = None
+            for body_line, raw in (node.body_lines or []):
+                line = raw.strip()
+                if not line or line.startswith("//"):
+                    previous = None
+                    continue
+                if previous == "%" and not line.startswith("%"):
+                    findings.append(AmdFinding(
+                        body_line, WARNING, "reading-wrapped",
+                        "a reading has to stay on one line: this line is read as a "
+                        "separate reading, so the crew may be shown half a sentence. "
+                        "Join it to the line above, however long that gets"))
+                previous = "%" if line.startswith("%") else "text"
             if "scan of" in _plain_fields(node.parent) if node.parent is not None else False:
                 findings.append(AmdFinding.at(
                     node.display_span or node.span, WARNING, "scan-record-level",
