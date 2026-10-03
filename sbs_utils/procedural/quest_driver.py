@@ -390,6 +390,11 @@ def quest_mark_complete(agent_id, quest_id):
         return
     data = quest_get_data(agent_id, quest_id) or {}
     if _quest_swap_in_armed(agent_id, quest_id, data):
+        # THE BEAT STARTS HERE, so its `Action:` runs here. The comment on
+        # `quest_mark_active` says this path was covered; it never was - nothing on it
+        # calls that function - so `Starts when: signal alarm` with an `Action:` armed
+        # its trigger and did nothing else. Still no reward, announcement or reveal.
+        quest_run_action(agent_id, quest_id)
         return
     quest_set_key(agent_id, quest_id, "state", QuestState.COMPLETE)
     quest_grant_reward(agent_id, data.get("reward"))
@@ -445,6 +450,16 @@ _STATE_NAMES = {
 _COUNT_GOAL_KEYS = ("on_signal", "on_kill", "on_scan", "on_reach", "on_dock", "on_collect",
                     "on_tow")
 
+# Everything `Done when:` can write, which is what a `Starts when:` trigger sets aside.
+# `complete_after` was missing: `Done when: 20 seconds` on a quest waiting for a signal
+# was left live, so its clock ran from the GRANT and the quest completed before it had
+# started. `fail_after` is NOT here on purpose - a deadline on something not yet begun
+# can be meant either way, and it has always run from the grant.
+_DONE_KEYS = _COUNT_GOAL_KEYS + ("complete_after",)
+
+#: On SHARED, so a mission reset takes it away with everything else there.
+_PENDING_ACTIONS_KEY = "__quest_pending_actions__"
+
 
 def _arm_start_trigger(data):
     """A quest authored `Starts when: <trigger>` is granted armed with THAT trigger, its
@@ -461,7 +476,7 @@ def _arm_start_trigger(data):
     if not isinstance(start, dict) or not start.get("trigger"):
         return data
     out = dict(data)
-    out["armed_trigger"] = {k: out.pop(k) for k in _COUNT_GOAL_KEYS if k in out}
+    out["armed_trigger"] = {k: out.pop(k) for k in _DONE_KEYS if k in out}
     out.pop("start_trigger", None)
     out[start["trigger"]] = start.get("data") or {}
     return out
@@ -473,7 +488,7 @@ def _quest_swap_in_armed(agent_id, quest_id, data):
     armed = data.get("armed_trigger")
     if armed is None:
         return False
-    for k in _COUNT_GOAL_KEYS:
+    for k in _DONE_KEYS:
         data.pop(k, None)
     data.update(armed)
     data.pop("armed_trigger", None)
@@ -585,9 +600,20 @@ def quest_grant_amd(agent_id, doc, _prefix="", count_scale=1.0):
                 st = _STATE_NAMES.get(
                     str(data.get("state") or implied.get("state") or "idle").lower(),
                     QuestState.IDLE)
+                armed = _arm_start_trigger(_scale_goal_counts(data, count_scale))
                 quest_add(target, qid, n.get("display_text"),
                           (n.get("description") or "").strip(), state=st,
-                          data=_arm_start_trigger(_scale_goal_counts(data, count_scale)))
+                          data=armed)
+                # GRANTED ALREADY RUNNING - the default for a Beat, an Arc and an
+                # Objective, and what `Starts when: at once` says. Its `Action:` is owed
+                # and nothing ran it: the state is written by `quest_add`, not by
+                # `quest_mark_active`. NOT run here, though. A map grants its quests
+                # before it spawns anything, so `quill hails the crew` would hail nobody
+                # and `DS1 departs` would find no DS1. It is run by the driver's first
+                # tick, which starts with the game (`quest_tick_actions`).
+                if (st == QuestState.ACTIVE and data.get("action")
+                        and "armed_trigger" not in armed):
+                    _quest_action_owe(target, qid)
         # Recurse into nested headings, building the child path key `<qid>/<childkey>`.
         # The steps of a `Held by:` job belong to the SAME holder - a station's job does
         # not have its steps held by a passing ship. Without a `Held by:` the historical
@@ -597,6 +623,43 @@ def quest_grant_amd(agent_id, doc, _prefix="", count_scale=1.0):
         if n.get("children"):
             for child_agent in (targets if held_by else [agent_id]):
                 quest_grant_amd(child_agent, n, _prefix=qid + "/", count_scale=count_scale)
+
+
+def _quest_action_owe(agent_id, quest_id):
+    owed = Agent.SHARED.get_inventory_value(_PENDING_ACTIONS_KEY, None)
+    owed = list(owed) if isinstance(owed, (list, tuple)) else []
+    owed.append((agent_id, quest_id))
+    Agent.SHARED.set_inventory_value(_PENDING_ACTIONS_KEY, owed)
+
+
+def quest_actions_owed():
+    """How many granted-running quests are still waiting for their `Action:` to run."""
+    owed = Agent.SHARED.get_inventory_value(_PENDING_ACTIONS_KEY, None)
+    return len(owed) if isinstance(owed, (list, tuple)) else 0
+
+
+def quest_tick_actions():
+    """Watcher tick: run the `Action:` of every quest that was granted already running.
+
+    Once each. Called from `quest_tick_fail_after`, so every mission that ticks its
+    quests at all gets it without a line of its own; public for one that does not.
+
+    Returns:
+        int: how many blocks were run this tick.
+    """
+    owed = Agent.SHARED.get_inventory_value(_PENDING_ACTIONS_KEY, None)
+    if not owed:
+        return 0
+    # Cleared FIRST: a block that grants another running quest must queue it for the
+    # next tick, not lose it to the reset below or run inside this loop.
+    Agent.SHARED.set_inventory_value(_PENDING_ACTIONS_KEY, [])
+    ran = 0
+    for agent_id, quest_id in list(owed):
+        if quest_get(agent_id, quest_id) is None:
+            continue                       # removed before the game started
+        quest_run_action(agent_id, quest_id)
+        ran += 1
+    return ran
 
 
 def quest_reveal(agent_id, reveal):
@@ -1009,6 +1072,8 @@ def quest_tick_fail_after():
     """Watcher tick: fail ACTIVE quests whose fail_after deadline elapsed. The
     deadline is anchored lazily (a per-quest timer set on first sight), so
     activation needs no hook - general to any mission, not just siege."""
+    # The first thing the watcher does, so it is the first thing after the game starts.
+    quest_tick_actions()
     for aid in _quest_holders():
         for qid, data in _active_quests(aid):
             trig = data.get("fail_after")

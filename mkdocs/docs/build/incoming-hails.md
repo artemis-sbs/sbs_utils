@@ -46,12 +46,21 @@ Action:
 says exactly that. Written bare &mdash; `ds1 hails` &mdash; it opens that speaker's
 `When: hail` scene, so a character with one call to make needs no key at all.
 
-!!! warning "`Action:` fires the moment the beat goes active"
-    For most records that is **when the quest is granted**, which is usually earlier than
-    you want a call to arrive. If something has to happen first, write
-    `Starts when: revealed` and reveal the step when the moment comes
-    (`quest_reveal(SHARED, "florbin/brief")`). Peacetime's Florbin briefing does this so
-    DS 1 calls *after* the Admiral has explained why anyone would be calling.
+!!! warning "`Action:` fires the moment the beat starts"
+    | The beat starts | Its `Action:` runs |
+    |---|---|
+    | already running when granted: `Starts when: at once`, or a `Beat` / `Arc` / `Objective` with no `Starts when:` | on the quest driver's first tick, right after the game starts &mdash; not at the grant, when a map has usually spawned nobody to call |
+    | on a trigger: `Starts when: signal alarm` | when the trigger fires |
+    | when revealed or accepted | at the reveal, or the Accept |
+
+    The first row is usually earlier than you want a call to arrive. If something has to
+    happen first, write `Starts when: revealed` and reveal the step when the moment comes
+    (`Then: reveal` on another quest, or `quest_reveal(SHARED, "florbin/brief")`).
+    Peacetime's Florbin briefing does this so DS 1 calls *after* the Admiral has explained
+    why anyone would be calling.
+
+    Before 2026-10-03 only the last row worked: the first two started the beat and never
+    ran its `Action:`.
 
 **Who gets called** follows `Scope:`, and you do not have to think about it:
 
