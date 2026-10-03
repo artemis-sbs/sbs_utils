@@ -1649,6 +1649,14 @@ def amd_lint_dialogue_outcomes(doc):
             ch = _dlg_parse_choice(line)
             for outcome in (ch or {}).get("outcomes") or []:
                 verb = str(outcome[0]).lower()
+                if verb == "learn" and len(outcome) < 2:
+                    # `_boarding_learn_outcome` returns without recording anything, so
+                    # the reading the choice exists to give is never counted.
+                    findings.append(AmdFinding(
+                        lineno, WARNING, "learn-nothing",
+                        "`learn` names no fact, so nothing is recorded and `learned` "
+                        "does not go up. Write `; learn <name>`."))
+                    continue
                 if verb in known:
                     continue
                 findings.append(AmdFinding(
@@ -1656,6 +1664,75 @@ def amd_lint_dialogue_outcomes(doc):
                     f"`{verb}` is not an outcome verb, so nothing applies it - the "
                     f"choice does everything except this. Known: "
                     f"{', '.join(sorted(known))}."))
+    return findings
+
+
+def amd_lint_guards(doc):
+    """Flag a condition the game cannot read, on a choice or on a `%{...}` line. WARNING.
+
+    A guard is a name, or `name op number` - nothing else (`dialogue_guard_ok`). Anything
+    that is neither is answered False, every time, with no error: the choice is never
+    offered and the line is never spoken. To the author that is a choice that vanished,
+    and the file looks right because it very nearly is:
+
+        - [Answer the log](last_entry) if learned => 2      the operator is backwards
+        - [Read the tags](suits) if medical, learn suits    a comma where the `;` goes
+        - [Read the tags](suits) ; learn suits if medical   the condition after the `;`
+
+    The third parses differently and fails differently - the `if` is swallowed into the
+    outcome, so the choice is offered to EVERYBODY and records a fact named
+    `suits if medical` - but it is the same slip, so it is reported here too
+    (`guard-after-outcome`).
+
+    Only the SHAPE is judged. Whether `medcal` is a word anything answers to depends on
+    the mission's resolver, which a linter does not run.
+    """
+    try:
+        from sbs_utils.procedural.amd import amd_body_variant
+        from sbs_utils.procedural.amd_dialogue import (_dlg_parse_choice, _GUARD,
+                                                       _BARE_GUARD)
+    except Exception:
+        return []
+
+    def readable(guard):
+        text = str(guard).strip()
+        return bool(_BARE_GUARD.match(text) or _GUARD.match(text))
+
+    how = "Write a name (`if medical`) or `name >= number` - the operators are >= <= == != > <."
+    findings = []
+    for node in doc.nodes:
+        if str(getattr(node, "kind", "") or "").strip().lower() != "dialogue":
+            continue
+        for lineno, text in (node.body_lines or []):
+            line = text.strip()
+            if not line or line.startswith("//"):
+                continue
+            if line.startswith("-") and "](" in line:
+                ch = _dlg_parse_choice(line) or {}
+                guard = ch.get("guard")
+                if guard and not readable(guard):
+                    findings.append(AmdFinding(
+                        lineno, WARNING, "unreadable-guard",
+                        f"`if {guard}` is not a condition the game can read, so this "
+                        f"choice is never offered. {how} An outcome goes after a `;`, "
+                        f"not a comma."))
+                for outcome in ch.get("outcomes") or []:
+                    if "if" in [str(t).lower() for t in outcome[1:]]:
+                        findings.append(AmdFinding(
+                            lineno, WARNING, "guard-after-outcome",
+                            f"the `if` is after the `;`, so it is read as part of "
+                            f"`{outcome[0]}` and the choice is offered to everybody. "
+                            f"Put the condition first: `- [..](..) if <condition> ; "
+                            f"{outcome[0]} ...`."))
+                continue
+            if not (line.startswith("%") or line.startswith("{")):
+                continue
+            _text, gate = amd_body_variant(line)
+            if gate and not readable(gate):
+                findings.append(AmdFinding(
+                    lineno, WARNING, "unreadable-guard",
+                    f"`{{{gate}}}` is not a condition the game can read, so this line "
+                    f"is never spoken. {how}"))
     return findings
 
 
@@ -1991,6 +2068,7 @@ def amd_lint(file_path=None, content=None, mast_sources=None, cross_file=None,
         findings += amd_lint_hails(doc)
         findings += amd_lint_then(doc)
         findings += amd_lint_dialogue_outcomes(doc)
+        findings += amd_lint_guards(doc)
         findings += amd_lint_callouts(doc)
         findings += amd_lint_images(doc, file_path)
         findings += amd_lint_named_hulls(doc)

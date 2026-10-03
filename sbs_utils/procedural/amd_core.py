@@ -674,6 +674,15 @@ def parse(content, file_path=None):
                 and RE_CUE.match(raw) is None and RE_DIRECTION.match(raw) is None):
             node.summary = stripped
 
+    # A RECORD WITH NO FENCE STILL HAS A KIND. The kind is resolved where the fence closes,
+    # so a record that has none - a boarding room is a line and its ways out, nothing
+    # more - was left untyped, and every pass that asks "is this dialogue" walked past it.
+    # Its own kind line is the only thing a fence could have added; the section it sits in
+    # says the rest. Document order, so a parent is typed before its children ask it.
+    for n in nodes:
+        if n.kind is None and not n.fence_lines:
+            n.kind = _resolve_node_kind(n, "")
+
     # Collect refs in document order (data refs were attached per-node above).
     for n in nodes:
         refs.extend(n.refs)

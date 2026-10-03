@@ -202,10 +202,18 @@ A scene is a record with `Speaker:` (or `@Cue` lines in the body), `When: comms|
 - [Take the case]() ; completes florbin/brief
 ```
 
-- **Guards are `name op integer` only** (`_GUARD`). The mission supplies the number via
-  `dialogue_set_metric_resolver`; with no resolver the left side is 0. A guard that does
-  not match the pattern evaluates **False - the choice silently disappears**. `%{gate}`
-  gates a variant line the same way.
+- **Guards are a name, or `name op integer`** (`_BARE_GUARD`, `_GUARD`; `if medical` is
+  `medical >= 1`). The mission supplies the number via `dialogue_set_metric_resolver`;
+  with no resolver the left side is 0. A guard that matches neither evaluates **False -
+  the choice silently disappears**. `%{gate}` gates a variant line the same way. Since
+  2026-10-03 `sbs lint` reports the SHAPE: `unreadable-guard` (`if learned => 2`, a comma
+  where the `;` goes) and `guard-after-outcome` (`; learn x if medical`, which offers the
+  choice to everybody). It cannot report a WORD nothing answers to - `if medcal` and
+  `%{learnd < 2}` lint clean, the first never true and the second always true.
+- **A record with no fence still has a kind** (2026-10-03): it takes its section's. A
+  boarding room - `### [The Airlock](airlock)`, a `%` line, its choices, no `---` - used
+  to resolve to no kind, so every dialogue check skipped it. Sections keyed `scenes`,
+  `scene` or `boarding` hold dialogue.
 - **Outcome verbs are registered per mission.** Built in: `signal`. `quest_driver`
   registers `accepts`, `completes`, `fails`; `boarding` registers `learn`; **`costs` and
   `earns` exist only in OpenUniverse** (`universe_dialogue.py`). An unregistered verb is

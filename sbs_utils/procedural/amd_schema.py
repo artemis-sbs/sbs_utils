@@ -954,6 +954,12 @@ _SECTION_ALIASES = {
     "regions": "region", "region": "region",
     "maps": "map", "map": "map",
     "dialogue": "dialogue", "lines": "dialogue",
+    # A boarding scene's ROOMS. A room is a line and its ways out, and the simplest one
+    # has no fence at all - so nothing on it says `Speaker:`, the discriminator never
+    # fires, and it used to resolve to no kind. Every dialogue check skips an untyped
+    # record, so `; lern suits` in a room linted clean while the same typo in a hail
+    # was reported. The section is already named for what it holds.
+    "scenes": "dialogue", "scene": "dialogue", "boarding": "dialogue",
     "urges": "urge", "urge": "urge",
     # A LOOK. The kind line is the bare noun `Effect`, resolving here - NOT
     # `Kind: effect`, which would infer landmark (see ("kind","landmark") below).
