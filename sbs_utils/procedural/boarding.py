@@ -1549,7 +1549,33 @@ def _body_for(post, client_id):
     # later are things that HAPPENED to this person, not what they are for.
     set_inventory_value(body, JOBS_KEY,
                         [w for w in words if w and w != CREW_ROLE])
+    # HOW GOOD THEY ARE, from the roster member this post was cast from - looked up by
+    # the post's roster and key, NOT by the body's name. A name is what the player
+    # typed: a member who renamed themselves kept their job (it rides on the post) and
+    # lost every skill number, on the one machine at the table that had a saved name.
+    skills = _post_skills(post)
+    if skills:
+        from .boarding_checks import boarding_skills_set
+        boarding_skills_set(body, skills)
     return body
+
+
+def _post_skills(post):
+    """The `Skills:` of the roster member a post was cast from, as {skill: n}. {} for a
+    post that came from no roster, or a member with no `Skills:` line."""
+    try:
+        from .crew import crew_roster
+        from .boarding_checks import boarding_skills_parse
+        roster = crew_roster(getattr(post, "roster", "") or "")
+        key = str(getattr(post, "key", "") or "")
+        if roster is None or not key:
+            return {}
+        for member in roster.get("members") or ():
+            if str(member.get("key")) == key:
+                return boarding_skills_parse(member.get("skills") or "")
+    except Exception:                                   # noqa: BLE001
+        pass
+    return {}
 
 
 def boarding_full_name(name, rank):

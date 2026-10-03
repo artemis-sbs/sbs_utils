@@ -141,6 +141,11 @@ def crew_member_record(section, data, key, name=None, roster_key=None):
         # `Roles: medical` line was read, stored, and never reached the console or the
         # boarding party built from it. The surgeon boarded as "science", the seat she left.
         "roles": _csv(data.get("roles")),
+        # HOW GOOD they are at things - `Skills: engineering 4, science 1`. On the record
+        # for the same reason `roles` is: the schema declared the field, lint accepted
+        # it, and nothing carried it past the fence, so a roster's numbers were read by
+        # nobody unless the mission also made a second call to read them.
+        "skills": str(data.get("skills") or "").strip(),
         "face": data.get("face") or "",
         "portrait": data.get("portrait") or "",
         "at": _pair(data.get("at")),
