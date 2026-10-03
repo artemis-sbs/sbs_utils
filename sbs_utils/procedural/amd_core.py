@@ -343,7 +343,13 @@ def _extract_data_refs(node, fence_lines):
 
     parent = _di(data, "Parent")
     if parent:
-        r = _token_span(fence_lines, "Parent", str(parent).strip(), key, "parent")
+        # BOTH SPELLINGS. `Part of:` is the current one and `Parent:` the older; the value
+        # lands under the same key, but the SPAN is found by looking for the label as
+        # written - and only `Parent` was looked for. So a `Part of:` reference was never
+        # recorded, and `Part of: salvge` linted clean while silently making a required
+        # step optional.
+        r = (_token_span(fence_lines, "Part of", str(parent).strip(), key, "parent")
+             or _token_span(fence_lines, "Parent", str(parent).strip(), key, "parent"))
         if r:
             node.refs.append(r)
 

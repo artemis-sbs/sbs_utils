@@ -208,9 +208,15 @@ def quest_folder(agent_id, quest_id):
     #
     #
 
-    if len(path) > 1:
-        for i in range(len(path)-1):
-            quest = children.get(path[i], None)
+    # DESCEND. This loop read `children.get(path[i])` on every pass without ever moving
+    # `children` down, so it looked every component up among the ROOT's children: for
+    # `arc/step` that happens to be right, and for `arc/step/part` it looked for `step`
+    # at the top, found nothing, and the third level was dropped without a word.
+    for part in path[:-1]:
+        quest = children.get(part, None)
+        if quest is None:
+            return None, path[-1]
+        children = quest.get("children", {})
     return quest, path[-1]
 
 

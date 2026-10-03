@@ -279,8 +279,16 @@ def _resolves(doc, value, known_keys):
         # A slashed value may be a literal KEY (an AMD heading `](arc/step)`, which is how
         # a nested quest is authored) as well as a heading PATH. Check the key first, or
         # every nested reference reads as dangling.
-        return (value in doc.keys or doc.path_resolves(value)
-                or value.split("/")[-1] in known_keys)
+        if value in doc.keys or doc.path_resolves(value):
+            return True
+        # THE ARC IS IN THIS FILE, so the step has to be under it. The soft check below
+        # asks only whether the LEAF exists somewhere, which is right for a path into
+        # another file and wrong here: `Then: reveal salvage/home` was "resolved" by a
+        # `home` typed under the wrong heading, the reveal found nothing, the arc was
+        # left with one nested step - and the game was won when that one step finished.
+        if value.split("/")[0] in doc.keys:
+            return False
+        return value.split("/")[-1] in known_keys
     # `Aka:` names count as resolving - that is the entire point of declaring one.
     return (value in doc.keys or value in known_keys
             or _aka_hit(doc, value))
@@ -1741,6 +1749,79 @@ def amd_lint_guards(doc):
     return findings
 
 
+_TRIGGER_LABELS = {
+    "done when": "done", "done_when": "done", "goal": "done",
+    "fails when": "fails", "fails_when": "fails",
+    "starts when": "starts", "starts_when": "starts",
+}
+
+#: What `Fails when:` has a watcher for. Anything else parses and is then dropped.
+_FAIL_TRIGGERS = ("on_signal", "all_dead", "after")
+
+
+def amd_lint_quest_triggers(doc):
+    """Flag a `Starts when:` / `Done when:` / `Fails when:` the game cannot watch for.
+
+    All three take one small grammar, and a value outside it is not an error anywhere:
+    the line is dropped and the quest simply has no such trigger. So `Done when: ten
+    minutes` is a quest with no way to finish, `Fails when: reach station 1000` is a
+    quest that cannot fail that way, and `Starts when: reveal` (for `revealed`) is a
+    quest left on the board - each with lint clean, each found by playing. WARNING.
+
+    Also `Then:` written twice: the fence keeps one value per label, so the second
+    replaces the first and a quest meant to reveal two steps reveals one.
+    """
+    try:
+        from sbs_utils.procedural.amd_quest import amd_trigger
+    except Exception:
+        return []
+    findings = []
+    for node in doc.nodes:
+        if str(getattr(node, "kind", "") or "").strip().lower() != "quest":
+            continue
+        thens = []
+        for lineno, _raw, label, value in _fence_fields(node):
+            name = " ".join(label.strip().lower().split())
+            if name == "then":
+                thens.append(lineno)
+                continue
+            which = _TRIGGER_LABELS.get(name)
+            if which is None or not value:
+                continue
+            try:
+                trig = amd_trigger(value)
+            except Exception:
+                trig = None
+            if trig is None:
+                if which == "starts":
+                    say = ("is not a way a quest starts, so it is left waiting on the "
+                           "board. Write `at once`, `accepted`, `revealed`, or a trigger")
+                elif which == "fails":
+                    say = ("is not something the game can watch for, so this quest "
+                           "cannot fail this way. `Fails when:` takes `signal <name>`, "
+                           "a time, or `all dead <role>`")
+                else:
+                    say = ("is not something the game can watch for, so this quest has "
+                           "no way to finish. Start with destroy, scan, dock, reach, "
+                           "recover, tow or signal - or write a time")
+                findings.append(AmdFinding(
+                    lineno, WARNING, "unknown-trigger",
+                    f"`{value}` {say}. A time is a number and a unit: `10 minutes`, "
+                    f"`90 seconds`, `1 hour`."))
+            elif which == "fails" and trig[0] not in _FAIL_TRIGGERS:
+                findings.append(AmdFinding(
+                    lineno, WARNING, "unsupported-fail-trigger",
+                    f"`Fails when: {value}` is never checked - nothing watches for it - "
+                    f"so this quest cannot fail this way. `Fails when:` takes `signal "
+                    f"<name>`, a time, or `all dead <role>`."))
+        for lineno in thens[1:]:
+            findings.append(AmdFinding(
+                lineno, WARNING, "repeated-then",
+                "`Then:` is written more than once in this record, and only the last "
+                "one counts - the earlier reveal or signal is lost."))
+    return findings
+
+
 def amd_lint_then(doc):
     """Flag a `Then:` whose first word is not a verb it knows. WARNING.
 
@@ -2072,6 +2153,7 @@ def amd_lint(file_path=None, content=None, mast_sources=None, cross_file=None,
         findings += amd_lint_relics(doc)
         findings += amd_lint_hails(doc)
         findings += amd_lint_then(doc)
+        findings += amd_lint_quest_triggers(doc)
         findings += amd_lint_dialogue_outcomes(doc)
         findings += amd_lint_guards(doc)
         findings += amd_lint_callouts(doc)

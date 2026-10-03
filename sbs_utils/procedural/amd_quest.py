@@ -14,7 +14,7 @@ here - a richer mission (Open Universe) keeps its own labels and composes this
 handler underneath them.
 """
 from sbs_utils.procedural.amd import (amd_parse_facts, amd_norm, amd_num, amd_coords,
-                                      amd_signal_name, amd_duration_parts)
+                                      amd_signal_name, amd_duration_parts, amd_is_duration)
 
 # verb -> (quest-data trigger key, target field). The trigger keys are what the LM
 # quest_driver dispatchers read (quest_on_kill / on_collect / on_scan / on_dock /
@@ -105,7 +105,11 @@ def amd_trigger(value, aliases=None):
         return "revealed", {}
     if toks[0].lower() == "all" and len(toks) > 2 and toks[1].lower() == "dead":
         return "all_dead", {"role": _resolve_role(" ".join(toks[2:]), aliases)}
-    if toks[0].isdigit() and _is_duration(low):
+    # A LENGTH OF TIME, however it is written. The old test wanted the first word to be
+    # a number and one of four spellings of a unit, so `90 sec`, `10m` and `after 10
+    # minutes` were not durations at all: they parsed to nothing, the quest got no clock,
+    # and lint said clean.
+    if amd_is_duration(low) or (toks[0].isdigit() and _is_duration(low)):
         n, unit = amd_duration_parts(low)
         return "after", {unit: n or 0}
     spec = TRIGGER_VERBS.get(toks[0].lower())

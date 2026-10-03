@@ -361,6 +361,16 @@ def quest_reeval_tree_parent(agent_id, quest_id):
 
 def quest_mark_active(agent_id, quest_id):
     """Set a quest ACTIVE (idempotent)."""
+    if quest_get(agent_id, quest_id) is None:
+        # NOT THERE. Everything below went ahead regardless: the state write landed
+        # nowhere, and `quest_started` was announced for a quest nobody holds - so a
+        # `Then: reveal` with the wrong path looked, to anything listening, like a step
+        # that had started.
+        import logging
+        logging.getLogger("mast.runtime").warning(
+            "Quest: there is no quest %r to start - a `Then: reveal` names a step by its "
+            "full path, `arc/step`" % (quest_id,))
+        return
     if quest_get_state(agent_id, quest_id) == QuestState.ACTIVE:
         return
     quest_set_key(agent_id, quest_id, "state", QuestState.ACTIVE)

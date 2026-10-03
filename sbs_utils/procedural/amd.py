@@ -622,6 +622,30 @@ def amd_signal_name(value):
 
 
 _COMPACT_DURATION = re.compile(r"^(\d+)\s*([a-zA-Z]*)$")
+_DURATION_PART = re.compile(r"(\d+)\s*([a-z]+)")
+_DURATION_UNITS = {
+    3600: ("h", "hr", "hrs", "hour", "hours"),
+    60: ("m", "min", "mins", "minute", "minutes"),
+    1: ("s", "sec", "secs", "second", "seconds"),
+}
+
+#: Text that is a duration and nothing else: `10 minutes`, `90 sec`, `10m`, `1 hour`,
+#: `2 minutes 30 seconds`, with an optional leading `after` or `in`.
+RE_DURATION_ONLY = re.compile(
+    r"^(?:after\s+|in\s+)?(?:\d+\s*(?:hours?|hrs?|h|minutes?|mins?|m|seconds?|secs?|s)\s*)+$")
+
+
+def _duration_unit(word):
+    """Seconds in one of `word`, or None when it is not a unit of time."""
+    for seconds, words in _DURATION_UNITS.items():
+        if word in words:
+            return seconds
+    return None
+
+
+def amd_is_duration(value):
+    """Whether ``value`` is a length of time and nothing else."""
+    return bool(RE_DURATION_ONLY.match(str(value).strip().lower()))
 
 
 def amd_duration_parts(value):
@@ -640,9 +664,24 @@ def amd_duration_parts(value):
     unrecognized suffix still falls through to minutes, as before.
     """
     text = str(value)
+    low = text.lower()
+    # SEVERAL PARTS, OR AN HOUR WRITTEN OUT. The scan below takes the first number and
+    # decides the unit from whether the word "second" appears ANYWHERE, so `2 minutes 30
+    # seconds` was 2 SECONDS and `1 hour` was 1 minute - a ten-minute deadline that lost
+    # the mission inside a breath, with lint clean. Every `<number> <unit>` pair is read;
+    # one pair keeps the authored unit, several are summed to seconds.
+    parts = [(int(n), _duration_unit(u)) for n, u in _DURATION_PART.findall(low)]
+    known = [(n, u) for n, u in parts if u is not None]
+    if len(known) > 1 or (len(known) == 1 and known[0][1] == 3600):
+        total = sum(n * u for n, u in known)
+        if len(known) == 1:
+            return total // 60, "minutes"      # hours are minutes, as `2h` always was
+        return total, "seconds"
     num = next((int(t) for t in text.split() if t.isdigit()), None)
-    unit = "seconds" if "second" in text.lower() else "minutes"
+    unit = "seconds" if "second" in low else "minutes"
     if num is not None:
+        if unit == "minutes" and len(known) == 1 and known[0][1] == 1:
+            unit = "seconds"                  # `90 sec`: the word "second" is not in it
         return num, unit
     for token in text.split():
         m = _COMPACT_DURATION.match(token)
