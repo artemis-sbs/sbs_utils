@@ -768,7 +768,7 @@ def _home(client_id, surface=SURFACE_BOARDING):
     A surface with no `home_text` simply has tiles.
     """
     from .row import gui_row
-    from .text import gui_text, gui_text_area
+    from .text import gui_text, gui_text_area, gui_text_literal
     from .blank import gui_blank
 
     sdef = _surface_def(surface)
@@ -787,7 +787,7 @@ def _home(client_id, surface=SURFACE_BOARDING):
         # `1fr` it took every pixel the tiles were not using and pushed them to the foot
         # of the column.
         gui_row("row-height: %dpx;" % BEAT_PX)
-        gui_text_area(line)
+        gui_text_area(gui_text_literal(line))      # an author's line, not a template
 
     for app in xess_apps(client_id, surface):
         _tile(client_id, app, surface)
@@ -878,7 +878,7 @@ def _act_app(client_id):
     hypothetical - it is the bug the first version of this screen shipped with.
     """
     from .row import gui_row
-    from .text import gui_text, gui_text_area
+    from .text import gui_text, gui_text_area, gui_text_literal
     from .listbox import gui_list_box
     from .message import gui_message_callback
     from ..boarding import (boarding_line, boarding_choices, boarding_seq, boarding_answer,
@@ -910,7 +910,7 @@ def _act_app(client_id):
         # choices were a 15px sliver at the bottom - reported as "the ACT buttons are at
         # the bottom and less than 20 pixels", which is exactly what 2% is.
         gui_row("row-height: %dpx;" % BEAT_PX)
-        gui_text_area(line)
+        gui_text_area(gui_text_literal(line))      # an author's line, not a template
 
     try:
         choices = list(boarding_choices(client_id) or [])
@@ -1146,7 +1146,7 @@ def _caller_detail(client_id, item):
     is what keeps this device off a scrollbar.
     """
     from .row import gui_row
-    from .text import gui_text, gui_text_area
+    from .text import gui_text, gui_text_area, gui_text_literal
     from .button import gui_button
     from ..boarding import boarding_me
 
@@ -1155,7 +1155,7 @@ def _caller_detail(client_id, item):
     # what they last said. It was a colored text line, a room word squeezed beside it,
     # and the message below - three widgets, no face.
     gui_row("row-height: 1fr; padding: 8px, 8px, 0, 8px;")
-    gui_text_area(_caller_detail_text(item, last))
+    gui_text_area(gui_text_literal(_caller_detail_text(item, last)))
 
     more = _older_count(item)
     if more:
@@ -1467,7 +1467,7 @@ def _fire_app(client_id):
     guess is the same problem as inferring it from what you hit.
     """
     from .row import gui_row
-    from .text import gui_text, gui_text_area
+    from .text import gui_text, gui_text_area, gui_text_literal
     from .button import gui_button
     from ..boarding_site import (boarding_armed, boarding_setting, boarding_settings,
                                  boarding_setting_text, FIRE_RANGE)

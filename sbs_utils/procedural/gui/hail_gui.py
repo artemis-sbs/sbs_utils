@@ -480,7 +480,7 @@ def hail_view(ship, client_id=None, face_style=None):
         str | None: the form that was built, or None when no hail is open.
     """
     from .row import gui_row
-    from .text import gui_text, gui_text_area
+    from .text import gui_text, gui_text_area, gui_text_literal
     from .face import gui_face
     from .image import gui_image_keep_aspect_ratio_center
 
@@ -522,15 +522,16 @@ def hail_view(ship, client_id=None, face_style=None):
     gui_row("row-height: 1.6em;")
     gui_text(_hail_text(name) + "font:gui-3;")
     gui_row("row-height: 1fr;")
-    # The line goes STRAIGHT into the widget. Dialogue text may contain `{`, and a
-    # bare MAST assignment would re-format it as an f-string and fail against the
-    # assignment line rather than against the text.
-    gui_text_area(line)
+    # LITERAL, because the widget is a template. Dialogue text may contain `{`: this
+    # comment used to say the line "goes STRAIGHT into the widget", and it does - into a
+    # widget that then fills `{name}` in it, so `Call me {Captain}` raised against the
+    # screen's own `await gui()` and the console stopped drawing.
+    gui_text_area(gui_text_literal(line))
 
     readout = [] if _hail_may_answer_here(client_id) else _hail_choice_readout(ship)
     if readout:
         gui_row("row-height: content;")
-        gui_text_area(chr(10).join(readout))
+        gui_text_area(gui_text_literal(chr(10).join(readout)))
     return form
 
 
@@ -538,7 +539,7 @@ def hail_view(ship, client_id=None, face_style=None):
 def _hail_band_builder(client_id, content):
     """The name plate, the line, and (read-only) the choices, over a live shot."""
     from .row import gui_row
-    from .text import gui_text, gui_text_area
+    from .text import gui_text, gui_text_area, gui_text_literal
 
     name = content.get("name") or ""
     line = content.get("line") or ""
@@ -547,10 +548,10 @@ def _hail_band_builder(client_id, content):
     gui_row(f"row-height: 1.6em; background: {BAND_BACKGROUND};layer: {BAND_LAYER};")
     gui_text(_hail_text(name) + "font:gui-3;padding:4px;")
     gui_row(f"row-height: 1fr; background: {BAND_BACKGROUND};layer: {BAND_LAYER};")
-    gui_text_area(line, "padding: 8px;")
+    gui_text_area(gui_text_literal(line), "padding: 8px;")
     if choices:
         gui_row(f"row-height: content; background: {BAND_BACKGROUND};layer: {BAND_LAYER};")
-        gui_text_area(chr(10).join(choices), "padding: 8px;")
+        gui_text_area(gui_text_literal(chr(10).join(choices)), "padding: 8px;")
 
 
 overlay_register(HAIL_BAND_SLOT, _hail_band_builder)
@@ -588,7 +589,7 @@ def _hail_screen_builder(client_id, content):
     covers all of them without touching one, and clearing it restores the screen exactly.
     """
     from .row import gui_row
-    from .text import gui_text, gui_text_area
+    from .text import gui_text, gui_text_area, gui_text_literal
     from .face import gui_face
     from .blank import gui_blank
     from .image import gui_image_keep_aspect_ratio_center
@@ -629,10 +630,10 @@ def _hail_screen_builder(client_id, content):
     gui_row(f"row-height: 1.8em; background: {SCREEN_BACKGROUND};layer: {SCREEN_LAYER};")
     gui_text(_hail_text(name) + "font:gui-3;padding:6px;")
     gui_row(f"row-height: 1fr; background: {SCREEN_BACKGROUND};layer: {SCREEN_LAYER};")
-    gui_text_area(line, "padding: 10px;")
+    gui_text_area(gui_text_literal(line), "padding: 10px;")
     if choices:
         gui_row(f"row-height: content; background: {SCREEN_BACKGROUND};layer: {SCREEN_LAYER};")
-        gui_text_area(chr(10).join(choices), "padding: 10px;")
+        gui_text_area(gui_text_literal(chr(10).join(choices)), "padding: 10px;")
 
 
 overlay_register("hail_screen", _hail_screen_builder)
@@ -741,7 +742,7 @@ def hail_panel_history(cid, left=0, top=0, width=0, height=0):
     so the state lives on the console (`HAIL_REPLAY`) and this reads it.
     """
     from .row import gui_row
-    from .text import gui_text, gui_text_area
+    from .text import gui_text, gui_text_area, gui_text_literal
     from .button import gui_button
     from .listbox import gui_list_box
     from .message import gui_message_callback
@@ -760,7 +761,7 @@ def hail_panel_history(cid, left=0, top=0, width=0, height=0):
                               data={"hail_client": cid})
             gui_message_callback(back, _hail_replay_back)
             gui_row("row-height: 1fr;")
-            gui_text_area(hail_transcript_text(entry))
+            gui_text_area(gui_text_literal(hail_transcript_text(entry)))
             return
 
     entries = hail_log(ship)

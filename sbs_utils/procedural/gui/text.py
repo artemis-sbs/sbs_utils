@@ -132,6 +132,25 @@ def gui_text_area(props, style=None, markdown=True, line_styles=None, on_link=No
     return layout_item
 
 
+def gui_text_literal(text):
+    """``text`` made safe to hand to a widget that fills ``{name}`` in what it is given.
+
+    `gui_text_area` treats its text as a template: `{ship}` is looked up and filled in.
+    That is right for a string a script wrote and wrong for a line an AUTHOR wrote - a
+    spoken line in an .amd file, a message from home. `Call me {Captain}, everyone does.`
+    is a `NameError` against the screen's own `await gui()`, and the console that was
+    drawing it stops drawing. Seen in the engine, 2026-10-03.
+
+    Pass prose through this first. The braces come out the other side as braces.
+    """
+    text = str(text)
+    if "{" not in text:
+        # The widget only formats text that HAS an opening brace, so a line with a lone
+        # `}` is already safe - and doubling it would show the crew two.
+        return text
+    return text.replace("{", "{{").replace("}", "}}")
+
+
 def gui_text_area_append(text_area, text, sep="\n\n"):
     """Add text to the end of a text area - how a story continues after a choice.
 

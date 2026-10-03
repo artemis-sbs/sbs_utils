@@ -593,14 +593,20 @@ class ConversationViewTests(HailViewBase):
         self.assertEqual(V.hail_view(self.ship, self.comms), "still")
         self.assertIn(("image", "nebula_wide"), self.trace)
 
-    def test_the_spoken_line_reaches_the_widget_unassigned(self):
-        # Dialogue text may contain braces; it goes straight into the widget rather
-        # than through a MAST variable that would re-format it as an f-string.
+    def test_the_spoken_line_reaches_the_widget_as_a_literal(self):
+        # Dialogue text may contain braces, and the widget is a TEMPLATE: it fills
+        # `{name}` in whatever it is handed. This test used to assert the line arrived
+        # untouched - against a recorder that does not format, so it passed while the
+        # real widget raised NameError on `{captain}` and the console stopped drawing
+        # (seen in the engine, 2026-10-03). What must arrive is the line made literal;
+        # test_gui_text_literal.py runs that through the real formatter.
+        from sbs_utils.procedural.gui.text import gui_text_literal
         self.offer(lines="Brace yourself {captain}", choices=["ok"])
         H.hail_accept(self.ship)
         V.hail_view(self.ship, self.comms)
         areas = [e[1] for e in self.trace if e[0] == "text_area"]
-        self.assertIn("Brace yourself {captain}", areas)
+        self.assertIn(gui_text_literal("Brace yourself {captain}"), areas)
+        self.assertNotIn("Brace yourself {captain}", areas)
 
     def test_a_console_that_cannot_answer_sees_the_choices_read_only(self):
         self.open_to_choices()
