@@ -241,6 +241,10 @@ class LintSeesWhatTheGameWillNotReadTests(unittest.TestCase):
                                        "Chamber: 0, 0, 0, 900"))
         self.assertIn("relic-part-no-owner", codes)
 
+    def test_a_loc_with_two_numbers(self):
+        codes = _codes(_ruin().replace("Loc: 0, 0, 20000", "Loc: 0, 20000"))
+        self.assertIn("relic-bad-loc", codes)
+
     def test_a_passage_to_nowhere_says_the_ruin_is_not_built(self):
         found = [f for f in amd_lint(
             content=_ruin().replace("Passage to: mouth 350", "Passage to: crypt 350"),

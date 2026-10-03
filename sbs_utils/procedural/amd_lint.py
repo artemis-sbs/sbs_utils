@@ -1047,6 +1047,14 @@ def amd_lint_relic_structure(doc):
                 f"`{section.display}`. Give this heading {section.level + 1} hashes, the "
                 f"same as the relic itself"))
             continue
+        if not is_part and "loc" in fields:
+            ln, value = fields["loc"]
+            got = len(_relic_nums(value))
+            if got < 3:
+                findings.append(AmdFinding(
+                    ln, WARNING, "relic-bad-loc",
+                    f"`Loc:` needs 3 numbers - across, height, along - and has {got}, "
+                    f"so it is not read and `{node.display}` is built at 0, 0, 0"))
         if has_shape and not is_part:
             findings.append(AmdFinding.at(
                 where, WARNING, "relic-part-no-owner",
