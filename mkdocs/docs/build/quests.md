@@ -66,6 +66,11 @@ whatever else offers it, typically answering an [incoming hail](incoming-hails.m
 that calls itself a **`Beat`** or an **`Arc`** already implies its `Show:` value -
 see [screenplay words](amd-format.md#screenplay-words).
 
+**Who a `Reward:` pays.** Credits belong to a side. A ship's quest pays that ship's
+side. A `Scope: shared` quest belongs to the whole table, so it pays every side that
+has a player ship - once each and in full, however many ships that side flies.
+`Penalty:` charges the same sides.
+
 !!! tip "Say `Beat` or `Arc` instead"
     A record that calls itself a **`Beat`** (a moment the crew lives through) already
     means `Show: when done`, and an **`Arc`** (the heading over a run of beats) already

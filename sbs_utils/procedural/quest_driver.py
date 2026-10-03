@@ -208,20 +208,47 @@ def quest_payee(agent_id):
     return ship_id if ship_id else agent_id
 
 
+def _quest_credit_sides(agent_id):
+    """The side ids a quest's credits land on.
+
+    Credits belong to a SIDE, so a ship-held quest is paid through the ship's own.
+
+    The SHARED story agent has no side. A ``Scope: shared`` quest is the whole table's,
+    and its credit line used to be skipped in silence: every Siege boss objective carried
+    a ``Reward:`` that paid nobody, while a ship-held quest completing in the same game
+    paid as normal. It pays every side that has a player ship - ONCE each and in full,
+    however many ships fly for it. That is one side in a Siege; in a multi-side universe
+    nobody is handed a share of another side's count.
+
+    Any other holder with no side is still paid nothing, as before.
+    """
+    side = getattr(to_object(agent_id), "side", None)   # SHARED agents have no .side
+    if side:
+        sid = to_side_id(side)
+        return [sid] if sid else []
+    if to_id(agent_id) != Agent.SHARED_ID:
+        return []
+    sids = []
+    for ship in to_object_list(role("__player__")):
+        ship_side = getattr(ship, "side", None)
+        sid = to_side_id(ship_side) if ship_side else None
+        if sid and sid not in sids:
+            sids.append(sid)
+    return sids
+
+
 def quest_grant_reward(agent_id, reward):
     """Grant a quest reward: credits to the agent's side, items to the agent, and
     reputation to the agent (player/SHARED holders only - see ``_quest_rep_holder``).
 
-    A client-held quest is paid through its ship - see ``quest_payee``."""
+    A client-held quest is paid through its ship - see ``quest_payee``. A SHARED quest's
+    credits go to every player side - see ``_quest_credit_sides``."""
     if not isinstance(reward, dict):
         return
     agent_id = quest_payee(agent_id)
     credits = reward.get("credits", 0)
     if credits:
-        ship = to_object(agent_id)
-        side = getattr(ship, "side", None)   # SHARED agents have no .side
-        if side:
-            sid = to_side_id(side)
+        for sid in _quest_credit_sides(agent_id):
             set_inventory_value(sid, "credits", get_inventory_value(sid, "credits", 0) + credits)
     for k, n in (reward.get("items") or {}).items():
         set_inventory_value(agent_id, k, get_inventory_value(agent_id, k, 0) + n)
@@ -236,16 +263,15 @@ def quest_grant_penalty(agent_id, penalty):
 
     Mirrors the reward in WHO PAYS too: a client-held quest is charged through its ship
     (``quest_payee``). Without that a job taken by the person and failed cost nothing at
-    all, which would make a client-held job strictly safer than the same job on a hull."""
+    all, which would make a client-held job strictly safer than the same job on a hull.
+    A SHARED quest charges every player side once, for the same reason
+    (``_quest_credit_sides``)."""
     if not isinstance(penalty, dict):
         return
     agent_id = quest_payee(agent_id)
     credits = penalty.get("credits", 0)
     if credits:
-        ship = to_object(agent_id)
-        side = getattr(ship, "side", None)   # SHARED agents have no .side
-        if side:
-            sid = to_side_id(side)
+        for sid in _quest_credit_sides(agent_id):
             set_inventory_value(sid, "credits", max(0, get_inventory_value(sid, "credits", 0) - credits))
     for k, n in (penalty.get("items") or {}).items():
         set_inventory_value(agent_id, k, max(0, get_inventory_value(agent_id, k, 0) - n))
