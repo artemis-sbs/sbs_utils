@@ -1822,6 +1822,79 @@ def amd_lint_quest_triggers(doc):
     return findings
 
 
+def _quest_path(node):
+    """The path the game files this quest under: its own key below each quest it is
+    nested in - `salvage/approach/home`. None when any key on the way is already a
+    slashed literal, which this cannot second-guess.
+
+    An ancestor counts only when it is plainly a QUEST: typed as one AND carrying fields
+    of its own. A `## [Quests](quests)` section is typed quest by its name and is a
+    container, not a step on the path; so is a heading whose fence is a kind line and
+    nothing else, which cannot be told from a section. Stopping there can only make the
+    answer too SHORT, and the caller reports only an answer that is LONGER than what
+    was written - so a doubtful ancestor costs a missed warning, never a false one.
+    """
+    if "/" in str(node.key):
+        return None
+    keys = [str(node.key)]
+    n = node.parent
+    while (n is not None and str(getattr(n, "kind", "") or "").lower() == "quest"
+           and _fence_fields(n)):
+        if "/" in str(n.key):
+            return None
+        keys.append(str(n.key))
+        n = n.parent
+    return "/".join(reversed(keys))
+
+
+def amd_lint_reveal_paths(doc):
+    """Flag a `Then: reveal` that finds its step in the FILE and not in the GAME.
+
+    The game looks a revealed step up by its exact path, `arc/step`. Lint is more
+    forgiving: a bare key resolves anywhere in the document, and a path may skip levels.
+    So two ways of writing it were clean here and did nothing there:
+
+        Then: reveal home              the step is `salvage/home`
+        Then: reveal salvage/home      the step has five hashes: `salvage/approach/home`
+
+    Nothing is revealed, the story cannot be finished - or, when the missing step was
+    the only one left, the arc completes without it and the game is WON at once. WARNING.
+    """
+    findings = []
+    by_key = getattr(doc, "_by_key_all", None)
+    if by_key is None:
+        return findings
+    owners = {n.key: n for n in doc.nodes}
+    for ref in doc.refs:
+        if ref.kind != "reveal":
+            continue
+        owner = owners.get(ref.owner)
+        if owner is None or str(getattr(owner, "kind", "") or "").lower() != "quest":
+            continue
+        value = str(ref.value).strip()
+        if not value or value in doc.keys and "/" in value:
+            continue                               # a literal slashed key: not ours
+        if "/" in value:
+            target = doc._match_path([s for s in value.split("/") if s])
+        else:
+            nodes = by_key.get(value) or ()
+            target = nodes[0] if len(nodes) == 1 else None
+        if target is None:
+            continue                               # dangling or ambiguous: said elsewhere
+        if str(getattr(target, "kind", "") or "").lower() != "quest":
+            continue
+        want = _quest_path(target)
+        if want is None or want == value or want.count("/") <= value.count("/"):
+            continue
+        findings.append(AmdFinding.at(
+            ref.span, WARNING, "reveal-path",
+            f"`Then: reveal {value}` - that step is `{want}` to the game, which looks "
+            f"for the exact path. Nothing will be revealed. Write `Then: reveal {want}`"
+            + (", or check the number of hashes on the step's heading."
+               if "/" in value else ".")))
+    return findings
+
+
 def amd_lint_then(doc):
     """Flag a `Then:` whose first word is not a verb it knows. WARNING.
 
@@ -2154,6 +2227,7 @@ def amd_lint(file_path=None, content=None, mast_sources=None, cross_file=None,
         findings += amd_lint_hails(doc)
         findings += amd_lint_then(doc)
         findings += amd_lint_quest_triggers(doc)
+        findings += amd_lint_reveal_paths(doc)
         findings += amd_lint_dialogue_outcomes(doc)
         findings += amd_lint_guards(doc)
         findings += amd_lint_callouts(doc)

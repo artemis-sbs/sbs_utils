@@ -112,6 +112,27 @@ class AStepUnderTheWrongHeadingTests(unittest.TestCase):
         self.assertIn("dangling-parent", _codes(text))
 
 
+class RevealNamesThePathTheGameLooksForTests(unittest.TestCase):
+    """The game looks a revealed step up by its exact path. Lint was more forgiving - a
+    bare key resolves anywhere, and a path may skip a level - so both of these were clean
+    in the file and revealed nothing in the game."""
+
+    def test_a_bare_key(self):
+        codes = _codes(_swap("Then: reveal salvage/home", "Then: reveal home"))
+        self.assertIn("reveal-path", codes)
+
+    def test_a_step_nested_one_level_too_deep(self):
+        text = _swap("#### [Bring the Log Home](home)", "##### [Bring the Log Home](home)")
+        found = [f for f in amd_lint(content=text, cross_file=False)
+                 if f.code == "reveal-path"]
+        self.assertEqual(len(found), 1)
+        self.assertIn("salvage/approach/home", found[0].message)
+        self.assertIsInstance(found[0].line, int)
+
+    def test_the_exact_path_is_quiet(self):
+        self.assertNotIn("reveal-path", _codes(ARC))
+
+
 class TriggersTheGameCannotWatchTests(unittest.TestCase):
     def test_a_time_written_in_words(self):
         self.assertIn("unknown-trigger",
