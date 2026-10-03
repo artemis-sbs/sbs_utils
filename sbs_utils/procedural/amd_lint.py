@@ -1849,7 +1849,16 @@ _RELIC_FILE_SECTIONS = ("items", "dialogue", "cutscenes", "side_stories")
 _TRIGGER_LABELS_SPACED = ("done when", "starts when", "fails when", "goal", "when")
 
 
-def amd_lint_mission_reads(doc, file_path=None, mast_sources=None):
+#: Roles the engine and the library hand out themselves - never written in a mission's
+#: own strings, so their absence from them proves nothing.
+_STOCK_ROLES = frozenset((
+    "station", "ship", "npc", "player", "terrain", "asteroid", "nebula", "mine",
+    "pickup", "upgrade", "wreck", "friendly", "enemy", "raider", "civ", "civilian",
+    "monster", "typhon", "black_hole", "cockpit", "fighter", "shuttle", "elite",
+    "__player__", "__npc__", "__terrain__", "__space_object__"))
+
+
+def amd_lint_mission_reads(doc, file_path=None, mast_sources=None, source_index=None):
     """Flag content the mission will never load, and a pointer at a key where the game
     wants a role. WARNING. Needs the mission's MAST, so it runs in a whole-mission lint.
 
@@ -1962,6 +1971,80 @@ def amd_lint_mission_reads(doc, file_path=None, mast_sources=None):
             f"`{word}` is the KEY of the landmark `{node.display}`, and {what} looks "
             f"for a ROLE. Nothing wears a role called `{word}`, so this matches "
             f"nothing. Add `Roles: {word}` to that landmark's fence"))
+
+    # --- a role nothing wears ----------------------------------------------------------
+    # The mission's role vocabulary: every word in a string literal in its own MAST, every
+    # `Roles:` in this file, and the roles the engine hands out. A trigger or a scan that
+    # names a word outside it matches nothing, ever - `reach lifebaot 500` is a step that
+    # cannot finish, `Scan of: derelect` is a tab that never appears.
+    #
+    # Only in a mission built the template's way (its story places the Landmarks section
+    # itself). A mission on an addon's world - Open Universe - gets its roles from relic
+    # points, captains and sites in OTHER files, which this cannot see.
+    vocabulary = None
+    if spawned and source_index is not None and source_index.get("quoted_words"):
+        vocabulary = set(source_index["quoted_words"]) | roles_seen | set(_STOCK_ROLES)
+        vocabulary |= set(by_key)                # a key is reported by role-is-a-key
+
+    def worn(lineno, word, what):
+        if vocabulary is None:
+            return
+        low = word.strip().lower()
+        if not re.match(r"^[a-z_][a-z0-9_]*$", low):
+            return
+        try:
+            from sbs_utils.procedural.amd_quest import _singular
+            forms = {low, _singular(low)}
+        except Exception:                               # noqa: BLE001
+            forms = {low}
+        if forms & vocabulary:
+            return
+        findings.append(AmdFinding(
+            lineno, WARNING, "role-nothing-wears",
+            f"nothing in this mission wears a role called `{low}`, so {what} matches "
+            f"nothing. Check the spelling against the `Roles:` line of the thing you "
+            f"mean, or the roles in `story.mast`"))
+
+    seen_scans = {}
+    for node in doc.nodes:
+        fields = _plain_fields(node)
+        for lineno, value in fields.get("scan of", []):
+            parts = [w.strip() for w in value.split(",") if w.strip()]
+            if len(parts) != 1 or len(parts[0].split()) != 1:
+                findings.append(AmdFinding(
+                    lineno, WARNING, "scan-of-many",
+                    f"`Scan of:` takes ONE role - one word - and `{value}` is read as "
+                    f"a single role by that whole name, which nothing wears. Write one "
+                    f"record for each role"))
+                continue
+            worn(lineno, parts[0], "this scan text")
+            tab = (fields.get("tab", [(0, "scan")])[0][1] or "scan").strip().lower()
+            first = seen_scans.setdefault((parts[0].lower(), tab), lineno)
+            if first != lineno:
+                findings.append(AmdFinding(
+                    lineno, WARNING, "duplicate-scan",
+                    f"this is a second record for role `{parts[0]}` on the `{tab}` "
+                    f"tab (the first is at line {first}), and the later one replaces "
+                    f"the earlier. A record with no `Tab:` line is the `scan` tab. "
+                    f"Put every reading for one tab in one record"))
+            if "scan of" in _plain_fields(node.parent) if node.parent is not None else False:
+                findings.append(AmdFinding.at(
+                    node.display_span or node.span, WARNING, "scan-record-level",
+                    f"`{node.display}` is nested under the scan record "
+                    f"`{node.parent.display}`, so it is not read. Give it the same "
+                    f"number of hashes"))
+        for label in _TRIGGER_LABELS_SPACED:
+            for lineno, value in fields.get(label, []):
+                words = value.replace(",", " ").split()
+                if len(words) < 2 or words[0].lower() not in (
+                        "reach", "travel", "destroy", "kill", "scan", "survey", "dock",
+                        "recover", "collect", "gather", "tow", "haul"):
+                    continue
+                for w in words[1:]:
+                    if not re.match(r"^-?\d+(\.\d+)?%?$", w):
+                        if w.lower() not in by_key:
+                            worn(lineno, w, f"`{words[0]}`")
+                        break
 
     if by_key:
         for node in doc.nodes:
@@ -2704,7 +2787,7 @@ def amd_lint(file_path=None, content=None, mast_sources=None, cross_file=None,
         findings += amd_lint_guards(doc)
         findings += amd_lint_skills(doc)
         findings += amd_lint_kind_lines(doc)
-        findings += amd_lint_mission_reads(doc, file_path, mast_sources)
+        findings += amd_lint_mission_reads(doc, file_path, mast_sources, source_index)
         findings += amd_lint_callouts(doc)
         findings += amd_lint_images(doc, file_path)
         findings += amd_lint_named_hulls(doc)

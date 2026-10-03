@@ -170,6 +170,72 @@ class AKeyWhereTheGameWantsARoleTests(unittest.TestCase):
         self.assertEqual(_codes(text), [])
 
 
+class ARoleNothingWearsTests(unittest.TestCase):
+    """`reach lifebaot 500` is a step that cannot finish; `Scan of: derelect` is a tab
+    that never appears. Judged against the words in the story's own strings, the
+    `Roles:` lines in the file and the roles the engine hands out."""
+
+    STORY = STORY.replace(
+        "    ->END\n",
+        '    npc_spawn(0, 0, 9000, "Hulk", "tsn, derelict", "tsn_warpster", "behav_npcship")\n'
+        "    ->END\n")
+    CODES = ("role-nothing-wears", "scan-of-many", "duplicate-scan", "scan-record-level")
+
+    def found(self, text):
+        return [f for f in amd_lint(file_path="mission.amd", content=text,
+                                    mast_sources=[self.STORY], cross_file=False)
+                if f.code in self.CODES]
+
+    def codes(self, text):
+        return [f.code for f in self.found(text)]
+
+    def test_the_lessons_file_is_quiet(self):
+        self.assertEqual(self.codes(MISSION), [])
+
+    def test_a_misspelled_role_after_reach(self):
+        got = self.found(_swap("Done when: reach lifeboat 500", "Done when: reach lifebaot 500"))
+        self.assertEqual([f.code for f in got], ["role-nothing-wears"])
+        self.assertIn("lifebaot", got[0].message)
+
+    def test_a_misspelled_scan_of(self):
+        self.assertIn("role-nothing-wears",
+                      self.codes(_swap("Scan of: lifeboat", "Scan of: lifebote")))
+
+    def test_a_role_from_the_story_is_known(self):
+        text = _swap("Done when: reach lifeboat 500", "Done when: reach derelict 500")
+        self.assertEqual(self.codes(text), [])
+
+    def test_a_plural_the_game_makes_singular_is_known(self):
+        text = _swap("Done when: reach lifeboat 500", "Done when: scan 2 derelicts")
+        self.assertEqual(self.codes(text), [])
+
+    def test_a_role_the_engine_hands_out_is_known(self):
+        text = _swap("Done when: reach lifeboat 500", "Done when: reach station 1000")
+        self.assertEqual(self.codes(text), [])
+
+    def test_a_signal_or_a_time_is_not_a_role(self):
+        for value in ("signal log_found", "10 minutes", "reach 6, 4"):
+            text = _swap("Done when: reach lifeboat 500", "Done when: " + value)
+            self.assertEqual(self.codes(text), [], value)
+
+    def test_two_roles_in_one_scan_of(self):
+        self.assertIn("scan-of-many",
+                      self.codes(_swap("Scan of: lifeboat", "Scan of: lifeboat, derelict")))
+
+    def test_two_records_for_one_role_and_tab(self):
+        again = "### [Again](again_scan)\n---\nScan of: lifeboat\n---\n% Twice.\n\n"
+        text = MISSION.replace("## [The Watch](watch)", again + "## [The Watch](watch)")
+        self.assertIn("duplicate-scan", self.codes(text))
+
+    def test_a_mission_on_an_addons_world_is_not_second_guessed(self):
+        story = self.STORY.replace("landmarks_spawn(amd_section", "my_places(amd_section")
+        text = _swap("Done when: reach lifeboat 500", "Done when: reach lifebaot 500")
+        got = [f.code for f in amd_lint(file_path="mission.amd", content=text,
+                                        mast_sources=[story], cross_file=False)
+               if f.code == "role-nothing-wears"]
+        self.assertEqual(got, [])
+
+
 class ABareWordThatIsNotAKindTests(unittest.TestCase):
     def test_kind_written_without_its_label(self):
         found = _found(_swap("Kind: wreck\n", "wreck\n"))
