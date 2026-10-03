@@ -63,10 +63,17 @@ crew.
 Before this call a scene had a beginning and no end: the party stayed open after the last
 room, and a console that went down late arrived in an empty one.
 
-**Where the crew reads it.** A party with nowhere to walk (no `site=`, no `area=`) plays in
-the PADD: BEAM DOWN opens Messages on the first room, each room arrives as a message named
-for the room and signed by the place, and its choices are the reply buttons. When the visit
-ends each console is put back on its own station's screen.
+**Where the crew reads it: the xESS.** BEAM DOWN turns the console into the boarding party's
+handheld. Its bar says who you are, your job, and the room you are in; its ACT app is the
+room's line with one button per choice, and CREW is who came and the way home. With an
+interior or a tile area the device sits beside the map; a party with nowhere to walk (no
+`site=`, no `area=`) gets the device alone, across the screen. When the visit ends each
+console is put back on its own station's screen.
+
+The label that screen lives on is MAST, so it comes from LegendaryMissions' `boarding`
+addon: list it in the mission's `story.json`. A mission without it gets a line in
+`mast.runtime.log` the first time it opens a visit, because a crew member who beams down
+would have no screen for the scene.
 
 ## What the party works out: `learn` and `learned`
 
