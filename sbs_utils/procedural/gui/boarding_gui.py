@@ -273,7 +273,9 @@ def _who_is_down():
     if not team:
         return
     gui_row("row-height: content; padding: 24px, 12px, 24px, 2px;")
-    gui_text(f"$text:On the surface;font:gui-1;color:{DIM};")
+    # NOT "On the surface": a party aboard a hulk or a station is not on one. Who has
+    # gone is the fact; where is the title in the bar above.
+    gui_text(f"$text:In the party;font:gui-1;color:{DIM};")
     for member in team:
         name, job = boarding_label(member)
         # A FACE leads each name, as it does on the roster above - "who is down there"

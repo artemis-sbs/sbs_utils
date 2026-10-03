@@ -57,10 +57,20 @@ TO_VAR = "epadd_message_to"
 # clears it in `Layout.region_begin`. A region is the other thing in this codebase that
 # can take its own content away.
 
-#: The reply band, pinned to the bottom of the reading pane. Three stacked replies at
-#: `row-height: 2.4em` plus their padding; a fourth scrolls off, which is why
-#: `message_choices` is worth keeping short.
-REPLY_BAND_PX = 200
+#: One reply: a `2.4em` button on an unfonted row (gui-2, 24px) and 6px above it.
+REPLY_ROW_PX = 64
+
+#: How many replies the band holds at full size. THREE was the number, and it was a
+#: letter's number: a note from home offers two or three things to say. A boarding
+#: room is read on this same pane and offers more - a way on, a way back, a way home,
+#: and one reading per job - so a lone officer in a room written for four jobs is
+#: offered six. The fourth was drawn UNDER the compose line, half its width, and a
+#: click on it landed in the text box (seen in the engine, 2026-10-03).
+REPLY_ROWS = 6
+
+#: The reply band, pinned to the bottom of the reading pane. More replies than
+#: `REPLY_ROWS` still fit: the rows get shorter rather than running off the band.
+REPLY_BAND_PX = REPLY_ROWS * REPLY_ROW_PX + 8
 
 #: The sender's portrait at the top of a letter's body, in pixels tall.
 MESSAGE_FACE_PX = 72
@@ -193,11 +203,12 @@ def _reply_strip(msg):
     if not offered:
         return
     mid = msg.get("id")
+    row_style = _reply_rows_begin(len(offered))
     for choice in offered:
         # ONE BUTTON PER ROW. A reply is a sentence, not a word - side by side they
         # divide a fixed width and the engine does not clip, so they draw over each
         # other and none of them can be read.
-        gui_row("row-height: 2.4em; padding: 0, 6px, 0, 0;")
+        gui_row(row_style)
 
         # A closure with BOUND DEFAULTS, not a reference to the loop variable: the
         # buttons are built in a loop and every one of them would otherwise answer
@@ -210,6 +221,28 @@ def _reply_strip(msg):
         # the BACKTICKS - they quote a style value, they are not markup the renderer
         # strips - so every reply read with the marks still around it.
         gui_button(choice["label"], on_press=press)
+
+
+def _reply_rows_begin(count):
+    """Start a stack of ``count`` reply buttons; returns the style for each one's row.
+
+    THE BUTTONS SIT AT THE BOTTOM OF THE BAND, against the compose line, however many
+    there are - so two replies do not float at the top of a band sized for six with a
+    gap under them. The space above them is a blank row, drawn here.
+
+    More than the band holds: the rows get shorter so every reply stays above the
+    compose line. A button that is partly under it cannot be pressed.
+    """
+    from .row import gui_row
+    from .blank import gui_blank
+    count = max(1, int(count))
+    usable = REPLY_BAND_PX - 8
+    if count >= REPLY_ROWS:
+        row_px = max(30, usable // count)
+        return "row-height: %dpx; padding: 0, 6px, 0, 0;" % (row_px - 6)
+    gui_row("row-height: %dpx;" % ((REPLY_ROWS - count) * REPLY_ROW_PX))
+    gui_blank()
+    return "row-height: %dpx; padding: 0, 6px, 0, 0;" % (REPLY_ROW_PX - 6)
 
 
 def _boarding_reply_strip(msg):
@@ -244,8 +277,9 @@ def _boarding_reply_strip(msg):
         return
 
     seq = boarding_seq()
+    row_style = _reply_rows_begin(len(offered))
     for index, choice in enumerate(offered):
-        gui_row("row-height: 2.4em; padding: 0, 6px, 0, 0;")
+        gui_row(row_style)
 
         def press(_cid=client_id, _i=index, _seq=seq,
                   _agent=getattr(choice, "agent", None)):
@@ -578,8 +612,13 @@ def _reading_replies_fill(reading):
     there before on screen - which for this band is the previous message's buttons.
     The overlay system carries the same one-space placeholder for the same reason.
     """
+    from .row import gui_row
     from .text import gui_text
 
     if reading is not None:
         _reply_strip(reading)
+    # A ROW OF ITS OWN. Drawn straight after the strip, the placeholder was a second
+    # cell on the LAST reply's row, so the last button of every stack was half the
+    # width of the ones above it - and a long label wrapped inside it.
+    gui_row("row-height: 2px;")
     gui_text("$text:` `;")

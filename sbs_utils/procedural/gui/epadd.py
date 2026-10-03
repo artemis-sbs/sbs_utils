@@ -146,6 +146,20 @@ def _console_identity(client_id=None):
     return get_inventory_value(cid, "CONSOLE_TYPE", None)
 
 
+#: What the PADD's bar CALLS a console, where its own name is not fit to print. A
+#: boarded console's type is `boarding_crew`, and the bar read BOARDING_CREW.
+CONSOLE_TITLES = {"boarding_crew": "boarding party", "crew": "boarding party",
+                  "away": "boarding party"}
+
+
+def epadd_console_title(console):
+    """A console's name as the bar shows it: words, never an identifier."""
+    if not console:
+        return ""
+    console = str(console).strip().lower()
+    return CONSOLE_TITLES.get(console, console.replace("_", " "))
+
+
 def epadd_console_name(console):
     """The name a script would use for a console, whatever the engine calls it."""
     if console is None:
@@ -991,7 +1005,7 @@ def gui_app_home(ship_name=None, columns=None, title="ePADD"):
                  style="col-width: content;")
     gui_blank()
     if console:
-        gui_text(f"$text:{_esc(console.upper())};font:gui-1;color:{DIM};",
+        gui_text(f"$text:{_esc(epadd_console_title(console).upper())};font:gui-1;color:{DIM};",
                  style="col-width: content;")
     # THE MISSION CLOCK, anchoring the right end of the bar. It comes after the
     # blank, which takes the row's slack, so everything after it sits at the far end.

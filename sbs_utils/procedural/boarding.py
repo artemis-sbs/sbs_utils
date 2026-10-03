@@ -539,11 +539,40 @@ def _mirror_to_inbox():
     try:
         from .messages import message_send
         message_send(str(line), to="boarding", kind="scene",
-                     sender=_SCENE.get("speaker") or "Away",
-                     subject=_SCENE.get("key"), scene=_SCENE.get("key"))
+                     sender=_beat_sender(), subject=_beat_subject(),
+                     scene=_SCENE.get("key"))
     except Exception:
         from .execution import log
         log("could not mirror an boarding beat to the inbox", "boarding", "warning")
+
+
+def _beat_subject():
+    """What the inbox calls this beat: the room's NAME, as the author wrote it.
+
+    It was the room's key - `airlock` under a heading that says `The Airlock` - because
+    the key is what the scene is filed under. A key is the author's handle, lower case
+    and one word; the crew should read the name.
+    """
+    key = _SCENE.get("key")
+    node = dialogue_get(_SCENE.get("scenes") or {}, key) if key else None
+    name = (node.get("display_text") if hasattr(node, "get") else None) or ""
+    return str(name).strip() or key
+
+
+def _beat_sender():
+    """Who the inbox says a beat is from: its speaker, else the PLACE.
+
+    A room with no `Speaker:` is narration, and it was signed "Away" - which is this
+    module's old name, not anything the crew was told. The place they went to is.
+    """
+    speaker = _SCENE.get("speaker")
+    if speaker:
+        return speaker
+    if boarding_invitation() is not None or boarding_team():
+        title = boarding_invite_title()
+        if title and title != "BOARDING PARTY":
+            return title
+    return "The party"
 
 
 def boarding_scene_end(channel=None):
