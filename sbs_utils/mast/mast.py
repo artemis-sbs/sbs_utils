@@ -103,6 +103,25 @@ class Rule:
 
 
 
+# A BYTE-ORDER MARK IS NOT SOURCE. Some Windows tools put three bytes at the front of a
+# file they save as UTF-8 - older Notepad, and PowerShell's `Set-Content -Encoding utf8`.
+# They are invisible in every editor, and the first line of the story then failed as
+# "Unrecognized syntax" on a line that looked perfect. A story that does not compile
+# schedules nothing, so the whole mission was dead for a character nobody can see.
+#
+# Two spellings, because a folder file is read with the platform's default encoding and a
+# mastlib file as UTF-8: the same three bytes arrive as one character or as three.
+_BOMS = ("﻿", "\xef\xbb\xbf")
+
+
+def strip_bom(content):
+    """`content` without a leading byte-order mark, in either spelling."""
+    for bom in _BOMS:
+        if content.startswith(bom):
+            return content[len(bom):]
+    return content
+
+
 # Open .mastlib handles, reused for the duration of ONE compile.
 #
 # content_from_lib_or_file() is called once per file, and a mastlib holds many
@@ -466,7 +485,7 @@ class Mast():
         if import_file_name in exec_files:
             return
         with open(import_file_name, "r") as pyfile:
-            content = pyfile.read()
+            content = strip_bom(pyfile.read())
         # Exec into the FILE's own globals, then publish only its public names, so a
         # top-level `_helper` cannot be replaced by - or replace - another addon's.
         # See MastGlobals.PrivateFileNamespace for what that cost before.
@@ -968,7 +987,7 @@ class Mast():
 
                 with lib_file.open(file_name) as f:
                     DEBUG(f"DEBUG: {self.lib_name} {file_name}")
-                    content = f.read().decode('UTF-8')
+                    content = strip_bom(f.read().decode('UTF-8'))
                     self.basedir = os.path.dirname(file_name)
                     return content, None
 
@@ -987,7 +1006,7 @@ class Mast():
                 self.basedir = os.path.dirname(file_name)
                     
                 with open(file_name) as f:
-                    content = f.read()
+                    content = strip_bom(f.read())
                 return content, None
         except Exception as e:
             # Surface the underlying cause (permission, decode, missing zip
