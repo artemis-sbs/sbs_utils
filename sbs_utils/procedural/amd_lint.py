@@ -1108,8 +1108,13 @@ def amd_lint_relics(doc):
     # runs, and what you fly into is wrong. An unknown art key does not raise: the engine
     # falls back to the `unknown` mesh, so a typo is a ruin built out of question marks.
     # An unknown `Walls:` value falls back to plain rock, so a plated hall quietly is not.
-    known_art = _relic_known_art()
+    # Asked for only when a relic actually names art. Asking up front meant EVERY lint of
+    # every mission went looking for the catalog - and where it cannot be found, said so
+    # in the first line of the output, to a writer whose file had no relic in it.
+    known_art = None
     for node, fields in _relic_nodes(doc):
+        if "art" in fields and known_art is None:
+            known_art = _relic_known_art()
         if "art" in fields and known_art:
             ln, value = fields["art"]
             for key in [k.strip() for k in str(value).split(",") if k.strip()]:
@@ -1358,10 +1363,22 @@ def _relic_known_art():
     Empty means SAY NOTHING. `sbs lint` runs outside the game, where the art catalog may
     not be reachable at all, and a linter that reports every key as unknown because it
     could not find the file is worse than one that stays quiet.
+
+    SAY NOTHING includes not ASKING. `get_ship_data` treats a missing catalog as an
+    install fault - it logs "could not read ship data ... Check the Artemis install path"
+    and caches an empty ship table for the rest of the process. Both are right inside the
+    game and wrong here: under the CLI `exe_dir` is the Python program's folder, so the
+    file is simply not where the library looks. Look first, and only load what is there.
     """
     try:
-        from .ship_data import get_ship_index
-        return set((get_ship_index() or {}).keys())
+        from . import ship_data
+        if ship_data.ship_data_cache is None:
+            from ..fs import get_artemis_data_dir
+            base = os.path.join(get_artemis_data_dir(), "shipData")
+            # The same three spellings `load_data` tries, in its order.
+            if not any(os.path.exists(base + ext) for ext in (".yaml", ".yml", ".json")):
+                return set()
+        return set((ship_data.get_ship_index() or {}).keys())
     except Exception:                                   # noqa: BLE001
         return set()
 
