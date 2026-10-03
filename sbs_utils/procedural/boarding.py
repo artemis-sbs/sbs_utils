@@ -274,6 +274,11 @@ def boarding_learned(fact=None, place=None):
     return 1 if str(fact).strip() in facts else 0
 
 
+def boarding_facts_count():
+    """Reset-ledger probe: how many facts are held, across every place."""
+    return sum(len(facts) for facts in _FACTS.values())
+
+
 def boarding_facts_forget(place=None):
     """Forget what was worked out at ``place`` - or everywhere, with no argument.
 
@@ -592,6 +597,21 @@ def _mirror_to_inbox():
         log("could not mirror an boarding beat to the inbox", "boarding", "warning")
 
 
+def boarding_room_title(client_id=None):
+    """The NAME of the room this console's party is in - `The Airlock` - or None.
+
+    The heading the author wrote, not the key the room is filed under. None when no
+    scene is open for that console.
+    """
+    rec = _record(boarding_channel_of(client_id) if client_id is not None else None)
+    key = rec.get("key")
+    if not key:
+        return None
+    node = dialogue_get(rec.get("scenes") or {}, key)
+    name = (node.get("display_text") if hasattr(node, "get") else None) or ""
+    return str(name).strip() or str(key)
+
+
 def _beat_subject():
     """What the inbox calls this beat: the room's NAME, as the author wrote it.
 
@@ -599,10 +619,7 @@ def _beat_subject():
     the key is what the scene is filed under. A key is the author's handle, lower case
     and one word; the crew should read the name.
     """
-    key = _SCENE.get("key")
-    node = dialogue_get(_SCENE.get("scenes") or {}, key) if key else None
-    name = (node.get("display_text") if hasattr(node, "get") else None) or ""
-    return str(name).strip() or key
+    return boarding_room_title() or _SCENE.get("key")
 
 
 def _beat_sender():
@@ -1029,7 +1046,15 @@ def _boarding_beat_text(client_id, agent=None):
         lines.append("")
     agent_q = f"&agent={to_id(agent)}" if agent is not None else ""
     for i, ch in enumerate(choices):
-        lines.append(f"[{amd_choice_label(ch.get('label'))}]"
+        label = amd_choice_label(ch.get('label'))
+        # SOMEBODY ELSE'S JOB, said so. A party short of a medic is still offered the
+        # medic's line, on one console - and unmarked it reads as though this character
+        # were qualified. The list form of this app and the inbox both say it; the story
+        # form, which is the one on screen by default, did not.
+        covering = getattr(ch, "forwarded", None)
+        if covering:
+            label = "%s (covering for %s)" % (label, str(covering).split(">=")[0].strip())
+        lines.append(f"[{label}]"
                      f"(signal://{BOARDING_PICK_SIGNAL}?i={i}&seq={seq}{agent_q})")
     return "\n".join(lines)
 
@@ -1897,6 +1922,28 @@ def boarding_orphan_choices(channel=None):
 VISIT_KEY = "__BOARDING_VISIT__"
 _VISIT_TASK_KEY = "__BOARDING_VISIT_TASK__"
 
+#: Things already said this mission, so a visit opened ten times complains once.
+_VISIT_SAID = set()
+
+
+def _visit_say(message, once=None):
+    """Report a visit that cannot work where the author will see it.
+
+    `log(msg, "boarding", "warning")` alone goes NOWHERE - a named category has no
+    handler unless the mission attached one - and that is how "the quest completed and
+    no party formed" came to have a clean log beside it. The same line goes to
+    `mast.runtime`, which is the log everybody reads and the one a headless test fails
+    on.
+    """
+    if once is not None:
+        if once in _VISIT_SAID:
+            return
+        _VISIT_SAID.add(once)
+    from .execution import log
+    log(message, "boarding", "warning")
+    import logging
+    logging.getLogger("mast.runtime").warning("boarding_visit: " + message)
+
 
 def boarding_visit(ship, scenes, first, title=None, cast=None, site=None, area=None,
                    place=None):
@@ -1927,15 +1974,26 @@ def boarding_visit(ship, scenes, first, title=None, cast=None, site=None, area=N
     Returns:
         dict: the invitation - or None, with nothing opened, when a party or a scene is
         already open, or ``first`` names no room. Checked BEFORE the party opens: a crew
-        offered a place with no room in it has no way to find out why.
+        offered a place with no room in it has no way to find out why. That, and a
+        mission with no boarding console to show the scene on, is said in
+        ``mast.runtime.log``.
     """
     if boarding_visiting() is not None or boarding_invitation() is not None or boarding_is_open():
         return None
     if not first or dialogue_get(scenes or {}, first) is None:
-        from .execution import log
-        log("boarding_visit: there is no room '%s' - nothing was opened" % (first,),
-            "boarding", "warning")
+        rooms = ", ".join(sorted(str(k) for k in (scenes or {}))) or "none at all"
+        _visit_say("there is no room '%s', so nothing was opened. The rooms it was given: "
+                   "%s. Check the key of the first room, and that the section holding "
+                   "the rooms is the one the map body reads." % (first, rooms))
         return None
+    # THE SCREEN A BOARDED CONSOLE BECOMES is a MAST label, and the library has none: the
+    # `boarding` addon declares it. Without that addon a crew member presses BEAM DOWN and
+    # is left on the app that offered it, with the room and its choices nowhere on screen.
+    from .gui.console_tab import gui_tab_boarded_back_tab
+    if gui_tab_boarded_back_tab() is None:
+        _visit_say("no boarding console is loaded, so a crew member who beams down has no "
+                   "screen for the scene. Add the LegendaryMissions `boarding` addon to "
+                   "this mission's story.json.", once="no-console")
     # `if medical` is answered against the answering character's roles. Composes with
     # whatever resolver a mission already installed, so calling it here is always safe.
     boarding_metric_install()
@@ -2047,7 +2105,13 @@ def _boarding_visit_tick(t=None):
             _visit_unwatch()
 
 
+def boarding_visit_said_count():
+    """Reset-ledger probe: how many once-only visit notices have been used up."""
+    return len(_VISIT_SAID)
+
+
 def boarding_visit_clear():
     """The per-mission reset: no visit, no watcher. Emits nothing and moves nobody."""
     _visit_unwatch()
     Agent.SHARED.set_inventory_value(VISIT_KEY, None)
+    _VISIT_SAID.clear()

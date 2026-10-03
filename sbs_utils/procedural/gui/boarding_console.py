@@ -181,7 +181,11 @@ def _grid_where(client_id):
         from ..eva import eva_my_suit, eva_where
         if eva_my_suit(client_id) is not None:
             return eva_where(client_id)
-        return "aboard"
+        # NO FLOOR AT ALL: a party that talks its way through a place. The room it is in
+        # is the one the scene has open, and its name is the only "where" there is - the
+        # bar said "aboard" over every room of the visit.
+        from ..boarding import boarding_room_title
+        return boarding_room_title(client_id) or "aboard"
     host = boarding_my_host(client_id)
     room = boarding_room_at(host, at[0], at[1], boarding_room_roles())
     if room is None:
@@ -189,12 +193,31 @@ def _grid_where(client_id):
     return boarding_room_name(room.name)
 
 
+def boarding_has_ground(client_id):
+    """Whether this console's character is standing on something that can be drawn.
+
+    A tile area, or a ship or station interior. A party that only TALKS its way through
+    a place - rooms written as scenes, nothing to walk - has neither.
+    """
+    from ..boarding_tiles import boarding_tile_on
+    from ..boarding_site import boarding_my_host
+    return bool(boarding_tile_on(client_id)) or boarding_my_host(client_id) is not None
+
+
 def gui_boarding_console(client_id=None, map_width=66, on_leave=None):
     """Build the crew console: the interior on the left, the xESS on the right.
+
+    A PARTY WITH NOWHERE TO WALK GETS THE DEVICE ALONE, across the whole screen. This
+    console used to be withheld from such a party - a map of nothing beside the device
+    would have replaced a screen that worked with a mostly empty one - so its scene had
+    no console at all, and the crew read it in their mail. The device is the boarding
+    party's surface whether or not there is a floor: ACT is the room and its choices,
+    CREW is who came and the way home.
 
     Args:
         client_id (optional): the console. Defaults to the page's own.
         map_width (int, optional): how much of the screen the interior takes, in percent.
+            Ignored when there is no interior to draw.
         on_leave (optional): ignored, and kept so a mission that passed it still runs.
             Leaving is the CREW app's Beam up now, which calls `boarding_go_up` - there
             is no longer a button on every screen to hand a handler to.
@@ -208,23 +231,29 @@ def gui_boarding_console(client_id=None, map_width=66, on_leave=None):
     from .xess import gui_xess
 
     cid = _client(client_id)
-    boarding_panel_width(map_width)
+    ground = boarding_has_ground(cid)
+    boarding_panel_width(map_width if ground else 0)
 
-    # THE MAP, IN ITS OWN SECTION. An engine widget draws at its own size over anything
-    # MAST puts beside it, so it never shares a row - the controls do not overlap it,
-    # they disappear under it.
-    gui_section("area:0,0,%d,100;" % map_width)
-    # THE GROUND AS DATA, when the body is on a tile world: the console's own window onto
-    # its area, following its character. Otherwise the engine's interior view.
     from ..boarding import boarding_me
     from ..boarding_tiles import boarding_tile_on, boarding_tile_click
     tiles = None
-    if boarding_tile_on(cid):
+    if not ground:
+        pass
+    elif boarding_tile_on(cid):
+        # THE MAP, IN ITS OWN SECTION. An engine widget draws at its own size over
+        # anything MAST puts beside it, so it never shares a row - the controls do not
+        # overlap it, they disappear under it.
+        gui_section("area:0,0,%d,100;" % map_width)
+        # THE GROUND AS DATA, when the body is on a tile world: the console's own window
+        # onto its area, following its character.
         from .tilemap_view import gui_tilemap
         from ..boarding_hints import boarding_hint_badges
         tiles = gui_tilemap(boarding_me(cid), on_click=boarding_tile_click,
                             hints=boarding_hint_badges)
     else:
+        # Otherwise the engine's interior view, in a section of its own for the same
+        # reason.
+        gui_section("area:0,0,%d,100;" % map_width)
         gui_layout_widget("ship_internal_view")
 
     # THE DEVICE. It opens its own section for the bar and its own region for the apps,

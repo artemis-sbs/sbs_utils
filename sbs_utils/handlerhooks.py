@@ -539,6 +539,14 @@ from .procedural.standby import standby_cull_parked_count as _standby_parked_cou
 register_reset_state("standby parked", _standby_parked_count)
 from .procedural.boarding import boarding_invite_count as _boarding_invite_count
 register_reset_state("boarding invitation", _boarding_invite_count)
+# What each place taught the party, and what a visit has already complained about. Both
+# are module-level and both would follow a crew into the next mission: a door gated on
+# `learned >= 2` standing open on arrival, and a missing-console warning said once and
+# never again.
+from .procedural.boarding import boarding_facts_count as _boarding_facts_count
+from .procedural.boarding import boarding_visit_said_count as _boarding_visit_said_count
+register_reset_state("boarding facts", _boarding_facts_count)
+register_reset_state("boarding visit notices", _boarding_visit_said_count)
 from .procedural.boarding_world import boarding_zone_count as _boarding_zone_count
 register_reset_state("boarding zones", _boarding_zone_count)
 from .procedural.tilemap import tilemap_count as _tilemap_count
