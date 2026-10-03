@@ -389,7 +389,17 @@ class Mast():
                         mc.removeHandler(h)
                         h.close()
                 fn = fs.get_mission_dir_filename(log_file)
-                mc.addHandler(logging.FileHandler(fn, "w"))
+                try:
+                    mc.addHandler(logging.FileHandler(fn, "w"))
+                except OSError:
+                    # NOWHERE TO WRITE IS NOT A REASON TO FAIL. A tool that compiles a
+                    # file outside a running mission - `sbs lint`'s await check - can
+                    # have a "mission folder" that resolves INSIDE a .mastlib zip, where
+                    # no file can be created. Raising here took the whole lint run down
+                    # with a traceback, for any Open Universe mission whose story.mast
+                    # contained the word `await`. The compile is what was asked for;
+                    # the log is a convenience.
+                    pass
 
 
     def make_global(func):
