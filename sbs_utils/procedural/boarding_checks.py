@@ -220,11 +220,13 @@ def boarding_last_check(lifeform):
 def _check_outcome(agent_id, speaker, tokens):
     """The ``check <skill> <dc> [else <target>]`` outcome verb."""
     if len(tokens) < 2:
+        _check_unreadable(tokens)
         return None
     skill = tokens[0]
     try:
         dc = int(tokens[1])
     except ValueError:
+        _check_unreadable(tokens)
         return None
     result = boarding_check(agent_id, skill, dc)
     _roll_note(agent_id, result["text"])
@@ -239,6 +241,23 @@ def _check_outcome(agent_id, speaker, tokens):
         from .amd_dialogue import OUTCOME_STOP
         return OUTCOME_STOP
     return None
+
+
+def _check_unreadable(tokens):
+    """Say that a `check` could not be read - where the author will see it.
+
+    Nothing was rolled, and the choice carried on as if the roll had worked: a locked
+    door that is open, with no roll line in the transcript to say why. `sbs lint` reports
+    the same line as `check-shape`; this is for the mission nobody linted.
+    """
+    try:
+        import logging
+        logging.getLogger("mast.runtime").warning(
+            "boarding: `check %s` is not `check <skill> <number> [else <room>]` - no roll "
+            "was made and the choice went ahead. A skill is one word and the number is "
+            "written in digits." % " ".join(str(t) for t in tokens))
+    except Exception:                                    # noqa: BLE001
+        pass
 
 
 def _roll_note(lifeform, text):

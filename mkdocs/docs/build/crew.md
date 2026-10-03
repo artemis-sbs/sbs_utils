@@ -74,6 +74,7 @@ Portrait: data
 | `Rank:` | display only &mdash; "Captain", "Lt. Commander" |
 | `Console:` | which seat. Leave it off for a floating officer who fills any spare station. |
 | `Roles:` | what this person is **for** &mdash; `medical`, `engineering, security`. A boarding scene guards its choices on these words (`if medical`), and a boarding party built from the crew carries them. Leave it off and the seat they left is their role. |
+| `Skills:` | how **good** they are &mdash; `engineering 4, science 1`: a name, a number, commas between. A boarding room gates a choice on it (`if skill science >= 3`) and rolls against it (`; check engineering 9 else jammed`). A job with no number counts as 2; anything else is 0. See [Boarding parties](boarding-parties.md#how-good-they-are-skill-and-check). |
 | `Face:` | a face string, or a race keyword like `terran_male` |
 | `Portrait:` | a photograph &mdash; an atlas key, or a path under `Portraits:` |
 | `At:` | this person's cell on the roster's `Sheet:` |

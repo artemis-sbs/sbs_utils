@@ -196,9 +196,14 @@ def amd_outcomes(s):
 
     Tokens are interpreted by the mission's registered outcome handler (only
     `signal` is built in), so the grammar of costs/earns/etc. lives with the
-    mission rather than here."""
+    mission rather than here.
+
+    A `;` separates outcomes as well as a comma. The first `;` on a choice starts the
+    outcomes; a SECOND one used to be swallowed into the outcome before it as a word, so
+    `; check engineering 9 else held ; learn lockout` - the form the library's own
+    comments show - rolled the check and then learned nothing."""
     out = []
-    for item in [x.strip() for x in str(s or "").split(",") if x.strip()]:
+    for item in [x.strip() for x in str(s or "").replace(";", ",").split(",") if x.strip()]:
         toks = item.split()
         if toks:
             out.append(tuple([toks[0].lower()] + toks[1:]))

@@ -685,9 +685,21 @@ def parse(content, file_path=None):
     # more - was left untyped, and every pass that asks "is this dialogue" walked past it.
     # Its own kind line is the only thing a fence could have added; the section it sits in
     # says the rest. Document order, so a parent is typed before its children ask it.
+    #
+    # A SECTION IS NAMED BY ITS OWN KEY BEFORE ITS FILE'S. A section with no fence sits
+    # directly under the file's heading, and the chain asks ancestors only - so it took
+    # the FILE's kind, and then handed that down as if it were its own kind line. Under a
+    # `Universe` file, or a file somebody keyed `mission`, `## [Scenes](boarding)` became
+    # a map or a quest, and every room in it with it: the dialogue checks walked past
+    # exactly the records this pass exists to type.
+    from sbs_utils.procedural.amd_schema import archetype_for_section
     for n in nodes:
         if n.kind is None and not n.fence_lines:
-            n.kind = _resolve_node_kind(n, "")
+            top = n.parent
+            is_section = (top is not None and top.key != "__root__"
+                          and (top.parent is None or top.parent.key == "__root__"))
+            named = archetype_for_section(str(n.key)) if is_section else None
+            n.kind = named or _resolve_node_kind(n, "")
 
     # Collect refs in document order (data refs were attached per-node above).
     for n in nodes:

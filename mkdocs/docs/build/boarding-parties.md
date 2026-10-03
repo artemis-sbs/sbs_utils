@@ -112,6 +112,60 @@ the party has come home: `boarding_facts(BOARDING_PLACE)`.
 after the `;`, and `learn` with no name. It cannot tell that `learned >= 5` asks for more
 than the place can teach.
 
+## How good they are: `skill` and `check`
+
+A job says who may try (`if engineering`). A skill says how good they are, and it comes
+from the crew roster:
+
+```amd
+### [Chief Okoro](okoro)
+---
+Console: engineering
+Roles: engineering
+Skills: engineering 4, science 1
+---
+```
+
+The numbers reach the person with no call from the mission, and they follow the roster
+member, not the name on the console: a player who has saved a name of their own keeps them.
+
+```amd
+- [Pull the sensor record](sensors) if skill science >= 3
+- [Try to wake the core](core_wakes) ; check engineering 9 else core_dead, learn lockout
+```
+
+| You write | It means |
+|---|---|
+| `if skill science >= 3` | offered only to someone that good. Never forwarded to another console |
+| `; check engineering 9` | whoever picks it rolls a ten-sided die and adds their `engineering`. 9 or more is a success |
+| `else core_dead` | where a FAILED roll goes. Without it, a failure still goes to the choice's own room |
+| what follows the check (`, learn lockout`) | happens only on a success |
+
+The roll is written into the transcript of everyone in the room: `Chief Okoro -
+engineering 4, rolled 5: 9 vs 9, success.` On a tile map, each crew member standing beside
+the one rolling who has the skill adds 1; in a relic, each suit within reach does.
+
+| Skill | Target 6 | Target 9 | Target 12 |
+|---|---|---|---|
+| 0 | 50% | 20% | never |
+| 2 (a job, no number) | 70% | 40% | 10% |
+| 4 | 90% | 60% | 30% |
+
+A second `;` separates outcomes the same as a comma: `; check engineering 9 else held ;
+learn lockout`.
+
+`sbs lint` reports what would otherwise be silent: a `Skills:` entry that is not a name
+and a number (`skills-shape`), a gate with no sign or no skill (`skill-gate-shape`), a job
+compared with a number it can never reach (`job-gate-never`: `if science >= 3` wants the
+word `skill`), a skill nobody on the roster has (`unknown-skill`), a `check` that is not
+`check <skill> <number> [else <room>]` (`check-shape`: nothing is rolled and the choice
+always works), and an `else` that names no room (`check-else-missing`). A check that
+cannot be read is also written to `mast.runtime.log` when it is picked.
+
+`boarding_skills_from_amd(section)` still reads `Skills:` by NAME for people who are not
+on a crew roster; `boarding_skills_set(lifeform, {...})` sets them on one body.
+`boarding_checks_mode("flat")` drops the die (every roll is 5) for a test.
+
 The rest of this page is what `boarding_visit` is built from, for a mission that has to
 drive a scene itself.
 

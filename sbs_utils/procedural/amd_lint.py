@@ -1844,6 +1844,198 @@ def amd_lint_guards(doc):
     return findings
 
 
+_SKILL_ENTRY = re.compile(r"^[A-Za-z_][A-Za-z_ ]*\s+-?\d+$")
+
+#: Words a guard reads as a JOB when no roster says otherwise - `boarding._STOCK_JOBS`.
+_STOCK_JOB_WORDS = ("medical", "engineering", "security", "science", "helm", "weapons",
+                    "comms", "captain", "command", "pilot", "doctor", "tactical",
+                    "operations")
+
+
+def _crew_rosters(doc):
+    """The roster sections of a document: a `crew` kind line, else a crew section key."""
+    from sbs_utils.procedural.amd_crew import CREW_KINDS
+    declared = [n for n in doc.nodes if _own_kind_word(n) in CREW_KINDS]
+    if declared:
+        return declared
+    return [n for n in doc.nodes if str(n.key or "").strip().lower() in CREW_KINDS]
+
+
+def _plain_fields(node):
+    """{label_lower: [(lineno, value), ...]} for a node's fence, every line kept."""
+    out = {}
+    for lineno, raw, label, value in _fence_fields(node):
+        out.setdefault(label.strip().lower(), []).append((lineno, str(value).strip()))
+    return out
+
+
+def amd_lint_skills(doc):
+    """Flag a skill number, a skill gate or a skill check the game cannot act on. WARNING.
+
+    A crew roster says how good each person is (`Skills: engineering 4, science 1`), a
+    boarding room gates a choice on it (`if skill science >= 3`) and rolls against it
+    (`; check engineering 9 else core_dead`). Every one of these has a near miss that is
+    read as something else, with no error:
+
+    * `Skills: medical 4 science 3` is ONE skill called "medical 4 science"; `medical: 4`,
+      `4 medical` and `science three` are dropped; a second `Skills:` line replaces the
+      first; `Skills:` on the roster itself is nobody's.
+    * `if skill sience >= 3`, `if skill science 3`, `if skills science >= 3` and
+      `if science >= 3` (a JOB is 1 or 0) are never true, so the choice is never offered.
+    * `check engineering nine`, `check zero g 9`, `check engineering >= 9` roll nothing and
+      always succeed; `check enginering 9` rolls with 0; `else core_ded` sends a failed
+      roll to a room that is not there, and the visit ends.
+    * a crew member with one hash too many or too few is not on the roster at all.
+
+    Skill WORDS are judged only against a roster in the same file - a mission that keeps
+    its crew elsewhere is not second-guessed.
+    """
+    try:
+        from sbs_utils.procedural.amd import amd_body_variant
+        from sbs_utils.procedural.amd_dialogue import (_dlg_parse_choice, _GUARD,
+                                                       _BARE_GUARD)
+    except Exception:                                   # noqa: BLE001
+        return []
+    findings = []
+
+    # --- the roster ----------------------------------------------------------------
+    rosters = _crew_rosters(doc)
+    roster_ids = {id(n) for n in rosters}
+    skills, jobs = set(), set(_STOCK_JOB_WORDS)
+    have_skills = False
+    for roster in rosters:
+        fields = _plain_fields(roster)
+        for lineno, _value in fields.get("skills", []):
+            findings.append(AmdFinding(
+                lineno, WARNING, "skills-on-roster",
+                "`Skills:` here is on the roster, not on a person, so nobody has them. "
+                "Put the line in each crew member's own fence"))
+        for member in roster.children:
+            mf = _plain_fields(member)
+            for _ln, value in mf.get("roles", []):
+                jobs.update(w.strip().lower() for w in value.split(",") if w.strip())
+            for _ln, value in mf.get("console", []):
+                if value:
+                    jobs.add(value.lower())
+            lines = mf.get("skills", [])
+            for lineno, _value in lines[1:]:
+                findings.append(AmdFinding(
+                    lineno, WARNING, "repeated-skills",
+                    "`Skills:` is written twice on this person, and only the last line "
+                    "counts. Put every skill on one line, with commas between"))
+            for lineno, value in lines:
+                have_skills = True
+                for part in [p.strip() for p in value.split(",") if p.strip()]:
+                    if not _SKILL_ENTRY.match(part):
+                        findings.append(AmdFinding(
+                            lineno, WARNING, "skills-shape",
+                            f"`{part}` is not a skill and a number, so it is dropped. "
+                            f"Write `Skills: engineering 4, science 1` - a name, a "
+                            f"space, digits, and a comma between each"))
+                        continue
+                    skills.add(" ".join(part.split()[:-1]).lower())
+    # A person who is not directly under a roster is not on it.
+    if rosters:
+        for node in doc.nodes:
+            if id(node) in roster_ids or id(node.parent) in roster_ids:
+                continue
+            mf = _plain_fields(node)
+            if "console" in mf and ("roles" in mf or "skills" in mf or "face" in mf):
+                roster = rosters[0]
+                findings.append(AmdFinding.at(
+                    node.display_span or node.span, WARNING, "crew-member-level",
+                    f"`{node.display}` reads like a crew member and is not directly "
+                    f"under the roster `{roster.display}`, so that seat gets an "
+                    f"automatic name instead. Give this heading {roster.level + 1} "
+                    f"hashes"))
+    known = skills | jobs
+
+    def unknown(word):
+        return have_skills and word.lower() not in known
+
+    # --- the rooms -----------------------------------------------------------------
+    def gate(lineno, guard, what):
+        text = " ".join(str(guard).split())
+        low = text.lower()
+        m = _GUARD.match(text)
+        if m is None:
+            if _BARE_GUARD.match(text) and (low.startswith("skill ") or low.startswith("skills ")
+                                           or low in ("skill", "skills")):
+                findings.append(AmdFinding(
+                    lineno, WARNING, "skill-gate-shape",
+                    f"`if {text}` has no sign and number, so it is read as a name "
+                    f"nobody has and {what}. Write `if skill science >= 3`"))
+            return
+        lhs = " ".join(m.group("lhs").split()).lower()
+        op, num = m.group("op"), int(m.group("num"))
+        if lhs in ("skill", "skills") or lhs.startswith("skills "):
+            findings.append(AmdFinding(
+                lineno, WARNING, "skill-gate-shape",
+                f"`if {text}` is not a skill gate, so {what}. The word is `skill`, then "
+                f"which one: `if skill science >= 3`"))
+        elif lhs.startswith("skill "):
+            word = lhs[6:].strip()
+            if unknown(word):
+                findings.append(AmdFinding(
+                    lineno, WARNING, "unknown-skill",
+                    f"nobody on the roster has a skill or a job called `{word}`, so "
+                    f"this is 0 for everyone. Check the spelling against the `Skills:` "
+                    f"lines"))
+        elif lhs in jobs:
+            never = ((op == ">=" and num > 1) or (op == ">" and num >= 1)
+                     or (op == "==" and num > 1))
+            if never:
+                findings.append(AmdFinding(
+                    lineno, WARNING, "job-gate-never",
+                    f"`{lhs}` on its own is a JOB, which is 1 or 0, so `if {text}` is "
+                    f"never true and {what}. For how good someone is, write "
+                    f"`if skill {lhs} {op} {num}`"))
+
+    for node in doc.nodes:
+        if str(getattr(node, "kind", "") or "").strip().lower() != "dialogue":
+            continue
+        for lineno, text in (node.body_lines or []):
+            line = text.strip()
+            if not line or line.startswith("//"):
+                continue
+            if line.startswith("-") and "](" in line:
+                ch = _dlg_parse_choice(line) or {}
+                if ch.get("guard"):
+                    gate(lineno, ch["guard"], "this choice is never offered")
+                for outcome in ch.get("outcomes") or []:
+                    if str(outcome[0]).lower() != "check":
+                        continue
+                    toks = [str(t) for t in outcome[1:]]
+                    shape = (len(toks) in (2, 4) and re.match(r"^-?\d+$", toks[1])
+                             and (len(toks) == 2 or toks[2].lower() == "else"))
+                    if not shape:
+                        findings.append(AmdFinding(
+                            lineno, WARNING, "check-shape",
+                            f"`check {' '.join(toks)}` is not `check <skill> <number>` "
+                            f"or `check <skill> <number> else <room>`, so nothing is "
+                            f"rolled and the choice always works. A skill is one word "
+                            f"and the number is written in digits"))
+                        continue
+                    if unknown(toks[0]):
+                        findings.append(AmdFinding(
+                            lineno, WARNING, "unknown-skill",
+                            f"nobody on the roster has a skill or a job called "
+                            f"`{toks[0]}`, so everyone rolls this check with 0. Check "
+                            f"the spelling against the `Skills:` lines"))
+                    if len(toks) == 4 and toks[3] not in doc.keys:
+                        findings.append(AmdFinding(
+                            lineno, WARNING, "check-else-missing",
+                            f"a failed roll goes to `{toks[3]}`, and no room here has "
+                            f"that key - the party would be left nowhere and the visit "
+                            f"would end. It only shows when a roll fails"))
+                continue
+            if line.startswith("%") or line.startswith("{"):
+                _text, g = amd_body_variant(line)
+                if g:
+                    gate(lineno, g, "this line is never spoken")
+    return findings
+
+
 _TRIGGER_LABELS = {
     "done when": "done", "done_when": "done", "goal": "done",
     "fails when": "fails", "fails_when": "fails",
@@ -2338,6 +2530,7 @@ def amd_lint(file_path=None, content=None, mast_sources=None, cross_file=None,
         findings += amd_lint_reveal_paths(doc)
         findings += amd_lint_dialogue_outcomes(doc)
         findings += amd_lint_guards(doc)
+        findings += amd_lint_skills(doc)
         findings += amd_lint_callouts(doc)
         findings += amd_lint_images(doc, file_path)
         findings += amd_lint_named_hulls(doc)
