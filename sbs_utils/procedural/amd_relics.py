@@ -372,8 +372,27 @@ def relics_load(file_path, section_key="relics", content=None, scenes=True):
         # registers them itself (`universe_relic_declare_scenes`), which is harmless -
         # last registration wins, quietly.
         _relic_register_dialogue(file_path, content)
-    return relics_register(amd_section(doc, section_key),
-                           source=file_path, section_key=section_key)
+    section = amd_section(doc, section_key)
+    if section is None and section_key == "relics":
+        # THE SECTION MAY BE CALLED WHAT THE SCHEMA SAYS A RELIC SECTION IS CALLED. Every
+        # tool types the records of `## [Ruins](ruins)` as relics - lint checks them, the
+        # plan view draws them - and this reader alone wanted the one key, so a ruin
+        # under the other name was clean, was drawn, and was not built.
+        section, section_key = _relic_section_any(doc)
+    return relics_register(section, source=file_path, section_key=section_key)
+
+
+def _relic_section_any(doc):
+    """(section, its key) for the first top-level section the schema calls a relic
+    section, else (None, "relics")."""
+    from sbs_utils.procedural.amd_doc import amd_root_node
+    from sbs_utils.procedural.amd_schema import archetype_for_section
+    root = amd_root_node(doc)
+    for n in (root.get("children", []) if root is not None else []):
+        key = n.get("key")
+        if key and archetype_for_section(str(key)) == "relic":
+            return n, key
+    return None, "relics"
 
 
 #: The text a relic file was loaded from, when the caller handed it over - a relic inside a
@@ -428,6 +447,282 @@ def relics_build(file_path, section_key="relics", name=None):
         return (None, None)
     rec = records[0]
     return (rec, relic_volume(rec, name=name))
+
+
+# ---------------------------------------------------------------------------
+# SPAWN - a whole ruin in the game from one call.
+#
+# `relics_build` stops at the geometry: a volume nobody can see. Everything after it -
+# walls, atmosphere, what is inside, a name on the map - was four more calls a mission had
+# to know to make, in the right order, and the only code that made all of them lived in
+# Open Universe. A standalone mission got a recipe card of four lines, built the FIRST
+# relic in its file and silently ignored the rest, and took the whole map label down with
+# it when one passage named a room that was not there.
+# ---------------------------------------------------------------------------
+
+#: A nebula thin enough to see the wall you are trying not to hit, built from objects of a
+#: size the renderer is known to be happy with. Open Universe's numbers, now the library's.
+RELIC_NEBULA_DENSITY = 0.6
+RELIC_NEBULA_SCALE = 0.35
+RELIC_NEBULA_OBJECT = 2500
+
+
+def relic_wall_role(key):
+    """The role one relic's wall props carry: `relic_wall:<key>`.
+
+    Scoped to the relic, so that tearing one ruin down - or re-dressing it after a live
+    edit - cannot take another ruin's walls with it.
+    """
+    return "relic_wall:" + str(key)
+
+
+def relic_atmos_role(key):
+    """The role one relic's nebula carries: `relic_atmos:<key>`."""
+    return "relic_atmos:" + str(key)
+
+
+def _relic_say(message):
+    """Say that a ruin was not built as written, where the author will see it.
+
+    A named log category has no handler unless the mission attached one, so the same line
+    goes to `mast.runtime` - the log a headless test fails on and the first one anybody
+    opens.
+    """
+    try:
+        log(message, "relics", "warning")
+    except Exception:                                   # noqa: BLE001
+        pass
+    try:
+        import logging
+        logging.getLogger("mast.runtime").warning(message)
+    except Exception:                                   # noqa: BLE001
+        pass
+
+
+def relic_atmosphere(relic_key, roles=None, default=None, name=None):
+    """Fill a built relic with ONE nebula, in the color its `Atmosphere:` names.
+    Returns how many nebula objects were made.
+
+    The point is not the look: the engine caps warp for a ship inside a nebula by itself,
+    so the interior needs no script governor.
+
+    `Atmosphere: none` - and, here, no `Atmosphere:` line at all - makes none. `default`
+    is the color for a relic that does not say (Open Universe passes `purple`).
+
+    Identity, not a once-flag: a relic that already has its nebula gets no second one.
+    """
+    rec = _RELIC_RECORDS.get(relic_key)
+    if rec is None:
+        return 0
+    vol = volume_get(relic_volume_name(rec, name))
+    if vol is None:
+        return 0
+    color = str(rec.get("atmosphere") or default or "none").strip()
+    if color.lower() in ("none", "no", "off", ""):
+        return 0
+    atmos = relic_atmos_role(relic_key)
+    from .roles import role
+    have = len(role(atmos))
+    if have:
+        return have
+    from . import terrain as _terrain
+    (cx, cy, cz), radius = vol.bound()
+    # The CLOUD covers the ruin; each nebula OBJECT stays a size the renderer has been
+    # seen to draw. The object size is a GLOBAL, so it is put back: left set, this ruin
+    # would resize every cloud spawned after it.
+    was = getattr(_terrain, "NEB_SIZE_LARGE", 1500)
+    _terrain.terrain_set_nebula_object_size(RELIC_NEBULA_OBJECT)
+    try:
+        neb = _terrain.terrain_spawn_nebula_sphere(
+            cx, cy, cz, radius=int(radius), density_scale=RELIC_NEBULA_SCALE,
+            density=RELIC_NEBULA_DENSITY, height=int(radius),
+            cluster_color=color, marker=False)
+    finally:
+        _terrain.terrain_set_nebula_object_size(was)
+    extra = [r.strip() for r in str(roles or "").split(",") if r.strip()]
+    made = 0
+    for n in (neb or []):
+        agent = getattr(n, "py_object", None)      # terrain_* hands back SpawnData
+        if agent is None:
+            continue
+        agent.add_role(atmos)
+        for r in extra:
+            agent.add_role(r)
+        made += 1
+    return made
+
+
+def relic_entrance(relic_key):
+    """Where a relic is entered: its first point carrying `Roles: entrance`, else its
+    own `Loc:`. World (x, y, z), or None for an unknown relic."""
+    rec = _RELIC_RECORDS.get(relic_key)
+    if rec is None:
+        return None
+    ways = relic_points(relic_key, "entrance")
+    if ways:
+        return tuple(list(ways.values())[0][:3])
+    return tuple(relic_pos(rec))
+
+
+def relic_spawn(relic_key, walls=True, atmosphere=True, contents=True, marker=True,
+                contain=False, props=None):
+    """Put one registered relic in the game: space, walls, nebula, contents, map marker.
+    Returns the record, or None when it could not be built - and says why.
+
+        relics_load(get_mission_dir_filename("mission.amd"))
+        relic_spawn("hollow")
+
+    | part | from the file | turned off with |
+    |---|---|---|
+    | the space | `Chamber:`, `Box:`, `Passage to:`, `Solid:` | - |
+    | walls | `Walls:`, `Art:`, `Seed:`, `Gaps:`, `Debris:`, `Dress:` | `walls=False` |
+    | nebula | `Atmosphere: <color>`; none when the line is absent | `atmosphere=False` |
+    | what is inside | `Item:`, `Spawn:`, `Starts when:`, points and their markers | `contents=False` |
+    | a name on the map | the `Roles: entrance` point, else `Loc:` | `marker=False` |
+
+    CONTAINMENT IS OFF unless asked for. `contain=True` applies the authored
+    `Containment:` - and a ship held inside a ruin has no way out of one that is not also
+    a galaxy cell, because containment lets go only a whole relic clear of the walls and a
+    held ship never gets there. Open Universe leaves by jumping. Until a ruin can say
+    where its door is, walls in a plain mission are scenery.
+
+    IDENTITY, not a once-flag: a relic whose space is already built is left alone, so
+    calling this twice - a route that fires again, a late joiner - builds nothing twice.
+
+    NEVER RAISES. A passage naming a room that does not exist used to raise out of the map
+    label, and a map label that dies spawns no players either. The reason is logged and
+    the rest of the mission carries on.
+
+    Emits `relic_built` with RELIC_KEY, RELIC_VOLUME and RELIC_NAME.
+    """
+    rec = _RELIC_RECORDS.get(relic_key)
+    if rec is None:
+        _relic_say(f"relic '{relic_key}' is not registered, so it was not built. "
+                   f"Load its file first (relics_load / relics_spawn).")
+        return None
+    props = int(props if props is not None else RELIC_PROPS)
+    volume = relic_volume_name(rec)
+    if volume_get(volume) is not None:
+        # Already standing. The RECORD may be a fresh one - reading the file again
+        # replaces it - so tell it which volume is its own; without that, everything
+        # keyed on the record would address nothing.
+        if not rec.get("volume"):
+            setattr(rec, "volume", volume)
+        return rec
+    if not (rec.get("chambers") or rec.get("boxes")):
+        _relic_say(f"relic '{relic_key}' has no rooms, so it was not built. A room is a "
+                   f"record with `Relic: {relic_key}` and a `Chamber:` or `Box:` line, "
+                   f"written with the same number of hashes as the relic itself.")
+        return None
+    if not rec.get("loc"):
+        _relic_say(f"relic '{relic_key}' has no `Loc:` line, so it is built at 0, 0, 0.")
+    try:
+        vol = relic_volume(rec)
+    except Exception as e:                              # noqa: BLE001
+        _relic_say(f"relic '{relic_key}' was not built: {e}")
+        return None
+    if vol is None:
+        _relic_say(f"relic '{relic_key}' was not built: it has no space.")
+        return None
+    steps = []
+    if walls:
+        steps.append(("walls", lambda: relic_walls(
+            relic_key, n=props, roles=relic_wall_role(relic_key) + ", relic_wall")))
+    if atmosphere:
+        steps.append(("atmosphere", lambda: relic_atmosphere(relic_key)))
+    if contain:
+        steps.append(("containment", lambda: relic_contain(rec)))
+    if contents:
+        # Items first: `Item:` on a room is a reference, and one that resolves to nothing
+        # places a pickup that looks like a question mark.
+        steps.append(("items", lambda: relic_items(relic_key)))
+        steps.append(("contents", lambda: relic_contents_arm(relic_key)))
+    if marker:
+        steps.append(("map marker", lambda: _relic_spawn_marker(relic_key, rec)))
+    for what, step in steps:
+        # Each part on its own: a ruin with walls and no marker is still a ruin, and the
+        # one line saying which part failed is worth more than losing all of them.
+        try:
+            step()
+        except Exception as e:                          # noqa: BLE001
+            _relic_say(f"relic '{relic_key}': {what} failed: {e}")
+    setattr(rec, "spawned", {"walls": bool(walls), "props": int(props)})
+    signal_emit("relic_built", {"RELIC_KEY": relic_key,
+                                "RELIC_VOLUME": relic_volume_name(rec),
+                                "RELIC_NAME": rec.get("name") or relic_key})
+    return rec
+
+
+def relic_items(relic_key=None):
+    """Declare the `Items` section of a relic's own file. Returns the item keys.
+
+    A relic file is self-contained - the ruin, what is in it, and what those things ARE,
+    in one document. `Item:` on a room only names an item; this is what makes the name
+    mean something. With no key, every registered relic's file is read, once each.
+    Nothing to do, and no error, for a file with no `Items` section.
+    """
+    from .amd_items import items_declare_amd
+    keys = [relic_key] if relic_key is not None else list(_RELIC_RECORDS.keys())
+    seen, out = set(), []
+    for key in keys:
+        rec = _RELIC_RECORDS.get(key)
+        source = rec.get("source") if rec is not None else None
+        if not source or source in seen:
+            continue
+        seen.add(source)
+        section = relic_section(key, "items")
+        if section is not None:
+            out += items_declare_amd(section) or []
+    return out
+
+
+def _relic_spawn_marker(relic_key, rec):
+    from .markers import marker_point
+    pos = relic_entrance(relic_key)
+    if pos is not None:
+        marker_point(pos[0], pos[1], pos[2], str(rec.get("name") or relic_key))
+
+
+def relics_spawn(file_path, section_key="relics", **spawn):
+    """Build EVERY relic written in a file. Returns the records that were built.
+
+        relics_spawn(get_mission_dir_filename("mission.amd"))
+
+    The one line a mission needs. A file with no `relics` section is not an error - it
+    returns an empty list - so the line can sit in a template whether the mission has a
+    ruin or not. Keyword arguments go to `relic_spawn` (`contain=True`, `walls=False`...).
+    """
+    try:
+        records = relics_load(file_path, section_key)
+    except Exception as e:                              # noqa: BLE001
+        _relic_say(f"the relics in '{file_path}' were not read: {e}")
+        return []
+    built = []
+    for rec in records:
+        got = relic_spawn(rec.get("key"), **spawn)
+        if got is not None:
+            built.append(got)
+    return built
+
+
+def relic_redress(relic_key):
+    """Tear a spawned relic's walls down and dress it again. Returns how many were made.
+
+    What a live edit needs: `relic_reload` moves the SPACE, and walls left where the old
+    space was are worse than no walls. A no-op for a relic `relic_spawn` did not dress -
+    a mission that dresses its own answers `relic_rebuilt` itself.
+    """
+    rec = _RELIC_RECORDS.get(relic_key)
+    spawned = rec.get("spawned") if rec is not None else None
+    if not spawned or not spawned.get("walls"):
+        return 0
+    from .roles import role
+    from .space_objects import delete_object
+    wall = relic_wall_role(relic_key)
+    for oid in list(role(wall)):
+        delete_object(oid)
+    return relic_walls(relic_key, n=int(spawned.get("props") or RELIC_PROPS),
+                       roles=wall + ", relic_wall")
 
 
 def relics_register(section, source=None, section_key=None):
@@ -1221,6 +1516,8 @@ def relic_reload(key):
     section_key = rec.get("section") or "relics"
     # Was this volume's watch installed from the AUTHORED fields, by relic_contain?
     ours = bool(rec.get("contained")) and volume_watching(volume)
+    # Did relic_spawn dress it? Then the walls are ours to move with the space.
+    spawned = rec.get("spawned")
 
     relics_load(source, section_key)
     rec = _RELIC_RECORDS.get(key)
@@ -1238,6 +1535,12 @@ def relic_reload(key):
         # winning an argument the author did not know they were having.
         setattr(rec, "contained", True)
         relic_contain(rec, name=volume)
+    if spawned:
+        setattr(rec, "spawned", spawned)
+        try:
+            relic_redress(key)
+        except Exception as e:                          # noqa: BLE001
+            _relic_say(f"relic '{key}': the walls were not rebuilt: {e}")
     out = {
         "key": key, "volume": volume, "source": source,
         "chambers": len(vol.chambers), "passages": len(vol.passages),

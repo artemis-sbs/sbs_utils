@@ -971,6 +971,91 @@ def _relic_seg_dist(p, a, b):
     return _relic_dist3(p, (ax + dx * t, ay + dy * t, az + dz * t))
 
 
+#: Fields that make a record a PART of a relic - a room, a place, a thing in the way.
+_RELIC_PART_FIELDS = ("chamber", "box", "solid", "point", "barrier", "prop", "passage to")
+
+
+def _relic_section_above(node):
+    """(section, depth) - the top-level relic section this node is under and how many
+    levels down it sits (1 = directly under it, where the game reads). (None, 0) when no
+    ancestor is one."""
+    from sbs_utils.procedural.amd_schema import archetype_for_section
+    depth = 0
+    n = node
+    while n is not None and n.parent is not None:
+        depth += 1
+        p = n.parent
+        # A SECTION is a child of the document's own heading, which in turn hangs off the
+        # parser's unnamed root.
+        top = p.parent
+        is_section = (top is not None and top.parent is not None
+                      and top.parent.parent is None)
+        if is_section and archetype_for_section(str(p.key)) == "relic":
+            return p, depth
+        n = p
+    return None, 0
+
+
+def amd_lint_relic_structure(doc):
+    """Flag a relic record the GAME will not read, though every tool draws it. WARNING.
+
+    The game reads a relic file one way: a top-level section of relics, and directly
+    under it the relic and each of its parts, all at the same heading level, each part
+    naming its relic. The plan view and the rest of this linter are more forgiving - they
+    find a relic record wherever it is - so each of these was clean, was drawn, and built
+    nothing:
+
+    * a room with one hash too many (it becomes a child of the room above it), or one too
+      few (it leaves the section, and takes every room after it along);
+    * a room with no `Relic:` line - read as a second, empty relic;
+    * a relic outside any relics section.
+    """
+    findings = []
+    typed = {id(node): fields for node, fields in _relic_nodes(doc)}
+    for node in doc.nodes:
+        fields = typed.get(id(node))
+        if fields is None:
+            # NOT typed as a relic record - which is exactly what happens to a room that
+            # has fallen out of its section: with one hash too few it IS a section, and
+            # everything after it is its child. It still says what it was meant to be.
+            fields = {}
+            for lineno, raw_line, label, value in _fence_fields(node):
+                if raw_line[:1] not in (" ", "	"):
+                    fields[label.strip().lower()] = (lineno, value)
+            if not ("relic" in fields
+                    and any(f in fields for f in _RELIC_PART_FIELDS)):
+                continue
+        if not fields:
+            continue
+        is_part = "relic" in fields
+        has_shape = [f for f in _RELIC_PART_FIELDS if f in fields]
+        where = node.display_span or node.span
+        section, depth = _relic_section_above(node)
+        if section is None:
+            if is_part or has_shape:
+                findings.append(AmdFinding.at(
+                    where, WARNING, "relic-outside-section",
+                    f"`{node.display}` is not inside a relics section, so the game does "
+                    f"not read it. Check the number of hashes on its heading: a relic "
+                    f"and its rooms all sit one level below `## [Relics](relics)`"))
+            continue
+        if depth > 1:
+            findings.append(AmdFinding.at(
+                where, WARNING, "relic-part-level",
+                f"`{node.display}` is nested under `{node.parent.display}`, and the game "
+                f"reads a relic and its rooms only from directly under "
+                f"`{section.display}`. Give this heading {section.level + 1} hashes, the "
+                f"same as the relic itself"))
+            continue
+        if has_shape and not is_part:
+            findings.append(AmdFinding.at(
+                where, WARNING, "relic-part-no-owner",
+                f"`{node.display}` has a `{has_shape[0].capitalize()}:` line and no "
+                f"`Relic:` line, so it is read as a relic of its own with no rooms. Add "
+                f"`Relic: <the relic's key>` to its fence"))
+    return findings
+
+
 def amd_lint_relics(doc):
     """Flag a relic layout that will build into something other than it reads as. WARNING.
 
@@ -1110,8 +1195,9 @@ def amd_lint_relics(doc):
                 if target not in known:
                     findings.append(AmdFinding(
                         ln, "warning", "relic-dangling-passage",
-                        f"'{target}' is not a chamber of '{owner}' - "
-                        f"this passage is not built"))
+                        f"'{target}' is not a room of '{owner}' - a passage has to end "
+                        f"on a room's key, and with this one going nowhere the game "
+                        f"does not build '{owner}' at all"))
                 nums = _relic_nums(group)
                 if nums and nums[0] <= 0:
                     findings.append(AmdFinding(
@@ -1203,7 +1289,8 @@ def _relic_layouts(doc):
     for node, fields in _relic_nodes(doc):
         key = str(getattr(node, "key", "") or "")
         if "relic" not in fields:
-            layouts[key] = {"key": key, "line": getattr(node, "line", 1) or 1,
+            layouts[key] = {"key": key,
+                            "line": getattr(getattr(node, "span", None), "line", 1) or 1,
                             "chambers": {}, "boxes": {}, "solids": [], "passages": [],
                             "points": {}, "barriers": {}}
         else:
@@ -2236,6 +2323,7 @@ def amd_lint(file_path=None, content=None, mast_sources=None, cross_file=None,
         findings += amd_lint_actions(doc, keys)
         findings += amd_lint_urges(doc)
         findings += amd_lint_relics(doc)
+        findings += amd_lint_relic_structure(doc)
         findings += amd_lint_hails(doc)
         findings += amd_lint_then(doc)
         findings += amd_lint_quest_triggers(doc)

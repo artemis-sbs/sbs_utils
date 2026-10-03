@@ -16,7 +16,7 @@ So you describe the **navigable space**:
 | you write | it is | it means |
 |---|---|---|
 | `Chamber:` | a sphere | a room |
-| `Passage to:` | a capsule | a corridor between two rooms |
+| `Passage to:` | a capsule | a corridor between two rooms: chambers, boxes, or one of each |
 | `Box:` | a rectangle | a *built* space, with flat walls and real corners |
 | `Solid:` | a subtraction | a pillar, a spire, a solid hub |
 
@@ -70,6 +70,46 @@ Chamber coordinates are **relative to the relic's `Loc:`**, so the same layout c
 dropped at two places in a system without editing a single number.
 
 A box takes **half**-extents — `900, 260, 380` is a room 1800 by 520 by 760.
+
+The section may be keyed `relics`, `ruins` or `interiors`. The relic and every part of it
+have the **same number of hashes**, one more than the section. A part with one hash too
+many becomes a child of the part above it and is not read; `sbs lint` reports it
+(`relic-part-level`), along with a part outside the section (`relic-outside-section`) and
+a part with no `Relic:` line (`relic-part-no-owner`).
+
+## Putting it in the game
+
+One line builds every relic the file holds:
+
+```
+relics_spawn(get_mission_dir_filename("mission.amd"))
+```
+
+| It makes | From | Turn off with |
+|---|---|---|
+| the space | `Chamber:`, `Box:`, `Passage to:`, `Solid:` | - |
+| the walls | `Walls:`, `Art:`, `Seed:`, `Gaps:`, `Debris:`, `Dress:` | `walls=False` |
+| a nebula | `Atmosphere: <color>`. None when the line is absent | `atmosphere=False` |
+| what is inside | the file's `Items` section, then `Item:`, `Spawn:` and `Starts when:` | `contents=False` |
+| a name on the map | the point with `Roles: entrance`, else `Loc:` | `marker=False` |
+
+A file with no relic section builds nothing and is not an error, so the line can stay in a
+mission that has no ruin yet. Calling it twice builds nothing twice. It emits
+`relic_built` (`RELIC_KEY`, `RELIC_VOLUME`, `RELIC_NAME`) for each relic.
+
+It never raises. A ruin that cannot be built - a passage to a room that is not there, a
+relic with no rooms - is skipped, the reason goes to `mast.runtime.log`, and the rest of
+the map carries on. A relic with no `Loc:` is built at `0, 0, 0`, and the log says so.
+
+**Containment is off** unless you pass `contain=True`. A ship held inside a ruin is let go
+only when it is a whole relic clear of the walls, and a held ship never gets there. Open
+Universe leaves by jumping; a plain mission has no such exit, so there the walls are
+scenery. See [The way in, and who gets held](#the-way-in-and-who-gets-held).
+
+`relic_spawn(key)` builds one relic already read with `relics_load`. The steps are still
+there to call one at a time - `relics_build`, `relic_walls`, `relic_atmosphere`,
+`relic_contain`, `relic_items`, `relic_contents_arm` - for a mission that wants a ruin
+standing with nothing in it yet, or built under a name of its own.
 
 ## The walls are scenery
 
@@ -620,9 +660,11 @@ Roles: vault_door
 The mission writes one line:
 
 ```
-relic_items()                      # if the items live in the same .amd - see below
+relic_items("ossuary")             # if the items live in the same .amd - see below
 relic_contents_arm("ossuary")
 ```
+
+(`relics_spawn` makes both calls for you.)
 
 Contents with no trigger are placed now; the rest wait on their phrase. Each record is
 placed **once**, keyed by its part, so re-arming - or a live preview reload - does not
@@ -632,8 +674,10 @@ It stays an explicit call rather than something `relics_build` does by itself: a
 may want the relic standing with nothing in it yet, and loot that spawns as a side effect
 of loading geometry is the kind of thing nobody can find later.
 
-**Items are declared separately.** `Items` is its own section with its own reader, so the
-mission joins the two:
+**Items are declared separately.** `Items` is its own section with its own reader.
+`relic_items("ossuary")` declares the `Items` section of the file that relic came from;
+with no key it does every registered relic's file. A mission that keeps its items in some
+other file joins the two itself:
 
 ```python
 from sbs_utils.procedural.amd_items import items_declare_amd
