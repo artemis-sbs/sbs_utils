@@ -192,6 +192,21 @@ new syntax (MAST just treats the key as an unused variable).
 `--format compact` emits `file:line:col:` lines for editor problem-matchers;
 `--format json` emits structured findings (with exact ranges) for tools/CI.
 
+### Does the story compile, and does every line run
+
+`lint` compiles the mission's `story.mast` as its last step. A story that does not compile
+runs nothing at all - no map, no ships, both logs empty - so one line pasted at the wrong
+indent is reported as an error, with its line:
+
+```
+== story.mast (compile) ==
+  [ERROR] line 55: Bad indentation: 'relics_spawn(...)'. The story does not compile, so
+  NOTHING in this mission runs until this is fixed (mast-compile)
+```
+
+Skip it with `--no-compile`. And a line that can never run because the label already ended
+is a warning (`mast-unreachable`): a line pasted under `->END` compiles, and is skipped.
+
 ### Files a mission reads from outside its folder
 
 A mission can read `.amd` files kept in `data\missions\common_data\<name>`, beside the
