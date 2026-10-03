@@ -30,6 +30,42 @@ ungated — which is what keeps a menu from ever being empty.
     whatever agent it is handed. The shipped comms driver passes the player **ship**, so
     everyone sees one menu. `boarding.py` passes the **character**.
 
+## The short way: `boarding_visit`
+
+Most missions need none of the pieces further down. One call runs a whole visit:
+
+```
+shared AWAY_SCENES = dialogue_scenes(amd_section(MISSION_DOC, "boarding"))
+
+boarding_visit(ship, AWAY_SCENES, "airlock", title="The Hulk")
+```
+
+It opens the party, begins the room it is given, and from then on watches the scene. When
+the scene closes &mdash; a choice that leads nowhere, `- [Return to the ship]()` &mdash; it
+shuts the party, puts every console back at the station it left, and emits
+`boarding_visit_ended` (`BOARDING_SHIP`, `BOARDING_TITLE`).
+
+**The party is the crew.** With no `cast=`, each console goes as the person it already is:
+the name, face and `Roles:` its [crew roster](crew.md) gave it, or the seat it left when the
+roster gave it no role. A job nobody aboard holds is forwarded to one console, so a short
+crew still reaches every choice. To put the script's own people on the bridge *and* on the
+ground, write a roster and give it `Names: locked`.
+
+Pass `cast=[...]`, a list of lifeforms, only when the people going are deliberately not the
+crew.
+
+| Call | Does |
+|---|---|
+| `boarding_visit(ship, scenes, first, title=, cast=, site=, area=)` | starts a visit. Returns None, and opens nothing, if one is already open or `first` names no room |
+| `boarding_visiting()` | the visit in progress, or None |
+| `boarding_visit_end()` | ends it now &mdash; the ship is under fire, the clock ran out |
+
+Before this call a scene had a beginning and no end: the party stayed open after the last
+room, and a console that went down late arrived in an empty one.
+
+The rest of this page is what `boarding_visit` is built from, for a mission that has to
+drive a scene itself.
+
 ## The pieces
 
 | You need | Use |

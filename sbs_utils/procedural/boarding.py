@@ -1154,6 +1154,7 @@ def boarding_clear():
     _REGISTERED_JOBS.clear()
     boarding_invite_clear()
     boarding_latecomers_unwatch()
+    boarding_visit_clear()
     boarding_metric_uninstall()
 
 
@@ -1777,3 +1778,166 @@ def boarding_orphan_choices(channel=None):
         setattr(obj, "forwarded", str(guard))
         out.append(obj)
     return out
+
+
+# --- a visit: the party, its scene and the way home, as one thing ---------------------
+#
+# A boarding scene had a beginning and no end. A mission opened a party, began a scene, and
+# when the last room closed nothing happened: the invitation stayed open, every console
+# kept the character it was playing, and a console that went down late arrived in a room
+# with nothing in it. Open Universe's sites had it worse - the scene they began was never
+# closed either, and "is a scene open" is what every later arrival asked first, so one
+# visit ended boarding for the session.
+#
+# Each mission could write its own watcher, and each would get one of the four steps
+# wrong. So the whole visit is one call: open, begin, and - when the scene closes - shut
+# the party, bring everybody home, and say so.
+
+VISIT_KEY = "__BOARDING_VISIT__"
+_VISIT_TASK_KEY = "__BOARDING_VISIT_TASK__"
+
+
+def boarding_visit(ship, scenes, first, title=None, cast=None, site=None, area=None):
+    """Run one boarding visit from start to finish.
+
+    Opens the party, begins the room ``first``, and from then on watches the scene: when it
+    closes - a choice that leads nowhere, ``- [Return to the ship]()`` - the party is shut,
+    every console that went is put back at its station, and ``boarding_visit_ended`` is
+    emitted with ``BOARDING_SHIP`` and ``BOARDING_TITLE``.
+
+    Args:
+        ship: the ship the party leaves from.
+        scenes: the rooms - what ``dialogue_scenes(amd_section(doc, "boarding"))`` returns.
+        first (str): the key of the room the party arrives in.
+        title (str, optional): what the crew sees as the name of the place.
+        cast (list, optional): lifeforms to offer INSTEAD of the crew. Leave it out and the
+            party is the crew as themselves - the name, face and ``Roles:`` each console
+            already has, one body held for each (see :func:`boarding_invite_crew`). That is
+            the default because it is one identity: who you are on the bridge is who goes
+            aboard. Hand in a cast only when the people going are deliberately not the crew.
+        site, area (optional): as :func:`boarding_invite` - an interior or a tile area to
+            stand the party in. Without either this is the dialogue-only party.
+
+    Returns:
+        dict: the invitation - or None, with nothing opened, when a party or a scene is
+        already open, or ``first`` names no room. Checked BEFORE the party opens: a crew
+        offered a place with no room in it has no way to find out why.
+    """
+    if boarding_visiting() is not None or boarding_invitation() is not None or boarding_is_open():
+        return None
+    if not first or dialogue_get(scenes or {}, first) is None:
+        from .execution import log
+        log("boarding_visit: there is no room '%s' - nothing was opened" % (first,),
+            "boarding", "warning")
+        return None
+    # `if medical` is answered against the answering character's roles. Composes with
+    # whatever resolver a mission already installed, so calling it here is always safe.
+    boarding_metric_install()
+    if cast:
+        invite = boarding_invite(ship, cast, title, site=site, area=area)
+    else:
+        invite = boarding_invite_crew(ship, title, site=site, area=area)
+    boarding_scene_begin(scenes, first)
+    Agent.SHARED.set_inventory_value(VISIT_KEY, {
+        "ship": to_id(ship), "title": boarding_invite_title(), "first": first})
+    _visit_watch()
+    return invite
+
+
+def boarding_visiting():
+    """The visit in progress - ``{"ship", "title", "first"}`` - or None."""
+    visit = Agent.SHARED.get_inventory_value(VISIT_KEY, None)
+    return visit if isinstance(visit, dict) else None
+
+
+def _visit_bring_home(client_id):
+    """Put one console back at the station it left.
+
+    Its own function so the end of a visit has one place where the screen is touched: the
+    door rebuilds a console, and everything else about ending a visit is bookkeeping that
+    must still happen if the door cannot.
+    """
+    from .gui.boarding_gui import boarding_go_up
+    return boarding_go_up(client_id)
+
+
+def boarding_visit_end():
+    """End the visit now: close the scene and the party, bring everybody home, say so.
+
+    What the watcher calls when the scene closes, and what a mission calls to cut a visit
+    short - the ship is under fire, the clock ran out. Safe to call with no visit open.
+
+    Returns:
+        bool: True if there was a visit to end.
+    """
+    visit = boarding_visiting()
+    if visit is None:
+        return False
+    # FIRST, so nothing below can come back in. Bringing a console home emits
+    # `boarding_came_back`, and a route on that which ends the visit must find it ended.
+    Agent.SHARED.set_inventory_value(VISIT_KEY, None)
+    _visit_unwatch()
+    boarding_scene_end()
+    boarding_invite_close()
+    boarding_latecomers_unwatch()
+    for client_id in sorted(boarding_clients()):
+        try:
+            _visit_bring_home(client_id)
+        except Exception as e:                           # noqa: BLE001
+            from .execution import log
+            log("boarding_visit: console %s could not be brought home: %s" % (client_id, e),
+                "boarding", "warning")
+        if boarding_held(client_id):
+            # THE CHARACTER IS LET GO EITHER WAY. A console whose screen could not be
+            # rebuilt must not be left playing somebody in a party that no longer exists.
+            boarding_assign(client_id, None)
+    signal_emit("boarding_visit_ended", {"BOARDING_SHIP": visit.get("ship"),
+                                         "BOARDING_TITLE": visit.get("title")})
+    return True
+
+
+def _visit_watch():
+    """Start looking for the end of the scene. Idempotent."""
+    from ..tickdispatcher import TickDispatcher
+    if Agent.SHARED.get_inventory_value(_VISIT_TASK_KEY, None) is not None:
+        return
+    Agent.SHARED.set_inventory_value(_VISIT_TASK_KEY,
+                                     TickDispatcher.do_interval(_boarding_visit_tick, 1.0))
+
+
+def _visit_unwatch():
+    task = Agent.SHARED.get_inventory_value(_VISIT_TASK_KEY, None)
+    if task is not None:
+        try:
+            task.stop()
+        except Exception:                                # noqa: BLE001
+            pass            # already dropped by a reset or the end of the mission
+    Agent.SHARED.set_inventory_value(_VISIT_TASK_KEY, None)
+
+
+def _boarding_visit_tick(t=None):
+    """One look at the scene. NEVER RAISES.
+
+    A raising interval callback pauses the sim and cannot be resumed - the dispatcher
+    re-fires the same task the moment it is un-paused. Whatever goes wrong in here, the
+    watcher stops and the mission carries on.
+    """
+    try:
+        if boarding_visiting() is None:
+            _visit_unwatch()
+            return
+        if boarding_is_open():
+            return                       # the party's scene is still playing
+        boarding_visit_end()
+    except Exception as e:                               # noqa: BLE001
+        try:
+            from .execution import log
+            log("boarding_visit: the watcher stopped: %s" % (e,), "boarding", "warning")
+        finally:
+            _visit_unwatch()
+
+
+def boarding_visit_clear():
+    """The per-mission reset: no visit, no watcher. Emits nothing and moves nobody."""
+    _visit_unwatch()
+    Agent.SHARED.set_inventory_value(VISIT_KEY, None)
