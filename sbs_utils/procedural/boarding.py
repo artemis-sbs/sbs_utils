@@ -1712,6 +1712,32 @@ def boarding_job_vocabulary():
             w = str(w).strip().lower()
             if w:
                 out.add(w)
+    # And the WHOLE roster of a crew party, seated or not. A body exists only for a console
+    # somebody is sitting at, so a job the author wrote for an empty seat - `Roles:
+    # quartermaster` on the helm officer, with nobody at helm - was not a job at all: the
+    # quartermaster's choice was never forwarded and a short crew could not reach it,
+    # while the surgeon's was, because `medical` happens to be a stock word.
+    if isinstance(invite, dict) and invite.get("crew"):
+        out |= _roster_jobs(invite.get("ship"))
+    return out
+
+
+def _roster_jobs(ship_id):
+    """Every `Roles:` word on the roster that crews this ship, as a set."""
+    try:
+        from .crew import crew_roster_for
+        roster, _why = crew_roster_for(ship_id)
+    except Exception:                                    # noqa: BLE001
+        return set()
+    out = set()
+    for member in (roster or {}).get("members") or ():
+        roles = member.get("roles") or ()
+        if isinstance(roles, str):
+            roles = roles.split(",")
+        for w in roles:
+            w = str(w).strip().lower()
+            if w and w not in _NOT_A_JOB:
+                out.add(w)
     return out
 
 
