@@ -166,6 +166,54 @@ cannot be read is also written to `mast.runtime.log` when it is picked.
 on a crew roster; `boarding_skills_set(lifeform, {...})` sets them on one body.
 `boarding_checks_mode("flat")` drops the die (every roll is 5) for a test.
 
+## How a visit ends, and two endings
+
+`- [Return to the ship]()` - an answer with empty round brackets - **ends the visit for
+everybody**, at one press by anyone aboard. The party is no longer on offer afterwards, and
+nothing written in AMD reopens it. So put that answer where leaving is a decision: the
+arrival room and the last rooms, not every room on the way.
+
+One person can leave without ending it: the handheld's Crew app has **Beam up** on the
+ship's row. The visit stays open, and BEAM DOWN puts them back in the room the party is in.
+
+An answer can start, finish or fail one of the ship's quests, which is how a scene has two
+endings with no MAST:
+
+```amd
+- [Throw the switch and wake them](woken) ; accepts stand_by
+- [Leave them sleeping and go for help](asleep) ; accepts carry_word
+```
+
+```amd
+### [Stand By the Sleepers](stand_by)
+---
+Scope: shared
+Starts when: revealed
+Done when: 30 seconds
+Reward: 300 credits
+---
+```
+
+| Outcome | Does |
+|---|---|
+| `; accepts <key>` | starts a quest that is waiting (`Starts when: revealed`, or on offer) |
+| `; completes <key>` | finishes it |
+| `; fails <key>` | fails it |
+
+Write the quest `Starts when: revealed`. Written `at once` it is running before anyone
+answers, and finishes whichever answer is given; `sbs lint` reports that as
+`outcome-accepts-running`.
+
+**A condition is one name.** `if medical`, `if learned >= 3`, `if skill science >= 3` - a
+name, or a name, a sign and a number. There is no `and`, `or` or `not`, a condition cannot
+ask for one fact by name, and it takes a job, not a person. Each of those is read as one
+long name nobody answers to, so the choice is offered to nobody; `sbs lint` reports them as
+`guard-joined`, `guard-learned-shape`, `guard-names-a-fact` and `guard-names-a-person`. A
+choice for two jobs is two choices that lead to the same room.
+
+A `%` line cannot wrap: its second half, typed on the next line, is a line of its own, and
+the party is shown one half or the other (`line-wrapped`).
+
 ## A quest for one person: `For:` and `stories=`
 
 A quest can belong to one member of the party. Put those quests in a section of their own

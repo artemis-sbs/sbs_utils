@@ -2186,13 +2186,14 @@ def amd_lint_choices(doc, keys=None):
         return []
     findings = []
     # Quests in THIS file, by the id the game files them under and by leaf key.
-    paths, leaves = set(), {}
+    paths, leaves, by_path = set(), {}, {}
     for node in doc.nodes:
         if str(getattr(node, "kind", "") or "").lower() != "quest" or not node.fence_lines:
             continue
         path = _quest_path(node)
         if path:
             paths.add(path)
+            by_path[path] = node
             leaves.setdefault(str(node.key), set()).add(path)
     known = set(keys or ()) | set(doc.keys)
 
@@ -2260,6 +2261,21 @@ def amd_lint_choices(doc, keys=None):
                     continue
                 want = toks[0]
                 if want in paths:
+                    # AN ENDING THAT IS ALREADY RUNNING. The way to give a scene two
+                    # endings is an answer that starts a hidden quest; written `at once`
+                    # the quest was running from the first second, and was paid whichever
+                    # way the scene went.
+                    starts = [v.lower() for _l, v in
+                              _plain_fields(by_path[want]).get("starts when", [])]
+                    if verb == "accepts" and any(
+                            v in ("at once", "immediately", "now", "start", "at start")
+                            for v in starts):
+                        findings.append(AmdFinding(
+                            lineno, WARNING, "outcome-accepts-running",
+                            f"`; accepts {want}` - that quest says `Starts when: "
+                            f"{starts[0]}`, so it is running before anyone gives this "
+                            f"answer, and it finishes whichever answer is given. A quest "
+                            f"an answer starts says `Starts when: revealed`"))
                     continue
                 nested = [p for p in leaves.get(want, ()) if p != want]
                 if nested:
@@ -2685,10 +2701,67 @@ def amd_lint_skills(doc):
         return have_skills and word.lower() not in known
 
     # --- the rooms -----------------------------------------------------------------
+    # What the party can LEARN here, and who is on the roster: the two things a writer
+    # reaches for in a condition that a condition cannot ask about.
+    facts = set()
+    for node in doc.nodes:
+        if str(getattr(node, "kind", "") or "").strip().lower() != "dialogue":
+            continue
+        for _ln, body in (node.body_lines or []):
+            body = body.strip()
+            if body.startswith("-") and "](" in body:
+                for outcome in (_dlg_parse_choice(body) or {}).get("outcomes") or []:
+                    if str(outcome[0]).lower() == "learn" and len(outcome) > 1:
+                        facts.add(" ".join(str(t) for t in outcome[1:]).strip().lower())
+    people = _roster_words(doc)[0] - jobs
+
+    def read_as_a_name(lineno, text, name, what):
+        """A condition that is one long NAME nobody answers to. True when reported.
+
+        A condition is a name, or `name op number`, and nothing else - so every one of
+        these is read as a job nobody holds, is false for everyone, and says nothing:
+
+            if medical and learned >= 2      two conditions joined
+            if medical or engineering        the same
+            if not medical                   there is no `not`
+            if learned alive / if learned 3  `learned` only counts
+            if alive                         a fact the party learns, asked for by name
+            if hale / if Dr Hale             a person; `if` takes a job
+        """
+        parts = name.split()
+        code = how = None
+        if parts and (parts[0] == "not" or any(w in ("and", "or") for w in parts[1:])):
+            code = "guard-joined"
+            how = ("is more than one condition, and a condition is ONE name: `and`, `or` "
+                   "and `not` are read as part of the name. Write one condition per "
+                   "choice; a choice for two jobs is two choices that lead to one room")
+        elif parts and parts[0] == "learned" and len(parts) > 1:
+            code = "guard-learned-shape"
+            how = ("is not how `learned` works: it only COUNTS what the party knows. "
+                   "Write `if learned >= 3`")
+        elif name in facts and name not in jobs:
+            code = "guard-names-a-fact"
+            how = (f"asks for `{name}`, which is something the party LEARNS, and a "
+                   f"condition cannot ask for one fact by name - it is read as a job. "
+                   f"Count them: `if learned >= 2`")
+        elif name in people:
+            code = "guard-names-a-person"
+            how = (f"names a person. `if` takes a JOB from a `Roles:` line; `For:` on a "
+                   f"quest is the one place a person's key or name goes")
+        if code is None:
+            return False
+        findings.append(AmdFinding(lineno, WARNING, code,
+                                   f"`if {text}` {how}. As written {what}"))
+        return True
+
     def gate(lineno, guard, what):
         text = " ".join(str(guard).split())
         low = text.lower()
         m = _GUARD.match(text)
+        if read_as_a_name(
+                lineno, text,
+                " ".join(m.group("lhs").split()).lower() if m is not None else low, what):
+            return
         if m is None:
             if _BARE_GUARD.match(text) and (low.startswith("skill ") or low.startswith("skills ")
                                            or low in ("skill", "skills")):
@@ -2725,10 +2798,22 @@ def amd_lint_skills(doc):
     for node in doc.nodes:
         if str(getattr(node, "kind", "") or "").strip().lower() != "dialogue":
             continue
+        previous = None
         for lineno, text in (node.body_lines or []):
             line = text.strip()
             if not line or line.startswith("//"):
+                previous = None
                 continue
+            # A LINE CANNOT WRAP. Each `%` line is one thing the room may say, and the
+            # second half of a long sentence, typed on the next line, is another: the
+            # party is shown one half or the other.
+            if previous == "%" and (line[0].isalnum() or line[0] in "\"'"):
+                findings.append(AmdFinding(
+                    lineno, WARNING, "line-wrapped",
+                    "a `%` line has to stay on one line: this is read as a second line "
+                    "of its own, so the party is shown one half of the sentence or the "
+                    "other. Join it to the line above, however long that gets"))
+            previous = "%" if line.startswith("%") else "other"
             if line.startswith("-") and "](" in line:
                 ch = _dlg_parse_choice(line) or {}
                 if ch.get("guard"):

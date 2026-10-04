@@ -325,7 +325,9 @@ def _boarding_metric(name, agent_id, speaker):
     """
     # `learned` is the PARTY's, so it is answered before the role lookup and without an
     # agent - it is the one guard word that is not about who is asking.
-    if str(name).strip() == "learned":
+    # Any capitals: jobs and skills never minded them, and `if Learned >= 3` was a door
+    # nobody could open while `%{Learned < 3}` was a line always spoken.
+    if str(name).strip().lower() == "learned":
         return len(_facts_of())
     # A WORD AND AN ARGUMENT - `skill engineering`, `holding medkit`, `party coil` - owned
     # by the module that knows the answer (checks, the pack), registered with
