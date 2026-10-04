@@ -1640,6 +1640,10 @@ def quest_tab_controls_gate(console, item, accept_consoles, engage_enabled, enga
             hint = "Accept this quest at the " + _quest_console_names(acc_spec) + " console before engaging."
     elif not can_accept and state in (IDLE, ACTIVE):
         hint = "Manage quests at the " + _quest_console_names(acc_spec) + " console."
+    elif state == int(QuestState.POSTING):
+        # A POSTED job has no Accept on any console, and the screen said nothing about
+        # why: it is taken by answering the call that offers it.
+        hint = "Posted. It is taken by answering the call that offers it."
 
     sig = f"{int(show_accept)}|{int(show_abandon)}|{int(show_engage)}|{hint}"
     return {"show_accept": show_accept, "show_abandon": show_abandon,

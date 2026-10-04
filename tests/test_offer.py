@@ -242,6 +242,21 @@ class BoardListsOnlyWhatNoOtherAppDoesTests(unittest.TestCase):
         plain = quest_tab_controls_gate("comms", {"offer": _one("Takeable")}, "comms", True, "helm")
         self.assertNotIn("answering the call", plain["hint"])
 
+    def test_so_does_a_posted_quest_row(self):
+        """The row the Available Quests screen really shows for `At start: posting` is a
+        QUEST in the POSTING state, not an offer record - seen in the engine with no hint."""
+        from sbs_utils.procedural.quest import QuestState
+        from sbs_utils.procedural.quest_driver import quest_tab_controls_gate
+        for console in ("comms", "helm", "science"):
+            gate = quest_tab_controls_gate(console, {"state": int(QuestState.POSTING)},
+                                           "comms", True, "helm")
+            self.assertFalse(gate["show_accept"])
+            self.assertIn("answering the call", gate["hint"])
+        idle = quest_tab_controls_gate("comms", {"state": int(QuestState.IDLE)},
+                                       "comms", True, "helm")
+        self.assertTrue(idle["show_accept"])
+        self.assertEqual(idle["hint"], "")
+
     def test_the_tile_gate_counts_the_board_not_every_offer(self):
         import inspect
         from sbs_utils.procedural.gui import offers_gui
