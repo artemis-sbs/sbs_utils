@@ -108,6 +108,8 @@ class _Said(_Files):
     def setUp(self):
         super().setUp()
         from sbs_utils.procedural import amd_error
+        from sbs_utils.procedural.quest import amd_doc_cache_clear
+        amd_doc_cache_clear()             # each test is a new mission
         self.said = []
         self.addCleanup(setattr, amd_error, "on_amd_error", amd_error.on_amd_error)
         amd_error.on_amd_error = lambda msg, path, line, sev: self.said.append((line, sev, msg))
@@ -134,6 +136,16 @@ class OneHashTooMany(_Said):
         self.assertEqual([(line, sev) for line, sev, _ in self.said], [(15, "error")])
         self.assertIn("4 hashes", self.said[0][2])
         self.assertIn("at most 3", self.said[0][2])
+
+    def test_a_story_that_loads_the_file_four_times_is_told_once(self):
+        # Seen in the engine: quests, readings, places and crew each load the file,
+        # and the log held four copies of the one sentence.
+        text = MISSION.format(key="derelict_intel").replace("### [Derelict Intel]", "#### [Derelict Intel]")
+        from sbs_utils.procedural.amd_mission import amd_mission_data
+        for parser in (amd_quest_data, amd_mission_data, None):
+            document_get_amd_file(None, content=text, data_parser=parser)
+        document_get_amd_file(self.write(text), data_parser=amd_quest_data)
+        self.assertEqual(len(self.said), 1)
 
     def test_a_record_after_it_is_a_neighbor_not_a_child(self):
         text = MISSION.format(key="derelict_intel").replace("### [Derelict Intel]", "#### [Derelict Intel]")

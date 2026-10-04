@@ -988,7 +988,12 @@ def _document_get_amd_file(file_path, root_display_text="", strip_comments=True,
                 hash_stack.pop()
             if level > hash_stack[-1] + 1:
                 level_slips += 1
-                if level_slips == 1:
+                # Once per FILE, and once per MISSION: a story loads one file several
+                # times (quests, readings, places), and four copies of one sentence in
+                # the log read as four problems.
+                said = (i + 1, line.strip())
+                if level_slips == 1 and said not in _AMD_SLIPS_SAID:
+                    _AMD_SLIPS_SAID.add(said)
                     from sbs_utils.procedural.amd_error import amd_error
                     allowed = hash_stack[-1] + 1
                     amd_error(
@@ -1144,6 +1149,9 @@ def _amd_render_tree_links(toc):
 # one mission's granted quest rewrite the document another console is reading.
 # Cloning keeps the contract exactly as it was: every call returns a fresh tree.
 _AMD_DOC_CACHE = _OrderedDict()
+# (line, heading) of each hash-count slip already reported this mission. Cleared with
+# the cache above, which is on the reset ledger - so a restart says it again.
+_AMD_SLIPS_SAID = set()
 _AMD_DOC_CACHE_MAX = 64
 
 
@@ -1162,6 +1170,7 @@ def _amd_clone(v):
 def amd_doc_cache_clear():
     """Per-mission: the next mission's files are different files."""
     _AMD_DOC_CACHE.clear()
+    _AMD_SLIPS_SAID.clear()
 
 
 def amd_doc_cache_size():
