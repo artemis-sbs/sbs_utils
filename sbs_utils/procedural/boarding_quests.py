@@ -122,6 +122,15 @@ def boarding_quest_owner(key):
     return "party" if key in _OPEN else None
 
 
+def boarding_quests_of(lifeform):
+    """The keys of the personal quests handed to this person, sorted. Empty for nobody."""
+    from .query import to_id
+    who = to_id(lifeform) if lifeform is not None else None
+    if who is None:
+        return []
+    return sorted(k for k, owner in _GRANTED.items() if owner == who)
+
+
 def boarding_quest_is_open(key):
     """True when a personal quest went to the whole party for want of its owner."""
     return _norm(key) in _OPEN

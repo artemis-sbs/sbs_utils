@@ -222,6 +222,11 @@ def xess_ground_revision(client_id):
     from ..boarding import boarding_me
     from ..boarding_props import boarding_pack, boarding_last_note
     if not _on_ground(client_id):
+        # Rooms only: the one ground app that can be open is Tasks, and what it lists
+        # moves with the quests. Nothing else here applies to somebody with no cell.
+        if _own_quests(client_id):
+            from ..quest import quest_generation
+            return (quest_generation(),)
         return None
     me = boarding_me(client_id)
     return (tuple(sorted(boarding_pack(me).items())), boarding_last_note(client_id),
@@ -326,10 +331,24 @@ def _in_a_suit(client_id):
     return eva_my_suit(client_id) is not None
 
 
+def _own_quests(client_id):
+    """The personal quests this console's crew member was handed (`For:`)."""
+    from ..boarding import boarding_me
+    from ..boarding_quests import boarding_quests_of
+    return boarding_quests_of(boarding_me(client_id))
+
+
 def _tasks_available(client_id):
     """Tasks follow the crew member, on the ground or in a suit - a quest is theirs
-    wherever they are standing."""
-    return _on_ground(client_id) or _in_a_suit(client_id)
+    wherever they are standing.
+
+    AND IN A PARTY WITH NOWHERE TO STAND, when they hold a quest of their own. A visit that
+    is rooms only (no tile area, no suit) had Crew and Act and nothing else, so a quest
+    handed to one person was on no screen at all: not on the handheld, and not on the
+    ship's Quests list, which shows the ship's. The person it was written for never saw
+    its name. Somebody with no quest of their own keeps the two-tile device.
+    """
+    return _on_ground(client_id) or _in_a_suit(client_id) or bool(_own_quests(client_id))
 
 
 def _suit_leads(client_id):

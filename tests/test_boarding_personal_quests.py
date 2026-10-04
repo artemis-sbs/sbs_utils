@@ -185,6 +185,49 @@ class PersonalQuestTests(_Base):
         self.assertIsNone(Q.boarding_quest_owner("six_names"))
 
 
+class HandheldTests(_Base):
+    """A quest of one's own was on no screen in a party with nowhere to stand."""
+
+    def tiles(self, client_id):
+        from sbs_utils.procedural.gui.xess import xess_apps
+        return [a["title"] for a in xess_apps(client_id)]
+
+    def test_the_person_with_a_quest_gets_a_tasks_tile(self):
+        self.declare()
+        self.sit(ENG, "engineering")
+        self.sit(SCI, "science")
+        self.assertIsNotNone(A.boarding_visit(self.ship, self.scenes, "airlock",
+                                              title="The Hulk", stories=self.stories))
+        self.assertIsNotNone(A.boarding_beam_down(SCI))
+        self.assertNotIn("Tasks", self.tiles(SCI))      # nothing handed out yet
+        A._boarding_visit_tick()
+        self.assertIn("Tasks", self.tiles(SCI))
+        self.assertEqual(Q.boarding_quests_of(A.boarding_me(SCI)), ["six_names"])
+
+    def test_somebody_with_no_quest_of_their_own_keeps_the_short_device(self):
+        self.declare()
+        self.sit(ENG, "engineering")
+        self.sit(SCI, "science")
+        self.visit(ENG, SCI, stories=False)
+        self.assertNotIn("Tasks", self.tiles(SCI))
+        self.assertEqual(Q.boarding_quests_of(A.boarding_me(SCI)), [])
+
+    def test_the_device_repaints_when_the_tile_arrives_and_when_a_quest_moves(self):
+        from sbs_utils.procedural.gui.xess import xess_revision
+        from sbs_utils.procedural.quest import _quest_touch
+        self.declare()
+        self.sit(SCI, "science")
+        self.assertIsNotNone(A.boarding_visit(self.ship, self.scenes, "airlock",
+                                              title="The Hulk", stories=self.stories))
+        self.assertIsNotNone(A.boarding_beam_down(SCI))
+        before = xess_revision(SCI)
+        A._boarding_visit_tick()
+        handed = xess_revision(SCI)
+        self.assertNotEqual(before, handed)
+        _quest_touch()
+        self.assertNotEqual(handed, xess_revision(SCI))
+
+
 class RewardTests(_Base):
     def test_a_person_aboard_is_paid_through_their_ship(self):
         self.declare()
