@@ -262,6 +262,11 @@ class TabOverflow(Dropdown):
         super().on_message(event)
 
 
+#: Where the error screen's text starts, as a percent of the screen's height: below the
+#: engine's own Mission Select and Options buttons, which the server draws across the top.
+ERROR_TEXT_TOP = 7
+
+
 class StoryPage(Page):
     tag = 0
     story_file = None
@@ -1406,17 +1411,24 @@ class StoryPage(Page):
         if len(self.compiler_errors) > 0:
             message = "".join(self.compiler_errors)
             message = message.replace(";", "~")
-            message = "$text: Mast Compiler Errors\n" + message.replace(",", ".")
+            # WHAT A WRITER SEES WHEN A PASTED LINE BREAKS THE STORY - so it says, in one
+            # plain sentence, what happened and what to do, before the compiler's own
+            # words. No comma or semicolon in it: both are style separators here.
+            message = ("$text: Mast Compiler Errors. The story did not compile and nothing in "
+                       "this mission is running. Fix the line named below. Save. Then press "
+                       "Attempt Rerun.\n\n" + message.replace(",", "."))
             Gui.root_clear(my_sbs, event.client_id)
             if event.client_id != 0:
                 my_sbs.send_client_widget_list(event.client_id, "", "")
-            my_sbs.send_gui_text(event.client_id,"", "error", message,  0,0,100,100)
+            # BELOW THE ENGINE'S OWN BAR. The server draws Mission Select and Options
+            # across the top; text that started at 0 was drawn on top of them, title first.
+            my_sbs.send_gui_text(event.client_id,"", "error", message,  0,ERROR_TEXT_TOP,100,88)
             my_sbs.send_gui_button(event.client_id,"", "$Error$rerun", "$text:Attempt Rerun", 50, 90, 70, 99)
             my_sbs.send_gui_button(event.client_id,"", "$Error$startup", "$text:Run startup", 75, 90, 99, 99)
             self.gui_state = "errors"
             my_sbs.send_gui_complete(event.client_id,"")
             return
-        
+
 
         if self.story_scheduler is None:
             self.start_story(event.client_id)
@@ -1448,11 +1460,13 @@ class StoryPage(Page):
         if len(self.errors) > 0:
             message = "".join(self.errors)
             message = message.replace(";", "~")
-            message = "$text: Mast Compiler Errors\n" + message.replace(",", ".")
+            # These are RUNTIME errors - the story compiled, and something in it failed
+            # while running. The screen used to call them compiler errors too.
+            message = "$text: Mast Runtime Errors\n\n" + message.replace(",", ".")
             Gui.root_clear(my_sbs, event.client_id)
             if event.client_id != 0:
                 my_sbs.send_client_widget_list(event.client_id, "", "")
-            my_sbs.send_gui_text(event.client_id,"", "error", message,  0,0,100,100)
+            my_sbs.send_gui_text(event.client_id,"", "error", message,  0,ERROR_TEXT_TOP,100,88)
             my_sbs.send_gui_button(event.client_id,"", "$Error$resume", "$text:Attempt Resume", 0, 90, 20, 99)
             my_sbs.send_gui_button(event.client_id,"", "$Error$pause", "$text:Attempt pause", 25, 90, 45, 99)
             my_sbs.send_gui_button(event.client_id,"", "$Error$rerun", "$text:Attempt Rerun", 50, 90, 70, 99)
