@@ -1069,6 +1069,56 @@ _RELIC_ONLY_FIELDS = ("seed", "debris", "gaps", "plate", "atmosphere", "loc", "c
 _YES_NO = ("yes", "no", "true", "false", "on", "off", "1", "0")
 
 
+_FIELD_SHAPED = re.compile(r"^([A-Z][A-Za-z]*(?: [A-Za-z]+){0,2}):\s+\S")
+
+
+def amd_lint_fields_below_fence(doc):
+    """Flag a FIELD written below the closing `---`, where it is only prose. WARNING.
+
+        ### [The Way In](way_in)
+        ---
+        Relic: hollow
+        Point: 0, 0, -700
+        ---
+        Roles: entrance            <- below the fence: part of the note, not a field
+
+    A writer told to "add a line" adds it at the end. The record parses, lint was clean,
+    and the line does nothing - here the ruin's name stays off the map. Only the lines
+    that open the body are judged, and only a label that IS a field of this kind of
+    record: prose that happens to contain a colon further down is left alone, and so is
+    dialogue, whose body is speech.
+    """
+    try:
+        from sbs_utils.procedural.amd_schema import amd_is_declared
+    except Exception:                                   # noqa: BLE001
+        return []
+    findings = []
+    for node in doc.nodes:
+        kind = str(getattr(node, "kind", "") or "").strip().lower()
+        if not kind or kind == "dialogue" or not node.fence_lines:
+            continue
+        for lineno, raw in (node.body_lines or []):
+            line = raw.strip()
+            if not line:
+                continue
+            m = _FIELD_SHAPED.match(line)
+            if m is None:
+                break                            # prose has begun: stop looking
+            label = m.group(1)
+            try:
+                declared = amd_is_declared(label.lower(), kind)
+            except Exception:                           # noqa: BLE001
+                declared = False
+            if not declared:
+                break
+            findings.append(AmdFinding(
+                lineno, WARNING, "field-below-fence",
+                f"`{label}:` is a field, and this line is BELOW the closing `---`, so it "
+                f"is read as part of the note and does nothing. Move it up, between the "
+                f"two `---` lines"))
+    return findings
+
+
 def amd_lint_relic_dressing(doc):
     """Flag how a ruin is DRESSED where the game will quietly do something else. WARNING.
 
@@ -1097,10 +1147,25 @@ def amd_lint_relic_dressing(doc):
         RELIC_PLATE_MIN, RELIC_PLATE_MAX = 150.0, 2000.0
     known_art = None
     entrances = {}                                       # relic key -> [(line, name)]
+    part_keys = {}                                       # relic key -> {keys of its parts}
+    for node, fields in _relic_nodes(doc):
+        if "relic" in fields:
+            part_keys.setdefault(str(fields["relic"][1]).strip(), set()).add(str(node.key))
     for node, fields in _relic_nodes(doc):
         is_part = "relic" in fields
         owner = str(fields["relic"][1]).strip() if is_part else str(node.key)
         is_room = "chamber" in fields or "box" in fields
+
+        # --- which way a set piece looks ----------------------------------------------
+        if "facing" in fields:
+            ln, value = fields["facing"]
+            text = str(value).strip()
+            if text and len(_relic_nums(text)) < 3 and text not in part_keys.get(owner, ()):
+                findings.append(AmdFinding(
+                    ln, WARNING, "relic-facing-unknown",
+                    f"`Facing: {text}` names no room, place or set piece of `{owner}`, so "
+                    f"the piece looks at the middle of its own room as if the line were "
+                    f"not there. Write a part's key, or a direction as three numbers"))
 
         # --- a style that is nearly a style -------------------------------------------
         if "walls" in fields and styles:
@@ -1572,7 +1637,13 @@ def _lint_relic_web(doc):
             # the depth is exactly zero, and that is the right place for it.
             from .volume import volume_depth, volume_get
             built = volume_get(name)
+            #
+            # AND NEVER AN ENTRANCE. The way in is where a ship ARRIVES, and every shipped
+            # ruin puts it outside the mouth, in open space, so science has a bearing
+            # to call before anyone is inside.
             for pname, pv in rec["points"].items():
+                if "entrance" in (pv[3] or ()):
+                    continue
                 if built is not None and volume_depth(built, (pv[0], pv[1], pv[2])) > 50.0:
                     findings.append(AmdFinding(
                         rec["point_lines"].get(pname, ln), "warning", "relic-point-outside",
@@ -3153,6 +3224,7 @@ def amd_lint(file_path=None, content=None, mast_sources=None, cross_file=None,
         findings += amd_lint_relics(doc)
         findings += amd_lint_relic_structure(doc)
         findings += amd_lint_relic_dressing(doc)
+        findings += amd_lint_fields_below_fence(doc)
         findings += amd_lint_hails(doc)
         findings += amd_lint_then(doc)
         findings += amd_lint_quest_triggers(doc)

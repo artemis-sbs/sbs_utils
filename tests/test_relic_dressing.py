@@ -204,6 +204,54 @@ class PlaceTests(unittest.TestCase):
     def test_a_way_in_on_the_wall_is_inside_enough(self):
         self.assertNotIn("relic-point-outside", _codes(_swap("Point: -700, 0, 0", "Point: -900, 0, 0")))
 
+    def test_a_way_in_stands_outside_on_purpose(self):
+        """Every shipped ruin puts its `entrance` in open space outside the mouth."""
+        self.assertNotIn("relic-point-outside", _codes(_swap("Point: -700, 0, 0", "Point: -4000, 0, 0")))
+
+
+class FacingTests(unittest.TestCase):
+    RING = "Dress: generic-torus 4"
+
+    def test_a_key_that_is_not_there(self):
+        text = _swap(self.RING, self.RING + "\nFacing: naive")
+        self.assertIn("relic-facing-unknown",
+                      [f.code for f in amd_lint(content=text, cross_file=False)])
+
+    def test_a_part_or_a_direction_is_fine(self):
+        for facing in ("mouth", "way_in", "1, 0, 0"):
+            text = _swap(self.RING, self.RING + "\nFacing: " + facing)
+            self.assertNotIn("relic-facing-unknown",
+                             [f.code for f in amd_lint(content=text, cross_file=False)], facing)
+
+
+class AFieldBelowTheFenceTests(unittest.TestCase):
+    """A writer told to "add a line" adds it at the end - below the closing `---`, where
+    it is part of the note. The record parsed and lint was clean."""
+
+    def codes(self, text):
+        return [f.code for f in amd_lint(content=text, cross_file=False)
+                if f.code == "field-below-fence"]
+
+    def test_a_relic_field_in_the_note(self):
+        text = _swap("Point: -700, 0, 0\nRoles: entrance\n---\n",
+                     "Point: -700, 0, 0\n---\nRoles: entrance\n")
+        self.assertEqual(self.codes(text), ["field-below-fence"])
+
+    def test_prose_with_a_colon_is_left_alone(self):
+        text = _swap("Older than anyone who could have built it.",
+                     "Note to self: older than anyone who could have built it.")
+        self.assertEqual(self.codes(text), [])
+
+    def test_a_field_word_later_in_the_prose_is_left_alone(self):
+        text = _swap("Older than anyone who could have built it.",
+                     "Older than anyone who could have built it.\nWalls: nobody knows what.")
+        self.assertEqual(self.codes(text), [])
+
+    def test_a_quest_field_in_the_note(self):
+        quest = ("# [M](m)\n\n## [Quests](quests)\n\n### [Go](go)\n---\nScope: shared\n"
+                 "Starts when: at once\n---\nDone when: reach derelict 500\nGo and look.\n")
+        self.assertEqual(self.codes(quest), ["field-below-fence"])
+
 
 class AtmosphereTests(unittest.TestCase):
     def setUp(self):
