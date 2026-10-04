@@ -209,6 +209,24 @@ class TheFence(unittest.TestCase):
         self.assertEqual((f.code, f.line), ("fence-not-opened", line_of(text, HULL) + 1))
         self.assertIn("no `---` lines round them", f.message)
 
+    def test_a_record_that_has_its_fence_is_never_told_it_has_none(self):
+        # The "no `---` lines round them" check read every line under the heading,
+        # the ones after the closed fence included. Released for a few hours; three
+        # lessons measured it the same afternoon.
+        opens = MISSION.replace("Fly out and locate the drifting hulk.",
+                                "Objective: find the hulk before anyone else does.")
+        self.assertEqual([str(f) for f in lint(opens)], [])
+        below = MISSION.replace("Tab: mat\n---\n", "---\nTab: mat\n")
+        codes = [f.code for f in amd_lint(content=below, known_keys=set(parse(below).keys),
+                                          cross_file=False)]
+        self.assertIn("field-below-fence", codes)
+        self.assertNotIn("fence-not-opened", codes)
+
+    def test_a_long_dash_is_quoted_as_it_was_typed(self):
+        text = MISSION.replace("Tab: scan\n---\n", "Tab: scan\n" + chr(0x2014) + "\n")
+        found = [f for f in lint(text) if f.code == "fence-shape"]
+        self.assertIn("`" + chr(0x2014) + "`", found[0].message)
+
     def test_a_description_that_opens_with_a_label_is_not_a_field(self):
         text = MISSION.replace("Fly out and locate the drifting hulk.",
                                "Note: the hulk is further out than it looks.")
@@ -339,6 +357,16 @@ class OneMistakeOneTrueLine(unittest.TestCase):
                 "Done when: signal again\n---\nOnce more.\n")
         text = MISSION.replace("\n## [Scans](scans)", copy + "\n## [Scans](scans)")
         self.assertEqual([f.code for f in lint(text)], ["duplicate-key"])
+
+    def test_what_the_game_does_with_a_copied_key_is_said_only_where_it_is_true(self):
+        quests = ("\n#### [Study It Again](study)\n---\nScope: shared\nStarts when: revealed\n"
+                  "Done when: signal again\n---\nOnce more.\n")
+        text = MISSION.replace("\n## [Scans](scans)", quests + "\n## [Scans](scans)")
+        self.assertIn("keeps the first", lint(text)[0].message)
+        scans = MISSION.replace("(derelict_mat)", "(derelict_scan)")
+        found = [f for f in lint(scans) if f.code == "duplicate-key"]
+        self.assertEqual(len(found), 1)
+        self.assertNotIn("keeps the first", found[0].message)
 
     def test_a_renamed_arc_is_caught_and_the_fix_is_named(self):
         text = MISSION.replace("(first_contact)", "(contact)")

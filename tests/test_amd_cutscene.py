@@ -301,9 +301,18 @@ class TestPlaying(AmdCutsceneBase):
         self.assertIsNone(self.page.overlays.slots.get("fullscreen").content
                           if self.page.overlays.slots.get("fullscreen") else None)
 
-    def test_an_unknown_cutscene_returns_none(self):
+    def test_an_unknown_cutscene_is_already_over(self):
+        # It returned None, and `await cutscene_amd("no-such-scene")` then asked again
+        # on every tick: the block under it never ran, and the log filled with one line
+        # a tick. It is handed back as something that has already finished, said once.
+        import logging
         self.load()
-        self.assertIsNone(cutscene_amd("no-such-scene", to=C1))
+        with self.assertLogs("mast.runtime", level="WARNING") as heard:
+            first = cutscene_amd("no-such-scene", to=C1)
+            second = cutscene_amd("no-such-scene", to=C1)
+        self.assertTrue(first.done() and second.done())
+        self.assertEqual(first.result()["shots"], 0)
+        self.assertEqual(len(heard.output), 1)
 
 
 class TestRundownLoading(AmdCutsceneBase):

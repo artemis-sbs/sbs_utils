@@ -366,6 +366,9 @@ def _extract_data_refs(node, fence_lines):
         verb = toks[0].lower() if toks else ""
         if verb == "reveal" and len(toks) >= 2:
             r = _token_span(fence_lines, "Then", toks[1], key, "reveal")
+            if r is not None and "/" in str(then):
+                # The path the GAME reads: spaces round a slash dropped (amd_quest).
+                r.value = re.sub(r"[ \t]*/[ \t]*", "/", str(then)).split()[1]
         elif verb == "signal" and len(toks) >= 2:
             r = _token_span(fence_lines, "Then", toks[1], key, "signal")
         elif verb not in ("reveal", "signal"):

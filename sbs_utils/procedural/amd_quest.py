@@ -13,6 +13,7 @@ the trigger-verb table and the label->quest-data interpretation, exposed as an
 here - a richer mission (Open Universe) keeps its own labels and composes this
 handler underneath them.
 """
+import re
 from sbs_utils.procedural.amd import (amd_parse_facts, amd_norm, amd_num, amd_coords,
                                       amd_signal_name, amd_duration_parts, amd_is_duration)
 
@@ -378,7 +379,10 @@ def amd_quest_facts(aliases=None):
                 if kind in _INSTRUCTION_TRIGGERS and not data.get("objective"):
                     data["objective"] = value[:1].upper() + value[1:]
         elif label == "then":
-            toks = str(value).split()
+            # `reveal first_contact / study`: spaces round the slash are not part of the
+            # path. The split below kept `first_contact` and dropped the rest, so the
+            # arc was "revealed" (it was already running) and the step never appeared.
+            toks = re.sub(r"[ \t]*/[ \t]*", "/", str(value)).split()
             if len(toks) >= 2 and toks[0].lower() in THEN_VERBS:
                 data[toks[0].lower()] = toks[1]
             else:

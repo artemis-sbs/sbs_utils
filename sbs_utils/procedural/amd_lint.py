@@ -187,6 +187,7 @@ def _structural_scan(lines):
     heading_text = ""         # the heading the current fence belongs to
     since_heading = []        # (lineno, text) of real lines between a heading and here
     fence_reported = False    # one finding for one unclosed fence
+    had_fence = False         # the heading we are under opened a fence
     saw_heading = False
     broken_above = False      # a broken heading was just reported: its fence follows from it
     no_title_said = False
@@ -223,7 +224,12 @@ def _structural_scan(lines):
         starts from a fence line. Only when the first lines under the heading are all
         fields a record can have, so `Note: the airlock is jammed` opening a description
         is not taken for one."""
-        if broken_above or not since_heading:
+        if broken_above or had_fence or not since_heading:
+            # `had_fence`: this heading HAS its fence. `since_heading` goes on collecting
+            # after the fence closes, so a description that opens `Objective: find the
+            # hulk`, or a field typed below the closing `---`, looked like fields with no
+            # fence at all - a false error on a record that was fine (released for a few
+            # hours in 947e3f8a; three lessons measured it the same afternoon).
             return
         run = []
         for n, text in since_heading:
@@ -252,6 +258,7 @@ def _structural_scan(lines):
 
         if action == "open":
             fence_reported = False
+            had_fence = True
             continue
         if action == "close":
             continue
@@ -264,7 +271,7 @@ def _structural_scan(lines):
                 swallow_from = i
                 findings.append(AmdFinding(
                     i, ERROR, "fence-shape",
-                    f"`{line.strip()}` is not a fence line, so the fence above it is "
+                    f"`{typed[i - 1].strip()}` is not a fence line, so the fence above it is "
                     f"still open and the lines below are read as its fields. A fence "
                     f"line is three hyphens, `---`, with nothing else on the line"))
             continue
@@ -325,6 +332,7 @@ def _structural_scan(lines):
             heading_text = f"`{line.strip()}`"
             since_heading = []
             broken_above = False
+            had_fence = False
             continue
 
         # ---- body -------------------------------------------------------------
@@ -832,11 +840,15 @@ def amd_lint_keys(doc):
                 continue
             where = " and ".join(str(n.span.line) for n in clash if n.span) or path_of(clash[0])
             for n in clash[1:]:
+                kept = ""
+                if str(getattr(n, "kind", "") or "").lower() == "quest":
+                    # True of QUESTS only. Two scan records on one key both load.
+                    kept = ", and the game keeps the first and drops the rest"
                 findings.append(AmdFinding.at(
                     n.key_span or n.span, WARNING, "duplicate-key",
                     f"`{key}` is the key of {len(clash)} records in the same place "
-                    f"(lines {where}). Nothing can point at one and not the other, and "
-                    f"the game keeps the first and drops the rest. Give each its own key"))
+                    f"(lines {where}). Nothing can point at one and not the other"
+                    f"{kept}. Give each its own key"))
     for ref in doc.refs:
         if ref.kind in ("scene", "parent", "reveal", "choice") and doc.is_ambiguous(ref.value):
             owner = doc.by_key.get(ref.owner)
@@ -1007,9 +1019,13 @@ def _mast_routes(mast_sources):
 # through signal_emit - miss them and every owner-scoped job reads as "nothing emits
 # this" (peacetime credits its jobs entirely this way).
 _RE_EMIT = re.compile(r'signal_emit\s*\(\s*["\']([A-Za-z0-9_]+)["\']')
-_RE_SIGNAL_NAME = re.compile(r'["\']SIGNAL_NAME["\']\s*:\s*["\']([A-Za-z0-9_]+)["\']')
-_RE_CREDIT = re.compile(r'quest_credit_signal\s*\([^,()]*,\s*["\']([A-Za-z0-9_]+)["\']')
-_RE_QUEST_ON = re.compile(r'quest_on_signal\s*\(\s*["\']([A-Za-z0-9_]+)["\']')
+# The NAME is whatever sits between the quotes. These took `[A-Za-z0-9_]+`, so a name
+# with a space or a hyphen in it was not seen at all - and the game, which folds a space
+# to an underscore on both sides, finished the step lint had just called unfired.
+_RE_SIGNAL_NAME = re.compile(r'["\']SIGNAL_NAME["\']\s*:\s*["\']([^"\'\n]+)["\']')
+_RE_CREDIT = re.compile(r'quest_credit_signal\s*\([^,()]*,\s*["\']([^"\'\n]+)["\']')
+_RE_QUEST_ON = re.compile(r'quest_on_signal\s*\(\s*["\']([^"\'\n]+)["\']')
+_RE_EMIT_FIRST = re.compile(r'signal_emit\s*\(\s*["\']([^"\'\n]*)["\']')
 
 
 def _emitted_from_sources(mast_sources):
@@ -1038,8 +1054,17 @@ def _quest_emitted_from_sources(mast_sources):
         # variable, not a forwarder.
         if _RE_QUEST_ON_ANY.search(src):
             return None
-        for rx in (_RE_SIGNAL_NAME, _RE_CREDIT, _RE_QUEST_ON):
+        for rx in (_RE_CREDIT, _RE_QUEST_ON):
             names.update(amd_signal_name(m.group(1)) for m in rx.finditer(src))
+        for line in str(src).split("\n"):
+            # `"SIGNAL_NAME": "x"` counts where it rides on `quest_signal`, or on a line
+            # of its own (a dictionary built above the call). NOT on a line that sends
+            # some other signal: `signal_emit("x", {"SIGNAL_NAME": "x"})` - the first
+            # quoted word changed, the key kept - reaches no quest, and was clean.
+            sender = _RE_EMIT_FIRST.search(line)
+            if sender is not None and sender.group(1) != "quest_signal":
+                continue
+            names.update(amd_signal_name(m.group(1)) for m in _RE_SIGNAL_NAME.finditer(line))
     return names
 
 
@@ -1673,11 +1698,34 @@ def amd_lint_never_revealed(doc, content=None, source_index=None):
             continue
         ln = start[0][0]
         path = _quest_path(node) or key
+        tail = ", and the story it belongs to cannot finish" if "/" in path else ""
         findings.append(AmdFinding(
             ln, WARNING, "never-revealed",
             f"`{node.display or key}` waits to be revealed, and nothing reveals it: no "
             f"`Then: reveal {path}` on another step, and no answer or story line names "
-            f"`{leaf}`. It never appears, and the story it belongs to cannot finish"))
+            f"`{leaf}`. It never appears{tail}"))
+    return findings
+
+
+def amd_lint_signal_with_no_name(doc):
+    """Flag `Done when: signal` (and its siblings) with no name after the word. WARNING.
+
+    The game waits for no signal at all, so the step never finishes - and it was `clean`."""
+    findings = []
+    for node in doc.nodes:
+        if str(getattr(node, "kind", "") or "").lower() != "quest":
+            continue
+        for label, entries in _plain_fields(node).items():
+            if label not in _TRIGGER_LABELS_SPACED:
+                continue
+            for ln, value in entries:
+                if str(value).strip().lower() == "signal":
+                    shown = label[:1].upper() + label[1:]
+                    findings.append(AmdFinding(
+                        ln, WARNING, "signal-no-name",
+                        f"`{shown}: signal` does not say WHICH signal, so the game waits "
+                        f"for none and this never happens. Write the name after it: "
+                        f"`{shown}: signal hulk_found`"))
     return findings
 
 
@@ -4257,6 +4305,7 @@ def amd_lint(file_path=None, content=None, mast_sources=None, cross_file=None,
         findings += amd_lint_sides(doc, keys, mast_sources)
         findings += amd_lint_start_only(doc)
         findings += amd_lint_never_revealed(doc, content, source_index)
+        findings += amd_lint_signal_with_no_name(doc)
         findings += amd_lint_fields_below_fence(doc)
         findings += amd_lint_hails(doc)
         findings += amd_lint_then(doc)

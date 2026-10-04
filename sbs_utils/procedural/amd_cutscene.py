@@ -75,6 +75,10 @@ def cutscene_cast_clear():
     CUTSCENE_CAST.clear()
 
 
+# Cutscene keys already reported as not declared. Cleared with the declared cutscenes.
+_UNKNOWN_SAID = set()
+
+
 def _log(message):
     # TO THE LOG A WRITER READS. This went to a log category of its own, which has no
     # file behind it: a cutscene key nobody declared, a shot dropped for a subject that
@@ -329,8 +333,19 @@ def cutscene_amd(key, to=None, consoles=None, **overrides):
     """Play a cutscene declared in AMD. Returns the Promise, or None if unknown."""
     rec = CUTSCENE_AMD.get(key)
     if rec is None:
-        _log(f"cutscene {key!r} is not declared in any loaded AMD")
-        return None
+        # SAID ONCE, and handed back as something that is already over. This returned
+        # None: `await cutscene_amd("cairn_scen", ...)` then asked again on every tick,
+        # the block under it never ran, and (once the message reached the log) the log
+        # took one line per tick - 184 of them in a half-minute run.
+        if key not in _UNKNOWN_SAID:
+            _UNKNOWN_SAID.add(key)
+            _log(f"cutscene {key!r} is not declared in any loaded AMD")
+        from ..futures import Promise
+        over = Promise()
+        # The shape a played cutscene finishes with, saying none of it was shown. (Not
+        # None: a Promise whose result is None reads as still running.)
+        over.set_result({"skipped": True, "shots": 0, "name": key, "unknown": True})
+        return over
     shots = _playable(rec["shots"])
     bed = dict(rec["bed"])
     bed.pop("display", None)
@@ -365,3 +380,4 @@ def amd_cutscene_clear():
     CUTSCENE_AMD.clear()
     RUNDOWN_AMD.clear()
     CUTSCENE_CAST.clear()
+    _UNKNOWN_SAID.clear()

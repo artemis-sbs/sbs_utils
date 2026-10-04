@@ -163,6 +163,32 @@ class OneSpellingOfASignal(unittest.TestCase):
         spaced = MISSION.replace("signal derelict_found", "signal derelict found")
         self.assertEqual(findings(spaced, code="unfired-signal"), [])
 
+    def test_lint_reads_whatever_is_between_the_quotes(self):
+        # `[A-Za-z0-9_]+` did not see a name with a space or a hyphen in it at all.
+        for sent, waited in (("derelict found", "derelict_found"),
+                             ("Derelict Found", "derelict_found"),
+                             ("derelict_found ", "derelict_found"),
+                             ("derelict-found", "derelict-found")):
+            with self.subTest(sent=sent):
+                text = story('"SIGNAL_NAME": "derelict_found"', f'"SIGNAL_NAME": "{sent}"')
+                mission = MISSION.replace("signal derelict_found", "signal " + waited)
+                self.assertEqual(findings(mission, text, "unfired-signal"), [])
+
+    def test_the_key_counts_only_where_it_rides_on_quest_signal(self):
+        # The FIRST quoted word changed and the key kept: reaches a route and no quest.
+        wrong = story('signal_emit("quest_signal", {"SIGNAL_NAME": "derelict_found"})',
+                      'signal_emit("derelict_found", {"SIGNAL_NAME": "derelict_found"})')
+        self.assertEqual(len(findings(story=wrong, code="unfired-signal")), 1)
+        built_above = story('signal_emit("quest_signal", {"SIGNAL_NAME": "derelict_found"})',
+                            'data = {"SIGNAL_NAME": "derelict_found"}\n    signal_emit("quest_signal", data)')
+        self.assertEqual(findings(story=built_above, code="unfired-signal"), [])
+
+    def test_a_wait_with_no_name(self):
+        mission = MISSION.replace("Done when: signal derelict_found", "Done when: signal")
+        found = findings(mission, code="signal-no-name")
+        self.assertEqual(len(found), 1)
+        self.assertIn("Done when: signal hulk_found", found[0].message)
+
     def test_a_signal_sent_with_no_name_is_said(self):
         heard = []
 
@@ -213,6 +239,31 @@ class APathWithSpacesRoundItsSlash(unittest.TestCase):
     def test_the_game_reveals_the_step(self):
         QD.quest_reveal(Agent.SHARED_ID, "first_contact / study")
         self.assertEqual(quest_get_state(Agent.SHARED_ID, "first_contact/study"), QuestState.ACTIVE)
+
+    def test_the_fact_sheet_reader_keeps_the_whole_path(self):
+        # The first fix was in quest_reveal, which the path never reached whole: the
+        # `.amd` reader had already split the line on spaces and kept one word.
+        from sbs_utils.procedural.amd_quest import amd_quest_data
+        self.assertEqual(amd_quest_data("Then: reveal first_contact / study\n").get("reveal"),
+                         "first_contact/study")
+        self.assertEqual(amd_quest_data("Then: reveal first_contact/study\n").get("reveal"),
+                         "first_contact/study")
+
+    def test_lint_checks_the_path_the_game_reads(self):
+        spaced = MISSION.replace("Then: reveal first_contact/study", "Then: reveal first_contact / study")
+        self.assertEqual([str(f) for f in findings(spaced)], [])
+        wrong = MISSION.replace("Then: reveal first_contact/study", "Then: reveal first_contact / stdy")
+        self.assertEqual(len(findings(wrong, code="dangling-reveal")), 1)
+
+
+class AStepThatBelongsToNoStory(unittest.TestCase):
+    def test_it_is_not_told_its_story_cannot_finish(self):
+        alone = MISSION + ("\n### [The One Who Stayed](stayed)\n---\nScope: shared\n"
+                           "Starts when: revealed\nDone when: signal stayed_found\n---\nA grave.\n")
+        text = STORY.replace('    ->END\n', '    signal_emit("quest_signal", {"SIGNAL_NAME": "stayed_found"})\n    ->END\n')
+        found = findings(alone, text, "never-revealed")
+        self.assertEqual(len(found), 1)
+        self.assertNotIn("cannot finish", found[0].message)
 
 
 if __name__ == "__main__":
