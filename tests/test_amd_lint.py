@@ -46,10 +46,12 @@ class TestFieldValues(unittest.TestCase):
     def test_bad_scan_tab_warns(self):
         doc = ("## [Science](science)\n### [Hull](hull)\n---\n"
                "Scan of: derelict\nTab: scna\n---\n% wreck\n")
-        # Both the scan-label pass and the schema pass can catch this; assert at
-        # least the schema value-check fires with the right value.
-        bad = _by_code(amd_lint(content=doc), "unknown-enum-value")
-        self.assertTrue(any("scna" in f.message for f in bad))
+        # Both the scan-label pass and the schema pass catch this. ONE mistake gets
+        # ONE line: the scan pass's, which says the scan will never be shown.
+        found = amd_lint(content=doc)
+        bad = [f for f in found if f.code in ("unknown-scan-tab", "unknown-enum-value")]
+        self.assertEqual([f.code for f in bad], ["unknown-scan-tab"])
+        self.assertIn("scna", bad[0].message)
 
 
 def _codes(findings):

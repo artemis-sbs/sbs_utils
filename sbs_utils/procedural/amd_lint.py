@@ -42,6 +42,14 @@ WARNING = "warning"
 _RE_SECTION = RE_HEADING
 _RE_HEADING_ATTEMPT = re.compile(r"#+[ \t]+\S")
 _RE_DATA_FENCE = re.compile(r"\s*-{3,}\s*$")
+# What a writer types INSTEAD of `---`: two hyphens, underscores, asterisks, spaced
+# hyphens, or the one long dash a word processor makes out of three. None is a fence.
+_RE_FENCE_SLIP = re.compile(
+    r"^[ \t]*(?:--|_{3,}|\*{3,}|={3,}|~{3,}|-(?:[ \t]+-){2,}|[‒-―]+-*|-+[‒-―]+)[ \t]*$")
+# A line shaped like a field, in the first column: `Done when: signal x`.
+_RE_FIELD_SHAPE = re.compile(r"^[A-Za-z][A-Za-z0-9 _]{0,30}:(?:[ \t]+\S|[ \t]*$)")
+_RE_HASHES_NO_SPACE = re.compile(r"#+\[[^\]]*\]\(")
+_RE_KEY_NOT_TOUCHING = re.compile(r"\][ \t]+\(")
 
 
 class AmdFinding:
@@ -113,64 +121,231 @@ def amd_lint_structural(file_path=None, content=None):
     """Scan raw source for the silent structural failures. Returns [AmdFinding].
 
     Checks:
-      * broken structural heading - a `#`-led line carrying a malformed link
-        boundary `](` (or bracket pair) that the parser will NOT recognize as a
-        heading, so it vanishes into the parent's description. A plain prose
-        heading (`## Objective`, no brackets) is NOT flagged.
-      * unclosed `---` data fence - an odd number of fence lines leaves the tail
-        of the file silently swallowed as (unparsed) data.
-      * heading-level jump - a heading that dives more than one level below the
-        current depth (the parser raises a bare `Document structure error`; we
-        report it with the line and a hint).
+      * broken-heading - a `#`-led line the game will NOT read as a heading, so the
+        record it was meant to start does not exist: spaces in front of the hashes,
+        no space after them, a broken `[Name](key)`, a space between `]` and `(`, or
+        no link form at all with a fence underneath. A plain prose heading
+        (`## Objective`, no brackets, no fence) is NOT flagged.
+      * unclosed-data-fence - a fence with no closing `---`, named on the line it
+        OPENS and with the heading it has swallowed.
+      * fence-not-opened - fields with no `---` above them, or with a line of text
+        between the heading and the `---`.
+      * fence-shape - `--`, `___`, `***`, `- - -` or one long dash where `---` goes.
+      * heading-level-jump - more hashes than the heading above allows. The game
+        reads it one deeper than its parent and says so in mast.runtime.log.
+      * no-headings - a file the game loads nothing from.
     """
+    from sbs_utils.procedural.amd import FenceScanner, BoneyardScanner, RE_COMMENT
+
     lines = _source_lines(file_path, content)
     findings = []
 
-    in_data = False
-    data_open_line = 0
-    depth = 0  # current heading depth (root = 0)
+    # THE READER'S OWN SCANNERS, not a copy of their rule. This pass used to flip a
+    # boolean on every `---`, which the game stopped doing long ago (a fence opens only
+    # straight under a heading). So lint and the game read different files: a `---`
+    # scene break in a description was an ERROR here, naming the last line of the file,
+    # for text the game reads without trouble - and a fence whose `---` WAS missing was
+    # reported ten lines away, on a neighbor.
+    scanner = FenceScanner()
+    boneyard = BoneyardScanner()
+    hash_stack = [0]          # hash count of each open heading; the root has none
+    heading_text = ""         # the heading the current fence belongs to
+    since_heading = []        # (lineno, text) of real lines between a heading and here
+    fence_reported = False    # one finding for one unclosed fence
+    saw_heading = False
+    broken_above = False      # a broken heading was just reported: its fence follows from it
+    no_title_said = False
 
-    for i, line in enumerate(lines, start=1):
-        if _RE_DATA_FENCE.match(line):
-            in_data = not in_data
-            if in_data:
-                data_open_line = i
-            continue
-        if in_data:
-            continue
+    def next_real(start):
+        """(lineno, text) of the first non-blank line at or after index `start`."""
+        for j in range(start, len(lines)):
+            if lines[j].strip():
+                return j + 1, lines[j]
+        return 0, ""
 
-        if _RE_HEADING_ATTEMPT.match(line):
-            if _RE_SECTION.match(line):
-                # A valid link-form heading: track depth for jump detection.
-                hashes = line.split(None, 1)[0]
-                level = len(hashes)
-                if level > depth + 1:
-                    findings.append(AmdFinding(
-                        i, ERROR, "heading-level-jump",
-                        f"heading jumps from level {depth} to {level}; add the "
-                        f"missing intermediate level(s) or the parser will error"))
-                depth = level
+    def fence_follows(start):
+        """True when a `---` closes a run of field-shaped lines starting at `start`."""
+        seen = 0
+        for j in range(start, len(lines)):
+            text = lines[j]
+            if not text.strip() or RE_COMMENT.match(text):
                 continue
-            # A `#`-led line the parser will NOT treat as a heading.
-            if "](" in line:
+            if _RE_DATA_FENCE.match(text):
+                return seen > 0
+            if _RE_SECTION.match(text):
+                return False
+            if not (_RE_FIELD_SHAPE.match(text) or text[:1] in " \t-"):
+                return False
+            seen += 1
+        return False
+
+    for i, raw in enumerate(lines, start=1):
+        dropped, line = boneyard.feed(raw, i)
+        if dropped:
+            continue
+        could_open = scanner._can_open
+        action = scanner.feed(line, i)
+
+        if action == "open":
+            fence_reported = False
+            continue
+        if action == "close":
+            continue
+        if action == "data":
+            if fence_reported:
+                continue
+            if _RE_SECTION.match(line):
+                # A heading INSIDE a fence: the closing `---` is missing, and the game
+                # is now reading the next record's heading as one of this one's fields.
+                fence_reported = True
+                findings.append(AmdFinding(
+                    scanner.open_line, ERROR, "unclosed-data-fence",
+                    f"the fence that opens here has no closing `---`: the next heading, "
+                    f"`{line.strip()}` on line {i}, is being read as one of its fields. "
+                    f"Add a `---` line under the last field of {heading_text or 'this record'}"))
+            elif _RE_FENCE_SLIP.match(line):
+                fence_reported = True
+                findings.append(AmdFinding(
+                    i, ERROR, "fence-shape",
+                    f"`{line.strip()}` is not a fence line, so the fence above it is "
+                    f"still open and the lines below are read as its fields. A fence "
+                    f"line is three hyphens, `---`, with nothing else on the line"))
+            continue
+
+        if action == "heading":
+            saw_heading = True
+            level = len(line.split(None, 1)[0])
+            while len(hash_stack) > 1 and hash_stack[-1] >= level:
+                hash_stack.pop()
+            above = hash_stack[-1]
+            if level > above + 1 and above == 0 and no_title_said:
+                pass                      # every `##` in a file with no title: said once
+            elif level > above + 1:
+                if above == 0:
+                    no_title_said = True
+                    message = (f"`{line.strip()}` has {level} hashes and there is no title "
+                               f"above it. A file starts with its title, on ONE hash: "
+                               f"`# [My Mission](my_mission)`. Without it the game finds "
+                               f"no sections in this file")
+                else:
+                    message = (f"`{line.strip()}` has {level} hashes and the heading it "
+                               f"sits under has {above}: {level - above - 1} too many. "
+                               f"The game reads it as if it had {above + 1}, which may "
+                               f"not be the record you meant it to be")
+                findings.append(AmdFinding(i, ERROR, "heading-level-jump", message))
+            # (A second `#` heading is NOT reported. A flat file - a cast list, a set
+            # of hails, a file another one splices in - is one `#` record after
+            # another, and thirteen shipped files are written that way.)
+            hash_stack.append(level)
+            heading_text = f"`{line.strip()}`"
+            since_heading = []
+            broken_above = False
+            continue
+
+        # ---- body -------------------------------------------------------------
+        stripped = line.strip()
+        if not stripped or RE_COMMENT.match(line):
+            continue
+
+        if _RE_DATA_FENCE.match(line):
+            # A `---` the game reads as a rule in prose, not a fence. Usually that is
+            # what it is. Two shapes say the writer meant a fence:
+            fields_above = since_heading and all(
+                _RE_FIELD_SHAPE.match(t) for _n, t in since_heading)
+            if broken_above:
+                pass                      # the heading above is the mistake, and is named
+            elif fields_above:
+                findings.append(AmdFinding(
+                    since_heading[0][0], ERROR, "fence-not-opened",
+                    f"the fields under {heading_text} have no `---` above them, so the "
+                    f"game reads them as text and the record has no fields. Put a "
+                    f"`---` line between the heading and this line"))
+            elif since_heading and fence_follows(i):
+                first_line, first_text = since_heading[0]
+                findings.append(AmdFinding(
+                    i, ERROR, "fence-not-opened",
+                    f"this `---` does not open a fence: a fence has to be the first "
+                    f"thing under its heading, and line {first_line} "
+                    f"(`{first_text.strip()[:40]}`) comes before it. The fields below "
+                    f"are read as text. Move that line below the closing `---`"))
+            since_heading.append((i, line))
+            continue
+
+        if could_open and _RE_FENCE_SLIP.match(line) and fence_follows(i):
+            findings.append(AmdFinding(
+                i, ERROR, "fence-shape",
+                f"`{stripped}` is not a fence line, so the fields below it are read as "
+                f"text. A fence line is three hyphens, `---`, with nothing else on the line"))
+            since_heading.append((i, line))
+            continue
+
+        since_heading.append((i, line))
+        if not stripped.startswith("#"):
+            continue
+
+        # A `#`-led line the game will NOT treat as a heading. It becomes a line of the
+        # record above, and the record it was meant to start does not exist.
+        lead = len(line) - len(line.lstrip())
+        gone = "The game does not read it as a heading, so the record is not there"
+        before = len(findings)
+        if lead and _RE_SECTION.match(stripped):
+            findings.append(AmdFinding(
+                i, ERROR, "broken-heading",
+                f"there {'is a space' if lead == 1 else f'are {lead} spaces'} in front of "
+                f"the hashes. A heading starts at the very left of the line. {gone}",
+                col=0, end_line=i, end_col=lead))
+        elif _RE_HASHES_NO_SPACE.match(stripped):
+            findings.append(AmdFinding(
+                i, ERROR, "broken-heading",
+                f"there is no space between the hashes and the `[`. Write "
+                f"`{stripped.split('[', 1)[0]} [{stripped.split('[', 1)[1]}`. {gone}"))
+        elif not _RE_HEADING_ATTEMPT.match(stripped):
+            continue
+        elif "](" in stripped:
+            findings.append(AmdFinding(
+                i, ERROR, "broken-heading",
+                f"this is nearly a heading, but not quite: after the hashes it has to be "
+                f"`[Name](key)` and then nothing - check for a missing `)` or `]`, or "
+                f"words after the last bracket. {gone}"))
+        elif _RE_KEY_NOT_TOUCHING.search(stripped):
+            findings.append(AmdFinding(
+                i, ERROR, "broken-heading",
+                f"there is a space between `]` and `(`. The key has to touch the name: "
+                f"`[Name](key)`. {gone}"))
+        elif "[" in stripped and "]" in stripped:
+            findings.append(AmdFinding(
+                i, WARNING, "suspect-heading",
+                "a `#` line with a `[Name]` and no `(key)` after it. If this is meant "
+                "to be a record it needs `[Name](key)`, and until then the game does "
+                "not read it as one. If it is a heading inside your text, leave it"))
+        else:
+            # No link form at all - a plain heading in prose is legitimate. But a
+            # `---` on the very next line says it was meant to carry fields.
+            nline, ntext = next_real(i)
+            if nline and _RE_DATA_FENCE.match(ntext) and fence_follows(nline):
                 findings.append(AmdFinding(
                     i, ERROR, "broken-heading",
-                    "looks like a link-form heading but the `[Display](key)` is "
-                    "malformed; it will silently become body text and the node "
-                    "will vanish"))
-            elif "[" in line and "]" in line:
-                findings.append(AmdFinding(
-                    i, WARNING, "suspect-heading",
-                    "a `#` heading with brackets but no `(key)` - if this was "
-                    "meant to be a structural heading it needs `[Display](key)`; "
-                    "if it's prose, ignore"))
-            # else: a plain prose/body markdown heading - legitimate, no finding.
+                    f"this line has a fence under it, so it is meant to start a record, "
+                    f"but it is not written as one: hashes, one space, `[Name]`, then "
+                    f"`(key)` touching it. {gone}"))
 
-    if in_data:
+        if any(f.code == "broken-heading" for f in findings[before:]):
+            broken_above = True
+
+    if scanner.finish() and not fence_reported:
         findings.append(AmdFinding(
-            data_open_line, ERROR, "unclosed-data-fence",
-            "a `---` data fence was opened but never closed; the rest of the "
-            "file is swallowed as unparsed data"))
+            scanner.open_line, ERROR, "unclosed-data-fence",
+            f"the fence that opens here is never closed, so everything below it is "
+            f"read as fields of {heading_text or 'the file'}. Add a `---` line under "
+            f"its last field"))
+
+    if not saw_heading:
+        empty = not any(l.strip() for l in lines)
+        findings.append(AmdFinding(
+            1, WARNING, "no-headings",
+            ("this file is empty" if empty else
+             "nothing in this file is a heading the game reads - `# [Name](key)` -")
+            + " so the game reads nothing from it"))
 
     return findings
 
@@ -281,6 +456,11 @@ def _resolves(doc, value, known_keys):
         # every nested reference reads as dangling.
         if value in doc.keys or doc.path_resolves(value):
             return True
+        # TWO records answer to this path - a step copied with its key left the same.
+        # The path exists; `duplicate-key` says what is wrong. Calling it dangling as
+        # well put a false line ABOVE the true one, and the first line is the one read.
+        if len(doc._match_paths([s for s in value.split("/") if s])) > 1:
+            return True
         # THE ARC IS IN THIS FILE, so the step has to be under it. The soft check below
         # asks only whether the LEAF exists somewhere, which is right for a path into
         # another file and wrong here: `Then: reveal salvage/home` was "resolved" by a
@@ -288,10 +468,32 @@ def _resolves(doc, value, known_keys):
         # left with one nested step - and the game was won when that one step finished.
         if value.split("/")[0] in doc.keys:
             return False
+        if value in known_keys:
+            return True
+        # NOTHING in the mission has the path's first key. The soft check below would
+        # still pass it on the strength of its last word, which is how renaming an arc
+        # `(first_contact)` to `(contact)` left `Then: reveal first_contact/study`
+        # clean here and revealing nothing in the game. Only when the mission's keys
+        # were handed in: a single file cannot know what its neighbors hold.
+        if known_keys and value.split("/")[0] not in known_keys:
+            return False
         return value.split("/")[-1] in known_keys
     # `Aka:` names count as resolving - that is the entire point of declaring one.
     return (value in doc.keys or value in known_keys
             or _aka_hit(doc, value))
+
+
+def _reveal_hint(doc, value):
+    """' Did you mean ...' when the last word of a path that names nothing IS a quest
+    in this file under another path - the arc was renamed and the line that points at
+    its step was not."""
+    leaf = str(value).split("/")[-1].strip()
+    nodes = [n for n in (getattr(doc, "_by_key_all", {}) or {}).get(leaf, ())
+             if str(getattr(n, "kind", "") or "").lower() == "quest"]
+    paths = sorted({p for p in (_quest_path(n) for n in nodes) if p and p != value})
+    if len(paths) == 1:
+        return f". There is a `{leaf}` at `{paths[0]}`: write `Then: reveal {paths[0]}`"
+    return ""
 
 
 def _aka_hit(doc, value):
@@ -339,12 +541,104 @@ def amd_lint_unknown_fields(doc):
                 continue
             if amd_is_declared(label, node.kind, traits):
                 continue
-            known = ", ".join(sorted(template_fields(node.kind))[:6])
             col = 0 if ":" not in raw else len(raw) - len(raw.lstrip())
             findings.append(AmdFinding(
                 lineno, WARNING, "unknown-field",
-                f"`{label}` is not a known {node.kind} field - check the spelling, or "
-                f"declare it with amd_register_fields. Known: {known}...", col=col))
+                _unknown_field_message(label, node, template_fields(node.kind)),
+                col=col))
+    return findings
+
+
+def _unknown_field_message(label, node, fields):
+    """What to say about a field its record's kind does not have.
+
+    It used to end "or declare it with amd_register_fields. Known: accept on, action,
+    at start, citation, cockpit, done when...": an instruction for a programmer, then
+    the first six names in a-b-c order, which a writer reads as a guess at what they
+    meant. For `Scop` the list did not hold `scope`."""
+    import difflib
+    from sbs_utils.procedural.amd_schema import ARCHETYPES
+    kind = node.kind
+    low = label.strip().lower()
+    # A field of ANOTHER kind, spelled right: the record is being read as the wrong
+    # thing, and the usual cause is the `##` heading above it - missing, or with the
+    # wrong key. Asked BEFORE the spelling guess: an exact name beats a near one.
+    others = sorted(a for a, table in ARCHETYPES.items()
+                    if a != kind and isinstance(table, dict) and low in table)
+    if others:
+        section = _section_key(node)
+        return (f"`{label}` is a {others[0]} field, and this record is being read as a "
+                f"{kind} because of where it sits (under `{section}`). Is the `##` "
+                f"heading for its section missing, or misspelled?")
+    close = difflib.get_close_matches(low, sorted(fields), n=1, cutoff=0.6)
+    if close:
+        want = close[0][:1].upper() + close[0][1:]
+        return (f"`{label}` is not a field a {kind} has, so nothing reads this line. "
+                f"Did you mean `{want}`?")
+    known = ", ".join(sorted(fields)[:6])
+    return (f"`{label}` is not a field a {kind} has. Check "
+            f"the spelling. A {kind} has: {known}... (a mission adds its own with "
+            f"amd_register_fields)")
+
+
+# One value each: the game keeps the LAST one written and says nothing.
+_SINGLE_FIELDS = frozenset({
+    "done when", "starts when", "when", "fails when", "goal", "scope", "at start",
+    "held by", "objective", "scan of", "tab", "speaker"})
+
+
+def amd_lint_field_slips(doc):
+    """Two slips of the hand inside a fence that the game reads without complaint.
+
+      * field-indented - a field with a space or a tab in front of it. An indented line
+        is MORE OF THE LINE ABOVE, so `  Done when: signal x` is not a field: the quest
+        has no way to finish, and is left on offer for good.
+      * repeated-field - `Done when:` twice in one fence. The second is used.
+
+    WARNING. Only labels the record's kind DECLARES are looked at, so a wrapped
+    sentence with a colon in it, or the inner names of a nested block, are left alone.
+    """
+    from sbs_utils.procedural.amd_schema import amd_is_declared, amd_traits_of
+    findings = []
+    for node in doc.nodes:
+        if not node.kind:
+            continue
+        traits = amd_traits_of(node.data)
+        above = None             # the last line that starts in the first column
+        first_seen = {}
+        for lineno, raw in (getattr(node, "fence_lines", None) or []):
+            if not raw.strip() or raw.strip().startswith("//"):
+                continue
+            indented = raw[:1] in (" ", "\t")
+            label = raw.split(":", 1)[0].strip() if ":" in raw else ""
+            if not indented:
+                above = (lineno, raw, label)
+                low = label.lower()
+                if low in _SINGLE_FIELDS and amd_is_declared(label, node.kind, traits):
+                    if low in first_seen:
+                        findings.append(AmdFinding(
+                            lineno, WARNING, "repeated-field",
+                            f"`{label}:` is written twice in this fence (line "
+                            f"{first_seen[low]} and here). The game uses this one and "
+                            f"drops the first. Take one out"))
+                    else:
+                        first_seen[low] = lineno
+                continue
+            if not label or above is None:
+                continue
+            # A line above that ends at its colon opens a nested block; the names
+            # inside it are the mission's own.
+            if ":" in above[1] and not above[1].split(":", 1)[1].strip():
+                continue
+            if not amd_is_declared(label, node.kind, traits):
+                continue
+            lead = len(raw) - len(raw.lstrip())
+            findings.append(AmdFinding(
+                lineno, WARNING, "field-indented",
+                f"`{label}:` has a space in front of it, so the game reads this line "
+                f"as more of the line above (`{above[1].strip()[:40]}`), not as a "
+                f"field. Move it to the very left of the line",
+                col=0, end_line=lineno, end_col=lead))
     return findings
 
 
@@ -416,7 +710,8 @@ def amd_lint_references(doc, known_keys=frozenset(), items=None):
             if not _resolves(doc, ref.value, known_keys):
                 findings.append(AmdFinding.at(
                     ref.span, WARNING, "dangling-reveal",
-                    f"`{ref.owner}` Then reveals `{ref.value}`, which resolves to no node"))
+                    f"`{ref.owner}` Then reveals `{ref.value}`, and no record has that "
+                    f"key, so nothing is revealed" + _reveal_hint(doc, ref.value)))
         elif ref.kind == "choice":
             target = ref.value
             if not target or target.startswith("//"):
@@ -3681,6 +3976,7 @@ def amd_lint(file_path=None, content=None, mast_sources=None, cross_file=None,
             doc, keys, items=(source_index or {}).get("items"))
         findings += amd_lint_keys(doc)
         findings += amd_lint_unknown_fields(doc)
+        findings += amd_lint_field_slips(doc)
         findings += amd_lint_field_values(doc)
         findings += amd_lint_actions(doc, keys)
         findings += amd_lint_urges(doc)
@@ -3712,6 +4008,13 @@ def amd_lint(file_path=None, content=None, mast_sources=None, cross_file=None,
     except Exception as e:
         findings.append(AmdFinding(0, WARNING, "parse-skipped",
                                    f"reference checks skipped - parse failed: {e}"))
+
+    # `Tab: sacn` is one mistake. It drew two lines, `unknown-scan-tab` and the
+    # general `unknown-enum-value`; the first says more, so it is the one kept.
+    tab_lines = {f.line for f in findings if f.code == "unknown-scan-tab"}
+    if tab_lines:
+        findings = [f for f in findings
+                    if not (f.code == "unknown-enum-value" and f.line in tab_lines)]
 
     findings.sort(key=lambda f: (f.line, 0 if f.is_error() else 1,
                                  f.col if f.col is not None else -1))
