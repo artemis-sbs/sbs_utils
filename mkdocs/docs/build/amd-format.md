@@ -34,6 +34,33 @@ headings nest — a `##` sits inside the `#` above it, a `###` inside that.
 `#` is only a heading when it has the `[Display](key)` shape. A plain `# Heading` in a
 body is ordinary markdown text, which is why briefings can use markdown freely.
 
+### The exact shape
+
+Hashes, one space, the name in square brackets, the key in round brackets, and nothing
+else on the line. The line starts at the very left.
+
+| Written | Read as |
+|---|---|
+| `### [Derelict Hull](derelict_scan)` | A heading |
+| `###[Derelict Hull](derelict_scan)` (no space after the hashes) | Text. The record is not there |
+| `  ### [Derelict Hull](derelict_scan)` (spaces in front) | Text |
+| `### [Derelict Hull] (derelict_scan)` (a space between `]` and `(`) | Text |
+| `### Derelict Hull (derelict_scan)` (no square brackets) | Text |
+| `### [Derelict Hull](derelict_scan) // a note` (words after the key) | Text |
+
+`sbs lint` reports each of these as `broken-heading` when it can tell a record was meant,
+which is when the line has a `---` fence under it.
+
+**The key** is letters, digits and underscores, in lower case: `derelict_scan`. It is
+matched exactly, capitals included, by everything that points at it. (A section key is
+the one exception: `(Scans)` is read as `scans`.) A `/` in a key is a path (`arc/step`),
+and a `?` starts attributes (`(aurora?icon=12)`), so use neither in a plain name.
+
+**The number of hashes is the nesting.** A heading sits inside the nearest heading above
+it that has fewer hashes. One hash too many (`####` straight under `##`) is read as one
+level down and reported: by lint as `heading-level-jump`, and by the game, once, in
+`mast.runtime.log`.
+
 ### Naming a record from somewhere else
 
 A key does not have to be unique — short names like `recover` or `scan` read well inside
@@ -104,6 +131,18 @@ A few details worth knowing:
 A fence opens **immediately after a heading** and closes at the next `---`. Anywhere
 else, `---` is just a horizontal rule in your prose. A heading always closes an open
 fence, and one left open at the end of the file is reported.
+
+A fence line is three hyphens and nothing else. `--`, `___`, `***`, `- - -` and the one
+long dash a word processor makes out of three hyphens are not fence lines.
+
+| Slip | What the game does | Lint |
+|---|---|---|
+| The closing `---` left out | The next heading closes the fence. The record keeps its fields; the lines under them were read as fields, so it has no text | `unclosed-data-fence`, on the line the fence opens |
+| The opening `---` left out | The fields are read as text. The record has no fields | `fence-not-opened` |
+| A sentence between the heading and the `---` | The `---` is a rule in prose, and the fields under it are text | `fence-not-opened` |
+| `--` or `***` where `---` goes | As for a missing line | `fence-shape` |
+| A field with a space or a tab in front | It is read as more of the line above | `field-indented` |
+| The same field twice | The second is used | `repeated-field` |
 
 ---
 
@@ -682,6 +721,17 @@ reports the things that used to fail silently: a heading that will not parse, a 
 line that is not a fact, a reference that points at nothing, an ambiguous name, a value
 outside a field's allowed set, a field no one declares, and non-ASCII text the engine
 cannot render.
+
+### Characters the game cannot draw
+
+The game draws plain keyboard characters only. A word processor replaces `"` with curly
+quotes, `--` with a long dash and `...` with a single character, and none of those can be
+drawn. The game's reader swaps each for its plain twin as it reads the file (curly quotes
+to `"` and `'`, dashes to `-`, the one-character ellipsis to `...`), drops the accent from
+an accented letter, and leaves out anything else. Your file is not changed.
+
+Lint still reports each one as `non-ascii` and says what the game will show in its place.
+Type the plain character: other tools read the file too.
 
 The VS Code extension shows the same findings as you type, and gives each field an
 editor suited to it — a dropdown for a fixed set of values, a picker for a reference, a

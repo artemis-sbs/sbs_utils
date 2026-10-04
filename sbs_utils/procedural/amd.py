@@ -628,9 +628,24 @@ class FenceScanner:
         self._can_open = True      # doc start: a leading fence is front matter
         self.unterminated = False
         self.open_line = 0
+        # True for the ONE feed() in which a heading ended a fence that had no closing
+        # `---`. The caller closes the block (as for 'close') and THEN takes the heading.
+        self.closed_by_heading = False
 
     def feed(self, line, lineno=0):
         """Classify one line: 'open' | 'close' | 'data' | 'heading' | 'body'."""
+        self.closed_by_heading = False
+        if self.in_data and RE_HEADING.match(line):
+            # "A heading always closes an open block" was the rule in the docstring
+            # above and in the format reference, and not in the code: `in_data` was
+            # tested first, so a fence with its closing `---` deleted read the NEXT
+            # record's heading as one of its own fields, and ran on to that record's
+            # fence. One missing line cost two records. Now it costs the readings of one.
+            # No shipped file has a heading-shaped line inside a fence (68 checked).
+            self.in_data = False
+            self._can_open = True
+            self.closed_by_heading = True
+            return "heading"
         if RE_FENCE.match(line):
             if self.in_data:
                 self.in_data = False

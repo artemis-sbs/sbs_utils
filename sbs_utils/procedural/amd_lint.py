@@ -214,18 +214,7 @@ def _structural_scan(lines):
         if action == "data":
             if fence_reported:
                 continue
-            if _RE_SECTION.match(line):
-                # A heading INSIDE a fence: the closing `---` is missing, and the game
-                # is now reading the next record's heading as one of this one's fields.
-                fence_reported = True
-                broken_above = True
-                swallow_from = scanner.open_line
-                findings.append(AmdFinding(
-                    scanner.open_line, ERROR, "unclosed-data-fence",
-                    f"the fence that opens here has no closing `---`: the next heading, "
-                    f"`{line.strip()}` on line {i}, is being read as one of its fields. "
-                    f"Add a `---` line under the last field of {heading_text or 'this record'}"))
-            elif _RE_FENCE_SLIP.match(line):
+            if _RE_FENCE_SLIP.match(line):
                 fence_reported = True
                 broken_above = True
                 swallow_from = i
@@ -237,6 +226,17 @@ def _structural_scan(lines):
             continue
 
         if action == "heading":
+            if scanner.closed_by_heading and not fence_reported:
+                # THIS heading ended a fence that had no closing `---`. The record above
+                # keeps its fields; the lines under them were read as fields too, so it
+                # has no text. Named where the fence OPENS: that record is the one to fix.
+                findings.append(AmdFinding(
+                    scanner.open_line, ERROR, "unclosed-data-fence",
+                    f"the fence that opens here has no closing `---` before the next "
+                    f"heading, `{line.strip()}` on line {i}. The lines under its fields "
+                    f"are read as fields, so {heading_text or 'this record'} has no text. "
+                    f"Add a `---` line under its last field"))
+                swallowed.append((scanner.open_line, i - 1))
             saw_heading = True
             level = len(line.split(None, 1)[0])
             while len(hash_stack) > 1 and hash_stack[-1] >= level:

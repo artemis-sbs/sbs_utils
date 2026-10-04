@@ -154,16 +154,28 @@ under the install; it finds the data folder by walking up, or pass `--data`.
 text and its node vanishes — so lint re-scans a mission's `.amd` and surfaces it.
 
 ```
-sbs lint .                 # errors + warnings, exit 0/1
-sbs lint . --strict        # warnings fail too (CI)
-sbs lint . --no-cross      # skip cross-file (signal->route, reach->landmark) checks
+sbs lint MyMission             # errors + warnings, exit 0/1
+sbs lint MyMission --strict    # warnings fail too (CI)
+sbs lint MyMission --no-cross  # skip cross-file (signal->route, reach->landmark) checks
 ```
 
-**Errors** (fail the run): broken/vanishing headings, unclosed `---` fences,
-heading-level jumps. **Warnings**: dangling choice / `Scene:` / `Then: reveal` /
-`Parent:` targets, an emitted `signal X` with no `//signal/X` route, a quest
-`Starts when: signal X` that nothing emits, a `reach i,j` with no landmark `At:`, and
-non-ASCII author text (the engine renders ASCII only). Backed by `sbs_utils.procedural.amd_lint` — also callable
+Give it the mission's folder name, from `data\missions`.
+
+**Errors** (fail the run): a heading the game will not read (`broken-heading`), a fence
+that is not closed, not opened or not typed as `---` (`unclosed-data-fence`,
+`fence-not-opened`, `fence-shape`), and too many hashes (`heading-level-jump`).
+**Warnings**: dangling choice / `Scene:` / `Then: reveal` /
+`Parent:` targets, an emitted `signal X` with no `//signal/X` route, a quest that waits
+for a signal nothing sends, a `reach i,j` with no landmark `At:`, a field its record does
+not have (with a guess at the one meant), a field typed twice or with a space in front,
+and characters the game cannot draw (it shows a plain one in their place; see
+[the format reference](../build/amd-format.md#characters-the-game-cannot-draw)). One
+mistake gets one finding: what a broken fence drags in after it is not printed.
+
+A finding reads `[WARNING] line 28:1: ... (unknown-field)`: the line, then the column
+counted from 1 as an editor counts it, the sentence, and the code.
+
+Backed by `sbs_utils.procedural.amd_lint` — also callable
 directly on a single file: `python -m sbs_utils.procedural.amd_lint <file.amd>`.
 
 `lint` also reads the mission's `.mast` for two signal problems that are easy to write and

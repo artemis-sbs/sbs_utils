@@ -884,7 +884,21 @@ def _document_get_amd_file(file_path, root_display_text="", strip_comments=True,
         if action == "data":
             data_lines.append(line)
             continue
-        if action == "close":
+        if action == "close" or scanner.closed_by_heading:
+            if scanner.closed_by_heading:
+                # NO CLOSING `---`. The next heading ends the fence, so the record keeps
+                # its fields and its neighbor is untouched; what is lost is this record's
+                # own text, which was read as fields. Said once, with the line.
+                said = (fence_start_line, "open fence")
+                if said not in _AMD_SLIPS_SAID:
+                    _AMD_SLIPS_SAID.add(said)
+                    from sbs_utils.procedural.amd_error import amd_error
+                    amd_error(
+                        f"the fence that opens here has no closing `---` before the next "
+                        f"heading, `{line.strip()}` on line {i + 1}. The lines under its "
+                        f"fields were read as fields, so this record has no text. Add a "
+                        f"`---` line under its last field",
+                        file_path, fence_start_line)
             section = toc_stack[-1]
             block = "".join(data_lines)
             if data_parser is not None:
@@ -925,7 +939,9 @@ def _document_get_amd_file(file_path, root_display_text="", strip_comments=True,
                 merged.update(parsed)
                 section["data"] = merged
             data_lines = []
-            continue
+            if action == "close":
+                continue
+            # ...else the line that ended the fence is a heading: go on and read it.
 
         m = rule_section.match(line) if action == "heading" else None
 

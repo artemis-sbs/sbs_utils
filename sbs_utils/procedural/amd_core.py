@@ -604,7 +604,9 @@ def parse(content, file_path=None):
         if action == "data":
             fence_lines.append((idx, raw))
             continue
-        if action == "close":
+        if action == "close" or scanner.closed_by_heading:
+            # (`closed_by_heading`: a fence with no closing `---`, ended by the next
+            # heading - the game reader's rule. Close it, then take the heading below.)
             node = stack[-1]
             block = "\n".join(t for _, t in fence_lines)
             # Resolve WHAT KIND of record this is before reading its fields, so the
@@ -627,7 +629,8 @@ def parse(content, file_path=None):
             node.fence_lines = list(fence_lines)
             node.body_start = idx           # 0-based line after the closing ---
             fence_lines = []
-            continue
+            if action == "close":
+                continue
 
         m = _RE_SECTION.match(raw) if action == "heading" else None
         if m:

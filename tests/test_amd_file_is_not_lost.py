@@ -165,6 +165,47 @@ class OneHashTooMany(_Said):
         self.assertEqual(by_key["derelict_mat"].parent.key, "scans")
 
 
+class AFenceWithNoClosingLine(_Said):
+    """A heading closes an open fence. The format reference and the scanner's own notes
+    said so; the code tested "inside a fence" first, so the NEXT record's heading was read
+    as a field and its fence finished the job. One missing line cost two records."""
+
+    TWO = MISSION.format(key="derelict_intel") + (
+        "\n### [Derelict Materials](derelict_mat)\n---\nScan of: derelict\nTab: mat\n---\n"
+        "% Scoring along the plating.\n")
+    OPEN = TWO.replace("Tab: intel\n---\n", "Tab: intel\n")
+
+    def scans(self, text):
+        return {c["key"]: c for c in amd_section(self.doc(text), "scans")["children"]}
+
+    def test_the_next_record_is_untouched(self):
+        scans = self.scans(self.OPEN)
+        self.assertEqual(sorted(scans), ["derelict_intel", "derelict_mat"])
+        self.assertEqual(scans["derelict_mat"]["data"].get("tab"), "mat")
+        self.assertIn("Scoring along the plating", scans["derelict_mat"]["description"])
+
+    def test_the_record_keeps_the_fields_it_did_write(self):
+        self.assertEqual(self.scans(self.OPEN)["derelict_intel"]["data"].get("tab"), "intel")
+
+    def test_it_is_an_error_named_on_the_line_the_fence_opens(self):
+        self.doc(self.OPEN)
+        errors = [(line, msg) for line, sev, msg in self.said if sev == "error"]
+        self.assertEqual([line for line, _ in errors], [16])
+        self.assertIn("no closing `---`", errors[0][1])
+        self.assertIn("### [Derelict Materials](derelict_mat)", errors[0][1])
+
+    def test_the_tools_read_it_the_same_way(self):
+        from sbs_utils.procedural.amd_core import parse
+        by_key = {n.key: n for n in parse(self.OPEN).nodes}
+        self.assertEqual(by_key["derelict_mat"].data.get("tab"), "mat")
+        self.assertEqual(by_key["derelict_mat"].parent.key, "scans")
+
+    def test_a_closed_fence_is_as_it_was(self):
+        self.doc(self.TWO)
+        self.assertEqual(self.said, [])
+        self.assertIn("No flight plan", self.scans(self.TWO)["derelict_intel"]["description"])
+
+
 class TextTheEngineCanDraw(_Said):
     """Measured in the engine, 2026-10-04: one curly quote in a quest's text painted the whole
     font sheet across Helm, and one long dash in a reading did the same to Science."""
