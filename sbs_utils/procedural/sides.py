@@ -125,6 +125,17 @@ def _warn_missing_side(key):
         log(f"Side not found: [{bare}]", "sides", "warning")
     except Exception:
         print(f"Side not found: [{bare}]")
+    # AND WHERE AN AUTHOR WILL SEE IT. The `sides` log category has no handler, so this
+    # reached nothing: `Enemies: tsm` and `Side: braker` built a mission where the thing
+    # was simply unknown to everyone, for good, with an empty runtime log.
+    try:
+        import logging
+        logging.getLogger("mast.runtime").warning(
+            "Side not found: [%s] - a `Side:`, `Enemies:` or `Allies:` line (or a role "
+            "list) names a side nobody declared. Check the spelling against the side's "
+            "key, the word in round brackets on its heading" % bare)
+    except Exception:                                    # noqa: BLE001
+        pass
 
 
 def to_side_id(key_or_id_or_object, warn=True):

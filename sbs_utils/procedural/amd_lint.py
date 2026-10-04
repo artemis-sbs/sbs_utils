@@ -1119,6 +1119,61 @@ def amd_lint_fields_below_fence(doc):
     return findings
 
 
+_SIDE_STOCK_WORDS = frozenset(("*", "all", "everyone", "players", "player", "civilians",
+                               "civilian", "civs"))
+
+
+def amd_lint_sides(doc, keys=None, mast_sources=None):
+    """Flag a side key that names no side. WARNING.
+
+    A side is named by its KEY - the word in round brackets on its heading - in three
+    places: another side's `Enemies:` / `Allies:` / `Neutral:` line, and `Side:` on a
+    landmark. A key nothing declares is not an error anywhere: the relation is not made,
+    the landmark is on no side, and the crew sees a contact that is `unknown` for good.
+
+        Enemies: tsm                 a typo
+        Enemies: tsn guild           no comma: one side called "tsn guild"
+        Side: braker                 on a landmark
+
+    Judged only in a file that declares sides, and against every key in the mission plus
+    every quoted word in its MAST (a side made by `prefab_side_generic` there counts).
+    """
+    sides = [n for n in doc.nodes
+             if str(getattr(n, "kind", "") or "").lower() == "side" and n.fence_lines]
+    if not sides:
+        return []
+    known = {str(n.key).strip().lower() for n in sides} | set(_SIDE_STOCK_WORDS)
+    known |= {str(k).strip().lower() for k in (keys or ())}
+    known |= {w.lower() for w in re.findall(r"[\"']([A-Za-z_][\w]*)[\"']",
+                                            "\n".join(mast_sources or []))}
+    declared = ", ".join(sorted(str(n.key) for n in sides))
+    findings = []
+
+    def judge(lineno, label, value):
+        for word in [w.strip() for w in str(value).split(",") if w.strip()]:
+            if word.lower() in known:
+                continue
+            why = ("has a space in it, so it is read as ONE side called all of that. Put "
+                   "a comma between sides" if " " in word else
+                   "is not a side in this mission")
+            findings.append(AmdFinding(
+                lineno, WARNING, "dangling-side",
+                f"`{label}: {word}` - `{word}` {why}. A side is named by its key, the "
+                f"word in round brackets on its heading. Declared here: {declared}"))
+
+    side_ids = {id(n) for n in sides}
+    for node in doc.nodes:
+        fields = _plain_fields(node)
+        if id(node) in side_ids:
+            for label in ("enemies", "allies", "neutral"):
+                for lineno, value in fields.get(label, []):
+                    judge(lineno, label.capitalize(), value)
+        elif str(getattr(node, "kind", "") or "").lower() == "landmark":
+            for lineno, value in fields.get("side", []):
+                judge(lineno, "Side", value)
+    return findings
+
+
 _QUEST_SHAPE_FIELDS = ("done when", "starts when", "fails when", "then", "objective")
 
 
@@ -3566,6 +3621,7 @@ def amd_lint(file_path=None, content=None, mast_sources=None, cross_file=None,
         findings += amd_lint_relic_structure(doc)
         findings += amd_lint_relic_dressing(doc)
         findings += amd_lint_relic_strays(doc)
+        findings += amd_lint_sides(doc, keys, mast_sources)
         findings += amd_lint_fields_below_fence(doc)
         findings += amd_lint_hails(doc)
         findings += amd_lint_then(doc)

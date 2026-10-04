@@ -32,7 +32,16 @@ An object's side is the **first role** in its `npc_spawn` roles string
 
 A whole faction set can be authored in an AMD document and declared with
 `sides_load_amd("maps/sides.amd")` — one heading per side, the fence carrying its identity
-and diplomacy:
+and diplomacy. That call reads a file whose TOP-LEVEL headings are the sides. For a Sides
+section inside a larger file, hand it the section instead:
+
+```
+sides_declare_amd(amd_section(MISSION_DOC, "sides"))
+```
+
+(`sides_load_amd("mission.amd")` on a file with sections makes one side named after the
+file's own heading.) A record's key, the word in round brackets, is what every other line
+uses to name the side: `Enemies: raider`, and `Side: raider` on a landmark.
 
 ```
 # [Raider](raider)
@@ -53,9 +62,14 @@ Civilians. Protect them from attack.
 
 **Relations exist only where you declare them.** Nothing defaults an unnamed pair, so a set
 of factions that each name one enemy produces a *star* — one side hostile to everyone, and
-every other pair silently neutral. That failure is invisible in testing, because what breaks
+every other pair with no relation at all: `unknown`, which is not the same as neutral (no
+Comms, no docking, no scan text). That failure is invisible in testing, because what breaks
 is the shooting rather than the script: ships spawn on the right sides, correctly armed, and
 simply never fire.
+
+`sbs lint` reports a side key that names nothing as `dangling-side` (`Enemies: tsm`, two
+keys with no comma between them, `Side: braker` on a landmark), and the game writes
+`Side not found` to `mast.runtime.log` the first time it meets one.
 
 Three reserved words save you from naming every pair. **Explicit names always win over a
 token.**
