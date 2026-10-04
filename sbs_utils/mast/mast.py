@@ -1015,8 +1015,19 @@ class Mast():
 
                 self.basedir = os.path.dirname(file_name)
                     
-                with open(file_name) as f:
-                    content = strip_bom(f.read())
+                # UTF-8, THE SAME AS A MASTLIB (above). This used to be the machine's own
+                # code page, so a file was read one way from a folder and another once
+                # packed - and on Windows one curly quote pasted from a word processor,
+                # even inside a comment, was a byte that code page has no letter for:
+                # "charmap codec can't decode byte 0x9d", no line number, and a story
+                # that never started. A file that is NOT UTF-8 - saved long ago in the
+                # code page, and loading fine until now - is read the old way.
+                try:
+                    with open(file_name, encoding="utf-8") as f:
+                        content = strip_bom(f.read())
+                except UnicodeDecodeError:
+                    with open(file_name) as f:
+                        content = strip_bom(f.read())
                 return content, None
         except Exception as e:
             # Surface the underlying cause (permission, decode, missing zip
