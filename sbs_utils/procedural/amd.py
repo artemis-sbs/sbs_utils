@@ -89,17 +89,17 @@ def amd_read_text(path):
 AMD_ASCII_TEXT = True
 
 _TEXT_FOLD = str.maketrans({
-    "‘": "'", "’": "'", "‚": "'", "‛": "'",     # curly single quotes
-    "“": '"', "”": '"', "„": '"', "‟": '"',     # curly double quotes
-    "′": "'", "″": '"',                                   # prime, double prime
-    "‐": "-", "‑": "-", "‒": "-", "–": "-",     # hyphens, en dash
-    "—": "-", "―": "-", "−": "-",                    # em dash, bar, minus
-    "…": "...",                                                # ellipsis
-    " ": " ", " ": " ", " ": " ", " ": " ",     # no-break and wide spaces
-    "​": "", "﻿": "",                                     # zero width, stray BOM
-    "«": '"', "»": '"',                                   # guillemets
-    "•": "*", "·": "*",                                   # bullets
-    "×": "x",                                                  # multiplication sign
+    "\u2018": "'", "\u2019": "'", "\u201a": "'", "\u201b": "'",     # curly single quotes
+    "\u201c": '"', "\u201d": '"', "\u201e": '"', "\u201f": '"',     # curly double quotes
+    "\u2032": "'", "\u2033": '"',                                   # prime, double prime
+    "\u2010": "-", "\u2011": "-", "\u2012": "-", "\u2013": "-",     # hyphens, en dash
+    "\u2014": "-", "\u2015": "-", "\u2212": "-",                    # em dash, bar, minus
+    "\u2026": "...",                                                # ellipsis
+    "\u00a0": " ", "\u2002": " ", "\u2003": " ", "\u2009": " ",     # no-break and wide spaces
+    "\u200b": "", "\ufeff": "",                                     # zero width, stray BOM
+    "\u00ab": '"', "\u00bb": '"',                                   # guillemets
+    "\u2022": "*", "\u00b7": "*",                                   # bullets
+    "\u00d7": "x",                                                  # multiplication sign
 })
 
 

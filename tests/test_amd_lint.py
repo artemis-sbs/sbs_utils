@@ -476,7 +476,10 @@ class TestDuplicateKeyIsAboutSiblings(unittest.TestCase):
                "#### [Recover Again](recover)\n")
         found = self._dupes(src)
         self.assertEqual(len(found), 1)
-        self.assertIn("same parent", found[0].message)
+        # In a writer's words: where the two are, and what the game does about it.
+        self.assertIn("in the same place", found[0].message)
+        self.assertIn("keeps the first", found[0].message)
+        self.assertNotIn("parent", found[0].message)
 
     def test_an_ambiguous_bare_reference_is_still_flagged(self):
         """The real hazard is unchanged: a bare reference that cannot be resolved."""

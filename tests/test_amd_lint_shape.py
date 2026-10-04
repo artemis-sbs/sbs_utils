@@ -131,6 +131,11 @@ class AHeadingTheGameDoesNotRead(unittest.TestCase):
     def test_a_name_with_no_key_and_a_fence_under_it(self):
         self.assertIn("no `(key)`", self.broken("### [Derelict Hull]"))
 
+    def test_the_hashes_left_off(self):
+        message = self.broken("[Derelict Hull](derelict_scan)")
+        self.assertIn("no hashes in front", message)
+        self.assertNotIn("Move that line", message)
+
     def test_a_name_with_no_key_is_still_only_a_warning(self):
         text = MISSION.replace("Fly out and locate", "## [What you know]\n\nFly out and locate")
         f = one(self, text)
@@ -188,6 +193,38 @@ class TheFence(unittest.TestCase):
         found = [f for f in lint(text) if f.code == "fence-shape"]
         self.assertEqual([f.line for f in found], [line_of(text, HULL) + 1])
 
+    def test_both_fence_lines_typed_another_way(self):
+        # `fence-shape` used to need ONE good line to measure against.
+        for typed in ("--", "***", "___", "- - -", "--- facts"):
+            with self.subTest(typed=typed):
+                text = MISSION.replace(HULL + "\n---\nScan of: derelict\nTab: scan\n---\n",
+                                       HULL + f"\n{typed}\nScan of: derelict\nTab: scan\n{typed}\n")
+                f = one(self, text)
+                self.assertEqual((f.code, f.line), ("fence-shape", line_of(text, HULL) + 1))
+
+    def test_both_fence_lines_left_out(self):
+        text = MISSION.replace(HULL + "\n---\nScan of: derelict\nTab: scan\n---\n",
+                               HULL + "\nScan of: derelict\nTab: scan\n")
+        f = one(self, text)
+        self.assertEqual((f.code, f.line), ("fence-not-opened", line_of(text, HULL) + 1))
+        self.assertIn("no `---` lines round them", f.message)
+
+    def test_a_description_that_opens_with_a_label_is_not_a_field(self):
+        text = MISSION.replace("Fly out and locate the drifting hulk.",
+                               "Note: the hulk is further out than it looks.")
+        self.assertEqual([str(f) for f in lint(text)], [])
+
+    def test_the_last_records_fence_left_open_is_one_finding(self):
+        text = MISSION.replace("Tab: mat\n---\n", "Tab: mat\n")
+        f = one(self, text)
+        self.assertEqual(f.code, "unclosed-data-fence")
+
+    def test_a_no_break_space_after_the_hashes_is_a_heading_to_the_game(self):
+        # The game folds it to a space before it looks for headings. Lint read the raw
+        # line, saw no heading, and reported a broken fence on a line below.
+        text = MISSION.replace(HULL, "###" + chr(0xa0) + HULL[4:])
+        self.assertEqual([f.code for f in amd_lint_structural(content=text)], [])
+
     def test_a_fence_left_open_at_the_end_of_the_file(self):
         text = MISSION.replace("Tab: mat\n---\n", "Tab: mat\n")
         found = [f for f in amd_lint_structural(content=text) if f.code == "unclosed-data-fence"]
@@ -226,8 +263,8 @@ class TooManyHashes(unittest.TestCase):
     def test_an_empty_file(self):
         for text in ("", "\n\n", "Just some words.\n"):
             with self.subTest(text=text):
-                codes = [f.code for f in amd_lint_structural(content=text)]
-                self.assertEqual(codes, ["no-headings"])
+                found = amd_lint_structural(content=text)
+                self.assertEqual([(f.code, f.severity) for f in found], [("no-headings", ERROR)])
 
 
 class AFieldTheGameReadsAnotherWay(unittest.TestCase):

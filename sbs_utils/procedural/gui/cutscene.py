@@ -201,6 +201,11 @@ def shot_apply(cids, shot):
       is the trap `framing` exists to close.
     """
     _warn_unknown_shot_keys(shot)
+    # THE LAST SHOT'S MOVE ENDS HERE. A move is a driver that re-aims the camera every
+    # tick; a held shot does not start one, so nothing stopped the one before it, and
+    # its last tick re-aimed after the cut: a held shot that follows a moving shot was
+    # filmed on the PREVIOUS subject (found by the lesson on cutscenes, in the mock).
+    camera_move_stop(cids)
     seconds = float(shot.get("seconds", 4))
     subject = shot.get("subject")
     framing = shot.get("framing")

@@ -88,10 +88,19 @@ def DEBUG(msg):
         # create logger with 'spam_application'
         debug_logger = logging.getLogger('debug')
         debug_logger.setLevel(logging.DEBUG)
-        # create file handler which logs even debug messages
-        fh = logging.FileHandler('debug.log', mode='w')
-        fh.setLevel(logging.DEBUG)
-        debug_logger.addHandler(fh)
+        tool = os.environ.get("MAST_LEAVE_LOGS") or getattr(
+            globals().get("Mast"), "leave_logs_alone", False)
+        if tool:
+            # A TOOL WRITES NO TRACE FILE. `debug.log` is opened with "w" in whatever
+            # folder the command is typed from, so `sbs lint` rewrote one in the
+            # missions folder, in sbs_utils, or in the mission a writer was standing
+            # in - which may be a file somebody keeps.
+            debug_logger.addHandler(logging.NullHandler())
+        else:
+            # create file handler which logs even debug messages
+            fh = logging.FileHandler('debug.log', mode='w')
+            fh.setLevel(logging.DEBUG)
+            debug_logger.addHandler(fh)
     debug_logger.debug(msg)
 
 

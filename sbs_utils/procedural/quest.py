@@ -861,6 +861,8 @@ def _document_get_amd_file(file_path, root_display_text="", strip_comments=True,
     fence_start_line = 0   # file line the open `---` sat on, for error offsets
     hash_stack = [0]       # the hash count of each open heading; the root has none
     level_slips = 0        # headings with more hashes than their place allows
+    lone_title = None      # (line, text) of a `#` heading that is not the file's first
+    headings_seen = 0
     for i, line in enumerate(lines):
         # Cut text (`/* ... */`) comes out before anything else looks at the line -
         # the SAME pre-pass amd_core runs, so the game and the tooling cannot
@@ -1012,11 +1014,25 @@ def _document_get_amd_file(file_path, root_display_text="", strip_comments=True,
                     _AMD_SLIPS_SAID.add(said)
                     from sbs_utils.procedural.amd_error import amd_error
                     allowed = hash_stack[-1] + 1
-                    amd_error(
-                        f"`{line.strip()}` has {level} hashes, and a heading here can have "
-                        f"at most {allowed}. It is read as if it had {allowed}. "
-                        f"Take the extra off, or put back the heading above it",
-                        file_path, i + 1)
+                    if hash_stack[-1] == 1 and lone_title is not None:
+                        # ONE HASH ON A RECORD. This heading is where it always was; the
+                        # one above it lost its hashes and became a second title. Lint
+                        # names that line, and so must this: it used to blame this one
+                        # and say "take the extra off", the wrong line and the wrong fix.
+                        amd_error(
+                            f"`{lone_title[1]}` has 1 hash, and the next record (line "
+                            f"{i + 1}) has {level}. One hash starts a new title, so this "
+                            f"record and the ones after it are no longer in their "
+                            f"section. Give it {level}",
+                            file_path, lone_title[0])
+                    else:
+                        amd_error(
+                            f"`{line.strip()}` has {level} hashes, and a heading here can "
+                            f"have at most {allowed}. It is read as if it had {allowed}. "
+                            f"Take the extra off, or put back the heading above it",
+                            file_path, i + 1)
+            lone_title = (i + 1, line.strip()) if (level == 1 and headings_seen) else None
+            headings_seen += 1
             toc_stack[-1].get("children").append(section)
             toc_stack.append(section)
             hash_stack.append(level)

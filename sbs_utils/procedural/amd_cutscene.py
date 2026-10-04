@@ -76,9 +76,13 @@ def cutscene_cast_clear():
 
 
 def _log(message):
+    # TO THE LOG A WRITER READS. This went to a log category of its own, which has no
+    # file behind it: a cutscene key nobody declared, a shot dropped for a subject that
+    # is not there, a cutscene played to nobody - each left both logs empty.
     try:
-        from .execution import log
-        log(message, "cutscene", "warning")
+        import logging
+        text = str(message)
+        logging.getLogger("mast.runtime").warning(text[:1].upper() + text[1:])
     except Exception:
         pass
 

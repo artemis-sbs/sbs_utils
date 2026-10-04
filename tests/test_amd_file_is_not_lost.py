@@ -147,6 +147,15 @@ class OneHashTooMany(_Said):
         document_get_amd_file(self.write(text), data_parser=amd_quest_data)
         self.assertEqual(len(self.said), 1)
 
+    def test_one_hash_on_a_record_is_blamed_on_that_record(self):
+        # The log used to name the NEXT record and say "take the extra off".
+        text = MISSION.format(key="derelict_intel").replace("### [Derelict Intel]", "# [Derelict Intel]")
+        text += "\n### [Derelict Materials](derelict_mat)\n---\nScan of: derelict\nTab: mat\n---\n% Scoring.\n"
+        self.doc(text)
+        self.assertEqual([line for line, _sev, _msg in self.said], [15])
+        self.assertIn("has 1 hash", self.said[0][2])
+        self.assertIn("Give it 3", self.said[0][2])
+
     def test_a_record_after_it_is_a_neighbor_not_a_child(self):
         text = MISSION.format(key="derelict_intel").replace("### [Derelict Intel]", "#### [Derelict Intel]")
         text += "\n### [Derelict Materials](derelict_mat)\n---\nScan of: derelict\nTab: mat\n---\n% Scoring.\n"

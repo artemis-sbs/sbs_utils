@@ -45,7 +45,10 @@ _RE_DATA_FENCE = re.compile(r"\s*-{3,}\s*$")
 # What a writer types INSTEAD of `---`: two hyphens, underscores, asterisks, spaced
 # hyphens, or the one long dash a word processor makes out of three. None is a fence.
 _RE_FENCE_SLIP = re.compile(
-    r"^[ \t]*(?:--|_{3,}|\*{3,}|={3,}|~{3,}|-(?:[ \t]+-){2,}|[‒-―]+-*|-+[‒-―]+)[ \t]*$")
+    r"^[ \t]*(?:--|_{3,}|\*{3,}|={3,}|~{3,}|-(?:[ \t]+-){2,}|[\u2012-\u2015]+-*|-+[\u2012-\u2015]+"
+    r"|-{3,}[ \t]+\S.*)[ \t]*$")
+# A heading with its hashes left off: `[Derelict Hull](derelict_scan)` alone on a line.
+_RE_HEADING_NO_HASHES = re.compile(r"^\[[^\]]+\]\([^)\s]*\)[ \t]*$")
 # A line shaped like a field, in the first column: `Done when: signal x`.
 _RE_FIELD_SHAPE = re.compile(r"^[A-Za-z][A-Za-z0-9 _]{0,30}:(?:[ \t]+\S|[ \t]*$)")
 _RE_HASHES_NO_SPACE = re.compile(r"#+\[[^\]]*\]\(")
@@ -152,7 +155,19 @@ _FENCE_FALLOUT = frozenset({"fence-syntax", "field-below-fence", "unknown-field"
 def _structural_scan(lines):
     """(findings, swallowed): the structural findings, and the (first, last) line
     ranges that a reported fence mistake has made unreadable."""
-    from sbs_utils.procedural.amd import FenceScanner, BoneyardScanner, RE_COMMENT
+    from sbs_utils.procedural.amd import (FenceScanner, BoneyardScanner, RE_COMMENT,
+                                          amd_ascii_text)
+
+    # READ WHAT THE GAME READS. The game folds a no-break space to a space before it
+    # looks for headings, so `###<no-break space>[Name](key)` IS a heading to it - and
+    # was a broken fence to this pass, reported against an innocent line. The raw lines
+    # are kept for the one thing only they show: a long dash typed where `---` goes.
+    typed = lines
+    lines = [amd_ascii_text(l) for l in lines]
+
+    def slip(i):
+        """Line `i` (1-based) is something typed INSTEAD of a `---` fence line."""
+        return bool(_RE_FENCE_SLIP.match(lines[i - 1]) or _RE_FENCE_SLIP.match(typed[i - 1]))
 
     findings = []
     swallowed = []
@@ -183,14 +198,15 @@ def _structural_scan(lines):
                 return j + 1, lines[j]
         return 0, ""
 
-    def fence_follows(start):
-        """True when a `---` closes a run of field-shaped lines starting at `start`."""
+    def fence_follows(start, slip_closes=False):
+        """True when a `---` closes a run of field-shaped lines starting at `start`.
+        With `slip_closes`, a mistyped fence line closes it too: BOTH lines wrong."""
         seen = 0
         for j in range(start, len(lines)):
             text = lines[j]
             if not text.strip() or RE_COMMENT.match(text):
                 continue
-            if _RE_DATA_FENCE.match(text):
+            if _RE_DATA_FENCE.match(text) or (slip_closes and slip(j + 1)):
                 return seen > 0
             if _RE_SECTION.match(text):
                 return False
@@ -198,6 +214,34 @@ def _structural_scan(lines):
                 return False
             seen += 1
         return False
+
+    def bare_fields():
+        """Fields under the last heading with NO fence line round them at all.
+
+        Both `---` lines deleted (or never typed): the game reads the fields as the
+        record's text, and nothing else here notices, because every other fence check
+        starts from a fence line. Only when the first lines under the heading are all
+        fields a record can have, so `Note: the airlock is jammed` opening a description
+        is not taken for one."""
+        if broken_above or not since_heading:
+            return
+        run = []
+        for n, text in since_heading:
+            if _RE_DATA_FENCE.match(text) or slip(n):
+                return                                 # a fence line: said elsewhere
+            if run and not _RE_FIELD_SHAPE.match(text):
+                break
+            if not _RE_FIELD_SHAPE.match(text):
+                return
+            run.append((n, text))
+        if not run or any(t.split(":", 1)[0].strip().lower() not in _all_field_labels()
+                          for _n, t in run):
+            return
+        findings.append(AmdFinding(
+            run[0][0], ERROR, "fence-not-opened",
+            f"the fields under {heading_text} have no `---` lines round them, so the "
+            f"game reads them as text and the record has no fields. Put a `---` line "
+            f"above this line and another below line {run[-1][0]}"))
 
     for i, raw in enumerate(lines, start=1):
         dropped, line = boneyard.feed(raw, i)
@@ -214,7 +258,7 @@ def _structural_scan(lines):
         if action == "data":
             if fence_reported:
                 continue
-            if _RE_FENCE_SLIP.match(line):
+            if slip(i):
                 fence_reported = True
                 broken_above = True
                 swallow_from = i
@@ -226,6 +270,7 @@ def _structural_scan(lines):
             continue
 
         if action == "heading":
+            bare_fields()
             if scanner.closed_by_heading and not fence_reported:
                 # THIS heading ended a fence that had no closing `---`. The record above
                 # keeps its fields; the lines under them were read as fields too, so it
@@ -311,15 +356,27 @@ def _structural_scan(lines):
             since_heading.append((i, line))
             continue
 
-        if could_open and _RE_FENCE_SLIP.match(line) and fence_follows(i):
+        if could_open and slip(i) and fence_follows(i, slip_closes=True):
             findings.append(AmdFinding(
                 i, ERROR, "fence-shape",
-                f"`{stripped}` is not a fence line, so the fields below it are read as "
-                f"text. A fence line is three hyphens, `---`, with nothing else on the line"))
+                f"`{typed[i - 1].strip()}` is not a fence line, so the fields below it "
+                f"are read as text. A fence line is three hyphens, `---`, with nothing "
+                f"else on the line"))
             since_heading.append((i, line))
+            broken_above = True          # its closing line, right or wrong, follows from it
             continue
 
         since_heading.append((i, line))
+        if _RE_HEADING_NO_HASHES.match(stripped) and _fence_is_next(lines, i, fence_follows):
+            # `[Derelict Hull](derelict_scan)` with a fence under it and no hashes. It
+            # was reported as a sentence above the fence, with the advice to MOVE it.
+            findings.append(AmdFinding(
+                i, ERROR, "broken-heading",
+                f"this line has a fence under it and no hashes in front, so it is meant "
+                f"to be a heading and the game reads it as text. Put the hashes back: "
+                f"`### {stripped}`"))
+            broken_above = True
+            continue
         if not stripped.startswith("#"):
             continue
 
@@ -377,25 +434,46 @@ def _structural_scan(lines):
         if any(f.code == "broken-heading" for f in findings[before:]):
             broken_above = True
 
+    bare_fields()
     if swallow_from:
         swallowed.append((swallow_from, len(lines)))
 
-    if scanner.finish() and not fence_reported:
-        findings.append(AmdFinding(
-            scanner.open_line, ERROR, "unclosed-data-fence",
-            f"the fence that opens here is never closed, so everything below it is "
-            f"read as fields of {heading_text or 'the file'}. Add a `---` line under "
-            f"its last field"))
+    if scanner.finish():
+        # The LAST record's fence: nothing below it to close it. What it drags in is on
+        # every line to the end of the file.
+        swallowed.append((scanner.open_line, len(lines)))
+        if not fence_reported:
+            findings.append(AmdFinding(
+                scanner.open_line, ERROR, "unclosed-data-fence",
+                f"the fence that opens here is never closed, so everything below it is "
+                f"read as fields of {heading_text or 'the file'}. Add a `---` line under "
+                f"its last field"))
 
     if not saw_heading:
+        # An ERROR: the game reads NOTHING from this file. It was a warning, and a
+        # mission whose only fact sheet was empty passed.
         empty = not any(l.strip() for l in lines)
         findings.append(AmdFinding(
-            1, WARNING, "no-headings",
+            1, ERROR, "no-headings",
             ("this file is empty" if empty else
              "nothing in this file is a heading the game reads - `# [Name](key)` -")
             + " so the game reads nothing from it"))
 
     return findings, swallowed
+
+
+_FIELD_LABELS = None
+
+
+def _all_field_labels():
+    """Every field label any kind of record declares, lower case."""
+    global _FIELD_LABELS
+    from sbs_utils.procedural.amd_schema import ARCHETYPES
+    count = sum(len(t) for t in ARCHETYPES.values() if isinstance(t, dict))
+    if _FIELD_LABELS is None or _FIELD_LABELS[0] != count:
+        labels = {str(k).lower() for t in ARCHETYPES.values() if isinstance(t, dict) for k in t}
+        _FIELD_LABELS = (count, labels)
+    return _FIELD_LABELS[1]
 
 
 def _fence_is_next(lines, i, fence_follows):
@@ -436,17 +514,18 @@ def amd_lint_ascii(file_path=None, content=None):
                     shown = "a " + unicodedata.name(run[0]).lower()
                 except ValueError:
                     shown = "a character that cannot be seen"
+            fix = "Type the plain one, so every tool reads this line the same way"
             if plain.strip():
                 does = f"The game cannot draw it and shows `{plain.strip()}` in its place"
             elif plain:
                 does = "The game reads it as a plain space"
             else:
                 does = "The game cannot draw it and leaves it out"
+                fix = "Take it out, or say it in plain letters"
             findings.append(AmdFinding(
                 i, WARNING, "non-ascii",
                 f"{shown} is not a plain keyboard character (a word processor puts "
-                f"these in by itself). {does}. Type the plain one, so every tool reads "
-                f"this line the same way",
+                f"these in by itself). {does}. {fix}",
                 col=m.start(), end_line=i, end_col=m.end()))
     return findings
 
@@ -472,8 +551,8 @@ def _scan_fence_findings(fence):
         if lab == "tab" and val.strip().lower() not in _SCAN_TABS:
             out.append(AmdFinding(
                 lineno, WARNING, "unknown-scan-tab",
-                f"`Tab: {val}` is not a known scan tab (scan/status/intel/mat/bio); "
-                f"that scan will never render - likely a typo"))
+                f"`Tab: {val}` is not a tab Science has (scan, status, intel, mat, bio), "
+                f"so this reading is never shown. Check the spelling"))
     return out
 
 
@@ -715,7 +794,7 @@ def amd_lint_field_slips(doc):
             lead = len(raw) - len(raw.lstrip())
             findings.append(AmdFinding(
                 lineno, WARNING, "field-indented",
-                f"`{label}:` has a space in front of it, so the game reads this line "
+                f"`{label}:` has a space or a tab in front of it, so the game reads this line "
                 f"as more of the line above (`{above[1].strip()[:40]}`), not as a "
                 f"field. Move it to the very left of the line",
                 col=0, end_line=lineno, end_col=lead))
@@ -751,12 +830,13 @@ def amd_lint_keys(doc):
         for clash in by_parent.values():
             if len(clash) < 2:
                 continue
-            where = ", ".join(path_of(n) for n in clash)
+            where = " and ".join(str(n.span.line) for n in clash if n.span) or path_of(clash[0])
             for n in clash[1:]:
                 findings.append(AmdFinding.at(
                     n.key_span or n.span, WARNING, "duplicate-key",
-                    f"`{key}` names {len(clash)} records under the same parent ({where}) "
-                    f"- no path can tell them apart, so rename one"))
+                    f"`{key}` is the key of {len(clash)} records in the same place "
+                    f"(lines {where}). Nothing can point at one and not the other, and "
+                    f"the game keeps the first and drops the rest. Give each its own key"))
     for ref in doc.refs:
         if ref.kind in ("scene", "parent", "reveal", "choice") and doc.is_ambiguous(ref.value):
             owner = doc.by_key.get(ref.owner)
@@ -1197,10 +1277,12 @@ def amd_lint_trigger_roles(doc, source_index=None):
                            f"`{last[:-3]}f` / `{last[:-3]}fe`")
             elif (quoted is not None and role != target and target in quoted
                   and role not in quoted):
-                message = (f"this trigger looks for the role `{role}` (`{target}` read as "
-                           f"a plural), but the mission only ever uses `{target}` - a "
-                           f"singular ending in `s` is not safe here. Name the role "
-                           f"differently (e.g. `{target}_target`)")
+                message = (f"this trigger looks for the role `{role}` (it reads `{target}` "
+                           f"as more than one), and the story only ever uses `{target}`. "
+                           f"If `{target}` means more than one, name the role in the "
+                           f"singular in the story: `{role}`. If it is ONE thing whose "
+                           f"name ends in `s`, give the role another name "
+                           f"(`{target}_target`)")
             if message:
                 col = len(raw.split(":", 1)[0]) + 1
                 col += len(raw[col:]) - len(raw[col:].lstrip())
@@ -2889,8 +2971,13 @@ def amd_lint_choices(doc, keys=None):
     return findings
 
 
-_AMD_SECTION_CALL = re.compile(r"amd_section\(\s*[^,()]+,\s*[\"']([\w -]+)[\"']\s*\)")
-_RELIC_FILE_SECTIONS = ("items", "dialogue", "cutscenes", "side_stories")
+_AMD_SECTION_CALL = re.compile(r"(?:amd|relic)_section\(\s*[^,()]+,\s*[\"']([\w -]+)[\"']\s*\)")
+# What `relics_spawn` reads from a file BY ITSELF: the relic records, their items, and
+# the `## Dialogue` its places' `Scene:` lines name. It does NOT read `cutscenes` or
+# `side_stories` - a mission reaches those with `amd_section(...)` or
+# `relic_section(...)` - and they were listed here, so a Cutscenes section that
+# nothing read was clean in any mission with a ruin in it.
+_RELIC_FILE_SECTIONS = ("items", "dialogue")
 _TRIGGER_LABELS_SPACED = ("done when", "starts when", "fails when", "goal", "when")
 
 
@@ -2930,7 +3017,8 @@ def amd_lint_mission_reads(doc, file_path=None, mast_sources=None, source_index=
 
     # --- sections nothing reads ------------------------------------------------------
     literal = set(m.group(1).strip().lower() for m in _AMD_SECTION_CALL.finditer(text))
-    every_call_is_literal = text.count("amd_section(") == len(_AMD_SECTION_CALL.findall(text))
+    every_call_is_literal = (text.count("amd_section(") + text.count("relic_section(")
+                             == len(_AMD_SECTION_CALL.findall(text)))
     reads_crew = "crew_load_amd(" in text or "crew_declare_amd(" in text
     reads_relics = any(w in text for w in ("relics_spawn(", "relics_load(", "relics_build("))
     if literal and every_call_is_literal:
