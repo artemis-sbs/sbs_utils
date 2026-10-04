@@ -849,10 +849,18 @@ def _document_get_amd_file(file_path, root_display_text="", strip_comments=True,
             from sbs_utils.procedural.amd_error import amd_error
             amd_error(f"file not found or unreadable: {e}", file_path)
 
+    # The engine draws ASCII only, and a curly quote does not merely look wrong: it
+    # paints the font sheet over the console. Folded HERE, the one door every AMD
+    # record comes through, so no surface has to remember. See `amd_ascii_text`.
+    from sbs_utils.procedural.amd import amd_ascii_text
+    lines = [amd_ascii_text(_l) for _l in lines]
+
     scanner = FenceScanner()
     boneyard = BoneyardScanner()
     data_lines = []
     fence_start_line = 0   # file line the open `---` sat on, for error offsets
+    hash_stack = [0]       # the hash count of each open heading; the root has none
+    level_slips = 0        # headings with more hashes than their place allows
     for i, line in enumerate(lines):
         # Cut text (`/* ... */`) comes out before anything else looks at the line -
         # the SAME pre-pass amd_core runs, so the game and the tooling cannot
@@ -965,22 +973,36 @@ def _document_get_amd_file(file_path, root_display_text="", strip_comments=True,
             for qk, qv in query.items():
                 section[qk] = qv
 
-            # The root is level 0
-            if level == len(toc_stack):
-                toc_stack.append(section)
-            elif level == len(toc_stack) + 1:
-                toc_stack[level] = section
-            elif level < len(toc_stack):
-                toc_stack = toc_stack[: level + 1]
-                toc_stack[level] = section
-            else:
-                raise Exception(f"ERROR: Document structure error Line {i}\n{line}")
-            
-
-            root = toc_stack[level - 1]
-            children = root.get("children")
-            children.append(section)
-        elif strip_comments and line.startswith("//"):
+            # A heading sits under the nearest heading above it that has FEWER hashes
+            # (the root counts as none). For a well-formed file that is the old rule,
+            # "N hashes is depth N", exactly.
+            #
+            # The old rule indexed the stack by the hash count, so ONE HASH TOO MANY
+            # (`####` straight under `##`) was a raw IndexError: the whole document came
+            # back as an error stub, a slip on one heading cost the mission every quest
+            # and every reading, and the log said `list assignment index out of range`
+            # with no line. Now the heading lands where it plainly belongs, its
+            # neighbours are untouched, and the slip is named where the author looks.
+            while len(toc_stack) > 1 and hash_stack[-1] >= level:
+                toc_stack.pop()
+                hash_stack.pop()
+            if level > hash_stack[-1] + 1:
+                level_slips += 1
+                if level_slips == 1:
+                    from sbs_utils.procedural.amd_error import amd_error
+                    allowed = hash_stack[-1] + 1
+                    amd_error(
+                        f"`{line.strip()}` has {level} hashes, and a heading here can have "
+                        f"at most {allowed}. It is read as if it had {allowed}. "
+                        f"Take the extra off, or put back the heading above it",
+                        file_path, i + 1)
+            toc_stack[-1].get("children").append(section)
+            toc_stack.append(section)
+            hash_stack.append(level)
+        elif strip_comments and line.lstrip().startswith("//"):
+            # INDENTED notes too. Only a `//` in column 0 used to count, so a note a
+            # writer had tabbed in was shown to the crew as part of the description -
+            # while the tools, which have always stripped first, said it was a note.
             continue
         else:
             section = toc_stack[-1]

@@ -70,6 +70,55 @@ def amd_read_text(path):
     return raw.decode("utf-8", "replace")
 
 
+# --- Text the engine can draw ------------------------------------------------------
+#
+# The engine DRAWS ASCII only. Anything else is not merely wrong on screen: measured in
+# the engine on 2026-10-04, one curly quote in a quest's text, or one long dash in a scan
+# reading, painted the whole font sheet across the console that showed it. And a word
+# processor puts those characters in by itself - a writer who types `"ghost ship"` in
+# Word has curly quotes without ever having chosen them.
+#
+# So the GAME's reader folds them on the way in. The tools do not: `sbs lint` still
+# reports `non-ascii` at the character, and `sbs fmt` never rewrites a writer's file.
+# Same shape as `spaceobject.ascii_name`, which does this for names.
+#
+# Revert = `AMD_ASCII_TEXT = False`, the day the engine draws these.
+#
+# COST. `str.isascii()` is a flag check in CPython, so an all-ASCII file - nearly every
+# file - returns the same object having allocated nothing.
+AMD_ASCII_TEXT = True
+
+_TEXT_FOLD = str.maketrans({
+    "‘": "'", "’": "'", "‚": "'", "‛": "'",     # curly single quotes
+    "“": '"', "”": '"', "„": '"', "‟": '"',     # curly double quotes
+    "′": "'", "″": '"',                                   # prime, double prime
+    "‐": "-", "‑": "-", "‒": "-", "–": "-",     # hyphens, en dash
+    "—": "-", "―": "-", "−": "-",                    # em dash, bar, minus
+    "…": "...",                                                # ellipsis
+    " ": " ", " ": " ", " ": " ", " ": " ",     # no-break and wide spaces
+    "​": "", "﻿": "",                                     # zero width, stray BOM
+    "«": '"', "»": '"',                                   # guillemets
+    "•": "*", "·": "*",                                   # bullets
+    "×": "x",                                                  # multiplication sign
+})
+
+
+def amd_ascii_text(text):
+    """`text` as the engine can draw it. Returns the SAME object when it is already ASCII.
+
+    Typographic characters fold to their plain twins (curly quotes, dashes, the
+    one-character ellipsis). An accented letter loses its accent. Anything left over is
+    dropped: a missing character reads better than the font sheet."""
+    if not AMD_ASCII_TEXT or not isinstance(text, str) or text.isascii():
+        return text
+    folded = text.translate(_TEXT_FOLD)
+    if folded.isascii():
+        return folded
+    import unicodedata
+    folded = unicodedata.normalize("NFKD", folded)
+    return folded.encode("ascii", "ignore").decode("ascii")
+
+
 RE_HEADING = re.compile(r"(?P<hashes>#+)[ \t]+\[(?P<display>[^\]]*)\]"
                         r"\((?P<urn>[^)]*)\)[ \t\r]*$")
 RE_FENCE = re.compile(r"\s*-{3,}\s*$")

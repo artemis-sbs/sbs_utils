@@ -25,11 +25,20 @@ test_set_exe_dir()
 
 from sbs_utils.procedural import amd_error as amd_err
 from sbs_utils.procedural.amd_error import amd_error, amd_warn
-from sbs_utils.procedural.quest import document_get_amd_file
+from sbs_utils.procedural.quest import document_get_amd_file, amd_doc_cache_clear
 import sbs_utils.procedural.amd_quest  # registers the quest vocabulary
 
 
+# A hash too many. It used to be THE example of a document that cannot be read: a raw
+# IndexError, an error stub, a mission with nothing in it. The reader now puts the heading
+# where it plainly belongs and says so, as an ERROR, with the line.
 BAD_STRUCTURE = "# [a](a)\n#### [jumps two levels](d)\n"
+# What is still unreadable: a fence reader that falls over.
+UNREADABLE = "# [A](a)\n---\nJob\n---\nbody\n"
+
+
+def _falls_over(block):
+    raise ValueError("the fence reader fell over")
 BAD_FENCE = "# [A](a)\n---\nJob\nthis line has no colon\nReward: 10 credits\n---\nbody\n"
 
 
@@ -53,19 +62,34 @@ class Seam:
 
 
 class TestTheSeamFires(unittest.TestCase):
+    def setUp(self):
+        amd_doc_cache_clear()      # a cached tree is handed back without being read again
+
     def test_a_structure_error_reaches_the_seam_once(self):
         with Seam() as s:
             document_get_amd_file(None, "Quests", content=BAD_STRUCTURE)
         self.assertEqual(len(s.errors()), 1, s.seen)
+        self.assertEqual(s.errors()[0]["line"], 2)
+        self.assertIn("4 hashes", s.errors()[0]["message"])
+
+    def test_a_structure_error_no_longer_costs_the_document(self):
+        tree = document_get_amd_file(None, "Quests", content=BAD_STRUCTURE)
+        self.assertEqual([c["key"] for c in tree["children"]], ["a"])
+        self.assertEqual([c["key"] for c in tree["children"][0]["children"]], ["d"])
+
+    def test_an_unreadable_document_reaches_the_seam_once(self):
+        with Seam() as s:
+            document_get_amd_file(None, "Quests", content=UNREADABLE, data_parser=_falls_over)
+        self.assertEqual(len(s.errors()), 1, s.seen)
         self.assertIn("could not parse", s.errors()[0]["message"])
 
     def test_the_returned_tree_says_what_broke(self):
-        tree = document_get_amd_file(None, "Quests", content=BAD_STRUCTURE)
+        tree = document_get_amd_file(None, "Quests", content=UNREADABLE, data_parser=_falls_over)
         # It used to hand back the EXCEPTION OBJECT as display_text and no children.
         self.assertIsInstance(tree["display_text"], str)
         self.assertEqual(len(tree["children"]), 1)
         self.assertIn("Could not read", tree["children"][0]["display_text"])
-        self.assertIn("Document structure error",
+        self.assertIn("the fence reader fell over",
                       tree["children"][0]["description"])
 
     def test_a_missing_file_reports_rather_than_printing(self):
@@ -96,7 +120,7 @@ class TestTheSeamFires(unittest.TestCase):
         prev = amd_err.on_amd_error
         amd_err.on_amd_error = explode
         try:
-            tree = document_get_amd_file(None, "Q", content=BAD_STRUCTURE)
+            tree = document_get_amd_file(None, "Q", content=UNREADABLE, data_parser=_falls_over)
         finally:
             amd_err.on_amd_error = prev
         self.assertEqual(len(tree["children"]), 1)
@@ -109,7 +133,7 @@ class TestStrict(unittest.TestCase):
     def test_strict_re_raises(self):
         amd_err.strict = True
         with self.assertRaises(Exception):
-            document_get_amd_file(None, "Q", content=BAD_STRUCTURE)
+            document_get_amd_file(None, "Q", content=UNREADABLE, data_parser=_falls_over)
 
     def test_default_is_not_strict(self):
         # The game must never raise here: this is called from GUI build code and a
@@ -146,14 +170,17 @@ class TestVerdictWiring(unittest.TestCase):
         return MastVerdict()
 
     def test_a_broken_amd_fails_the_verdict(self):
-        v = self._verdict().install()
-        try:
-            self.assertTrue(v.ok)
-            document_get_amd_file(None, "Q", content=BAD_STRUCTURE)
-            self.assertFalse(v.ok, "a document that does not parse still passed")
-            self.assertEqual(v.errors[0]["source"], "amd")
-        finally:
-            v.uninstall()
+        for content, parser in ((UNREADABLE, _falls_over), (BAD_STRUCTURE, None)):
+            with self.subTest(content=content):
+                amd_doc_cache_clear()
+                v = self._verdict().install()
+                try:
+                    self.assertTrue(v.ok)
+                    document_get_amd_file(None, "Q", content=content, data_parser=parser)
+                    self.assertFalse(v.ok, "a document with an error in it still passed")
+                    self.assertEqual(v.errors[0]["source"], "amd")
+                finally:
+                    v.uninstall()
 
     def test_warnings_do_not_fail_the_verdict(self):
         v = self._verdict().install()

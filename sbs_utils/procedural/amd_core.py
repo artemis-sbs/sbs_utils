@@ -140,10 +140,16 @@ class AmdDocument:
         return self._match_path([s for s in str(path).split("/") if s]) is not None
 
     def _match_path(self, segs):
-        """The node a segment chain names, or None. Ambiguity is impossible here:
-        a full chain of keys is unique even when the leaf key is not."""
+        """The node a segment chain names, or None when it names none - or several,
+        which two sibling records with one key do."""
+        found = self._match_paths(segs)
+        return found[0] if len(found) == 1 else None
+
+    def _match_paths(self, segs):
+        """EVERY node a segment chain names. More than one means sibling records share
+        a key: the path exists, it is just not unique."""
         if not segs:
-            return None
+            return []
         found = []
         for node in self._by_key_all.get(segs[-1], ()):
             n, ok = node, True
@@ -156,7 +162,7 @@ class AmdDocument:
                     break
             if ok:
                 found.append(node)
-        return found[0] if len(found) == 1 else None
+        return found
 
     def resolve_target(self, value, from_node=None):
         """The node a reference points at, or None.
@@ -639,7 +645,10 @@ def parse(content, file_path=None):
                     kv = kv.split("=")
                     if len(kv) == 2:
                         node.query[kv[0]] = kv[1]
-            while len(stack) > level:
+            # Under the nearest heading above with FEWER hashes - the game reader's
+            # rule (quest.py), so a file with a hash too many nests the same way in
+            # both. For a well-formed file this is `len(stack) > level`, exactly.
+            while len(stack) > 1 and stack[-1].level >= level:
                 stack.pop()
             node.parent = stack[-1]
             stack[-1].children.append(node)

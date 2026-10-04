@@ -243,6 +243,13 @@ def amd_section(doc, key):
     for n in root.get("children", []):
         if n.get("key") == key:
             return n
+    # `## [Scans](Scans)`: a capital the writer's eye does not see. Nothing else is
+    # called that, so reading it as the section it plainly is costs nothing - and the
+    # other answer was a mission with no scan text and nothing said anywhere.
+    want = str(key).strip().lower()
+    for n in root.get("children", []):
+        if str(n.get("key") or "").strip().lower() == want:
+            return n
     return None
 
 

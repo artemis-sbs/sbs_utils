@@ -102,6 +102,118 @@ class AFileSavedAsUtf16(_Files):
         self.assertEqual(amd_read_text(self.write(legacy, "cp1252")), legacy)
 
 
+class _Said(_Files):
+    """Collects what the reader reports, the way cosmos_dev's verdict does."""
+
+    def setUp(self):
+        super().setUp()
+        from sbs_utils.procedural import amd_error
+        self.said = []
+        self.addCleanup(setattr, amd_error, "on_amd_error", amd_error.on_amd_error)
+        amd_error.on_amd_error = lambda msg, path, line, sev: self.said.append((line, sev, msg))
+
+    def doc(self, text):
+        return document_get_amd_file(None, content=text, data_parser=amd_quest_data)
+
+    def children(self, text, section):
+        return [c.get("key") for c in (amd_section(self.doc(text), section) or {}).get("children", [])]
+
+
+class OneHashTooMany(_Said):
+    """Found by "Lint is your editor". `#### [Derelict Intel]` straight under `##` was a raw
+    IndexError: no quests, no readings, and `list assignment index out of range` in the log."""
+
+    def test_the_file_is_still_read_and_the_record_lands_in_its_section(self):
+        text = MISSION.format(key="derelict_intel").replace("### [Derelict Intel]", "#### [Derelict Intel]")
+        self.assertEqual(self.children(text, "quests"), ["first_contact"])
+        self.assertEqual(self.children(text, "scans"), ["derelict_intel"])
+
+    def test_it_is_named_once_with_its_line(self):
+        text = MISSION.format(key="derelict_intel").replace("### [Derelict Intel]", "#### [Derelict Intel]")
+        self.doc(text)
+        self.assertEqual([(line, sev) for line, sev, _ in self.said], [(15, "error")])
+        self.assertIn("4 hashes", self.said[0][2])
+        self.assertIn("at most 3", self.said[0][2])
+
+    def test_a_record_after_it_is_a_neighbor_not_a_child(self):
+        text = MISSION.format(key="derelict_intel").replace("### [Derelict Intel]", "#### [Derelict Intel]")
+        text += "\n### [Derelict Materials](derelict_mat)\n---\nScan of: derelict\nTab: mat\n---\n% Scoring.\n"
+        self.assertEqual(self.children(text, "scans"), ["derelict_intel", "derelict_mat"])
+
+    def test_a_well_formed_file_says_nothing(self):
+        self.doc(MISSION.format(key="derelict_intel"))
+        self.assertEqual(self.said, [])
+
+    def test_the_tools_nest_it_the_same_way(self):
+        from sbs_utils.procedural.amd_core import parse
+        text = MISSION.format(key="derelict_intel").replace("### [Derelict Intel]", "#### [Derelict Intel]")
+        text += "\n### [Derelict Materials](derelict_mat)\n---\nScan of: derelict\nTab: mat\n---\n% Scoring.\n"
+        by_key = {n.key: n for n in parse(text).nodes}
+        self.assertEqual(by_key["derelict_intel"].parent.key, "scans")
+        self.assertEqual(by_key["derelict_mat"].parent.key, "scans")
+
+
+class TextTheEngineCanDraw(_Said):
+    """Measured in the engine, 2026-10-04: one curly quote in a quest's text painted the whole
+    font sheet across Helm, and one long dash in a reading did the same to Science."""
+
+    CURLY = MISSION.format(key="derelict_intel").replace(
+        "A dead ship has drifted across the border.",
+        "Find the “ghost ship”. It isn’t answering — yet…")
+
+    def quest_text(self, text):
+        return amd_section(self.doc(text), "quests")["children"][0]["description"].strip()
+
+    def test_typographic_marks_become_plain_ones(self):
+        self.assertEqual(self.quest_text(self.CURLY),
+                         'Find the "ghost ship". It isn\'t answering - yet...')
+
+    def test_nothing_the_game_reads_is_outside_ascii(self):
+        text = self.CURLY.replace("[First Contact]", "[Première Rencontre ☃]")
+        node = amd_section(self.doc(text), "quests")["children"][0]
+        self.assertEqual(node["display_text"], "Premiere Rencontre ")
+        self.assertTrue(node["description"].isascii())
+
+    def test_an_ascii_file_is_handed_back_untouched(self):
+        from sbs_utils.procedural.amd import amd_ascii_text
+        line = "A dead ship has drifted across the border."
+        self.assertIs(amd_ascii_text(line), line)
+
+    def test_the_switch_puts_it_back(self):
+        from sbs_utils.procedural import amd
+        from sbs_utils.procedural.quest import amd_doc_cache_clear
+        self.addCleanup(setattr, amd, "AMD_ASCII_TEXT", amd.AMD_ASCII_TEXT)
+        self.addCleanup(amd_doc_cache_clear)
+        amd.AMD_ASCII_TEXT = False
+        amd_doc_cache_clear()
+        self.assertIn("“ghost ship”", self.quest_text(self.CURLY))
+
+    def test_lint_still_names_every_one(self):
+        from sbs_utils.procedural.amd_lint import amd_lint_ascii
+        found = amd_lint_ascii(content=self.CURLY)
+        self.assertEqual([f.code for f in found], ["non-ascii"] * 5)
+
+
+class ANoteThatIsTabbedIn(_Said):
+    def test_the_crew_is_not_shown_it(self):
+        text = MISSION.format(key="derelict_intel").replace(
+            "A dead ship has drifted across the border.",
+            "A dead ship has drifted across the border.\n    // ask Doug about the name")
+        body = amd_section(self.doc(text), "quests")["children"][0]["description"]
+        self.assertNotIn("ask Doug", body)
+        self.assertIn("A dead ship", body)
+
+
+class ASectionKeyWithACapital(_Said):
+    def test_it_is_the_section_it_plainly_is(self):
+        text = MISSION.format(key="derelict_intel").replace("[Scans](scans)", "[Scans](Scans)")
+        self.assertEqual(self.children(text, "scans"), ["derelict_intel"])
+
+    def test_an_exact_key_still_wins(self):
+        text = MISSION.format(key="derelict_intel") + "\n## [Other](Scans)\n\n### [X](x)\n"
+        self.assertEqual(self.children(text, "scans"), ["derelict_intel"])
+
+
 class AToolLeavesTheLogsAlone(unittest.TestCase):
     def setUp(self):
         self.dir = tempfile.TemporaryDirectory()
