@@ -511,6 +511,13 @@ def save_yaml_data(file, data):
     Attempts to dump using ryaml first for better comment handling, 
     falls back to standard yaml.safe_dump if ryaml is unavailable.
     
+    WRITTEN BESIDE THE FILE, THEN SWAPPED IN. It used to open the file itself with 'w',
+    which empties it before a byte is written. For as long as the dump took, anything
+    reading the file - a second game finishing in the same second, on a machine running
+    several - saw half a document, could not parse it, and started over from nothing:
+    a rolling record of two hundred games became the last twenty six. Now the old file
+    is whole until the new one is, and a dump that fails leaves it untouched.
+
     Args:
         file (str): Path to the YAML file to load.
         data (dict): Dict or object to save
@@ -518,8 +525,7 @@ def save_yaml_data(file, data):
     ry = ryaml_module()
     if ry is not None:
         try:
-            with open(file, 'w') as f:
-                return ry.dump(f, data)
+            return _write_then_swap(file, lambda f: ry.dump(f, data))
         except OSError:
             pass
         except Exception as e:
@@ -527,12 +533,41 @@ def save_yaml_data(file, data):
 
     try:
         from . import yaml
-        with open(file, 'w') as f:
-            # safe_dump(data, stream) - a single document. (The old call passed the
-            # file as 'documents' and the dict as 'stream', which wrote nothing.)
-            return yaml.safe_dump(data, f, default_flow_style=False, sort_keys=False)
+        # safe_dump(data, stream) - a single document. (The old call passed the
+        # file as 'documents' and the dict as 'stream', which wrote nothing.)
+        return _write_then_swap(file, lambda f: yaml.safe_dump(
+            data, f, default_flow_style=False, sort_keys=False))
     except Exception as e:
         return None
+
+
+def _write_then_swap(file, write):
+    """Write a file under another name beside it, then put it in place in one step.
+
+    Returns what `write(f)` returned. Raises what it raised, with the file that was
+    there before still there. The swap is retried briefly: on Windows it is refused
+    while another process has the old file open to read it.
+    """
+    import time
+    tmp = "%s.%d.tmp" % (file, os.getpid())
+    try:
+        with open(tmp, 'w') as f:
+            out = write(f)
+        for attempt in range(6):
+            try:
+                os.replace(tmp, file)
+                break
+            except PermissionError:
+                if attempt == 5:
+                    raise
+                time.sleep(0.02)
+        return out
+    finally:
+        try:
+            if os.path.exists(tmp):
+                os.remove(tmp)
+        except OSError:
+            pass
 
 
 def load_json_data(file):
