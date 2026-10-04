@@ -31,7 +31,7 @@ from sbs_utils.procedural.inventory import get_inventory_value, set_inventory_va
 from sbs_utils.procedural.sides import to_side_id, side_are_enemies, is_hostile_to_players
 from sbs_utils.procedural.timers import (
     set_timer, is_timer_set, is_timer_finished, get_time_remaining,
-    format_time_remaining)
+    format_time_remaining, clear_timer)
 from sbs_utils.procedural.comms import comms_broadcast
 from sbs_utils.procedural.signal import signal_emit
 from sbs_utils.procedural.gui import gui_list_box_is_header
@@ -501,7 +501,12 @@ def _arm_start_trigger(data):
     out = dict(data)
     out["armed_trigger"] = {k: out.pop(k) for k in _DONE_KEYS if k in out}
     out.pop("start_trigger", None)
-    out[start["trigger"]] = start.get("data") or {}
+    # A TIME is the one trigger whose name is not the key its watcher reads: the reader
+    # says `after`, the tick looks for `complete_after`. Stored as `after`, a quest that
+    # says `Starts when: 5 seconds` was armed with a trigger nothing ever looked at - it
+    # sat ACTIVE and never started, with lint clean and the docs saying it works.
+    key = "complete_after" if start["trigger"] == "after" else start["trigger"]
+    out[key] = start.get("data") or {}
     return out
 
 
@@ -516,6 +521,13 @@ def _quest_swap_in_armed(agent_id, quest_id, data):
     data.update(armed)
     data.pop("armed_trigger", None)
     quest_set_key(agent_id, quest_id, "progress", 0)
+    # The start's clock, if it had one, is spent. Left set, a `Done when: 30 seconds`
+    # swapped in behind a timed start would find its timer already finished and complete
+    # on the next tick.
+    try:
+        clear_timer(agent_id, "qdone:" + str(quest_id))
+    except Exception:                                    # noqa: BLE001
+        pass
     return True
 
 
@@ -1599,6 +1611,9 @@ def quest_tab_controls_gate(console, item, accept_consoles, engage_enabled, enga
         can = (callable(rec.get("take")) and not rec.get("pending")
                and _quest_console_allowed(console, rec.get("consoles")))
         hint = "" if can else str(rec.get("where") or "")
+        if rec.get("pending") and not hint:
+            # A posted job has no Accept on any console, and said nothing about why.
+            hint = "Posted. It is taken by answering the call that offers it."
         return {"show_accept": bool(can), "show_abandon": False, "show_engage": False,
                 "hint": hint, "sig": f"offer|{int(bool(can))}|{hint}"}
     state = int(item.get("state")) if is_quest and item.get("state") is not None else None
@@ -1763,6 +1778,14 @@ def _quest_outcome(verb, apply_fn):
         # answering a call complete another ship's own copy of the same job; a
         # `Scope: shared` quest has exactly one holder anyway, so the specific rule
         # costs that case nothing and protects the per-ship one.
+        #
+        # A FINISHED QUEST STAYS FINISHED. Two ships each hear the same offer; the second
+        # says yes after the first has done the job and been paid, and `accepts` started
+        # it again - paid twice. A late answer to a call whose step had already FAILED
+        # completed it, un-failing the quest and paying over the penalty. Neither is an
+        # author's mistake, so nothing is logged: the answer is simply too late to matter.
+        if quest_get_state(holders[0], quest_id) in (QuestState.COMPLETE, QuestState.FAILED):
+            return True
         apply_fn(holders[0], quest_id)
         return True
     return handler
