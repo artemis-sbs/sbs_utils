@@ -1119,6 +1119,65 @@ def amd_lint_fields_below_fence(doc):
     return findings
 
 
+_START_ONLY_STATES = ("at_once", "accepted", "revealed")
+_FINISH_FIELDS = ("done when", "goal", "complete after", "done_when", "complete_after")
+
+
+def amd_lint_start_only(doc):
+    """Flag a quest that a trigger STARTS and nothing can FINISH. WARNING.
+
+    `When:` is short for `Starts when:`. It used to be the trigger that completed a step,
+    and a chain written the old way still reads like one:
+
+        #### [Storm's First Lead](ep1_go)
+        ---
+        State: secret
+        When: reach 2, -1
+        Then: reveal beacon_arc/ep1_approach
+        ---
+
+    The ship arrives, the step STARTS, and that is all: with no `Done when:` it stays
+    active for good, its `Then:` never happens and its reward is never paid. Nothing is
+    logged, because nothing went wrong that the game can see.
+
+    A quest with steps of its own is left alone - it finishes when they do.
+    """
+    try:
+        from sbs_utils.procedural.amd_quest import amd_trigger
+    except Exception:                                   # noqa: BLE001
+        return []
+    findings = []
+    for node in doc.nodes:
+        if str(getattr(node, "kind", "") or "").lower() != "quest" or not node.fence_lines:
+            continue
+        if any(str(getattr(c, "kind", "") or "").lower() == "quest" for c in node.children):
+            continue
+        fields = _plain_fields(node)
+        if any(f in fields for f in _FINISH_FIELDS):
+            continue
+        for label in ("when", "starts when"):
+            for lineno, value in fields.get(label, []):
+                try:
+                    trig = amd_trigger(value)
+                except Exception:                        # noqa: BLE001
+                    trig = None
+                if trig is None or trig[0] in _START_ONLY_STATES:
+                    continue
+                word = "When" if label == "when" else "Starts when"
+                lost = [w for w, f in (("its `Then:` never happens", "then"),
+                                       ("its reward is never paid", "reward"),
+                                       ("its reward is never paid", "pays"))
+                        if f in fields]
+                findings.append(AmdFinding(
+                    lineno, WARNING, "quest-never-finishes",
+                    f"`{word}: {value}` STARTS `{node.display}`"
+                    + (" (`When:` is short for `Starts when:`)" if label == "when" else "")
+                    + ", and nothing here finishes it: it stays active for good"
+                    + ("; " + " and ".join(dict.fromkeys(lost)) if lost else "")
+                    + f". If this is what finishes it, write `Done when: {value}`"))
+    return findings
+
+
 _SIDE_STOCK_WORDS = frozenset(("*", "all", "everyone", "players", "player", "civilians",
                                "civilian", "civs"))
 
@@ -3622,6 +3681,7 @@ def amd_lint(file_path=None, content=None, mast_sources=None, cross_file=None,
         findings += amd_lint_relic_dressing(doc)
         findings += amd_lint_relic_strays(doc)
         findings += amd_lint_sides(doc, keys, mast_sources)
+        findings += amd_lint_start_only(doc)
         findings += amd_lint_fields_below_fence(doc)
         findings += amd_lint_hails(doc)
         findings += amd_lint_then(doc)
