@@ -1119,6 +1119,48 @@ def amd_lint_fields_below_fence(doc):
     return findings
 
 
+_QUEST_SHAPE_FIELDS = ("done when", "starts when", "fails when", "then", "objective")
+
+
+def amd_lint_relic_strays(doc):
+    """Flag a scene or a quest written inside a relic section. WARNING.
+
+    The natural place to write what a place says is right under the place. But the relic
+    reader takes EVERY record in its section for a ruin or a part of one: a record with no
+    `Relic:` line is a ruin with no rooms - "it was not built" in the log - and the scene
+    or the quest in it is never read by the loader it was written for.
+    """
+    try:
+        from sbs_utils.procedural.amd_schema import archetype_for_section
+    except Exception:                                   # noqa: BLE001
+        return []
+    findings = []
+    for node in doc.nodes:
+        parent = node.parent
+        if parent is None or parent.key == "__root__":
+            continue
+        if archetype_for_section(str(parent.key or "").strip().lower()) != "relic":
+            continue
+        fields = _plain_fields(node)
+        if "relic" in fields or "loc" in fields or any(f in fields for f in _RELIC_PART_FIELDS):
+            continue                                     # a ruin, or a part of one
+        speaks = any(l.strip().startswith("%") or (l.strip().startswith("-") and "](" in l)
+                     for _n, l in (node.body_lines or []))
+        asks = (str(getattr(node, "kind", "") or "").lower() == "quest"
+                or any(f in fields for f in _QUEST_SHAPE_FIELDS))
+        if not (speaks or asks):
+            continue
+        what, where = (("a scene", "Dialogue") if speaks and not asks else
+                       ("a quest", "Quests"))
+        findings.append(AmdFinding.at(
+            node.display_span or node.span, WARNING, "relic-section-stray",
+            f"`{node.display}` is {what}, and it is written in `{parent.display}`, where "
+            f"every record is read as a ruin or a part of one: the game takes it for a "
+            f"ruin with no rooms, and never reads it as {what}. Move it to the {where} "
+            f"section"))
+    return findings
+
+
 def amd_lint_relic_dressing(doc):
     """Flag how a ruin is DRESSED where the game will quietly do something else. WARNING.
 
@@ -1233,6 +1275,16 @@ def amd_lint_relic_dressing(doc):
                             f"`{label.capitalize()}:` dresses a room, and this record is "
                             f"not a room - here it does nothing. What a place or a set "
                             f"piece looks like is `Dress:`"))
+
+        # --- what a place says ----------------------------------------------------------
+        # A scene opens when someone ARRIVES, and a route only ever ends at a `Point:`.
+        # On a room, a prop or the ruin itself it is read, kept, and never opened.
+        if "scene" in fields and "point" not in fields:
+            findings.append(AmdFinding(
+                fields["scene"][0], WARNING, "relic-field-wrong-record",
+                "`Scene:` is what a PLACE says when someone arrives at it, and this record "
+                "is not a place: nobody can be sent to a room, a set piece or the ruin "
+                "itself, so the scene never opens. Put the line on a `Point:` record"))
 
         # --- set pieces ---------------------------------------------------------------
         if "prop" in fields:
@@ -3428,6 +3480,7 @@ def amd_lint(file_path=None, content=None, mast_sources=None, cross_file=None,
         findings += amd_lint_relics(doc)
         findings += amd_lint_relic_structure(doc)
         findings += amd_lint_relic_dressing(doc)
+        findings += amd_lint_relic_strays(doc)
         findings += amd_lint_fields_below_fence(doc)
         findings += amd_lint_hails(doc)
         findings += amd_lint_then(doc)
