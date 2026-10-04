@@ -941,6 +941,20 @@ class OrbitBandTests(HailTestCase):
         self._offer(presentation="orbit", subject=raider)
         return raider
 
+    def test_a_subject_written_as_a_name_is_filmed_too(self):
+        """`Subject: raider` - what a fence gives. The main screen got nothing."""
+        to_id(npc_spawn(500, 0, 0, "Raider", "raider", "battle", "behav_npcship"))
+        H.hail_where_set(self.comms, "main")
+        self._offer(presentation="orbit", subject="raider")
+        H.hail_accept(self.ship)
+        self.assertEqual(self.shown, [self.ship])
+
+    def test_a_name_nothing_answers_to_films_nothing(self):
+        H.hail_where_set(self.comms, "main")
+        self._offer(presentation="orbit", subject="nobody_at_all")
+        H.hail_accept(self.ship)
+        self.assertEqual(self.shown, [])
+
     def test_an_orbit_hail_puts_the_band_up(self):
         self._orbit()
         H.hail_accept(self.ship)

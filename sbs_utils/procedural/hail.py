@@ -1168,8 +1168,20 @@ def _hail_presentation_apply(ship_id):
             return False
     _hail_screen_drop(ship_id)
     subject = rec.get("subject")
-    if not subject or isinstance(subject, str):
-        return False                      # late-resolved; the renderer binds it
+    if isinstance(subject, str):
+        # A NAME, AS AN AUTHOR WRITES IT. `Subject: derelict` in a fence is always a
+        # string, and this used to stop here on the promise that "the renderer binds
+        # it" - nothing did, so `Presentation: orbit` written in AMD showed the main
+        # screen nothing at all. Resolved now, the way a stage direction resolves an
+        # actor: a landmark's key first, then a role.
+        try:
+            from .amd_action import amd_action_actors
+            found = sorted(amd_action_actors(subject.strip()) or ())
+        except Exception:                                # noqa: BLE001
+            found = []
+        subject = found[0] if found else None
+    if not subject:
+        return False
     try:
         from .gui.viewscreen import viewscreen_set
         from .gui.viewscreen_claims import TIER_STORY
