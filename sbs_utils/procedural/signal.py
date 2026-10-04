@@ -31,6 +31,19 @@ def signal_emit(name, data=None):
     task = FrameContext.task
     if mast is None:
         return
+    # A TASK THAT HAS ENDED IS NOT SENDING ANYTHING. Routes drop a signal whose sender is
+    # done, which is right for a task - and wrong for library code emitting from a TICK,
+    # where `FrameContext.task` is simply whatever ran last. If that happened to be a
+    # task that had since finished (a map label that ended long ago), the signal reached
+    # NO route: `boarding_visit_ended` and `boarding_came_back` were lost that way, and
+    # which run lost them depended on what had ticked just before. A finished task as
+    # the current task can only be a stale reference, so it is not passed on as a sender.
+    if task is not None:
+        try:
+            if task.done():
+                task = None
+        except Exception:
+            task = None
     mast.signal_emit(name, task, data)
 
 
