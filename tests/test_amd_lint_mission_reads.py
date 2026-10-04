@@ -78,7 +78,7 @@ Console: engineering
 ---
 """
 
-CODES = ("section-not-loaded", "landmark-no-art", "landmark-no-loc", "landmark-bad-loc",
+CODES = ("landmark-record-level", "section-not-loaded", "landmark-no-art", "landmark-no-loc", "landmark-bad-loc",
          "landmark-no-kind", "role-is-a-key", "unknown-kind-line")
 
 
@@ -144,6 +144,12 @@ class ALandmarkTheSpawnerWillNotPlaceTests(unittest.TestCase):
 
     def test_no_kind(self):
         self.assertIn("landmark-no-kind", _codes(_swap("Kind: wreck\n", "")))
+
+    def test_a_landmark_nested_under_another(self):
+        second = ("\n#### [Buoy 7](buoy)\n---\nKind: wreck\nRoles: buoy\nArt: wreck\n"
+                  "Loc: 1000, 0, 1000\n---\nA buoy.\n")
+        text = MISSION.replace("Adrift.\n", "Adrift.\n" + second)
+        self.assertIn("landmark-record-level", _codes(text))
 
     def test_a_zone_needs_neither(self):
         text = _swap("Kind: wreck\nRoles: lifeboat\nArt: wreck\nLoc: 6000, 0, 6000",

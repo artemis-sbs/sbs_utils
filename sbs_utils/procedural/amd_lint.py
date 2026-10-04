@@ -2064,6 +2064,14 @@ def amd_lint_mission_reads(doc, file_path=None, mast_sources=None, source_index=
         if not spawned:
             continue
         by_key[str(node.key).strip().lower()] = node
+        parent = node.parent
+        if parent is not None and parent.fence_lines                 and str(getattr(parent, "kind", "") or "").lower() == "landmark":
+            findings.append(AmdFinding.at(
+                node.display_span or node.span, WARNING, "landmark-record-level",
+                f"`{node.display}` is nested under the landmark `{parent.display}`, so "
+                f"it is not placed. Give this heading {parent.level} hashes, the same "
+                f"as the landmark above it"))
+            continue
         if any(v.strip().lower() == "point" for _l, v in fields.get("kind", [])):
             continue                 # a ZONE: a position the mission reads, not an object
         where = node.display_span or node.span
