@@ -70,6 +70,15 @@ says exactly that. Written bare &mdash; `ds1 hails` &mdash; it opens that speake
 | `Scope: ship` | once per ship holding it | that ship |
 | held by a station or a character | once | every player ship |
 
+The `Scope: ship` row needs the quest to be granted to each SHIP. A mission that grants its
+whole Quests section to the shared story before any ship exists - `quest_grant_amd(SHARED,
+...)`, which is what the `amd` template does - holds every record there, and a `ship`
+record in it calls every player ship like a shared one.
+
+A call does not time out, and nothing withdraws it when the quest that placed it fails or
+finishes. An answer that comes too late does nothing to a quest that is already finished or
+failed.
+
 ## What an answer means
 
 Written on the choice, next to the words that earn it:
@@ -100,7 +109,10 @@ conversation. Give it a scene key instead and the conversation continues there:
 
 !!! tip "A board you take by answering"
     `At start: posting` lists a quest without a working Accept button. The only way to
-    take it is whatever else offers it &mdash; typically the call that just came in.
+    take it is whatever else offers it &mdash; typically the call that just came in. The
+    row reads `Posted`, and selecting it says so: "It is taken by answering the call that
+    offers it." The answer that takes it says `; accepts <key>`. For a quest with steps,
+    name the first step too: `; accepts job, accepts job/first_step`.
 
 ## What the crew sees
 
@@ -125,7 +137,7 @@ what was chosen.
 |---|---|---|
 | `portrait` | the speaker's face | &mdash; |
 | `still` | an image | `Backdrop:` |
-| `orbit` | a 3D shot of a ship, like the science viewscreen | `Subject:` |
+| `orbit` | a 3D shot of a ship, like the science viewscreen | `Subject:` &mdash; a landmark's key or a role (`Subject: derelict`) |
 
 `Audio:` plays a recorded line when the conversation opens. There is an **Audio** checkbox
 beside the dial; it defaults to on.
