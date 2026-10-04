@@ -20,7 +20,8 @@ from sbs_utils.procedural.amd import (amd_parse_facts, amd_kind_line, KIND_KEY,
                                       FenceScanner, RE_HEADING, RE_FENCE, AmdErrors,
                                       amd_read_text,
                                       BoneyardScanner, amd_body_synopsis, amd_wikilinks,
-                                      RE_CUE, RE_DIRECTION, RE_CHOICE, amd_norm)
+                                      RE_CUE, RE_DIRECTION, RE_CHOICE, amd_norm,
+                                      amd_signal_name)
 
 # Grammar - ONE definition, imported from `amd` and shared with the runtime reader
 # in quest.py. These aliases keep the existing local names working.
@@ -389,6 +390,7 @@ def _extract_data_refs(node, fence_lines):
             # class-2 quest trigger: waits for a SIGNAL_NAME emit of this name
             r = _token_span(fence_lines, "When", toks[1].strip(), key, "wait_signal")
             if r:
+                r.value = amd_signal_name(toks[1])
                 node.refs.append(r)
 
     # `Goal: signal [N] NAME` is a COMPLETION trigger - semantically the same wait as
@@ -411,6 +413,11 @@ def _extract_data_refs(node, fence_lines):
                 for label in ("Goal", "Done when", "Done"):
                     r = _token_span(fence_lines, label, rest[0], key, "wait_signal")
                     if r:
+                        # The WHOLE name, folded as the game folds it. This took the
+                        # first word, so `Done when: signal derelict found` was reported
+                        # as waiting for `derelict` - and the game finishes that step on
+                        # `derelict_found`.
+                        r.value = amd_signal_name(" ".join(rest))
                         node.refs.append(r)
                         break
 
@@ -418,6 +425,7 @@ def _extract_data_refs(node, fence_lines):
     if fail:
         r = _token_span(fence_lines, "Fail on signal", str(fail).strip(), key, "wait_signal")
         if r:
+            r.value = amd_signal_name(fail)
             node.refs.append(r)
 
     at = _di(data, "At")

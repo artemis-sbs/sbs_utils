@@ -941,6 +941,42 @@ def _emitted_from_sources(mast_sources):
     return names
 
 
+def _quest_emitted_from_sources(mast_sources):
+    """Signal names a QUEST can hear, folded as the game folds them.
+
+    `Done when: signal x` is finished by `signal_emit("quest_signal", {"SIGNAL_NAME":
+    "x"})`, `quest_on_signal("x")` or `quest_credit_signal(ship, "x")`. A plain
+    `signal_emit("x")` reaches a `//signal/x` route and NO quest - and it used to count
+    here, so the commonest wrong line in a story (the first quoted word changed instead
+    of the second) was clean, and the step never finished."""
+    from sbs_utils.procedural.amd import amd_signal_name
+    names = set()
+    for src in mast_sources or []:
+        # A mission that hands EVERY signal on to the quests (Dawnline observes all
+        # signals and calls `quest_on_signal(name)`): there a plain emit does reach a
+        # quest, and this cannot tell which. `SIGNAL_NAME` is the stock route's own
+        # variable, not a forwarder.
+        if _RE_QUEST_ON_ANY.search(src):
+            return None
+        for rx in (_RE_SIGNAL_NAME, _RE_CREDIT, _RE_QUEST_ON):
+            names.update(amd_signal_name(m.group(1)) for m in rx.finditer(src))
+    return names
+
+
+_RE_QUEST_ON_ANY = re.compile(r"(?<!def )quest_on_signal\s*\(\s*(?!SIGNAL_NAME\b)[A-Za-z_]\w*\s*\)")
+
+
+def _without_notes(src):
+    """A source with its `#` note lines blanked (line numbers kept).
+
+    A NOTE IS NOT CODE. The starter story explains its own signal line in a comment that
+    holds `signal_emit("derelict_found")`, and every scan here read the raw text - so the
+    note sent the signal, wore the role and declared the label as far as lint could tell,
+    and no mistake on the working line below it could be seen."""
+    return "\n".join("" if line.lstrip().startswith("#") else line
+                     for line in str(src).split("\n"))
+
+
 # Optional declarations in a `metadata:` block (MAST or AMD): `emits: [a, b]` names
 # signals the label emits (for what static scanning can't see - dynamic/computed
 # names); `handles: [c]` names signals it handles (like a `//signal/` route). Both
@@ -973,9 +1009,15 @@ def mast_source_index(mast_sources):
     dominated the language server's per-keystroke cost)."""
     if mast_sources is None:
         return None
+    # `emits:` / `handles:` are read from the RAW text: in a `.py` they live in a comment.
     decl_emits, decl_handles = _declared_from_sources(mast_sources)
+    mast_sources = [_without_notes(s) for s in mast_sources]
+    emitted = _emitted_from_sources(mast_sources) | decl_emits | DRIVER_SIGNALS
+    heard = _quest_emitted_from_sources(mast_sources)
     return {"routes": _mast_routes(mast_sources) | decl_handles,
-            "emitted": _emitted_from_sources(mast_sources) | decl_emits | DRIVER_SIGNALS,
+            "emitted": emitted,
+            "quest_emitted": (emitted if heard is None
+                              else heard | decl_emits | DRIVER_SIGNALS),
             "labels": mast_labels(mast_sources),
             "items": mast_item_keys(mast_sources),
             "quoted_words": _quoted_words(mast_sources)}
@@ -1025,13 +1067,15 @@ def amd_lint_cross_file(doc, mast_sources=None, source_index=None):
     # The signals this mission actually emits: .amd raw emits + statically-scanned
     # signal_emit()/SIGNAL_NAME + declared `emits:` + the always-present driver
     # signals. Routes = `//signal/` handlers + declared `handles:`.
-    emitted = None
+    emitted = quest_emitted = None
     if source_index is None and mast_sources is not None:
         source_index = mast_source_index(mast_sources)
     if source_index is not None:
         routes = source_index["routes"]
-        emitted = ({r.value for r in doc.refs if r.kind == "signal"}
-                   | source_index["emitted"])
+        from_amd = {r.value for r in doc.refs if r.kind == "signal"}
+        emitted = from_amd | source_index["emitted"]
+        # What a QUEST can hear. An index built by an older caller has no such set.
+        quest_emitted = from_amd | source_index.get("quest_emitted", source_index["emitted"])
 
     # A signal something in the AMD WAITS on is handled, route or no route: a quest's
     # `Done when: signal X`, or a relic part's `Starts when:` / `Opens when:`. Flagging
@@ -1046,12 +1090,23 @@ def amd_lint_cross_file(doc, mast_sources=None, source_index=None):
                 f"`{ref.owner}` emits signal `{ref.value}` but no `//signal/{ref.value}` "
                 f"route was found in the mission's .mast (nor a known driver signal)"))
         elif ref.kind == "wait_signal" and emitted is not None:
-            if ref.value not in emitted:
+            if ref.value in quest_emitted or str(ref.value).lower() in quest_emitted:
+                continue
+            if ref.value in emitted or any(str(e).lower() == str(ref.value).lower()
+                                           for e in emitted):
+                # Sent, but on the wrong channel.
                 findings.append(AmdFinding.at(
                     ref.span, WARNING, "unfired-signal",
-                    f"`{ref.owner}` waits for the signal `{ref.value}`, and nothing in "
-                    f"the mission sends it, so that wait never ends. Check the spelling "
-                    f"against the line in the story that sends it"))
+                    f"`{ref.owner}` waits for the signal `{ref.value}`. The story sends "
+                    f"`{ref.value}` with a plain `signal_emit`, which a quest does not "
+                    f"hear, so that wait never ends. A quest hears "
+                    f"`signal_emit(\"quest_signal\", {{\"SIGNAL_NAME\": \"{ref.value}\"}})`"))
+                continue
+            findings.append(AmdFinding.at(
+                ref.span, WARNING, "unfired-signal",
+                f"`{ref.owner}` waits for the signal `{ref.value}`, and nothing in "
+                f"the mission sends it, so that wait never ends. Check the spelling "
+                f"against the line in the story that sends it"))
         elif ref.kind == "reach":
             if ref.value not in doc.landmark_cells:
                 i, j = ref.value
@@ -1497,6 +1552,51 @@ def amd_lint_fields_below_fence(doc):
 
 _START_ONLY_STATES = ("at_once", "accepted", "revealed")
 _FINISH_FIELDS = ("done when", "goal", "complete after", "done_when", "complete_after")
+
+
+def amd_lint_never_revealed(doc, content=None, source_index=None):
+    """Flag a step that waits to be revealed and that nothing reveals.
+
+    `Starts when: revealed` hides a step until a `Then: reveal arc/step` on another step
+    names it (or an answer in a conversation `accepts` it, or the story starts it).
+    Delete that `Then:` line and lint said `clean`: the step never appeared, its arc
+    could not finish, and both logs were empty.
+
+    Only when the mission's story was handed in, and only when the step's key is written
+    NOWHERE else: not in this file below a `Then:` or on an answer, and not in quotes in
+    the story. A reveal that lives in another `.amd` file cannot be seen from here, so a
+    key that any other file might name is given the benefit of the doubt by the caller
+    passing `known_keys`... which is every key, so this stays a WARNING."""
+    if source_index is None:
+        return []
+    words = source_index.get("quoted_words") or set()
+    lines = (content or "").splitlines()
+    findings = []
+    for node in doc.nodes:
+        if str(getattr(node, "kind", "") or "").lower() != "quest":
+            continue
+        fields = _plain_fields(node)
+        start = [(ln, v) for label in ("starts when", "when", "at start")
+                 for ln, v in fields.get(label, [])]
+        if not any(str(v).strip().lower() == "revealed" for _ln, v in start):
+            continue
+        key = str(node.key)
+        leaf = key.split("/")[-1]
+        if leaf.lower() in words:
+            continue                      # the story names it: it may start it itself
+        named = re.compile(r"(?<![\w/])(?:[\w]+[ \t]*/[ \t]*)*" + re.escape(leaf) + r"(?![\w])")
+        own = node.span.line if node.span else 0
+        if any(named.search(text) for i, text in enumerate(lines, start=1)
+               if i != own and not text.lstrip().startswith("//")):
+            continue
+        ln = start[0][0]
+        path = _quest_path(node) or key
+        findings.append(AmdFinding(
+            ln, WARNING, "never-revealed",
+            f"`{node.display or key}` waits to be revealed, and nothing reveals it: no "
+            f"`Then: reveal {path}` on another step, and no answer or story line names "
+            f"`{leaf}`. It never appears, and the story it belongs to cannot finish"))
+    return findings
 
 
 def amd_lint_start_only(doc):
@@ -4068,6 +4168,7 @@ def amd_lint(file_path=None, content=None, mast_sources=None, cross_file=None,
         findings += amd_lint_relic_strays(doc)
         findings += amd_lint_sides(doc, keys, mast_sources)
         findings += amd_lint_start_only(doc)
+        findings += amd_lint_never_revealed(doc, content, source_index)
         findings += amd_lint_fields_below_fence(doc)
         findings += amd_lint_hails(doc)
         findings += amd_lint_then(doc)

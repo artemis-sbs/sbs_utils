@@ -708,6 +708,10 @@ def quest_reveal(agent_id, reveal):
         return
     ids = reveal if isinstance(reveal, list) else [reveal]
     for qid in ids:
+        # `Then: reveal first_contact / study`: a path with spaces round its slash is the
+        # path without them. It named no quest, and nothing was revealed.
+        if isinstance(qid, str) and "/" in qid:
+            qid = "/".join(part.strip() for part in qid.split("/"))
         quest_mark_active(agent_id, qid)
 
 
@@ -1040,19 +1044,38 @@ def quest_on_signal(name):
     # to replace: it silently skips a quest granted to a station or a side, so a
     # `Held by:` job's `Done when: signal` never advanced and its `Fails when: signal`
     # never fired, with nothing logged because nothing looked.
+    if not name:
+        # `signal_emit("quest_signal", {...})` with the name left out, or its key
+        # misspelled. Said, because the other answer was every quest waiting for good.
+        import logging
+        logging.getLogger("mast.runtime").warning(
+            "Quest: a `quest_signal` was sent with no name, so no quest heard it. The "
+            "line is `signal_emit(\"quest_signal\", {\"SIGNAL_NAME\": \"the_name\"})`")
+        return
     for aid in _quest_holders():
         for qid, data in _active_quests(aid):
             trig = data.get("on_signal") or data.get("on_comms")
             if isinstance(trig, dict):
                 want = trig.get("name") or trig.get("option")
-                if not want or want == name:
+                if not want or _same_signal(want, name):
                     _advance_count(aid, qid, data, trig.get("count", 1))
             # Fail trigger: a matching signal fails the quest (mirror of on_signal).
             ftrig = data.get("fail_on_signal")
             if isinstance(ftrig, dict):
                 fwant = ftrig.get("name") or ftrig.get("option")
-                if not fwant or fwant == name:
+                if not fwant or _same_signal(fwant, name):
                     quest_mark_failed(aid, qid)
+
+
+def _same_signal(want, sent):
+    """Is the signal a quest WAITS for the one the story SENT?
+
+    The waiting side is written in a `.amd` and folded as it is read: small letters,
+    spaces to underscores (`amd_signal_name`). The sending side is a word in quotes in
+    the story and was compared as typed - so `Ghost_Ship_Found` in BOTH files never
+    matched, with lint clean and both logs empty. Fold the sent name the same way. The
+    exact comparison stays first: an `on_comms` option is matched as written."""
+    return want == sent or str(want) == amd_signal_name(sent)
 
 
 def quest_credit_signal(agent_id, name):
@@ -1063,7 +1086,7 @@ def quest_credit_signal(agent_id, name):
         trig = data.get("on_signal") or data.get("on_comms")
         if isinstance(trig, dict):
             want = trig.get("name") or trig.get("option")
-            if not want or want == name:
+            if not want or _same_signal(want, name):
                 _advance_count(agent_id, qid, data, trig.get("count", 1))
 
 
