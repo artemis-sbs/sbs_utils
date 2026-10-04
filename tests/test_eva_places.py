@@ -150,7 +150,7 @@ class _Base(unittest.TestCase):
         C.boarding_checks_mode("flat")
         for cid in (C1, C2, C3):
             GuiClient(cid)
-        R.relics_load(PATH, content=CONTENT)
+        R.relics_load(PATH, content=getattr(self, "content", CONTENT))
         rec = R.relic_record(RELIC)
         R.relic_volume(rec)
         R.relic_rails_ensure(RELIC)
@@ -287,6 +287,57 @@ class ArrivingOpensTheScene(_Base):
         self.assertEqual(P.eva_places_count(), 1)
         P.eva_places_clear()
         self.assertEqual(P.eva_places_count(), 0)
+
+
+class AnAnswerThatLeadsNowhere(_Base):
+    """`- [Leave it](altar_gone)`, and there is no scene `altar_gone`.
+
+    The scene ended and the console stayed in the place's channel, which had nothing in
+    it: no line, no choice, no way out. Measured by the lesson "Places that speak".
+    """
+    content = CONTENT.replace("- [Leave it](altar_done)", "- [Leave it](altar_gone)")
+
+    def test_it_ends_the_scene_and_brings_the_console_back(self):
+        self.suit_up(C1, (1800, 0, 0))
+        ch = P.eva_place_arrive(C1, RELIC, "altar")
+        self.assertEqual(A.boarding_channel_of(C1), ch)
+        self.assertTrue(self.pick(C1, "Leave it"))
+        self.assertFalse(A.boarding_is_open(ch))
+        self.assertNotEqual(A.boarding_channel_of(C1), ch)
+        self.assertEqual(A.boarding_channel_of(C1), A.PARTY)
+        ended = self.emitted("boarding_scene_ended")
+        self.assertEqual([d["BOARDING_CHANNEL"] for d in ended], [ch])
+
+    def test_an_answer_that_leads_somewhere_is_unchanged(self):
+        self.suit_up(C1, (1800, 0, 0))
+        ch = P.eva_place_arrive(C1, RELIC, "altar")
+        self.assertTrue(self.pick(C1, "Force the seal"))
+        self.assertTrue(A.boarding_is_open(ch))
+        self.assertEqual(A.boarding_channel_of(C1), ch)
+
+
+class AScenePlaceNamesThatIsNotThere(_Base):
+    """`Scene: altar_lok`. The place said nothing, and the only line about it went to a
+    log category nothing reads."""
+    content = CONTENT.replace("Scene: altar_look", "Scene: altar_lok")
+
+    def test_it_is_said_where_the_author_will_see_it_and_once(self):
+        import logging
+        heard = []
+
+        class _Listen(logging.Handler):
+            def emit(self, record):
+                heard.append(record.getMessage())
+
+        handler = _Listen()
+        logging.getLogger("mast.runtime").addHandler(handler)
+        self.addCleanup(logging.getLogger("mast.runtime").removeHandler, handler)
+        self.suit_up(C1, (1800, 0, 0))
+        self.assertIsNone(P.eva_place_arrive(C1, RELIC, "altar"))
+        self.assertIsNone(P.eva_place_arrive(C1, RELIC, "altar"))
+        said = [line for line in heard if "altar_lok" in line]
+        self.assertEqual(len(said), 1, heard)
+        self.assertIn("'altar'", said[0])
 
 
 class ThePicture(_Base):

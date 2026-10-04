@@ -104,10 +104,15 @@ def eva_place_arrive(client_id, relic_key=None, point=None, first_visit=True):
         if scene not in scenes:
             # Lint catches this in a linted mission; a mission run without linting would
             # otherwise just have a silent place. Say it once.
+            # Through `_relic_say`, the way the rest of a ruin reports itself: the `eva`
+            # log category has no handler, so this line reached nothing and a misspelled
+            # `Scene:` was a place that silently said nothing.
             _PLAYED[key] = None
-            log(f"relic '{relic_key}': place '{point}' names scene '{scene}', which is "
-                f"not registered - is it in the file's ## Dialogue section?",
-                "eva", "warning")
+            from .amd_relics import _relic_say
+            _relic_say(f"relic '{relic_key}': place '{point}' names scene '{scene}', which "
+                       f"is not a scene the game has read, so the place says nothing. "
+                       f"Check the spelling, and that the scene is in the file's "
+                       f"## Dialogue section.")
             return None
         ch = boarding_encounter(scenes, scene, client_id,
                                 channel=eva_place_channel(relic_key, point),

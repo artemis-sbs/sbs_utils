@@ -936,7 +936,18 @@ def boarding_answer(client_id, index, seq=None, agent=None):
                                              "BOARDING_CLIENTS": members,
                                              "BOARDING_WHO": actor})
         return True
-    boarding_scene_begin(scenes, target, speaker, channel=ch)
+    opened = boarding_scene_begin(scenes, target, speaker, channel=ch)
+    if opened is None and ch != PARTY and ch not in _STICKY:
+        # THE TARGET NAMES NO SCENE. `boarding_scene_begin` ended the scene - and left
+        # everyone standing in a side channel with nothing in it: a place's scene whose
+        # answer was misspelled put the console in a room that no longer existed, with
+        # no choice to leave by. An ending is an ending, however it was reached.
+        members = sorted(boarding_channel_members(ch))
+        boarding_channel_close(ch)
+        signal_emit("boarding_scene_ended", {"BOARDING_FROM": from_key,
+                                             "BOARDING_CHANNEL": ch,
+                                             "BOARDING_CLIENTS": members,
+                                             "BOARDING_WHO": actor})
     return True
 
 
