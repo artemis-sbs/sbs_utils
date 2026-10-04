@@ -98,6 +98,15 @@ class StartOnlyLint(unittest.TestCase):
                     "Starts when: signal storm_briefed", "Starts when: " + value)
                 self.assertEqual(found(text), [])
 
+    def test_a_cue_that_starts_to_do_something_is_left_alone(self):
+        """A beat on a start trigger with an `Action:` and nothing waiting on its end."""
+        cue = ("\n#### [Marker One](marker_one)\n---\nBeat\n"
+               "Starts when: reach altar 600\nAction:\n  - rook hails rook_altar\n---\n")
+        self.assertEqual(found(CHAIN.format(trigger="Done when") + cue), [])
+        # ... but the same cue with a `Then:` is a chain that stops there.
+        broken = cue.replace("Action:", "Then: reveal arc/lead\nAction:")
+        self.assertEqual(len(found(CHAIN.format(trigger="Done when") + broken)), 1)
+
     def test_an_arc_is_left_alone(self):
         text = CHAIN.format(trigger="Done when").replace(
             "State: active\n---\nAn arc.", "When: signal go\n---\nAn arc.")

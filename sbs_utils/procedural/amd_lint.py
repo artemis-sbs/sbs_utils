@@ -1168,6 +1168,11 @@ def amd_lint_start_only(doc):
                                        ("its reward is never paid", "reward"),
                                        ("its reward is never paid", "pays"))
                         if f in fields]
+                if "action" in fields and not lost:
+                    # A CUE: it starts on its trigger to DO something - place a call,
+                    # change a side - and nothing waits on it finishing. That is what a
+                    # beat with a start and an `Action:` is for.
+                    continue
                 findings.append(AmdFinding(
                     lineno, WARNING, "quest-never-finishes",
                     f"`{word}: {value}` STARTS `{node.display}`"
