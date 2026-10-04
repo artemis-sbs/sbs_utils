@@ -56,7 +56,7 @@ crew.
 
 | Call | Does |
 |---|---|
-| `boarding_visit(ship, scenes, first, title=, cast=, site=, area=, place=)` | starts a visit. Returns None, and opens nothing, if one is already open or `first` names no room |
+| `boarding_visit(ship, scenes, first, title=, cast=, site=, area=, place=, stories=)` | starts a visit. Returns None, and opens nothing, if one is already open or `first` names no room |
 | `boarding_visiting()` | the visit in progress, or None |
 | `boarding_visit_end()` | ends it now &mdash; the ship is under fire, the clock ran out |
 
@@ -165,6 +165,55 @@ cannot be read is also written to `mast.runtime.log` when it is picked.
 `boarding_skills_from_amd(section)` still reads `Skills:` by NAME for people who are not
 on a crew roster; `boarding_skills_set(lifeform, {...})` sets them on one body.
 `boarding_checks_mode("flat")` drops the die (every roll is 5) for a test.
+
+## A quest for one person: `For:` and `stories=`
+
+A quest can belong to one member of the party. Put those quests in a section of their own
+and say who each is for:
+
+```amd
+## [Side Stories](side_stories)
+
+### [Six Names](six_names)
+---
+For: medical
+Starts when: at once
+Done when: signal names_read
+---
+Six suits, and nobody has written down who wore them.
+```
+
+Hand the section to the visit, and each quest goes to its person as they come aboard:
+
+```
+boarding_visit(ship, BOARDING_SCENES, "airlock", title="The Hulk",
+               stories=amd_section(MISSION_DOC, "side_stories"))
+```
+
+| `For:` names | Who gets it |
+|---|---|
+| a job (`medical`) | one person aboard who holds that job |
+| a roster member's key (`hale`) | that seat, whatever name the player has saved |
+| a name or a last name (`Dr Hale`, `Hale`) | the same |
+
+A quest is handed out once. Someone who beams down later still gets theirs, and a quest
+nobody aboard answers to is handed to nobody: unlike a choice, it is not forwarded to
+another console. A `Reward:` on such a quest is paid to the ship the person came from.
+
+A choice finishes one the way it finishes any quest: `; signal names_read`.
+`boarding_quests_open_unclaimed(section)` gives the ones nobody claimed to the whole party;
+call it once everybody who is coming has come.
+
+`sbs lint` reports a `For:` nobody on the roster answers to (`for-nobody`), a personal quest
+that never starts or cannot finish (`for-not-started`, `for-no-end`), one with `Scope:
+shared` (`for-shared`), one nested under another (`for-nested`), a quest in the section with
+no `For:` (`story-no-for`), a section nothing hands out (`stories-not-handed-out`), `For:`
+under the section the ship is given (`for-in-quests`), and two outcomes with no comma
+between them, `; learn suits signal names_read` (`outcome-run-together`).
+
+Before `stories=` this was a second call, `boarding_quests_grant(section)`, that a mission
+had to make in a route of its own. Written under `boarding_visit(...)` it found nobody
+aboard yet and handed out nothing, with nothing in the log.
 
 The rest of this page is what `boarding_visit` is built from, for a mission that has to
 drive a scene itself.

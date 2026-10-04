@@ -34,13 +34,35 @@ def _norm(s):
 
 
 def _matches(lifeform, want):
-    from .boarding import boarding_jobs
+    """Is `want` this person: a job of theirs, their name, or who the ROSTER says they are.
+
+    The roster half matters. A body is named after whatever is on the console, and a
+    player may have saved a name of their own: `For: Hale` then matched nobody on the one
+    machine at the table that had done so. The seat's roster member - its key, its name,
+    its last name - is who the author meant, whatever the player is called.
+    """
+    from .boarding import boarding_jobs, boarding_client_of
     from .query import to_object
     want = _norm(want)
+    if not want:
+        return False
     if want in boarding_jobs(lifeform):
         return True
-    name = _norm(getattr(to_object(lifeform), "name", ""))
-    return bool(want) and (name == want or name.endswith(" " + want))
+    names = [_norm(getattr(to_object(lifeform), "name", ""))]
+    try:
+        from .crew import crew_post_of, crew_roster
+        client_id = boarding_client_of(lifeform)
+        post = crew_post_of(client_id) if client_id is not None else None
+        roster = crew_roster(getattr(post, "roster", "") or "") if post is not None else None
+        key = _norm(getattr(post, "key", "")) if post is not None else ""
+        if key and want == key:
+            return True
+        for member in (roster.get("members") if roster is not None else None) or ():
+            if _norm(member.get("key")) == key:
+                names.append(_norm(member.get("name")))
+    except Exception:                                    # noqa: BLE001
+        pass
+    return any(name and (name == want or name.endswith(" " + want)) for name in names)
 
 
 def boarding_quests_grant(section, team=None):

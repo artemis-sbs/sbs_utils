@@ -1972,7 +1972,7 @@ def _visit_say(message, once=None):
 
 
 def boarding_visit(ship, scenes, first, title=None, cast=None, site=None, area=None,
-                   place=None):
+                   place=None, stories=None):
     """Run one boarding visit from start to finish.
 
     Opens the party, begins the room ``first``, and from then on watches the scene: when it
@@ -1995,6 +1995,10 @@ def boarding_visit(ship, scenes, first, title=None, cast=None, site=None, area=N
         place (str, optional): the key this place's ``learn`` facts are kept under.
             Defaults to ``title``, then to ``first``. Each place counts only its own, and
             keeps them for the mission, so a return visit finds what was learned before.
+        stories (optional): a section of quests that each belong to ONE person -
+            ``amd_section(doc, "side_stories")``, each record saying ``For: medical`` (a
+            job), or a roster member's key or name. Each is handed to its person as they
+            come aboard. One nobody aboard answers to is handed to nobody.
             Give two places the same key only if they really are one place.
 
     Returns:
@@ -2029,16 +2033,20 @@ def boarding_visit(ship, scenes, first, title=None, cast=None, site=None, area=N
         invite = boarding_invite_crew(ship, title, site=site, area=area)
     # BEFORE the first room is begun: beginning it picks its line, and a line gated on
     # `learned` has to be asked about THIS place.
+    # `stories`: a section of quests that each belong to ONE person (`For: medical`).
+    # Handing them out was a second call a mission had to make, in a route of its own -
+    # under `boarding_visit(...)` it found nobody aboard yet and handed out nothing. The
+    # visit hands each one to its person as they arrive (see the tick below).
     Agent.SHARED.set_inventory_value(VISIT_KEY, {
         "ship": to_id(ship), "title": boarding_invite_title(), "first": first,
-        "place": str(place or title or first)})
+        "place": str(place or title or first), "stories": stories})
     boarding_scene_begin(scenes, first)
     _visit_watch()
     return invite
 
 
 def boarding_visiting():
-    """The visit in progress - ``{"ship", "title", "first", "place"}`` - or None."""
+    """The visit in progress - ``{"ship", "title", "first", "place", "stories"}`` - or None."""
     visit = Agent.SHARED.get_inventory_value(VISIT_KEY, None)
     return visit if isinstance(visit, dict) else None
 
@@ -2117,11 +2125,18 @@ def _boarding_visit_tick(t=None):
     watcher stops and the mission carries on.
     """
     try:
-        if boarding_visiting() is None:
+        visit = boarding_visiting()
+        if visit is None:
             _visit_unwatch()
             return
         if boarding_is_open():
-            return                       # the party's scene is still playing
+            # The party's scene is still playing. Anyone who has come aboard since the
+            # last look gets the personal quest that is theirs: the grant leaves a quest
+            # already handed out where it went, so asking again each second is free.
+            if visit.get("stories") is not None:
+                from .boarding_quests import boarding_quests_grant
+                boarding_quests_grant(visit.get("stories"))
+            return
         boarding_visit_end()
     except Exception as e:                               # noqa: BLE001
         try:

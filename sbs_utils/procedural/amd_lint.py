@@ -2299,6 +2299,8 @@ def amd_lint_mission_reads(doc, file_path=None, mast_sources=None, source_index=
                 continue                                   # a table of contents
             if reads_crew and (_own_kind_word(node) in CREW_KINDS or key in CREW_KINDS):
                 continue
+            if any("for" in _plain_fields(c) for c in node.children):
+                continue             # personal quests: `stories-not-handed-out` says how
             if reads_relics and (archetype_for_section(key) == "relic"
                                  or key in _RELIC_FILE_SECTIONS):
                 continue
@@ -3055,6 +3057,183 @@ def amd_lint_named_hulls(doc):
     return findings
 
 
+_STORIES_CALLS = ("stories=", "boarding_quests_grant(", "boarding_quests_open_unclaimed(")
+_QUEST_START_FIELDS = ("starts when", "when", "state", "at start")
+_QUEST_ASLEEP = ("accepted", "on accept", "when accepted", "offered", "idle")
+_RUNNING_KIND_WORDS = ("objective", "beat", "cue")
+
+
+def _roster_words(doc):
+    """Every word a `For:` can name on this file's rosters, and the rosters' titles.
+
+    What `boarding_quests._matches` answers to: a job (the member's `Roles:`, or their seat
+    when the roster gave them none), the member's key, their name, and any tail of the name
+    (`Dr Ines Hale` is also `Ines Hale` and `Hale`).
+    """
+    words, titles = set(), []
+    for roster in _crew_rosters(doc):
+        titles.append(str(roster.display or roster.key))
+        for member in roster.children:
+            mf = _plain_fields(member)
+            roles = [w.strip().lower() for _ln, v in mf.get("roles", [])
+                     for w in v.split(",") if w.strip()]
+            if not roles:
+                roles = [v.lower() for _ln, v in mf.get("console", []) if v]
+            words.update(roles)
+            if member.key:
+                words.add(str(member.key).strip().lower())
+            parts = str(member.display or "").lower().split()
+            for i in range(len(parts)):
+                words.add(" ".join(parts[i:]))
+    return words, titles
+
+
+def amd_lint_personal_quests(doc, file_path=None, mast_sources=None):
+    """Flag a quest for one person that reaches nobody, and two outcomes run together.
+    WARNING.
+
+    A quest that says `For: medical` is handed to the one person aboard who answers to
+    that word. Every near miss is silent - the file is clean, the run passes, the log is
+    empty, and nobody has the quest:
+
+        ; learn suits signal names_read     no comma: one fact with a long name, and the
+                                            signal that finishes the quest is never sent
+        For: medcal                         nobody answers to it
+        For: medical, engineering           ONE word; this is a job called both
+        Scope: shared  +  For:              the shared story holds it, and `For:` is ignored
+        (no `Starts when:`)                 handed over asleep, with no Accept anywhere
+        (no `Done when:`)                   nothing can finish it
+        #### under another `For:` quest     handed to the person of the quest ABOVE it
+        (no `For:` in a section of them)    handed to nobody
+        the section is never handed out     `boarding_visit(..., stories=...)` is missing,
+                                            or it is the section `quest_grant_amd` reads
+
+    `For:` words are judged only against a roster in the same file - a mission that keeps
+    its crew elsewhere is not second-guessed. The last check needs the mission's MAST.
+    """
+    findings = []
+    try:
+        from sbs_utils.procedural.amd_dialogue import (_dlg_parse_choice,
+                                                       dialogue_outcome_verbs)
+    except Exception:                                   # noqa: BLE001
+        return findings
+
+    # --- two outcomes with nothing between them -----------------------------------------
+    verbs = {str(v).lower() for v in dialogue_outcome_verbs()} | {"signal", "learn"}
+    for node in doc.nodes:
+        if str(getattr(node, "kind", "") or "").strip().lower() != "dialogue":
+            continue
+        for lineno, text in (node.body_lines or []):
+            line = text.strip()
+            if not (line.startswith("-") and "](" in line):
+                continue
+            ch = _dlg_parse_choice(line) or {}
+            for outcome in ch.get("outcomes") or []:
+                toks = [str(tok) for tok in outcome]
+                low = [tok.lower() for tok in toks]
+                if "if" in low or low[0] == "check":
+                    continue             # `guard-after-outcome` / `check-shape` say it
+                for i in range(2, len(toks) - 1):
+                    if low[i] != "and" and low[i] not in verbs:
+                        continue
+                    lost = " ".join(toks[i + 1:] if low[i] == "and" else toks[i:])
+                    findings.append(AmdFinding(
+                        lineno, WARNING, "outcome-run-together",
+                        f"`{lost}` is read as part of `{' '.join(toks[:i])}`, so it never "
+                        f"happens. Outcomes are separated by a comma: `; "
+                        f"{' '.join(toks[:i])}, {lost}`"))
+                    break
+
+    # --- quests that say `For:` ---------------------------------------------------------
+    people, rosters = _roster_words(doc)
+    text = "\n".join(mast_sources or [])
+    name = os.path.basename(file_path) if file_path else ""
+    in_mission = bool(text and name and name in text)
+    sections = {}                                        # id(section) -> (section, [quests])
+    for node in doc.nodes:
+        fields = _plain_fields(node)
+        if "for" not in fields or str(getattr(node, "kind", "") or "").lower() != "quest":
+            continue
+        lineno, want = fields["for"][0]
+        parent = node.parent
+        if parent is not None and "for" in _plain_fields(parent):
+            findings.append(AmdFinding.at(
+                node.display_span or node.span, WARNING, "for-nested",
+                f"`{node.display}` is nested under `{parent.display}`, so it is handed to "
+                f"THAT quest's person as a step of it, and its own `For:` is ignored. Give "
+                f"this heading {parent.level} hashes to make it a quest of its own"))
+            continue
+        section = parent if parent is not None and parent.key != "__root__" else None
+        if section is not None:
+            sections.setdefault(id(section), (section, []))[1].append(node)
+
+        if people and want.lower() not in people:
+            how = ("`For:` takes ONE word, so this is a job called all of that"
+                   if "," in want or " and " in want.lower() else
+                   "nobody on the roster answers to it")
+            findings.append(AmdFinding(
+                lineno, WARNING, "for-nobody",
+                f"`For: {want}` - {how}, and this quest is handed to nobody. Write a job "
+                f"from a crew member's `Roles:` line, their key, or their name. On "
+                f"`{rosters[0]}`: {', '.join(sorted(people))}"))
+        if any(v.lower() == "shared" for _ln, v in fields.get("scope", [])):
+            findings.append(AmdFinding(
+                fields["scope"][0][0], WARNING, "for-shared",
+                "`Scope: shared` and `For:` on one quest: the shared story holds it, and "
+                "nobody gets it as their own. Take out the `Scope:` line"))
+        starts = [v.lower() for f in _QUEST_START_FIELDS for _ln, v in fields.get(f, [])]
+        if _own_kind_word(node) not in _RUNNING_KIND_WORDS and (
+                not starts or all(v in _QUEST_ASLEEP for v in starts)):
+            findings.append(AmdFinding.at(
+                node.display_span or node.span, WARNING, "for-not-started",
+                f"`{node.display}` is handed to its person asleep: "
+                + ("it has no `Starts when:`" if not starts else
+                   f"it starts `{starts[0]}`")
+                + ", and a quest for one person has no Accept button on any screen. "
+                  "Write `Starts when: at once`"))
+        if not node.children and not any(
+                f in fields for f in ("done when", "goal", "fails when")):
+            findings.append(AmdFinding.at(
+                node.display_span or node.span, WARNING, "for-no-end",
+                f"`{node.display}` has no `Done when:`, so nothing finishes it. To finish "
+                f"it from a choice, write `Done when: signal <name>` here and `; signal "
+                f"<name>` on the choice"))
+
+    for section, quests in sections.values():
+        for child in section.children:
+            if child in quests or "for" in _plain_fields(child):
+                continue
+            if not child.fence_lines or any(
+                    l.strip().lower().startswith("for:") for _n, l in (child.body_lines or [])):
+                continue                 # no fence: a note. Below the fence: said elsewhere
+            findings.append(AmdFinding.at(
+                child.display_span or child.span, WARNING, "story-no-for",
+                f"`{child.display}` is in a section of quests that each belong to one "
+                f"person, and has no `For:`, so it is handed to nobody. Add `For: <job>`"))
+        if not in_mission:
+            continue
+        key = str(section.key or "").strip()
+        quoted = ('"' + key + '"') in text or ("'" + key + "'") in text
+        granted = any(("quest_grant_amd(" in line or "quest_add_amd(" in line)
+                      and (('"' + key + '"') in line or ("'" + key + "'") in line)
+                      for line in text.splitlines())
+        if granted:
+            findings.append(AmdFinding.at(
+                section.display_span or section.span, WARNING, "for-in-quests",
+                f"`{section.display}` is the section the story gives to `quest_grant_amd`, "
+                f"which hands every quest in it to the SHIP: `For:` on "
+                f"`{quests[0].display}` is ignored. Move the quests that are for one "
+                f"person into a section of their own (`## [Side Stories](side_stories)`) "
+                f"and give that to `boarding_visit(..., stories=...)`"))
+        elif not (quoted and any(call in text for call in _STORIES_CALLS)):
+            findings.append(AmdFinding.at(
+                section.display_span or section.span, WARNING, "stories-not-handed-out",
+                f"nothing in this mission hands out `{section.display}`, so nobody gets "
+                f"the quests in it. Give it to the visit: `boarding_visit(..., "
+                f"stories=amd_section(MISSION_DOC, \"{key}\"))`"))
+    return findings
+
+
 def _own_kind_word(node):
     """A record's OWN kind line - the bare first word of its fence - lower-cased, else ''."""
     for _lineno, raw in (getattr(node, "fence_lines", None) or []):
@@ -3233,6 +3412,7 @@ def amd_lint(file_path=None, content=None, mast_sources=None, cross_file=None,
         findings += amd_lint_guards(doc)
         findings += amd_lint_choices(doc, keys)
         findings += amd_lint_skills(doc)
+        findings += amd_lint_personal_quests(doc, file_path, mast_sources)
         findings += amd_lint_kind_lines(doc)
         findings += amd_lint_mission_reads(doc, file_path, mast_sources, source_index)
         findings += amd_lint_callouts(doc)

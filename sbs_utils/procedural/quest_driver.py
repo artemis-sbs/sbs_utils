@@ -197,8 +197,21 @@ def quest_payee(agent_id):
     flying. Anything that is not a console is paid as itself, so ship-held and SHARED-held
     rewards are untouched.
     """
-    if agent_id is None or not is_client_id(agent_id):
+    if agent_id is None:
         return agent_id
+    if not is_client_id(agent_id):
+        # A PERSON aboard somewhere - a boarding party member holding a quest of their
+        # own. They have no side and carry no cargo, so a `Reward:` on their quest paid
+        # nobody: the same hole a console had, one step further from the ship. They are
+        # paid through the console that is playing them.
+        try:
+            from .boarding import boarding_client_of
+            client_id = boarding_client_of(agent_id)
+        except Exception:                                # noqa: BLE001
+            client_id = None
+        if client_id is None or not is_client_id(client_id):
+            return agent_id
+        agent_id = client_id
     try:
         ship_id = FrameContext.context.sbs.get_ship_of_client(to_id(agent_id))
     except Exception:                                    # noqa: BLE001
