@@ -424,8 +424,35 @@ several.
 A crew in suits flies to places by name, and a place can **say something when they get
 there**. `Scene:` names a scene in the relic file's own `## Dialogue` section; the first
 suit to arrive opens it in that crew member's Act transcript, and anyone floating nearby is
-pulled into the same conversation. It plays once - a crew member who arrives later, or
-comes back, reads the place's `Scan:` instead.
+pulled into the same conversation. It plays once - a crew member who arrives for the first
+time after it has ended reads the place's `Scan:` instead, and one who comes back reads
+nothing new.
+
+**Only a suit opens it.** A ship flying up to the place lights its marker and nothing more:
+no scene, no hail. To have a place speak to the SHIP, write a beat in the mission's Quests
+section that starts on the place's role and hails a scene:
+
+```
+### [Marker One](marker_one)
+---
+Beat
+Starts when: reach altar 600
+Action:
+  - rook hails rook_altar
+---
+```
+
+Write the distance. With no number `reach` means 5000 in a quest, which for a place inside
+a ruin is before the ship has reached the door.
+
+**Give the scene a way to end.** The handheld has no close button, so a scene - and every
+scene its answers lead to - needs an answer with empty round brackets, `- [Not yet]()`.
+One with none stays open, and whoever arrives later joins it where it stopped.
+
+`Scene:` belongs on a `Point:`. On a room, a set piece or the ruin itself it never opens,
+and the scene itself belongs in `## Dialogue`: written under its place, in the relic
+section, it is read as a ruin with no rooms. `sbs lint` reports both
+(`relic-field-wrong-record`, `relic-section-stray`).
 
 ```
 ### [the shaft head](at_shaft)
