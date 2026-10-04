@@ -625,6 +625,26 @@ def _hail_resolve_scene(ship_id, record):
     return record
 
 
+def _hail_beat_card(rec, beat, ship_id):
+    """Who is speaking THIS beat: (name, face, color).
+
+    A conversation has one caller, and what the offer said about them - a name, a face, a
+    color - is theirs. A beat cued to SOMEBODY ELSE (`@Vell` in Quill's scene) is that
+    other person: their own card, never the caller's. The record's name used to win for
+    every beat, so a second voice spoke under the first speaker's name - with the right
+    face, which is what made it look like a typo in the file.
+    """
+    own = beat.get("speaker")
+    caller = rec.get("speaker")
+    card = hail_speaker(own or caller, ship_id)
+    other = bool(own and caller and str(own).strip().lower() != str(caller).strip().lower())
+    if other:
+        return (card.get("name", "") or own, card.get("face", None), card.get("color", None))
+    return (rec.get("name") or card.get("name", "") or own or "",
+            rec.get("face") or card.get("face", None),
+            rec.get("color") or card.get("color", None))
+
+
 def _hail_record_beat(ship_id, rec):
     """Append the beat being spoken NOW to the conversation's transcript.
 
@@ -639,10 +659,9 @@ def _hail_record_beat(ship_id, rec):
     if not (0 <= index < len(lines)):
         return
     beat = lines[index]
-    card = hail_speaker(beat.get("speaker") or rec.get("speaker"), ship_id)
     rec.setdefault("transcript", []).append({
         "kind": "line",
-        "name": rec.get("name") or card.get("name", "") or beat.get("speaker") or "",
+        "name": _hail_beat_card(rec, beat, ship_id)[0],
         "text": beat.get("text") or "",
     })
 
@@ -707,10 +726,7 @@ def hail_beat(ship):
     if index >= len(lines):
         return None
     beat = dict(lines[index])
-    card = hail_speaker(beat.get("speaker") or rec.get("speaker"), ship_id)
-    beat["name"] = rec.get("name") or card.get("name", "")
-    beat["face"] = rec.get("face") or card.get("face", None)
-    beat["color"] = rec.get("color") or card.get("color", None)
+    beat["name"], beat["face"], beat["color"] = _hail_beat_card(rec, beat, ship_id)
     return MastDataObject(beat)
 
 

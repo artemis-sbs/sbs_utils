@@ -1109,3 +1109,38 @@ class TheNameOnTheListComesFromTheResolver(HailTestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class ASecondVoiceTests(HailTestCase):
+    """A beat cued to somebody else is spoken under THEIR name.
+
+    The record's own name used to win for every beat, so `@vell` in Quill's scene spoke
+    as "Harbormaster Quill" - with Vell's face, which made it look like a typo in the
+    file. Found by the first dialogue lesson."""
+
+    def _two_voices(self):
+        scenes = {"open": {"data": {"speaker": "quill", "when": "hail"},
+                           "description": NL.join(["% Artemis, DS 1.", "@vell",
+                                                   "% And this is Vell, on the relay."]) + NL}}
+        H.hail_offer(self.ship, speaker="quill", name="Harbormaster Quill",
+                     scenes=scenes, scene="open")
+        H.hail_accept(self.ship)
+
+    def test_the_caller_keeps_the_name_the_offer_gave(self):
+        self._two_voices()
+        self.assertEqual(H.hail_beat(self.ship).name, "Harbormaster Quill")
+
+    def test_the_second_voice_has_its_own(self):
+        self._two_voices()
+        self.assertTrue(H.hail_advance(self.ship))
+        beat = H.hail_beat(self.ship)
+        self.assertEqual(beat.speaker, "vell")
+        self.assertEqual(beat.name, "vell")
+
+    def test_the_transcript_names_each_speaker(self):
+        self._two_voices()
+        H.hail_advance(self.ship)
+        rec = H._hail_get(self.ship, H.KEY_ACTIVE, None)
+        names = [line.get("name") for line in rec.get("transcript") or []
+                 if line.get("kind") == "line"]
+        self.assertEqual(names, ["Harbormaster Quill", "vell"])
