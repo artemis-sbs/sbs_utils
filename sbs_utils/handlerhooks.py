@@ -824,6 +824,12 @@ def print_event(event):
     print(f"Point {event.source_point.x}  {event.source_point.y} {event.source_point.z}")
 
 
+#: Where the runtime-error page's text starts and stops, in percent of the screen: under
+#: the engine's bar of buttons, and above this page's own (which start at 80).
+ERROR_PAGE_TEXT_TOP = 7
+ERROR_PAGE_TEXT_BOTTOM = 79
+
+
 class ErrorPage(Page):
     def __init__(self, msg) -> None:
         self.gui_state = 'show'
@@ -848,9 +854,19 @@ class ErrorPage(Page):
                 self.message = self.message.replace(",", ".")
                 self.message = self.message.replace(";", ".")
                 self.message = self.message.replace(":", ".")
+                # BELOW THE ENGINE'S OWN BAR, AND ABOVE THE BUTTONS. From the very top the
+                # title was drawn over the engine's Mission Select button - two labels
+                # overprinted were the first thing anybody read - and the text ran on
+                # under the three buttons below. The compile-error screen had the same
+                # start (`maststorypage.ERROR_TEXT_TOP`).
+                # No comma, colon or semicolon in the sentence: it is a style string.
+                head = ("Runtime error. One line of the mission failed and that part of "
+                        "the story has stopped. The line is named below. Resume Mission "
+                        "carries on without it. Rerun Mission starts again.^^")
                 SBS.send_gui_text(
-                    event.client_id,"", "text", f"$text:sbs_utils runtime error^{self.message};", 0, 0, 80, 95)
-                
+                    event.client_id,"", "text", f"$text:{head}{self.message};",
+                    0, ERROR_PAGE_TEXT_TOP, 100, ERROR_PAGE_TEXT_BOTTOM)
+
                 # SBS.send_gui_button(event.client_id, "back", "$text:pause mission;", 0, 80, 20, 94)
                 SBS.send_gui_button(event.client_id,"", "resume", "$text:Resume Mission;", 25, 80, 45, 99)
                 SBS.send_gui_button(event.client_id,"", "rerun", "$text:Rerun Mission;", 50, 80, 70, 99)

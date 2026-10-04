@@ -111,5 +111,60 @@ class ErrorScreenTests(unittest.TestCase):
         self.assertEqual(texts[-1][3], maststorypage.ERROR_TEXT_TOP)
 
 
+class RuntimeErrorPageTests(unittest.TestCase):
+    """The page a line that fails mid-game puts up (`handlerhooks.ErrorPage`).
+
+    Seen in the real engine (2026-10-04): its title was drawn over the engine's own
+    Mission Select button, and its text ran on under its three buttons.
+    """
+
+    def setUp(self):
+        mock_sbs.create_new_sim()
+        FrameContext.context = Context(mock_sbs.sim, mock_sbs, FakeEvent(0, "test"))
+        self.sent = []
+        self._text = mock_sbs.send_gui_text
+        self._button = mock_sbs.send_gui_button
+
+        def text(client_id, parent, tag, props, left, top, right, bottom, *a, **k):
+            self.sent.append(("text", props, left, top, right, bottom))
+
+        def button(client_id, parent, tag, props, left, top, right, bottom, *a, **k):
+            self.sent.append(("button", props, left, top, right, bottom))
+
+        mock_sbs.send_gui_text = text
+        mock_sbs.send_gui_button = button
+        self.addCleanup(setattr, mock_sbs, "send_gui_text", self._text)
+        self.addCleanup(setattr, mock_sbs, "send_gui_button", self._button)
+        self.addCleanup(setattr, FrameContext, "context", None)
+
+    def present(self):
+        from sbs_utils.handlerhooks import ErrorPage
+        page = ErrorPage("mast RUNTIME ERROR\nline: 109 in file: story.mast\n"
+                         "NameError: name 'true' is not defined; tug_sent = true, x")
+        page.present(FakeEvent(0, "gui_present"))
+        return ([s for s in self.sent if s[0] == "text"],
+                [s for s in self.sent if s[0] == "button"])
+
+    def test_the_text_is_between_the_engines_bar_and_its_own_buttons(self):
+        texts, buttons = self.present()
+        self.assertEqual(len(texts), 1)
+        _kind, _props, _left, top, _right, bottom = texts[0]
+        self.assertGreaterEqual(top, 6)
+        self.assertEqual(len(buttons), 3)
+        self.assertLessEqual(bottom, min(b[3] for b in buttons))
+
+    def test_it_says_what_happened_first_and_keeps_the_whole_message(self):
+        texts, _buttons = self.present()
+        props = texts[0][1]
+        self.assertTrue(props.startswith("$text:Runtime error."), props[:60])
+        self.assertIn("Resume Mission", props)
+        self.assertIn("name 'true' is not defined", props)
+        self.assertIn("story.mast", props)
+        # One style string: a comma, colon or semicolon inside the text would cut it.
+        body = props[len("$text:"):-1]
+        for mark in ",;:":
+            self.assertNotIn(mark, body)
+
+
 if __name__ == "__main__":
     unittest.main()
