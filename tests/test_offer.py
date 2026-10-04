@@ -223,6 +223,25 @@ class BoardListsOnlyWhatNoOtherAppDoesTests(unittest.TestCase):
         from sbs_utils.procedural.gui import offers_gui
         self.assertFalse(hasattr(offers_gui, "gui_offers_screen"))
 
+    def test_a_posted_job_alone_still_opens_the_tile(self):
+        """`At start: posting`: listed so the crew can see it, taken only by answering.
+        With nothing else on offer the tile's gate was 0 and the job was on no screen."""
+        from sbs_utils.procedural.gui import offers_gui
+        offer_register("t", lambda ctx: [_one("Posted", pending=True)])
+        self.addCleanup(OF.offer_clear)
+        self.assertEqual([r.get("title") for r in offers_gui.offer_rows()], ["Posted"])
+        self.assertEqual(offers_gui.offer_board_count_here(), 1)
+        self.assertEqual(offer_count(), 0)          # the badge still counts what can be taken
+
+    def test_a_posted_row_says_how_it_is_taken(self):
+        from sbs_utils.procedural.quest_driver import quest_tab_controls_gate
+        item = {"offer": _one("Posted", pending=True)}
+        gate = quest_tab_controls_gate("comms", item, "comms", True, "helm")
+        self.assertFalse(gate["show_accept"])
+        self.assertIn("answering the call", gate["hint"])
+        plain = quest_tab_controls_gate("comms", {"offer": _one("Takeable")}, "comms", True, "helm")
+        self.assertNotIn("answering the call", plain["hint"])
+
     def test_the_tile_gate_counts_the_board_not_every_offer(self):
         import inspect
         from sbs_utils.procedural.gui import offers_gui

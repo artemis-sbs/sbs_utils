@@ -56,10 +56,15 @@ def offer_rows(client_id=None, ship_id=None, console=None):
 
 
 def offer_board_count_here():
-    """How many offers the Offers app lists for THIS console that could be acted on -
-    the tile's gate, so the tile never opens onto an empty list.
+    """How many offers the Offers app LISTS for this console - the tile's gate, so the
+    tile never opens onto an empty list and never hides a list that is not empty.
+
+    A POSTED job counts. It is listed so the crew can see it is there, though only
+    answering the call that offers it takes it (`At start: posting`). This used to leave
+    posted rows out, so a mission whose one job was posted had no tile at all: the job the
+    author wrote was on no screen, with lint clean.
 
     Not ``offer_count_here``: that counts every offer, including one left to its own
     app, which this app does not list.
     """
-    return sum(1 for r in offer_rows() if not r.get("pending"))
+    return len(offer_rows())
