@@ -162,6 +162,35 @@ class TriggersTheGameCannotWatchTests(unittest.TestCase):
             self.assertEqual([c for c in codes if "trigger" in c], [], value)
 
 
+class ARequiredStepThatCanFailTests(unittest.TestCase):
+    """The story waits for every required step to complete. One that FAILS never will,
+    and unless it is `Fatal:` its failure does not fail the story either - so the story
+    can no longer be won or lost. Lint was clean."""
+
+    STEP = "Done when: reach derelict 500\nThen: reveal salvage/home"
+
+    def arc(self, extra, deadline=False):
+        text = _swap(self.STEP, self.STEP + "\n" + extra)
+        if not deadline:
+            text = _swap("Fails when: 10 minutes\n", "", text)
+        return text
+
+    def test_it_is_reported(self):
+        self.assertIn("required-step-dead-end", _codes(self.arc("Fails when: 2 minutes")))
+
+    def test_fatal_makes_it_an_ending(self):
+        codes = _codes(self.arc("Fails when: 2 minutes\nFatal: true"))
+        self.assertNotIn("required-step-dead-end", codes)
+
+    def test_a_story_with_its_own_clock_ends_anyway(self):
+        codes = _codes(self.arc("Fails when: 2 minutes", deadline=True))
+        self.assertNotIn("required-step-dead-end", codes)
+
+    def test_a_step_that_cannot_fail_is_quiet(self):
+        text = _swap("Fails when: 10 minutes\n", "")
+        self.assertNotIn("required-step-dead-end", _codes(text))
+
+
 class DurationTests(unittest.TestCase):
     def test_an_hour_is_sixty_minutes(self):
         self.assertEqual(amd_duration_seconds("1 hour"), 3600)

@@ -2481,6 +2481,28 @@ def amd_lint_quest_triggers(doc):
     for node in doc.nodes:
         if str(getattr(node, "kind", "") or "").strip().lower() != "quest":
             continue
+        # A REQUIRED STEP THAT CAN FAIL, AND WHOSE FAILURE ENDS NOTHING. The story waits
+        # for every required step to COMPLETE; a failed one never will, and unless the
+        # step is `Fatal:` its failure does not fail the story either. So the story can
+        # no longer be won or lost - it just stops, with a quest list that looks alive.
+        # Quiet when the story has a clock of its own: then it does end, at the deadline.
+        own = _plain_fields(node)
+
+        def _yes(label):
+            return any(v.strip().lower() in ("true", "yes", "on", "1")
+                       for _l, v in own.get(label, []))
+
+        if (_yes("required") and "fails when" in own
+                and not (_yes("fatal") or _yes("critical"))):
+            parent = node.parent
+            parent_fields = _plain_fields(parent) if parent is not None else {}
+            if "fails when" not in parent_fields:
+                findings.append(AmdFinding(
+                    own["fails when"][0][0], WARNING, "required-step-dead-end",
+                    f"`{node.display}` is required and can fail, and its failure ends "
+                    f"nothing: the story it is part of can then never be finished and "
+                    f"never fails. Add `Fatal: true` so failing it fails the story, give "
+                    f"the story a `Fails when:` of its own, or take `Required:` off"))
         thens = []
         for lineno, _raw, label, value in _fence_fields(node):
             name = " ".join(label.strip().lower().split())
