@@ -187,6 +187,7 @@ def volume_dress(volume, n=600, seed=7, style=DEFAULT_STYLE, art=None, roles="",
         return 0
     part_styles = part_styles or {}
     part_art = part_art or {}
+    _dress_report_unknown(art, part_art)
 
     # Group the parts by the (style, art) they will wear, so each group is sampled in one
     # pass and every prop in it shares a look.
@@ -516,6 +517,39 @@ def _dress_art(art, spec):
     except Exception:                                   # noqa: BLE001
         pass
     return ("plain_asteroid_6", "plain_asteroid_7", "plain_asteroid_8")
+
+
+def _dress_report_unknown(art, part_art):
+    """Say, once each, which asked-for art keys the game does not have.
+
+    `_dress_art` drops such a key so the engine does not draw its `unknown` question
+    mark - and it dropped it in silence. `Art: plain_astroid_9` on one room built the
+    ruin, passed the run, left the log empty, and that room wore the ordinary rock. From
+    the command line lint cannot say it either: the art catalog is the engine's.
+    """
+    def keys_of(value):
+        if not value:
+            return []
+        words = value.split(",") if isinstance(value, str) else value
+        return [str(w).strip() for w in words if str(w).strip()]
+
+    asked = [("the ruin", k) for k in keys_of(art)]
+    for part, value in (part_art or {}).items():
+        asked.extend(("'%s'" % part, k) for k in keys_of(value))
+    if not asked:
+        return
+    known = set(_known_art([k for _where, k in asked]))
+    for where, key in asked:
+        if key in known:
+            continue
+        message = ("`Art: %s` on %s is not art the game has, so it is dropped and the "
+                   "walls there keep their ordinary look. Check the spelling against the "
+                   "ship data key." % (key, where))
+        try:
+            import logging
+            logging.getLogger("mast.runtime").warning(message)
+        except Exception:                                # noqa: BLE001
+            pass
 
 
 def _known_art(keys):

@@ -307,6 +307,16 @@ class AtmosphereTests(unittest.TestCase):
         self.spawn(_swap("Dress: generic-torus 4", "Dress: generic-tortus 4"))
         self.assertEqual(len([l for l in self.heard if "generic-tortus" in l]), 1, self.heard)
 
+    def test_wall_art_the_game_does_not_have_is_said_once(self):
+        self.spawn(_swap("Chamber: 0, 0, 0, 900", "Chamber: 0, 0, 0, 900\nArt: plain_astroid_9"))
+        said = [l for l in self.heard if "plain_astroid_9" in l]
+        self.assertEqual(len(said), 1, self.heard)
+        self.assertIn("'mouth'", said[0])
+
+    def test_wall_art_the_game_has_is_quiet(self):
+        self.spawn(_swap("Chamber: 0, 0, 0, 900", "Chamber: 0, 0, 0, 900\nArt: plain_asteroid_9"))
+        self.assertEqual(self.heard, [])
+
     def test_a_tiny_plate_does_not_run_away(self):
         self.spawn(_swap("Gaps: 0.2", "Gaps: 0\nPlate: 20").replace("Walls: rock", "Walls: plates"))
         self.assertLess(len(role(relic_wall_role("hollow"))), 2500)
