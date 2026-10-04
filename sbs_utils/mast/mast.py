@@ -1679,7 +1679,11 @@ class Mast():
                                               "Unrecognized syntax; no MAST node matched this line")
                     compile_logger.error(error)
                     errors.append(error)
-                    pos = nl + 1
+                    # Stop ON the newline, not after it: the top of the loop counts the
+                    # newlines it skips, and stepping over this one here left it
+                    # uncounted - every later error in the file was then reported one
+                    # line too high, per unrecognized line above it.
+                    pos = nl
 
         # (Block-state cleanup that used to live here is no longer needed: that
         # state is now per-compile on compile_ctx and discarded with this call.)
