@@ -517,8 +517,17 @@ def relic_atmosphere(relic_key, roles=None, default=None, name=None):
     vol = volume_get(relic_volume_name(rec, name))
     if vol is None:
         return 0
-    color = str(rec.get("atmosphere") or default or "none").strip()
-    if color.lower() in ("none", "no", "off", ""):
+    # LOWER-CASED, AND CHECKED. The word was handed over as written, and the nebula
+    # spawner picks a RANDOM color for one it does not know - so `Atmosphere: Purple`, with
+    # a capital, was green on one run and white on the next, and a misspelled color was
+    # whatever the dice said. A word that is not a color now makes no cloud, and says so.
+    color = str(rec.get("atmosphere") or default or "none").strip().lower()
+    if color in ("none", "no", "off", ""):
+        return 0
+    known = relic_atmosphere_colors()
+    if known and color not in known:
+        _relic_say(f"relic '{relic_key}': `Atmosphere: {rec.get('atmosphere')}` is not a "
+                   f"nebula color ({', '.join(known)}), so it has no cloud.")
         return 0
     atmos = relic_atmos_role(relic_key)
     from .roles import role
@@ -550,6 +559,16 @@ def relic_atmosphere(relic_key, roles=None, default=None, name=None):
             agent.add_role(r)
         made += 1
     return made
+
+
+def relic_atmosphere_colors():
+    """The words `Atmosphere:` accepts, sorted. Empty when the color table cannot be
+    read, which callers treat as "do not judge"."""
+    try:
+        from .terrain import _neb_colors
+        return tuple(sorted(_neb_colors.keys()))
+    except Exception:                                   # noqa: BLE001
+        return ()
 
 
 def relic_entrance(relic_key):
@@ -1271,12 +1290,31 @@ def relic_walls(relic_key, n=RELIC_PROPS, roles="", wall_depth=RELIC_WALL_DEPTH,
     made += volume_dress(
         vol, n=int(n), seed=int(seed if seed is not None else num("seed", 7, int)),
         roles=roles, wall_depth=float(wall_depth),
-        plate=num("plate", 0.0), gaps=num("gaps", RELIC_GAPS),
-        debris=num("debris", RELIC_DEBRIS, int),
+        plate=relic_plate_size(num("plate", 0.0)),
+        gaps=min(max(num("gaps", RELIC_GAPS), 0.0), 1.0),
+        debris=max(num("debris", RELIC_DEBRIS, int), 0),
         style=rec.get("walls") or DEFAULT_STYLE, art=rec.get("art"),
         part_styles=rec.get("part_walls"), part_art=rec.get("part_art"),
         solid_skip=skip)
     return made
+
+
+#: The smallest and largest plate an author may ask for, in units. The automatic size is
+#: clamped to 250..900; an authored one gets more room, but not unlimited: `Plate: 20` on
+#: one ordinary box was 20,092 objects.
+RELIC_PLATE_MIN = 150.0
+RELIC_PLATE_MAX = 2000.0
+
+
+def relic_plate_size(value):
+    """An authored `Plate:` as the size the dresser will use. 0 means "work it out"."""
+    try:
+        size = float(value or 0.0)
+    except (TypeError, ValueError):
+        return 0.0
+    if size <= 0.0:
+        return 0.0
+    return min(max(size, RELIC_PLATE_MIN), RELIC_PLATE_MAX)
 
 
 def relic_setpieces(relic_key):
@@ -1346,7 +1384,14 @@ def relic_setpieces_place(relic_key, roles="", name=None):
     for sp in relic_setpieces(relic_key):
         art, mult = _relic_dress_pick(sp["dress"])
         if art is None:
-            continue                     # nothing known: the part keeps its default look
+            # Nothing known: the part keeps its default look - and SAYS so. A set piece
+            # is one object the author put somewhere on purpose; one that silently is
+            # not there reads as a bug in the game, not a typo in a key.
+            names = ", ".join(str(a) for a, _m in (sp.get("dress") or ()))
+            _relic_say(f"relic '{relic_key}': `Dress: {names}` on '{sp.get('part')}' "
+                       f"names no art the game has, so nothing is placed there. A key "
+                       f"has no file extension, and a wall kit is not a set piece.")
+            continue
         size = _mesh_size(art, (100.0, 100.0, 100.0))
         kit_scale = 1.0
         try:

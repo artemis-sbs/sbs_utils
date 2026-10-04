@@ -140,7 +140,7 @@ chamber's boundary instead.
 
 A relic is built the way a level is: the volume is the **blockout**, and the walls are
 **wall primitives placed on it** — one plane, or one flattened cube, scaled to each wall,
-floor and ceiling. A plain room is therefore **six pieces**. Where one room opens into
+floor and ceiling. A plain room is therefore **six surfaces**. Where one room opens into
 another there is no wall at all, only the pieces around the hole, which is what a door
 primitive leaves behind. A subtracted mass is one primitive too: a box pillar is a cube, a
 fallen span is a cylinder.
@@ -151,6 +151,17 @@ overlapping — one enormous quad meeting another is where z-fighting lives — 
 should be missing some. `Gaps:` drops a fraction of the plates, which is a hole you can
 see through and the difference between a wall and a wreck. `Plate:` sets how big one is
 (0 fits them to the room).
+
+The dials go on the relic itself, not on a room:
+
+| Field | Takes | Default | Notes |
+|---|---|---|---|
+| `Seed:` | a whole number | 7 | the same seed gives the same ruin every run |
+| `Debris:` | a whole number, 0 or more | 60 | loose rocks drifting inside the rooms. `Walls: none` still leaves these; write `Debris: 0` for a truly empty space |
+| `Gaps:` | a fraction, 0 to 1 | 0.06 | of a BUILT room's plates. 1 leaves out all of them. It does nothing to scattered rock |
+| `Plate:` | a size in units, 150 to 2000 | 0 (fit to the room) | a value outside the range is brought to the nearest end: a 20-unit plate was twenty thousand objects in one room |
+
+A 1200 by 800 by 1600 box at the default plate size is about 84 plates.
 
 Plates are coplanar, axis-aligned and exactly adjacent: they **tile** the surface and
 never overlap. That is the whole distinction from scattering, where props are deliberately
@@ -174,7 +185,7 @@ curved parts, which cannot be one primitive.
 ```
 ### [The Voice](voice)
 ---
-Atmosphere: violet
+Atmosphere: purple
 Walls: plates
 ---
 
@@ -301,6 +312,10 @@ and a heap of rubble near a wall.
 
 ## Atmosphere does the speed limiting
 
+`Atmosphere:` takes one of the nebula colors (`sbs lint` lists them when the word is not
+one), in any capitals, or `none`. A word that is not a color makes no cloud, and
+`mast.runtime.log` says so.
+
 `Atmosphere:` fills the relic with nebula, and **the engine caps warp inside a nebula by
 itself**. That is better than any script governor: no per-tick throttle writes, nothing for
 the helm to fight, and no disagreement with the client.
@@ -389,7 +404,9 @@ a relic part rather than a landmark, whose `Loc:` is absolute and would stay beh
 
 **In the editor:** press **Add point** (or right-click where you want it), then type
 its roles in the properties panel - `item`, `spawn`, `entrance`, or whatever your
-mission looks for. The roles are yours; nothing in the library interprets them.
+mission looks for. The roles are yours, with one exception: `relics_spawn` puts the ruin's
+name on the map at the first point carrying `entrance`, and at the relic's `Loc:` when no
+point does.
 
 What goes there is the mission's call:
 

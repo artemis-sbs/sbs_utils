@@ -1064,6 +1064,178 @@ def amd_lint_relic_structure(doc):
     return findings
 
 
+#: Fields that belong to the RUIN, and do nothing written on one of its parts.
+_RELIC_ONLY_FIELDS = ("seed", "debris", "gaps", "plate", "atmosphere", "loc", "containment")
+_YES_NO = ("yes", "no", "true", "false", "on", "off", "1", "0")
+
+
+def amd_lint_relic_dressing(doc):
+    """Flag how a ruin is DRESSED where the game will quietly do something else. WARNING.
+
+    Dressing is the part of a ruin an author looks at, and every one of these built a
+    ruin, ran with an empty log, and looked wrong (or looked like nothing):
+
+    * `Walls: plats` / `Walls: torgoth.zip, plates` - a style that is nearly one of the
+      built-in five, or a file name;
+    * `Seed: abc`, `Debris: lots`, `Gaps: 20%`, `Gaps: 2`, `Plate: 20` - a dial the game
+      cannot read, or reads as something absurd (a 20-unit plate was 20,000 objects);
+    * `Gaps:` on a room, `Walls:` on a point - a field on a record it does nothing on;
+    * `Dress: generic-torus.obj 4`, `Dress:` on a room, a `Prop:` with no `Dress:` - a
+      set piece that is never placed;
+    * `Hidden: maybe`, two `Roles: entrance` points, `Roles: entrence`.
+    """
+    import difflib
+    findings = []
+    try:
+        from .volume_dress import volume_style_names
+        styles = tuple(volume_style_names())
+    except Exception:                                   # noqa: BLE001
+        styles = ()
+    try:
+        from .amd_relics import RELIC_PLATE_MIN, RELIC_PLATE_MAX
+    except Exception:                                   # noqa: BLE001
+        RELIC_PLATE_MIN, RELIC_PLATE_MAX = 150.0, 2000.0
+    known_art = None
+    entrances = {}                                       # relic key -> [(line, name)]
+    for node, fields in _relic_nodes(doc):
+        is_part = "relic" in fields
+        owner = str(fields["relic"][1]).strip() if is_part else str(node.key)
+        is_room = "chamber" in fields or "box" in fields
+
+        # --- a style that is nearly a style -------------------------------------------
+        if "walls" in fields and styles:
+            ln, value = fields["walls"]
+            for word in [w.strip().lower() for w in str(value).split(",") if w.strip()]:
+                if word in styles:
+                    continue
+                if "." in word:
+                    findings.append(AmdFinding(
+                        ln, WARNING, "relic-walls-word",
+                        f"`{word}` looks like a file name. `Walls:` takes the NAME of a "
+                        f"style or a wall kit - one word, no extension"))
+                    continue
+                near = difflib.get_close_matches(word, styles, n=1, cutoff=0.7)
+                if near:
+                    findings.append(AmdFinding(
+                        ln, WARNING, "relic-walls-word",
+                        f"`{word}` is not a wall style. Did you mean `{near[0]}`? The "
+                        f"styles are {', '.join(styles)}"))
+
+        # --- the dials ---------------------------------------------------------------
+        if not is_part:
+            for label, kind in (("seed", "int"), ("debris", "count"), ("gaps", "fraction"),
+                                ("plate", "plate")):
+                if label not in fields:
+                    continue
+                ln, value = fields[label]
+                text = str(value).strip()
+                try:
+                    number = float(text)
+                except ValueError:
+                    number = None
+                bad = None
+                if number is None:
+                    bad = "is not a number, so the game uses its own"
+                elif kind in ("int", "count") and number != int(number):
+                    bad = "has to be a whole number"
+                elif kind == "count" and number < 0:
+                    bad = "cannot be less than 0"
+                elif kind == "fraction" and not 0.0 <= number <= 1.0:
+                    bad = ("is a fraction from 0 to 1 - 0.2 leaves out one plate in "
+                           "five, 1 leaves out all of them")
+                elif kind == "plate" and number != 0 and not (
+                        RELIC_PLATE_MIN <= number <= RELIC_PLATE_MAX):
+                    bad = (f"is a plate size in units, from {RELIC_PLATE_MIN:g} to "
+                           f"{RELIC_PLATE_MAX:g}; the game uses the nearest of the two")
+                if bad:
+                    findings.append(AmdFinding(
+                        ln, WARNING, "relic-dial-range",
+                        f"`{label.capitalize()}: {text}` {bad}"))
+
+        # --- a field on the wrong record --------------------------------------------
+        if is_part:
+            for label in _RELIC_ONLY_FIELDS:
+                if label in fields:
+                    findings.append(AmdFinding(
+                        fields[label][0], WARNING, "relic-field-wrong-record",
+                        f"`{label.capitalize()}:` belongs on the ruin itself, not on one "
+                        f"of its parts - here it does nothing. Move it to `{owner}`"))
+            if not is_room and "solid" not in fields:
+                for label in ("walls", "art"):
+                    if label in fields:
+                        findings.append(AmdFinding(
+                            fields[label][0], WARNING, "relic-field-wrong-record",
+                            f"`{label.capitalize()}:` dresses a room, and this record is "
+                            f"not a room - here it does nothing. What a place or a set "
+                            f"piece looks like is `Dress:`"))
+
+        # --- set pieces ---------------------------------------------------------------
+        if "prop" in fields:
+            ln, value = fields["prop"]
+            if len(_relic_nums(value)) < 3:
+                findings.append(AmdFinding(
+                    ln, WARNING, "relic-short-part",
+                    f"'prop' needs 3 numbers, got {len(_relic_nums(value))} - nothing is "
+                    f"placed"))
+            if "dress" not in fields:
+                findings.append(AmdFinding(
+                    ln, WARNING, "relic-prop-no-dress",
+                    "a `Prop:` is a place for a set piece, and with no `Dress:` line "
+                    "there is nothing to put there"))
+        if "dress" in fields:
+            ln, value = fields["dress"]
+            if is_room:
+                findings.append(AmdFinding(
+                    ln, WARNING, "relic-dress-on-room",
+                    "`Dress:` places ONE set piece at a `Prop:`, a `Point:` or a "
+                    "`Solid:`. On a room it places nothing - a room's look is `Walls:` "
+                    "and `Art:`"))
+            keys = []
+            for entry in [e.strip() for e in str(value).split(",") if e.strip()]:
+                word = entry.split()[0]
+                keys.append(word)
+                if "." in word:
+                    findings.append(AmdFinding(
+                        ln, WARNING, "relic-unknown-dress",
+                        f"`{word}` looks like a file name. `Dress:` takes an art KEY, "
+                        f"with no extension: `{word.rsplit('.', 1)[0]}`"))
+            if known_art is None:
+                known_art = _relic_known_art()
+            plain = [k for k in keys if "." not in k]
+            if known_art and plain and not any(k in known_art for k in plain):
+                findings.append(AmdFinding(
+                    ln, WARNING, "relic-unknown-dress",
+                    f"`{', '.join(plain)}` names no art the game has, so nothing is "
+                    f"placed here. (A wall kit is a `Walls:` style, not a set piece.)"))
+
+        # --- places -------------------------------------------------------------------
+        if "hidden" in fields:
+            ln, value = fields["hidden"]
+            if str(value).strip().lower() not in _YES_NO:
+                findings.append(AmdFinding(
+                    ln, WARNING, "relic-hidden-value",
+                    f"`Hidden: {value}` is read as NOT hidden. Write `Hidden: yes`"))
+        if "point" in fields and "roles" in fields:
+            ln, value = fields["roles"]
+            for word in [w.strip().lower() for w in str(value).split(",") if w.strip()]:
+                if word == "entrance":
+                    entrances.setdefault(owner, []).append((ln, str(node.display)))
+                elif difflib.get_close_matches(word, ["entrance"], n=1, cutoff=0.8):
+                    findings.append(AmdFinding(
+                        ln, WARNING, "relic-role-near-entrance",
+                        f"`{word}` is nearly `entrance`, the one role the game itself "
+                        f"reads: it is where the ruin's name goes on the map. As "
+                        f"written the marker stays at the ruin's `Loc:`"))
+    for owner, found in entrances.items():
+        for ln, name in found[1:]:
+            findings.append(AmdFinding(
+                ln, WARNING, "relic-two-entrances",
+                f"`{name}` is a second `entrance` in `{owner}`: the map marker goes to "
+                f"the first one in the file (`{found[0][1]}`), and this one is not "
+                f"marked"))
+    return findings
+
+
 def amd_lint_relics(doc):
     """Flag a relic layout that will build into something other than it reads as. WARNING.
 
@@ -1228,11 +1400,12 @@ def amd_lint_relics(doc):
                 if key not in known_art:
                     findings.append(AmdFinding(
                         ln, "warning", "relic-unknown-art",
-                        f"'{key}' is not a shipData key - it renders as the `unknown` "
-                        f"question-mark mesh rather than failing"))
-        # ATMOSPHERE. Same silent fallback as the two above, and it cost a look: an
-        # unknown colour is not an error, it quietly becomes YELLOW - so a ruin authored
-        # `violet` filled with a dirty yellow haze and nothing said why.
+                        f"'{key}' is not an art key the game has, so it is dropped and "
+                        f"the room is dressed in the ruin's ordinary look instead"))
+        # ATMOSPHERE. A word that is not a color used to be handed to the nebula spawner,
+        # which picks one at random for a word it does not know - so a ruin authored
+        # `violet` was a different color on every run. It now gets no cloud at all, and
+        # the game says so; this is the same sentence before the game is started.
         if "atmosphere" in fields:
             ln, value = fields["atmosphere"]
             want = str(value).strip().lower()
@@ -1245,8 +1418,8 @@ def amd_lint_relics(doc):
                 if known and want not in known:
                     findings.append(AmdFinding(
                         ln, "warning", "relic-unknown-atmosphere",
-                        f"'{value}' is not a nebula colour ({', '.join(known)}) - "
-                        f"it falls back to yellow rather than failing"))
+                        f"'{value}' is not a nebula color ({', '.join(known)}), so the "
+                        f"ruin gets no cloud at all"))
         if "walls" in fields:
             ln, value = fields["walls"]
             # A LIST IS A FALLBACK CHAIN - `Walls: torgoth, plates` wears the art pack's
@@ -1300,7 +1473,7 @@ def _relic_layouts(doc):
             layouts[key] = {"key": key,
                             "line": getattr(getattr(node, "span", None), "line", 1) or 1,
                             "chambers": {}, "boxes": {}, "solids": [], "passages": [],
-                            "points": {}, "barriers": {}}
+                            "points": {}, "barriers": {}, "point_lines": {}}
         else:
             parts.append((node, fields, str(fields["relic"][1]).strip()))
     for node, fields, owner in parts:
@@ -1330,6 +1503,7 @@ def _relic_layouts(doc):
                 hidden = str(fields.get("hidden", (0, ""))[1]).strip().lower() in (
                     "yes", "true", "on", "1")
                 rec["points"][name] = [n[0], n[1], n[2], roles, name, hidden]
+                rec["point_lines"][name] = fields["point"][0]
         if "barrier" in fields:
             n = _relic_nums(fields["barrier"][1])
             if len(n) >= 4:
@@ -1389,6 +1563,22 @@ def _lint_relic_web(doc):
         except Exception:                               # noqa: BLE001
             continue                                    # already reported structurally
         try:
+            # A PLACE OUTSIDE EVERY ROOM. A point is where a mission puts something and
+            # where a crew is sent; one written outside the open space is in the rock,
+            # and nothing said so - it got its marker post there and simply could not be
+            # reached.
+            #
+            # WELL outside, not on the line: a way in is authored AT a room's wall, where
+            # the depth is exactly zero, and that is the right place for it.
+            from .volume import volume_depth, volume_get
+            built = volume_get(name)
+            for pname, pv in rec["points"].items():
+                if built is not None and volume_depth(built, (pv[0], pv[1], pv[2])) > 50.0:
+                    findings.append(AmdFinding(
+                        rec["point_lines"].get(pname, ln), "warning", "relic-point-outside",
+                        "'%s' is not inside any room or passage of '%s' - it is in the "
+                        "rock, where nothing can reach it. Its numbers are measured "
+                        "from the ruin's `Loc:`, the same as a room's" % (pname, key)))
             places = {p: {"pos": (v[0], v[1], v[2]), "hidden": v[5]}
                       for p, v in rec["points"].items()}
             stats = rail_build(name, places=places)
@@ -1418,7 +1608,8 @@ def _lint_relic_web(doc):
             for pname, pv in rec["points"].items():
                 if pv[5] and not pv[3]:
                     findings.append(AmdFinding(
-                        ln, "warning", "relic-hidden-unreachable",
+                        rec["point_lines"].get(pname, ln), "warning",
+                        "relic-hidden-unreachable",
                         "'%s' is `Hidden:` but carries no `Roles:` - nothing marks it, so "
                         "nothing can ever reveal it and the crew will never be offered it"
                         % pname))
@@ -2961,6 +3152,7 @@ def amd_lint(file_path=None, content=None, mast_sources=None, cross_file=None,
         findings += amd_lint_urges(doc)
         findings += amd_lint_relics(doc)
         findings += amd_lint_relic_structure(doc)
+        findings += amd_lint_relic_dressing(doc)
         findings += amd_lint_hails(doc)
         findings += amd_lint_then(doc)
         findings += amd_lint_quest_triggers(doc)
