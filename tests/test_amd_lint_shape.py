@@ -128,6 +128,9 @@ class AHeadingTheGameDoesNotRead(unittest.TestCase):
         text = MISSION.replace("Fly out and locate", "## What you know\n\nFly out and locate")
         self.assertEqual(lint(text), [])
 
+    def test_a_name_with_no_key_and_a_fence_under_it(self):
+        self.assertIn("no `(key)`", self.broken("### [Derelict Hull]"))
+
     def test_a_name_with_no_key_is_still_only_a_warning(self):
         text = MISSION.replace("Fly out and locate", "## [What you know]\n\nFly out and locate")
         f = one(self, text)
@@ -142,12 +145,22 @@ class TheFence(unittest.TestCase):
 
     def test_a_missing_closing_line_is_named_where_the_fence_opens(self):
         text = MISSION.replace("Tab: scan\n---\n", "Tab: scan\n")
-        found = lint(text)
-        first = found[0]
+        first = one(self, text)          # ONE finding. It used to be the last of six.
         self.assertEqual((first.code, first.line),
                          ("unclosed-data-fence", line_of(text, HULL) + 1))
         self.assertIn("### [Derelict Materials](derelict_mat)", first.message)
-        self.assertEqual([f.code for f in found].count("unclosed-data-fence"), 1)
+
+    def test_what_a_broken_fence_drags_in_is_not_printed(self):
+        text = MISSION.replace("Tab: scan\n---\n", "Tab: scan\n")
+        codes = [f.code for f in amd_lint(content=text, known_keys=set(parse(text).keys),
+                                          cross_file=False)]
+        for code in ("fence-syntax", "field-below-fence", "fence-not-opened"):
+            self.assertNotIn(code, codes)
+
+    def test_a_finding_in_a_record_above_the_broken_fence_is_kept(self):
+        text = MISSION.replace("Tab: scan\n---\n", "Tab: scan\n").replace(
+            "Done when: signal derelict_found", "Done wen: signal derelict_found")
+        self.assertEqual([f.code for f in lint(text)], ["unknown-field", "unclosed-data-fence"])
 
     def test_a_missing_opening_line_is_named_on_its_own_record(self):
         text = MISSION.replace(HULL + "\n---\n", HULL + "\n")
@@ -189,6 +202,20 @@ class TooManyHashes(unittest.TestCase):
         self.assertEqual((f.code, f.severity), ("heading-level-jump", ERROR))
         self.assertIn("1 too many", f.message)
         self.assertIn("as if it had 3", f.message)
+
+    def test_one_hash_on_a_record_is_named_on_that_record(self):
+        text = MISSION.replace(HULL, HULL[2:])
+        jumps = [f for f in amd_lint_structural(content=text) if f.code == "heading-level-jump"]
+        self.assertEqual([f.line for f in jumps], [line_of(text, HULL[2:])])
+        self.assertIn("has 1 hash", jumps[0].message)
+        self.assertIn("Give it 3", jumps[0].message)
+
+    def test_a_flat_file_of_one_hash_records_is_left_alone(self):
+        text = ("# [Torgoth](torgoth)\n---\nSpeaker: torgoth\n---\nHello.\n\n"
+                "## [Again](again)\nMore.\n\n"
+                "# [Kralien](kralien)\n---\nSpeaker: kralien\n---\nHello.\n\n"
+                "## [Again](again2)\nMore.\n")
+        self.assertEqual(amd_lint_structural(content=text), [])
 
     def test_a_file_with_no_title(self):
         text = MISSION.replace("# [Sample Mission](sample_mission)\n", "")
@@ -245,6 +272,28 @@ class AFieldTheGameReadsAnotherWay(unittest.TestCase):
         self.assertTrue(found)
         self.assertIn("is a scan field", found[0].message)
         self.assertIn("read as a quest", found[0].message)
+
+
+class ACharacterTheGameCannotDraw(unittest.TestCase):
+    def said(self, body):
+        from sbs_utils.procedural.amd_lint import amd_lint_ascii
+        return [f.message for f in amd_lint_ascii(content="# [A](a)\n" + body + "\n")]
+
+    def test_it_says_what_the_game_shows_instead(self):
+        self.assertIn('shows `"` in its place', self.said("a “ghost”")[0])
+        self.assertIn("shows `-` in its place", self.said("cold — dark")[0])
+        self.assertIn("shows `e` in its place", self.said("café")[0])
+
+    def test_one_it_cannot_fold_is_left_out(self):
+        self.assertIn("leaves it out", self.said("launch \U0001F680")[0])
+
+    def test_one_that_cannot_be_seen_is_named(self):
+        message = self.said("a b")[0]
+        self.assertIn("a no-break space", message)
+        self.assertIn("plain space", message)
+
+    def test_it_no_longer_says_crash(self):
+        self.assertNotIn("crash", self.said("a “ghost”")[0])
 
 
 class OneMistakeOneTrueLine(unittest.TestCase):

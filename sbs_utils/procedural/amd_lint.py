@@ -103,7 +103,10 @@ class AmdFinding:
         if not self.line:
             where = "file"
         elif self.col is not None:
-            where = f"line {self.line}:{self.col}"
+            # Counted from 1, as an editor counts (`Ln 31, Col 24`) and as `compact`
+            # below has always printed. This form counted from 0, so the same finding
+            # was `31:23` here and `31:24` there.
+            where = f"line {self.line}:{self.col + 1}"
         else:
             where = f"line {self.line}"
         return f"[{self.severity.upper()}] {where}: {self.message} ({self.code})"
@@ -135,10 +138,27 @@ def amd_lint_structural(file_path=None, content=None):
         reads it one deeper than its parent and says so in mast.runtime.log.
       * no-headings - a file the game loads nothing from.
     """
+    return _structural_scan(_source_lines(file_path, content))[0]
+
+
+# What a fence with a missing or mistyped `---` drags in after it. Each is true, and
+# each is about lines that are only wrong BECAUSE of the fence: fix that one line and
+# they all go. Printed, they bury it - the lesson that found this counted six findings
+# for one deleted line, with the one that mattered last.
+_FENCE_FALLOUT = frozenset({"fence-syntax", "field-below-fence", "unknown-field",
+                            "duplicate-scan", "field-indented", "repeated-field"})
+
+
+def _structural_scan(lines):
+    """(findings, swallowed): the structural findings, and the (first, last) line
+    ranges that a reported fence mistake has made unreadable."""
     from sbs_utils.procedural.amd import FenceScanner, BoneyardScanner, RE_COMMENT
 
-    lines = _source_lines(file_path, content)
     findings = []
+    swallowed = []
+    swallow_from = 0          # line a reported fence mistake starts at, while it lasts
+    lone_title = None         # (line, text, level before it): a `#` among deeper records
+    prev_level = 0
 
     # THE READER'S OWN SCANNERS, not a copy of their rule. This pass used to flip a
     # boolean on every `---`, which the game stopped doing long ago (a fence opens only
@@ -198,6 +218,8 @@ def amd_lint_structural(file_path=None, content=None):
                 # A heading INSIDE a fence: the closing `---` is missing, and the game
                 # is now reading the next record's heading as one of this one's fields.
                 fence_reported = True
+                broken_above = True
+                swallow_from = scanner.open_line
                 findings.append(AmdFinding(
                     scanner.open_line, ERROR, "unclosed-data-fence",
                     f"the fence that opens here has no closing `---`: the next heading, "
@@ -205,6 +227,8 @@ def amd_lint_structural(file_path=None, content=None):
                     f"Add a `---` line under the last field of {heading_text or 'this record'}"))
             elif _RE_FENCE_SLIP.match(line):
                 fence_reported = True
+                broken_above = True
+                swallow_from = i
                 findings.append(AmdFinding(
                     i, ERROR, "fence-shape",
                     f"`{line.strip()}` is not a fence line, so the fence above it is "
@@ -218,8 +242,20 @@ def amd_lint_structural(file_path=None, content=None):
             while len(hash_stack) > 1 and hash_stack[-1] >= level:
                 hash_stack.pop()
             above = hash_stack[-1]
+            if swallow_from:
+                swallowed.append((swallow_from, i - 1))
+                swallow_from = 0
             if level > above + 1 and above == 0 and no_title_said:
                 pass                      # every `##` in a file with no title: said once
+            elif level > above + 1 and above == 1 and lone_title is not None:
+                # ONE HASH ON A RECORD. The jump is real, but it is on the wrong line:
+                # this heading is where it always was. The one above it lost its hashes
+                # and became a second title, taking this one out of its section.
+                findings.append(AmdFinding(
+                    lone_title[0], ERROR, "heading-level-jump",
+                    f"`{lone_title[1]}` has 1 hash, and the next record (line {i}) has "
+                    f"{level}. One hash starts a new title, so this record and the ones "
+                    f"after it are no longer in their section. Give it {level}"))
             elif level > above + 1:
                 if above == 0:
                     no_title_said = True
@@ -236,6 +272,10 @@ def amd_lint_structural(file_path=None, content=None):
             # (A second `#` heading is NOT reported. A flat file - a cast list, a set
             # of hails, a file another one splices in - is one `#` record after
             # another, and thirteen shipped files are written that way.)
+            # A `#` that is not the first heading in the file. Legitimate in a flat file
+            # (one `#` record after another); a slip only if the next heading jumps.
+            lone_title = (i, line.strip(), prev_level) if (level == 1 and prev_level) else None
+            prev_level = level
             hash_stack.append(level)
             heading_text = f"`{line.strip()}`"
             since_heading = []
@@ -312,6 +352,11 @@ def amd_lint_structural(file_path=None, content=None):
                 i, ERROR, "broken-heading",
                 f"there is a space between `]` and `(`. The key has to touch the name: "
                 f"`[Name](key)`. {gone}"))
+        elif "[" in stripped and "]" in stripped and _fence_is_next(lines, i, fence_follows):
+            findings.append(AmdFinding(
+                i, ERROR, "broken-heading",
+                f"there is no `(key)` after the `[Name]`, and the line has a fence under "
+                f"it, so it is meant to start a record. Write `[Name](key)`. {gone}"))
         elif "[" in stripped and "]" in stripped:
             findings.append(AmdFinding(
                 i, WARNING, "suspect-heading",
@@ -332,6 +377,9 @@ def amd_lint_structural(file_path=None, content=None):
         if any(f.code == "broken-heading" for f in findings[before:]):
             broken_above = True
 
+    if swallow_from:
+        swallowed.append((swallow_from, len(lines)))
+
     if scanner.finish() and not fence_reported:
         findings.append(AmdFinding(
             scanner.open_line, ERROR, "unclosed-data-fence",
@@ -347,7 +395,15 @@ def amd_lint_structural(file_path=None, content=None):
              "nothing in this file is a heading the game reads - `# [Name](key)` -")
             + " so the game reads nothing from it"))
 
-    return findings
+    return findings, swallowed
+
+
+def _fence_is_next(lines, i, fence_follows):
+    """True when the first real line after line `i` is a `---` with fields under it."""
+    for j in range(i, len(lines)):
+        if lines[j].strip():
+            return bool(_RE_DATA_FENCE.match(lines[j])) and fence_follows(j + 1)
+    return False
 
 
 # --- content safety: the engine renders ASCII only --------------------------
@@ -355,18 +411,42 @@ _RE_NONASCII = re.compile(r"[^\x00-\x7f]+")
 
 
 def amd_lint_ascii(file_path=None, content=None):
-    """Flag non-ASCII runs in author text - the engine renders ASCII only, so a
-    pasted smart-quote / em-dash / emoji misrenders or crashes. `//` comment lines
-    are exempt (not rendered). WARNING."""
+    """Flag non-ASCII runs in author text - the engine draws ASCII only. `//` comment
+    lines are exempt (not rendered). WARNING.
+
+    The sentence says what the GAME now does with the character, because that changed:
+    the reader folds it to a plain one on the way in (`amd.amd_ascii_text`). It used to
+    say "misrender or crash", which told a writer nothing they could picture - and what
+    really happened was the whole font sheet painted across the console."""
+    import unicodedata
+    from sbs_utils.procedural.amd import amd_ascii_text
     findings = []
     for i, line in enumerate(_source_lines(file_path, content), start=1):
         if line.lstrip().startswith("//"):
             continue
         for m in _RE_NONASCII.finditer(line):
+            run = m.group()
+            plain = amd_ascii_text(run)
+            seen = "".join(c for c in run if c.isprintable() and not c.isspace())
+            if seen:
+                shown = f"`{seen}`"
+            else:
+                # Nothing to show: a no-break space prints as a space, or as `\xa0`.
+                try:
+                    shown = "a " + unicodedata.name(run[0]).lower()
+                except ValueError:
+                    shown = "a character that cannot be seen"
+            if plain.strip():
+                does = f"The game cannot draw it and shows `{plain.strip()}` in its place"
+            elif plain:
+                does = "The game reads it as a plain space"
+            else:
+                does = "The game cannot draw it and leaves it out"
             findings.append(AmdFinding(
                 i, WARNING, "non-ascii",
-                f"non-ASCII text {m.group()!r} - the engine renders ASCII only "
-                f"(smart quotes / em-dashes / emoji misrender or crash)",
+                f"{shown} is not a plain keyboard character (a word processor puts "
+                f"these in by itself). {does}. Type the plain one, so every tool reads "
+                f"this line the same way",
                 col=m.start(), end_line=i, end_col=m.end()))
     return findings
 
@@ -969,8 +1049,9 @@ def amd_lint_cross_file(doc, mast_sources=None, source_index=None):
             if ref.value not in emitted:
                 findings.append(AmdFinding.at(
                     ref.span, WARNING, "unfired-signal",
-                    f"`{ref.owner}` waits on signal `{ref.value}` (When/Fail on signal) "
-                    f"but nothing in the mission emits it"))
+                    f"`{ref.owner}` waits for the signal `{ref.value}`, and nothing in "
+                    f"the mission sends it, so that wait never ends. Check the spelling "
+                    f"against the line in the story that sends it"))
         elif ref.kind == "reach":
             if ref.value not in doc.landmark_cells:
                 i, j = ref.value
@@ -3946,7 +4027,8 @@ def amd_lint(file_path=None, content=None, mast_sources=None, cross_file=None,
     downgraded to a single finding rather than raised."""
     if source_index is None and mast_sources is not None:
         source_index = mast_source_index(mast_sources)
-    findings = list(amd_lint_structural(file_path, content))
+    findings, swallowed = _structural_scan(_source_lines(file_path, content))
+    findings = list(findings)
     findings += amd_lint_ascii(file_path, content)
     findings += amd_lint_scan_labels(file_path, content)
 
@@ -4008,6 +4090,12 @@ def amd_lint(file_path=None, content=None, mast_sources=None, cross_file=None,
     except Exception as e:
         findings.append(AmdFinding(0, WARNING, "parse-skipped",
                                    f"reference checks skipped - parse failed: {e}"))
+
+    # ONE finding for one broken fence: what it dragged in goes (see _FENCE_FALLOUT).
+    if swallowed:
+        findings = [f for f in findings
+                    if not (f.code in _FENCE_FALLOUT
+                            and any(a <= f.line <= b for a, b in swallowed))]
 
     # `Tab: sacn` is one mistake. It drew two lines, `unknown-scan-tab` and the
     # general `unknown-enum-value`; the first says more, so it is the one kept.

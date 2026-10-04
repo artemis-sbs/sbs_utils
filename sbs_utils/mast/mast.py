@@ -409,6 +409,15 @@ class Mast():
                     # contained the word `await`. The compile is what was asked for;
                     # the log is a convenience.
                     pass
+        elif not is_import:
+            # ...AND SAYS NOTHING IN THEIR PLACE. A logger with no handler at all hands
+            # its errors to Python's handler of last resort, which prints them to stderr:
+            # a bare `Exception: unterminated string literal` loose in the output of
+            # `sbs lint`, beside the finding that reports the same thing properly.
+            for logger_name in ("mast.compile", "mast.runtime"):
+                mc = logging.getLogger(logger_name)
+                if not mc.handlers:
+                    mc.addHandler(logging.NullHandler())
 
 
     def make_global(func):

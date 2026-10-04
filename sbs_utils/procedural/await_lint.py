@@ -39,8 +39,13 @@ def await_lint(file_path=None, content=None):
         return []                                    # cheap: most files have no await
     text = content
     if text is None:
-        with open(file_path, encoding="utf-8") as f:
-            text = f.read()
+        # The reader the game uses for a story (UTF-8, then the Windows code page). A
+        # strict UTF-8 open raised on a story saved from Notepad with one curly quote
+        # in a note: a traceback from `sbs lint`, printed after it had said `clean`.
+        from .amd import amd_read_text
+        # ...with the line ends a text-mode open gave: a Windows file is CRLF on
+        # disk, and the compiler matches nothing on a line that ends in a stray CR.
+        text = amd_read_text(file_path).replace(chr(13) + chr(10), chr(10))
     # A lone file's `import x.mast` resolves against nothing, and a failed import ends
     # the compile before the lines this rule is about. Blank them - blank, not removed,
     # so every line number still matches the file.
