@@ -53,6 +53,15 @@ def amd_read_text(path):
     parse into something an author can look at and fix, not vanish."""
     with open(path, "rb") as f:
         raw = f.read()
+    # UTF-16, AS NOTEPAD SAVES "Unicode". Its byte-order mark is not valid UTF-8, so the
+    # loop below fell through to cp1252 - which decodes ANYTHING, here into the text with
+    # a NUL after every letter. No heading matched, the document was empty, the mission
+    # ran with nothing in it and passed, and the log was empty too.
+    if raw[:2] in (b"\xff\xfe", b"\xfe\xff"):
+        try:
+            return raw.decode("utf-16")
+        except UnicodeDecodeError:
+            pass
     for enc in ("utf-8-sig", "utf-8", "cp1252"):
         try:
             return raw.decode(enc)

@@ -935,11 +935,14 @@ def _document_get_amd_file(file_path, root_display_text="", strip_comments=True,
             urn = data.get("urn").split("?", 1)
             key = urn[0]
             if len(urn) == 2:
+                # A `?` with nothing readable after it is a TYPO IN ONE KEY, not a reason
+                # to lose the file: `(derelict_intel?)` raised here, the whole document
+                # came back as an error stub, and the mission ran with no quests and no
+                # readings at all. The tools' reader (amd_core) has always skipped it.
                 for kvalue in urn[1].split("&"):
                     kvalue = kvalue.split("=")
-                    if len(kvalue) != 2:
-                        raise Exception(f"ERROR: URN invalid line Line {i}\n{line}")
-                    query[kvalue[0]] = kvalue[1]
+                    if len(kvalue) == 2:
+                        query[kvalue[0]] = kvalue[1]
             elif len(urn) != 1:
                 raise Exception(f"ERROR: URN invalid line Line {i}\n{line}")
         elif allow_bare_headings:

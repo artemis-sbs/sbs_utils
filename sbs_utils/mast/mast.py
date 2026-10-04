@@ -327,6 +327,11 @@ def _addon_profile_rules():
 class Mast():
     include_code = False
 
+    # A TOOL sets this (or MAST_LEAVE_LOGS=1) so that building a Mast to CHECK a story
+    # does not empty the mission's `mast.runtime.log` and `mast.compile.log`. A game run
+    # leaves it False: each run starts with empty logs.
+    leave_logs_alone = False
+
     # Compile WARNINGS (a story still compiles) are printed to the console by default.
     # `sbs lint` compiles files only to collect them, and turns the print off - it reads
     # `compile_warning_records`, a list of (file_name, line_no, message) per instance.
@@ -378,7 +383,11 @@ class Mast():
             cmds = self.compile(cmds, "<string>")
         # else:
         #     self.build(cmds)
-        if not is_import:
+        # A TOOL LEAVES THE MISSION'S LOGS ALONE. `sbs lint` and `sbs compile` build a
+        # Mast to check a story, and this block then emptied `mast.runtime.log` - the
+        # file the page they were following had just told the writer to go and read.
+        # A tool says so with `Mast.leave_logs_alone = True` or MAST_LEAVE_LOGS=1.
+        if not is_import and not (Mast.leave_logs_alone or os.environ.get("MAST_LEAVE_LOGS")):
             for logger_name, log_file in (("mast.compile", 'mast.compile.log'),
                                           ("mast.runtime", 'mast.runtime.log')):
                 mc = logging.getLogger(logger_name)
