@@ -207,6 +207,14 @@ class ARoleNothingWearsTests(unittest.TestCase):
         self.assertIn("role-nothing-wears",
                       self.codes(_swap("Scan of: lifeboat", "Scan of: lifebote")))
 
+    def test_collect_takes_an_item_key_not_a_role(self):
+        """`collect 1 rook_bowl` names an ITEM. It was told nothing wears `rook_bowl`."""
+        for verb in ("collect", "recover", "gather"):
+            with self.subTest(verb=verb):
+                text = _swap("Done when: reach lifeboat 500",
+                             "Done when: %s 1 rook_bowl" % verb)
+                self.assertEqual(self.codes(text), [])
+
     def test_a_role_from_the_story_is_known(self):
         text = _swap("Done when: reach lifeboat 500", "Done when: reach derelict 500")
         self.assertEqual(self.codes(text), [])

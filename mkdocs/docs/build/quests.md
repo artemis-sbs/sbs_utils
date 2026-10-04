@@ -122,7 +122,7 @@ listens for:
 | Verb(s) | Fires on | Argument |
 |---|---|---|
 | `destroy`, `kill` | a kill | role (+ count, e.g. `destroy 6 raiders`) |
-| `collect`, `recover`, `gather` | picking up an item | item key |
+| `collect`, `recover`, `gather` | picking up an item | item key. The mission must load LegendaryMissions' `items` addon (its `story.json`): without it a ship sits on the item and takes nothing |
 | `scan`, `survey` | a science scan | role |
 | `dock` | docking | role |
 | `reach`, `travel` | arriving at a sector, or near a thing | a sector (`reach 6, 4`), or a ROLE and a distance (`reach derelict 500`: within 500 of anything wearing the role `derelict`; the distance defaults to 5000). It is a role, not a key: a landmark needs `Roles: derelict` to be reached this way |

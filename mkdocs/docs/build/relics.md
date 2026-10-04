@@ -479,9 +479,10 @@ Backdrop: pic:tg_wall_c
 - [Not yet]()
 ```
 
-- **`Scan:`** is what the xESS Scan app says about a place, and it is the only text about a
-  part a player ever sees. A part's prose is for the author - never write the player's
-  words there.
+- **`Scan:`** is what the xESS Scan app says about a place to a crew member in a suit. A
+  part's prose is for the author - never write the player's words there. What the SHIP's
+  Science console reads when it selects a place is a scan record on the place's role
+  (`Scan of: altar` in the Scans section), the same as for anything else on the map.
 - **`Backdrop:`** is the picture beside a narrated line, from the mission's tile art. A beat
   with a `Speaker:` who has a face shows the face instead: Storm on the suit radio, the
   chief engineer, anybody in the cast.

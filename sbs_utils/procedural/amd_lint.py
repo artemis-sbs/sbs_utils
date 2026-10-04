@@ -1264,7 +1264,8 @@ def amd_lint_relic_strays(doc):
                 or any(f in fields for f in _QUEST_SHAPE_FIELDS))
         if not (speaks or asks):
             continue
-        what, where = (("a scene", "Dialogue") if speaks and not asks else
+        what, where = (("a scan record", "Scans") if "scan of" in fields else
+                       ("a scene", "Dialogue") if speaks and not asks else
                        ("a quest", "Quests"))
         findings.append(AmdFinding.at(
             node.display_span or node.span, WARNING, "relic-section-stray",
@@ -2642,9 +2643,11 @@ def amd_lint_mission_reads(doc, file_path=None, mast_sources=None, source_index=
         for label in _TRIGGER_LABELS_SPACED:
             for lineno, value in fields.get(label, []):
                 words = value.replace(",", " ").split()
+                # NOT `collect` / `recover` / `gather`: those take an ITEM's key, not a
+                # role, and `collect 1 rook_bowl` was told nothing wears `rook_bowl`.
                 if len(words) < 2 or words[0].lower() not in (
                         "reach", "travel", "destroy", "kill", "scan", "survey", "dock",
-                        "recover", "collect", "gather", "tow", "haul"):
+                        "tow", "haul"):
                     continue
                 for w in words[1:]:
                     if not re.match(r"^-?\d+(\.\d+)?%?$", w):

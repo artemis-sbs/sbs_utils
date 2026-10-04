@@ -121,6 +121,14 @@ class ARecordThatIsNotARelic(unittest.TestCase):
         self.assertIn("a quest", got[0].message)
         self.assertIn("Quests", got[0].message)
 
+    def test_a_scan_record_typed_under_the_place_is_called_a_scan_record(self):
+        scan = "### [Altar Reading](altar_reading)\n---\nScan of: altar\n---\n% A stone table.\n"
+        anchor = "Scan: A stone table, cut from the floor.\n---\n"
+        got = found(RUIN.replace(anchor, anchor + "\n" + scan))
+        self.assertEqual([f.code for f in got], ["relic-section-stray"])
+        self.assertIn("a scan record", got[0].message)
+        self.assertIn("Scans", got[0].message)
+
     def test_a_ruin_with_a_note_and_no_fields_but_loc_is_left_alone(self):
         text = RUIN + "\n"
         text = text.replace("## [Dialogue](dialogue)",
