@@ -3150,12 +3150,32 @@ def amd_lint_personal_quests(doc, file_path=None, mast_sources=None):
     name = os.path.basename(file_path) if file_path else ""
     in_mission = bool(text and name and name in text)
     sections = {}                                        # id(section) -> (section, [quests])
+    lost = set()                                         # quests written as sections
     for node in doc.nodes:
         fields = _plain_fields(node)
         if "for" not in fields or str(getattr(node, "kind", "") or "").lower() != "quest":
             continue
         lineno, want = fields["for"][0]
         parent = node.parent
+        # ONE HASH TOO FEW. The quest is then a SECTION beside its own section, with the
+        # sections of the file for brothers - and everything below would be said about
+        # the wrong heading (the whole file "is not handed out", the roster "has no
+        # `For:`"). Told apart from a real section of quests by those brothers: a quest
+        # has steps or nothing under it, a section has records.
+        top = parent is not None and (parent.parent is None
+                                      or parent.parent.key == "__root__")
+        if top and sum(1 for c in parent.children
+                       if c is not node and c.children
+                       and "for" not in _plain_fields(c)) >= 2:
+            lost.add(id(node))
+            findings.append(AmdFinding.at(
+                node.display_span or node.span, WARNING, "for-section-level",
+                f"`{node.display}` has {node.level} hashes, which makes it a section of "
+                f"its own and not a quest in a section, so it is handed to nobody. Give "
+                f"its heading {node.level + 1} hashes"))
+            continue
+        if parent is not None and id(parent) in lost:
+            continue                     # under a heading already reported: fix that one
         if parent is not None and "for" in _plain_fields(parent):
             findings.append(AmdFinding.at(
                 node.display_span or node.span, WARNING, "for-nested",
@@ -3200,23 +3220,28 @@ def amd_lint_personal_quests(doc, file_path=None, mast_sources=None):
                 f"<name>` on the choice"))
 
     for section, quests in sections.values():
-        for child in section.children:
-            if child in quests or "for" in _plain_fields(child):
-                continue
-            if not child.fence_lines or any(
-                    l.strip().lower().startswith("for:") for _n, l in (child.body_lines or [])):
-                continue                 # no fence: a note. Below the fence: said elsewhere
-            findings.append(AmdFinding.at(
-                child.display_span or child.span, WARNING, "story-no-for",
-                f"`{child.display}` is in a section of quests that each belong to one "
-                f"person, and has no `For:`, so it is handed to nobody. Add `For: <job>`"))
-        if not in_mission:
-            continue
         key = str(section.key or "").strip()
         quoted = ('"' + key + '"') in text or ("'" + key + "'") in text
-        granted = any(("quest_grant_amd(" in line or "quest_add_amd(" in line)
-                      and (('"' + key + '"') in line or ("'" + key + "'") in line)
-                      for line in text.splitlines())
+        granted = in_mission and any(
+            ("quest_grant_amd(" in line or "quest_add_amd(" in line)
+            and (('"' + key + '"') in line or ("'" + key + "'") in line)
+            for line in text.splitlines())
+        # A quest with no `For:` among them - but only where the section IS one of personal
+        # quests. One `For:` typed under the ship's Quests is the stray there, and it is
+        # reported as that (below); its neighbors are the ship's and are fine.
+        others = [c for c in section.children
+                  if c not in quests and "for" not in _plain_fields(c) and c.fence_lines
+                  and not any(l.strip().lower().startswith("for:")
+                              for _n, l in (c.body_lines or []))]
+        if not granted and len(quests) >= len(others):
+            for child in others:
+                findings.append(AmdFinding.at(
+                    child.display_span or child.span, WARNING, "story-no-for",
+                    f"`{child.display}` is in a section of quests that each belong to one "
+                    f"person, and has no `For:`, so it is handed to nobody. Add `For: "
+                    f"<job>`"))
+        if not in_mission:
+            continue
         if granted:
             findings.append(AmdFinding.at(
                 section.display_span or section.span, WARNING, "for-in-quests",

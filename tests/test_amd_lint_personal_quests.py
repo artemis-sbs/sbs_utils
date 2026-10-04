@@ -128,6 +128,14 @@ class PersonalQuestLint(unittest.TestCase):
                        "Starts when: at once\nDone when: signal core_read\n---\nFind out.\n")
         self.assertEqual(codes(text), ["for-nested"])
 
+    def test_one_hash_too_few_is_said_about_the_quest_not_about_the_file(self):
+        text = GOOD.replace("### [Six Names](six_names)", "## [Six Names](six_names)")
+        found = amd_lint(file_path="mission.amd", content=text, mast_sources=[STORY],
+                         cross_file=False)
+        mine = [f for f in found if f.code in MINE + ("for-section-level",)]
+        self.assertEqual([f.code for f in mine], ["for-section-level"])
+        self.assertIn("3 hashes", mine[0].message)
+
     def test_a_quest_in_the_section_with_no_for(self):
         text = GOOD + ("\n### [A Cold Core](cold_core)\n---\nStarts when: at once\n"
                        "Done when: signal core_read\n---\nFind out.\n")
@@ -153,7 +161,12 @@ class HandedOutLint(unittest.TestCase):
         self.assertEqual(codes(GOOD, story.replace("amd_section", "relic_section")), [])
 
     def test_for_under_the_section_the_ship_is_given(self):
-        text = GOOD.replace("## [Side Stories](side_stories)", "## [Quests](quests)")
+        # With the ship's own quests beside it: they have no `For:` and want none.
+        ships = ("\n### [Close Inspection](close)\n---\nStarts when: at once\n"
+                 "Done when: signal seen\n---\nLook.\n"
+                 "\n### [Account for the Crew](account)\n---\nStarts when: at once\n"
+                 "Done when: signal names_known\n---\nNames.\n")
+        text = GOOD.replace("## [Side Stories](side_stories)", "## [Quests](quests)") + ships
         story = STORY.split("boarding_visit")[0] + \
             'quest_grant_amd(SHARED, amd_section(MISSION_DOC, "quests"))\n'
         self.assertEqual(codes(text, story), ["for-in-quests"])
