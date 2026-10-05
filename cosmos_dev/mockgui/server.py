@@ -796,7 +796,7 @@ def run_server(
     client_event_q: multiprocessing.Queue,
     gui_event_q:    multiprocessing.Queue,
     ready_event:    multiprocessing.Event,
-    host: str = "0.0.0.0",
+    host: str = "127.0.0.1",
     port: int = 8765,
     cosmos_dir: Optional[str] = None,
     static_roots: Optional[list] = None,
@@ -818,7 +818,7 @@ def run_server(
 # ---------------------------------------------------------------------------
 if __name__ == "__main__":
     import sys
-    host        = sys.argv[1] if len(sys.argv) > 1 else "0.0.0.0"
+    host        = sys.argv[1] if len(sys.argv) > 1 else "127.0.0.1"
     port        = int(sys.argv[2]) if len(sys.argv) > 2 else 8765
     _cosmos_dir = sys.argv[3] if len(sys.argv) > 3 else None
     _static_roots = [a for a in sys.argv[4:] if a]

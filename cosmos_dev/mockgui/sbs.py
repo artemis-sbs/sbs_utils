@@ -103,8 +103,20 @@ gui_event_queue: multiprocessing.Queue = None    # type: ignore[assignment]
 # ---------------------------------------------------------------------------
 # Server launcher
 # ---------------------------------------------------------------------------
+def default_host() -> str:
+    """Where the page server listens when nobody says.
+
+    THIS MACHINE ONLY. It used to be every network address (`0.0.0.0`), which a browser on
+    the same computer never needed and which makes Windows raise its firewall question
+    the first time a new Python runs it - on a writer's first `sbs debug`, in front of a
+    page that had not drawn yet. `--lan` (mission_runner, `sbs debug`) sets
+    COSMOS_DEV_LAN and opens it to the network for tablets and second machines."""
+    return "0.0.0.0" if os.environ.get("COSMOS_DEV_LAN", "").strip() not in ("", "0") \
+        else "127.0.0.1"
+
+
 def start_server(
-    host: str = "0.0.0.0",
+    host: "str | None" = None,
     port: int = 8765,
     cosmos_dir: "str | None" = None,
     static_roots: "list | None" = None,
@@ -130,6 +142,8 @@ def start_server(
     """
     global gui_queue, client_event_queue, gui_event_queue
 
+    if host is None:
+        host = default_host()
     if cosmos_dir is None:
         try:
             from sbs_utils import fs as _fs

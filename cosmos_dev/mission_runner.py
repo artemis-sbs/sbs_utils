@@ -2937,6 +2937,10 @@ if __name__ == "__main__":
                     help="Start the cosmos_dev WebSocket GUI server")
     ap.add_argument("--port", type=int, default=8765,
                     help="WebSocket server port  [default: 8765]")
+    ap.add_argument("--lan", action="store_true",
+                    help="With --gui: serve the page to the whole network (tablets, a "
+                         "second machine), not only this computer. Windows may ask "
+                         "about its firewall the first time")
     ap.add_argument("--tick-rate", type=int, default=60,
                     help="Ticks per second  [default: 60]")
     ap.add_argument("--cosmos-dir", default=None,
@@ -3063,6 +3067,8 @@ if __name__ == "__main__":
                     help="Write each run's fingerprint (counts, stream health, reset "
                          "leaks) as JSON - used by --fresh-process to compare legs")
     args = ap.parse_args()
+    if args.lan:
+        os.environ["COSMOS_DEV_LAN"] = "1"
 
     if args.map is None:
         map_val: int | str | None = None
