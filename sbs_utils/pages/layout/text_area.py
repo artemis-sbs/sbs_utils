@@ -682,6 +682,12 @@ def _line_is_choice(line):
     return RE_SIGNAL_LINK.match(text) is not None or RE_CHOSEN_LINK.match(text) is not None
 
 
+#: `1. ` / `12) ` - a numbered list item. Digits alone do not make one.
+_RE_NUMBERED_ITEM = re.compile(r"\d+[.)]\s")
+#: The `prepend` values a style uses to ask for a GENERATED list marker (see get_prepend).
+_GENERATED_MARKERS = ("1", "a", "A", "i", "I", "*", "-")
+
+
 class TextArea(Control):
     #
     # NOTE the `height` in each style below is INERT. Line heights are measured
@@ -1099,9 +1105,17 @@ class TextArea(Control):
                 style = self.get_style(style_key)
                 prepend = get_prepend(style_key)
             elif isinstance(style_key, dict):
+                # The SAME dict the line above used: this line declared nothing of its
+                # own and is carrying the style on - the second line of a list item.
+                carried = style_key is style
                 style = style_key
                 prepend = style_key.get("prepend")
                 if prepend is None:
+                    prepend = ""
+                if carried and prepend in _GENERATED_MARKERS:
+                    # ...so it gets the item's indent and color, and NOT its marker. It
+                    # used to get the raw marker with no space after it: a plain line
+                    # under a list was drawn `-Then come home.`, or `1Then come home.`
                     prepend = ""
                 style_key = "$"
 
@@ -1173,11 +1187,19 @@ class TextArea(Control):
 
                 
             elif m := TextArea.rule_link_ref.match(line):
+                typed_line = line
                 g = m.groupdict()
                 link_name = g.get("link_name")
                 ns = g.get("ns")
                 urn = g.get("urn")
                 line = g.get("remainder")
+                if ns is not None and ns not in ("image", "ship", "face", "style"):
+                    # `[The report](https://...) is where to start.` A link to somewhere
+                    # this widget does not go. The bracketed part used to vanish and
+                    # leave `is where to start.`; the line is drawn as typed.
+                    ns = urn = None
+                    link_name = None
+                    line = typed_line
 
                 if link_name is not None and ns is None:
                     test_style = self.get_style(link_name)
@@ -1190,9 +1212,13 @@ class TextArea(Control):
                     else:
                         g = links.get(link_name)
                         if g is None:
-                            continue
-                        ns = g.get("ns")
-                        urn = g.get("urn")
+                            # `[Static] Is anyone aboard?` - a word in square brackets
+                            # that names no style and no link. The whole LINE used to be
+                            # dropped. It is a sentence; draw it as typed.
+                            line = typed_line
+                        else:
+                            ns = g.get("ns")
+                            urn = g.get("urn")
                 # The rest is handle below
             # Image line
             if ns == "image":
@@ -1376,7 +1402,9 @@ class TextArea(Control):
                 st = self.parse_style_line(s[0][2:])
                 return st,s[1]
             return "_",some_lines
-        elif some_lines.startswith("$"):
+        elif some_lines.startswith("$") and self.styles.get(self.split_styled_lines(some_lines)[1]) is not None:
+            # `$name words` only when `name` IS a style. `$500 says she is not empty.`
+            # lost its first word to a style nobody had declared.
             some_lines, style_key = self.split_styled_lines(some_lines)
         else:
             return self.get_markdown_line_style(some_lines, previous)
@@ -1461,14 +1489,20 @@ class TextArea(Control):
             style_key = f"h{count}"
             some_lines = some_lines[count:]
 
-        elif some_lines.startswith("-"):
-            
+        elif some_lines.startswith("- ") or some_lines.rstrip() == "-":
+            # A LIST ITEM IS A HYPHEN AND A SPACE. Any line that began with `-` was one,
+            # and everything up to the first space was thrown away with it: `-Find her.`
+            # was drawn `her.`, and a `---` rule in a description as `- ---`.
             style_key = f"ul"
             sp = some_lines.split(" ",1)
             if len(sp)>1:
                 some_lines = sp[1]
 
-        elif some_lines[0].isdigit():
+        elif _RE_NUMBERED_ITEM.match(some_lines):
+            # A NUMBERED ITEM IS DIGITS, A FULL STOP OR A BRACKET, AND A SPACE. Any line
+            # that began with a digit was one, and its first word was thrown away: `40
+            # years ago she was the pride of the fleet.` was drawn `1. years ago she was
+            # the pride of the fleet.` Seen in the engine, 2026-10-04.
             style_key = f"ol"
             sp = some_lines.split(" ",1)
             if len(sp)>1:

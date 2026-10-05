@@ -32,7 +32,24 @@ The display name is what a player sees; the key is what other records point at. 
 headings nest — a `##` sits inside the `#` above it, a `###` inside that.
 
 `#` is only a heading when it has the `[Display](key)` shape. A plain `# Heading` in a
-body is ordinary markdown text, which is why briefings can use markdown freely.
+body is text, not structure.
+
+**How much markdown a body may hold depends on the screen that draws it.** Measured on
+the two a first mission reaches:
+
+| Typed in the body | In a quest's description (the Quest Log) | In a scan reading (Science) |
+|---|---|---|
+| `# Orders`, `## Orders` | A heading, larger and gray | As typed |
+| `- Find her.` (hyphen, space) | A bullet, indented | As typed, and a reading of its own |
+| `1. Find her.` (number, full stop, space) | A numbered item | As typed |
+| `**bold**`, `*italic*`, `<b>`, `> quote` | As typed, marks and all | As typed |
+| `[words](https://...)` | As typed | As typed |
+| A blank line, or Enter in a paragraph | A new line, with no gap | Each line is a separate reading |
+
+So the safe habit is plain sentences, with a heading or a short list in a quest's
+description when it helps. A line that merely STARTS with a number, a hyphen, `$` or a
+word in square brackets (`40 years ago...`, `[Static] Is anyone aboard?`) is drawn as
+typed.
 
 ### The exact shape
 

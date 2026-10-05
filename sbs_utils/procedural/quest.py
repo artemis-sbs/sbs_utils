@@ -1351,6 +1351,12 @@ def quest_log_parent_summary(row):
     `row` is the list-box row/header data for the parent (it carries `agent_id` and
     `key`). Returns "" for a bare Game/You/Ship group header, which has no quest.
     """
+    if row is not None and not hasattr(row, "get"):
+        # THE LIST BOX HANDS OVER ITS HEADER, not the header's data. The header has no
+        # `.get`, so this returned "" for every arc - and the pane said "Select a quest
+        # from the list" about the quest that was selected, which is the very thing the
+        # paragraph above says it no longer does. Seen in the engine, 2026-10-04.
+        row = getattr(row, "data", None)
     if row is None or not hasattr(row, "get"):
         return ""
     qid = row.get("key")
@@ -1377,9 +1383,11 @@ def quest_log_parent_summary(row):
                      + _pane_safe(kid.get("display_text", cid)))
     if not lines and not hidden:
         return out
-    if hidden:
-        lines.append("... more to follow")   # deliberately no number - see the docstring
     steps = chr(10).join(lines)
+    if hidden:
+        # deliberately no number - see the docstring. On a line of its OWN, after a
+        # blank one: straight under the list it was drawn as one more list item.
+        steps += (chr(10) + chr(10) if steps else "") + "... more to follow"
     if out:
         return out + chr(10) + chr(10) + steps
     return steps
@@ -1391,6 +1399,29 @@ _QUEST_STEP_ICON = {
     int(QuestState.FAILED): "ban",
     int(QuestState.ACTIVE): "list.next",
 }
+
+
+def quest_log_pane_show(text_area, row, empty=""):
+    """Put the selected row's detail in the Quest Log's text area. Returns the text.
+
+    A quest gets `quest_log_pane_text`; an arc (a header row) its description and step
+    list; anything else `empty`.
+
+    ONE CALL, SO THE SCREEN NEVER HOLDS THE TEXT IN A VARIABLE. The quest tab used to
+    write `sel_desc = quest_log_pane_text(sel)`, and a string assigned in MAST is run
+    through f-string formatting - so a description an author wrote as
+    `Find the {drifting} hulk` was a NameError against the console showing it, and any
+    `{expression}` in a description was RUN. Setting `.value` fills nothing in (only
+    `gui_text_area(...)` itself does, when the area is made), so the text goes in as it
+    is: doubling the braces here drew `{{drifting}}`.
+    """
+    is_header = row is not None and not hasattr(row, "get")
+    text = quest_log_parent_summary(row) if is_header else quest_log_pane_text(row)
+    if not text:
+        text = empty or ""
+    if text_area is not None:
+        text_area.value = text
+    return text
 
 
 def _pane_safe(text):
