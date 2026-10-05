@@ -55,6 +55,25 @@ def _kill_tree(pid: int) -> None:
         pass
 
 
+def _is_python(pid: int) -> bool:
+    """Is process `pid` a Python at all? The pid file outlives a runner that was killed,
+    and Windows hands the number to the next program that starts - so "alive" was not
+    "ours", and the next `sbs debug` force-killed whatever had it, children and all."""
+    if os.name != "nt":
+        try:
+            with open(f"/proc/{pid}/comm") as f:
+                return "python" in f.read().lower()
+        except Exception:
+            return False
+    try:
+        import subprocess
+        out = subprocess.run(["tasklist", "/FI", f"PID eq {pid}", "/FO", "CSV", "/NH"],
+                             capture_output=True, text=True).stdout
+    except Exception:
+        return False
+    return out.strip().lower().startswith('"python')
+
+
 def _ensure_single_runner(tag) -> None:
     """Make the debug runner a singleton per port: on start, stop any previous
     instance we launched on the same port (and its child GUI server), then record
@@ -71,7 +90,7 @@ def _ensure_single_runner(tag) -> None:
         if os.path.isfile(pidfile):
             with open(pidfile) as f:
                 old = int((f.read() or "0").strip() or 0)
-            if old and old != os.getpid() and _pid_alive(old):
+            if old and old != os.getpid() and _pid_alive(old) and _is_python(old):
                 print(f"[runner] stopping previous debug runner (pid {old}) on port {tag}")
                 _kill_tree(old)
                 time.sleep(0.6)   # let the OS release the ports

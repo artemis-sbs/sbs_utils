@@ -255,10 +255,17 @@ def _cur_doc(index, uri):
     return None, uri
 
 
-def _diagnostics(text, index):
-    """amd_lint findings for `text` (mission-aware) -> LSP Diagnostic dicts."""
+def _diagnostics(text, index, path=None):
+    """amd_lint findings for `text` (mission-aware) -> LSP Diagnostic dicts.
+
+    `path` is the file the buffer belongs to. The buffer is what is linted - `content`
+    wins - but the checks that ask "does the story read this section?" need to know
+    WHICH file it is, and without the path they returned at their first line: the editor
+    never underlined `section-not-loaded`, `role-nothing-wears`, `role-is-a-key`,
+    `scan-of-many`, `duplicate-scan`, `reading-wrapped` or `scan-record-level`, all of
+    which `sbs lint` printed for the same file."""
     from sbs_utils.procedural.amd_lint import amd_lint
-    findings = amd_lint(content=text, mast_sources=index["mast"],
+    findings = amd_lint(file_path=path, content=text, mast_sources=index["mast"],
                         known_keys=index["known"],
                         source_index=index.get("mast_index"))
     lines = text.splitlines()
@@ -442,7 +449,7 @@ def _publish(stdout, uri, text, docs):
         elif _is_tiles(uri):
             diags = _tile_diagnostics(uri, text, docs)
         else:
-            diags = _diagnostics(text, _index_for(uri, docs))
+            diags = _diagnostics(text, _index_for(uri, docs), _uri_to_path(uri))
             try:
                 diags += _placement_diagnostics(uri, text, docs)
             except Exception:

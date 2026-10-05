@@ -1481,15 +1481,19 @@ class TextArea(Control):
             return "_", some_lines
 
         style_key = None
-        if some_lines.startswith("#"):
+        if some_lines.startswith("#") and some_lines.strip("#").strip():
+            # A HEADING HAS WORDS AFTER ITS HASHES. A line of hashes and nothing else - a
+            # manuscript's scene break - ran this loop off the end of the line, and the
+            # crew were shown `Document syntax issue line number 5 #` in place of the
+            # whole description. It is drawn as typed, like any other line.
             count = 0
-            while some_lines[count]=="#":
+            while count < len(some_lines) and some_lines[count]=="#":
                 count+=1
 
             style_key = f"h{count}"
             some_lines = some_lines[count:]
 
-        elif some_lines.startswith("- ") or some_lines.rstrip() == "-":
+        elif some_lines.startswith("- "):
             # A LIST ITEM IS A HYPHEN AND A SPACE. Any line that began with `-` was one,
             # and everything up to the first space was thrown away with it: `-Find her.`
             # was drawn `her.`, and a `---` rule in a description as `- ---`.
