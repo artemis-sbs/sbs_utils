@@ -14,9 +14,14 @@ It runs right inside VS Code, using the familiar debugger toolbar (▶ ⏸ ⏭).
 
 ## Set it up once
 
-Install the **Artemis AMD** extension in VS Code: open the **Extensions** view, search
-for *Artemis AMD*, and click **Install**. That's the whole setup — it already knows how
-to find your Cosmos install.
+Install the **Artemis AMD** extension in VS Code. It is **not in the Marketplace**, so
+searching the Extensions view will not find it: download the `amd-language-*.vsix` from
+the newest **"Artemis AMD (VS Code)"** release on the
+[sbs_cli releases page](https://github.com/artemis-sbs/sbs_cli/releases), then press
+`Ctrl+Shift+P`, run **Extensions: Install from VSIX...** and pick the file. Open your
+mission folder and **trust it** when VS Code shows its Restricted Mode band - the
+debugger does not run in a folder that is not trusted. That's the whole setup — it
+already knows how to find your Cosmos install.
 
 ## Debug a mission — the one-click way
 
