@@ -216,8 +216,8 @@ class Base(unittest.TestCase):
     def setUp(self):
         mock_sbs.create_new_sim()
         mock_sbs.resume_sim()          # delay_sim / timers need a running sim
-        clear_shared()                 # BEFORE SpaceObject.clear(), see below
         SpaceObject.clear()
+        clear_shared()                 # AFTER SpaceObject.clear(), see below
         FrameContext.context = Context(mock_sbs.sim, mock_sbs, FakeEvent(0, "test"))
         Agent.SHARED.set_inventory_value("sim", mock_sbs.sim)
 ```
@@ -227,9 +227,12 @@ Details that each fail silently:
 - **`sim` in MAST is a SHARED VARIABLE**, published by `cosmos_event_handler` every event.
   A harness that never sets it gets `'NoneType' has no attribute 'time_tick_counter'`
   from the addon's own main - reported against the addon, not the harness.
-- **Order: `clear_shared()` then `SpaceObject.clear()`.** The other order wipes
-  `Agent.SHARED` out of `Agent.all`, and anything resolving the shared agent
-  (`quest_add(Agent.SHARED_ID, ...)`) is a silent no-op.
+- **Order: `SpaceObject.clear()` then `clear_shared()`.** `clear()` empties `Agent.all`;
+  `clear_shared()` makes a fresh shared agent and puts it back. The other order leaves
+  `Agent.get(Agent.SHARED_ID)` as `None`, and anything resolving the shared agent
+  (`quest_add(Agent.SHARED_ID, ...)`, `quest_grant_amd(SHARED, ...)`) is a silent no-op.
+  (This file said the reverse until 2026-10-04; measured, and a harness copied from it
+  granted no quests.)
 - `set_inventory_value(<id>, ...)` on an id with no Agent is a silent no-op. Client ids
   need `GuiClient(cid)` or `Gui.push` first.
 - **An id is a typed thing.** `CID = 77` has no console bit, so code checking
