@@ -3,6 +3,11 @@
 `sbs` (the `sbs.pyz` tool) builds, runs, and serves missions from the command
 line. Run `sbs <command> --help` for full options.
 
+!!! note "`No such command`?"
+    The copy of `sbs` that comes with the game can be older than this page (the 1.3.x
+    downloads carry 0.4). From the `missions/` folder, `sbs version` shows what you
+    have and `sbs update` fetches the newest. `0.10` is newer than `0.4` and `0.9`.
+
 | Command | What it does |
 |---|---|
 | `sbs create <name>` | **Start a new mission** from a boilerplate template |

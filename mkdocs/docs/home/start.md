@@ -4,6 +4,19 @@ A mission is a folder in your Cosmos `missions/` directory. Cosmos runs its
 `script.py` at startup; almost everything else is written in
 [{{ab.m}}](../mast/tutorial.md).
 
+## First, bring `sbs` up to date
+
+The `sbs` tool that comes in the game's folder can be much older than these pages:
+the 1.3.x downloads carry version 0.4, which has no `create`, `templates`, `lint` or
+`doctor` and answers each with `No such command`. Open a Command Prompt in your
+`missions/` folder (`sbs` is only found from there) and type:
+
+```
+sbs version                # 0.4 is OLDER than 0.10: read it as "four" and "ten"
+sbs update                 # fetches the newest sbs.pyz and sbs.bat
+sbs doctor --env           # checks the tool, the libraries and the game's Python
+```
+
 ## Start from a template
 
 From your `missions/` folder:
