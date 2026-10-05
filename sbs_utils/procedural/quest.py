@@ -1464,6 +1464,12 @@ def quest_log_pane_text(row):
         facts.append(("Time left", _pane_safe(row.get("remaining"))))
     # A header-less grid: the empty first row says "no header", the second aligns.
     lines += ["| | |", "|:--|:--|"] + [f"| {k} | {v} |" for k, v in facts]
+    # The one-line instruction the WRITER typed (`Objective:`), above the description. It
+    # was read by the boards and by printed documents and by nothing here, though the docs
+    # said the quest log shows it. One made up from `Done when:` is never shown here.
+    objective = _pane_safe(row.get("objective") or "").strip()
+    if objective and objective.lower() != desc.lower():
+        lines += ["", objective]
     if desc:
         lines += ["", desc]
     return chr(10).join(lines)
@@ -1555,6 +1561,22 @@ def _quest_field(q, label):
     qd = q.get("data") or {}
     value = qd.get(label) if hasattr(qd, "get") else None
     return value if value is not None else q.get(label)
+
+
+def quest_objective_typed(q):
+    """The `Objective:` line the WRITER typed for quest dict `q`, or "".
+
+    A quest with no `Objective:` gets one made from `Done when:` (`Reach derelict 500`),
+    which is right for a board with nothing else to show and wrong above a description
+    somebody wrote. So the Quest Log asks this, not `data["objective"]`. Whichever of the
+    two lines came first in the fence, a typed one wins: the made-up one is only ever
+    put in a blank and is remembered beside it (`objective_auto`), so a typed one that
+    arrives later no longer matches it."""
+    data = (q.get("data") if hasattr(q, "get") else None) or {}
+    text = str(data.get("objective") or "").strip()
+    if not text or text == str(data.get("objective_auto") or "").strip():
+        return ""
+    return text
 
 
 def _quest_reward_text(q):
@@ -1649,6 +1671,7 @@ def _quest_log_rows(children, aid, group, depth):
             "state_label": quest_log_state_label(st),
             "progress": q.get("progress", 0),
             "desc": (q.get("description") or "").strip(),
+            "objective": quest_objective_typed(q),
             # What it IS, and what is worth reading under its title.
             "kind": _quest_kind(q),
             "need": _quest_need(q),

@@ -378,6 +378,10 @@ def amd_quest_facts(aliases=None):
                 # lines meant different things depending on their order.
                 if kind in _INSTRUCTION_TRIGGERS and not data.get("objective"):
                     data["objective"] = value[:1].upper() + value[1:]
+                    # FILLED IN, not written. A board that has nothing else to say can
+                    # show it; the Quest Log, which has the writer's own description,
+                    # shows only an objective the writer typed (`quest_objective_typed`).
+                    data["objective_auto"] = data["objective"]
         elif label == "then":
             # `reveal first_contact / study`: spaces round the slash are not part of the
             # path. The split below kept `first_contact` and dropped the rest, so the
