@@ -32,7 +32,7 @@ it is — is in [The AMD file format](amd-format.md).
 | Field | Meaning | Also |
 |---|---|---|
 | `At start:` | What condition this record is in when the mission BEGINS. `posting` is listed like an available job but shows no Accept button - something else has to offer it. | `State:` |
-| `Objective:` | The one-line instruction. The quest log shows it above the description **when you typed one**; the sortie and side-quest boards and printed documents show it either way, and when you leave it out they use one made from `Done when:` (`Reach derelict 500`), which the quest log never shows. |  |
+| `Objective:` | The one-line instruction. The quest log shows it above the description when you typed one; the boards and printed documents show it either way, and use one made from `Done when:` when you leave it out. |  |
 | `Done when:` | The COMPLETION trigger - what has to happen for this quest to be done. | `Goal:` |
 | `Starts when:` | When it ARMS - `at once`, `accepted` (the player takes it off the board), `revealed` (another quest reveals it). Not what completes it; that is `Done when:`. | `When:` |
 | `Fails when:` | What FAILS it - the same trigger grammar, plus `all dead <role>` and a bare time. |  |

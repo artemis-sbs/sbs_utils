@@ -224,7 +224,10 @@ QUEST = {
                           "`posting` is listed like an available job but shows no Accept "
                           "button - something else has to offer it."),
     "objective": field(text(hint="the sentence the player reads"),
-                       doc="The sentence the player reads in the quest log."),
+                       doc="The one-line instruction. The quest log shows it above the "
+                           "description when you typed one; the boards and printed "
+                           "documents show it either way, and use one made from "
+                           "`Done when:` when you leave it out."),
     # `Goal:` used to set BOTH the completion trigger and the objective TEXT, so a
     # job's quest log read "Signal 5 drone_down". Split: Objective is the prose,
     # Done when is the trigger.
