@@ -1691,7 +1691,12 @@ def amd_lint_never_revealed(doc, content=None, source_index=None):
         leaf = key.split("/")[-1]
         if leaf.lower() in words:
             continue                      # the story names it: it may start it itself
-        named = re.compile(r"(?<![\w/])(?:[\w]+[ \t]*/[ \t]*)*" + re.escape(leaf) + r"(?![\w])")
+        # NAMED AS A TARGET: after `reveal`, or after the word an answer uses to start a
+        # quest. The key appearing anywhere used to do - and a step keyed `home` was
+        # "revealed" by the sentence `Win: The log is home.`
+        named = re.compile(
+            r"\b(?:reveals?|accepts?|starts?|begins?|grants?|completes?|opens?)\b[^\n]*?"
+            r"(?<![\w])(?:[\w]+[ \t]*/[ \t]*)*" + re.escape(leaf) + r"(?![\w/])", re.I)
         own = node.span.line if node.span else 0
         if any(named.search(text) for i, text in enumerate(lines, start=1)
                if i != own and not text.lstrip().startswith("//")):
@@ -1704,6 +1709,29 @@ def amd_lint_never_revealed(doc, content=None, source_index=None):
             f"`{node.display or key}` waits to be revealed, and nothing reveals it: no "
             f"`Then: reveal {path}` on another step, and no answer or story line names "
             f"`{leaf}`. It never appears{tail}"))
+    return findings
+
+
+def amd_lint_reveal_self(doc):
+    """Flag a step whose `Then: reveal` names the step itself. WARNING.
+
+    The next step is the one that was meant, and it never appears. (The game no longer
+    restarts the finished step - it used to, and paid its reward again each time.)"""
+    findings = []
+    owners = {n.key: n for n in doc.nodes}
+    for ref in doc.refs:
+        if ref.kind != "reveal":
+            continue
+        owner = owners.get(ref.owner)
+        if owner is None or str(getattr(owner, "kind", "") or "").lower() != "quest":
+            continue
+        value = str(ref.value).strip()
+        if value and value in (str(owner.key), _quest_path(owner)):
+            findings.append(AmdFinding.at(
+                ref.span, WARNING, "reveal-self",
+                f"`Then: reveal {value}` is on `{owner.display or owner.key}` itself: a "
+                f"step cannot reveal itself, so nothing new appears when it finishes. "
+                f"Name the step that comes NEXT"))
     return findings
 
 
@@ -4306,6 +4334,7 @@ def amd_lint(file_path=None, content=None, mast_sources=None, cross_file=None,
         findings += amd_lint_start_only(doc)
         findings += amd_lint_never_revealed(doc, content, source_index)
         findings += amd_lint_signal_with_no_name(doc)
+        findings += amd_lint_reveal_self(doc)
         findings += amd_lint_fields_below_fence(doc)
         findings += amd_lint_hails(doc)
         findings += amd_lint_then(doc)

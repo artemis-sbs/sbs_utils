@@ -712,6 +712,13 @@ def quest_reveal(agent_id, reveal):
         # path without them. It named no quest, and nothing was revealed.
         if isinstance(qid, str) and "/" in qid:
             qid = "/".join(part.strip() for part in qid.split("/"))
+        # A REVEAL UNCOVERS A STEP; IT DOES NOT START A FINISHED ONE AGAIN. A step whose
+        # `Then:` named its OWN path re-opened itself each time it finished, and finished
+        # again two seconds later with the ship still at the hulk: 100 credits a time,
+        # 750 in thirteen seconds. The same hole paid a step twice when the crew did it
+        # before the step that reveals it.
+        if quest_get_state(agent_id, qid) in (QuestState.COMPLETE, QuestState.FAILED):
+            continue
         quest_mark_active(agent_id, qid)
 
 

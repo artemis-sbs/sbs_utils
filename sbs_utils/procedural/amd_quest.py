@@ -382,7 +382,17 @@ def amd_quest_facts(aliases=None):
             # `reveal first_contact / study`: spaces round the slash are not part of the
             # path. The split below kept `first_contact` and dropped the rest, so the
             # arc was "revealed" (it was already running) and the step never appeared.
-            toks = re.sub(r"[ \t]*/[ \t]*", "/", str(value)).split()
+            # ...Folded AFTER the verb is taken off. Folding the whole line glued
+            # `reveal /salvage/home` into one word, which then had no verb at all.
+            toks = str(value).split(None, 1)
+            if len(toks) == 2 and toks[0].lower() in THEN_VERBS:
+                rest = re.sub(r"[ \t]*/[ \t]*", "/", toks[1]).split()
+                if rest and toks[0].lower() == "reveal":
+                    # `/salvage/home`: a slash in front is still that path.
+                    rest[0] = rest[0].strip("/") or rest[0]
+                toks = [toks[0]] + rest
+            else:
+                toks = str(value).split()
             if len(toks) >= 2 and toks[0].lower() in THEN_VERBS:
                 data[toks[0].lower()] = toks[1]
             else:

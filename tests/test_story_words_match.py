@@ -256,6 +256,56 @@ class APathWithSpacesRoundItsSlash(unittest.TestCase):
         self.assertEqual(len(findings(wrong, code="dangling-reveal")), 1)
 
 
+class WhatTheChainsLessonStillFound(unittest.TestCase):
+    """From re-measuring "Chains and trees" on the fixed tools."""
+
+    def setUp(self):
+        reset_mock(sbs)
+
+    def test_a_slash_in_front_of_the_path_does_not_stop_lint(self):
+        # The slash fold glued `reveal /first_contact/study` into one word; `[1]` raised,
+        # and the whole file got one line: "reference checks skipped - parse failed".
+        # A slash in front is still that path: the game reveals the step, lint is quiet.
+        text = MISSION.replace("Then: reveal first_contact/study", "Then: reveal /first_contact/study")
+        self.assertEqual([str(f) for f in findings(text)], [])
+        wrong = MISSION.replace("Then: reveal first_contact/study", "Then: reveal /first_contact/stdy")
+        codes = [f.code for f in findings(wrong)]
+        self.assertNotIn("parse-skipped", codes)
+        self.assertIn("dangling-reveal", codes)
+
+    def test_the_reader_keeps_the_verb_and_the_path_apart(self):
+        from sbs_utils.procedural.amd_quest import amd_quest_data
+        self.assertEqual(amd_quest_data("Then: reveal /a/b\n").get("reveal"), "a/b")
+        self.assertEqual(amd_quest_data("Then: reveal a / b\n").get("reveal"), "a/b")
+        self.assertEqual(amd_quest_data("Then: signal found\n").get("signal"), "found")
+
+    def test_a_reveal_does_not_start_a_finished_step_again(self):
+        # A step whose `Then:` named its own path finished, re-opened, and finished again
+        # every two seconds beside the hulk - and was paid each time.
+        quest_add(Agent.SHARED_ID, "arc", "Arc", "", state=QuestState.ACTIVE)
+        quest_add(Agent.SHARED_ID, "arc/done", "Done", "", state=QuestState.COMPLETE)
+        quest_add(Agent.SHARED_ID, "arc/lost", "Lost", "", state=QuestState.FAILED)
+        quest_add(Agent.SHARED_ID, "arc/next", "Next", "", state=QuestState.SECRET)
+        QD.quest_reveal(Agent.SHARED_ID, ["arc/done", "arc/lost", "arc/next"])
+        self.assertEqual(quest_get_state(Agent.SHARED_ID, "arc/done"), QuestState.COMPLETE)
+        self.assertEqual(quest_get_state(Agent.SHARED_ID, "arc/lost"), QuestState.FAILED)
+        self.assertEqual(quest_get_state(Agent.SHARED_ID, "arc/next"), QuestState.ACTIVE)
+
+    def test_a_step_that_reveals_itself_is_said(self):
+        text = MISSION.replace("Then: reveal first_contact/study", "Then: reveal first_contact/find")
+        found = findings(text, code="reveal-self")
+        self.assertEqual(len(found), 1)
+        self.assertIn("NEXT", found[0].message)
+
+    def test_a_key_that_is_only_a_word_in_a_sentence_reveals_nothing(self):
+        # `never-revealed` took the key appearing ANYWHERE for a reveal: a step keyed
+        # `study` was "revealed" by a sentence that used the word.
+        text = AStepNothingReveals.NO_THEN.replace(
+            "A derelict has drifted into the sector.",
+            "A derelict has drifted into the sector. Go and study it.")
+        self.assertEqual(len(findings(text, code="never-revealed")), 1)
+
+
 class AStepThatBelongsToNoStory(unittest.TestCase):
     def test_it_is_not_told_its_story_cannot_finish(self):
         alone = MISSION + ("\n### [The One Who Stayed](stayed)\n---\nScope: shared\n"
