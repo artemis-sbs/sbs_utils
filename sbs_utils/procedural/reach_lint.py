@@ -24,6 +24,9 @@ from .amd_lint import AmdFinding, WARNING, _source_lines
 CODE = "mast-unreachable"
 
 _END = re.compile(r"^(\s+)->\s*END\s*(#.*)?$")
+# A line that STARTS a label: a route (`//signal/x`, `///inline`), a `== label ==`, a
+# `--- inline` label, or a decorator label (`@map/...`).
+_LABEL = re.compile(r"^(//|={2,}|-{3,}\s*\w|@\w+/)")
 
 
 def _indent(line):
@@ -47,13 +50,20 @@ def reach_lint(file_path=None, content=None):
             continue
         indent = _indent(line)
         if dead_at is not None:
-            if indent < dead_at:
-                dead_at = None                       # left the block that ended
+            if indent < dead_at or _LABEL.match(stripped):
+                # Left the block that ended - or a NEW label starts here. A route or a
+                # label line begins one wherever it is indented: a recipe card pasted
+                # with four spaces in front of it runs (measured), and this said its
+                # first line never would.
+                dead_at = None
             elif not reported:
                 findings.append(AmdFinding(
                     number, WARNING, CODE,
                     f"this line never runs: the label ended at `->END` on line "
-                    f"{dead_line}. Move it above that line"))
+                    f"{dead_line}. If this line belongs to that label, move it above "
+                    f"line {dead_line}. If line {dead_line} is the end of something you "
+                    f"pasted INTO a label, move what you pasted to the end of the file: "
+                    f"it cut the label in two"))
                 reported = True
                 continue
             else:

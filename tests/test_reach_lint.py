@@ -91,5 +91,35 @@ class UnreachableTests(unittest.TestCase):
         self.assertEqual(_lines(text), [])
 
 
+class ALabelStartsWhereverItIsIndented(unittest.TestCase):
+    """A recipe card pasted with four spaces in front of it RUNS (measured in the mock,
+    Lecture 11's re-measure), and this check said its first line never would: it took the
+    route line for one more line of the label that had just ended."""
+
+    MAP = "== setup ==\n    place()\n    ->END\n"
+
+    def test_an_indented_route_is_a_new_label(self):
+        text = self.MAP + "    //shared/signal/quest_started\n        tug()\n        ->END\n"
+        self.assertEqual(_lines(text), [])
+
+    def test_only_the_route_line_indented(self):
+        text = self.MAP + "    //shared/signal/quest_started\n    tug()\n    ->END\n"
+        self.assertEqual(_lines(text), [])
+
+    def test_an_indented_label_and_an_indented_map(self):
+        self.assertEqual(_lines(self.MAP + "    == later ==\n    more()\n"), [])
+        self.assertEqual(_lines(self.MAP + '    @map/second "Second"\n    more()\n'), [])
+
+    def test_a_dead_line_after_the_indented_card_is_still_found(self):
+        text = (self.MAP + "    //shared/signal/quest_started\n        tug()\n"
+                "        ->END\n        late()\n")
+        self.assertEqual(_lines(text), [(7, "mast-unreachable")])
+
+    def test_the_advice_names_both_causes(self):
+        found = reach_lint(content="== a ==\n    ->END\n    never()\n")
+        self.assertIn("move it above line 2", found[0].message)
+        self.assertIn("pasted INTO a label", found[0].message)
+
+
 if __name__ == "__main__":
     unittest.main()
