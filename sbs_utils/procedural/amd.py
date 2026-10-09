@@ -1111,7 +1111,19 @@ def _parse_entries(entries, errors):
             # empty value + indented lines = a nested block or a list
             data[label] = _parse_entries(children, errors)
             continue
-        data[label] = _flow(value, lineno, errors) if amd_is_yaml_flow(value) else value
+        parsed = _flow(value, lineno, errors) if amd_is_yaml_flow(value) else value
+        # `File:` REPEATS. A chapter that pulls in several files writes one `File:` line
+        # each - `amd_includes` documents exactly that, and Open Universe's own Dialogue
+        # chapter is written that way - but a fence is a dict, so every line replaced the
+        # one before it and only the LAST file was ever read. No error, lint clean, and
+        # three of four dialogue files simply were not in the game. Found by the Class 5
+        # author lessons. Only this label gathers: for every other field a second line
+        # is still the one that counts, as it always was.
+        if label.lower() == "file" and label in data and isinstance(parsed, str):
+            earlier = data[label]
+            data[label] = (earlier if isinstance(earlier, list) else [earlier]) + [parsed]
+            continue
+        data[label] = parsed
     return data
 
 

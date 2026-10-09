@@ -50,6 +50,32 @@ class AmdDocTests(unittest.TestCase):
         self.assertEqual(pairs, [
             ("clans", "clans_a.amd"), ("clans", "clans_b.amd"), ("clans", "clans_c.amd")])
 
+    def test_EVERY_REPEATED_FILE_LINE_IS_READ(self):
+        """One `File:` line per file is how Open Universe's own Dialogue chapter is
+        written, and how `amd_includes` says to write it. A fence is a dict, so each
+        line replaced the one before and only the LAST file was read - silently."""
+        doc = _doc("# [World](world)\n"
+                   "## [Dialogue](dialogue)\n"
+                   "---\n"
+                   "File: dialogue/ashfang.amd\n"
+                   "File: dialogue/verdant.amd\n"
+                   "File: dialogue/officers.amd\n"
+                   "---\n")
+        self.assertEqual([i.get("file") for i in amd_includes(doc)],
+                         ["dialogue/ashfang.amd", "dialogue/verdant.amd",
+                          "dialogue/officers.amd"])
+
+    def test_the_same_through_a_mission_parser(self):
+        from sbs_utils.procedural.amd_mission import amd_mission_data
+        doc = amd_document("# [World](world)\n## [Jobs](jobs)\n---\n"
+                           "File: a.amd\nFile: b.amd\n---\n", data_parser=amd_mission_data)
+        self.assertEqual([i.get("file") for i in amd_includes(doc)], ["a.amd", "b.amd"])
+
+    def test_only_File_gathers_any_other_repeated_field_keeps_its_last_line(self):
+        from sbs_utils.procedural.amd import amd_parse_facts
+        self.assertEqual(amd_parse_facts("Color: red\nColor: blue\n").get("color"), "blue")
+        self.assertEqual(amd_parse_facts("File: one.amd\n").get("file"), "one.amd")
+
     def test_splice_appends_into_section(self):
         doc = _doc(TOC)
         inc = _doc("# [Ashfang](ashfang)\n# [Verdant](verdant)\n")
