@@ -1722,6 +1722,13 @@ def boarding_latecomers():
     Agent.SHARED.set_inventory_value(INVITE_KEY, invite)
     for client_id, body in added:
         boarding_reserve(client_id, body)
+    # The party now HAS crew in it, so it is a crew party in the sense `boarding_forwarding`
+    # means. `boarding_invite_crew` only switches forwarding on when somebody was seated
+    # at the instant it ran - and a party opened before anyone had picked a station (the
+    # very case this function exists for) therefore never forwarded: a job nobody in the
+    # party held went to no console at all, and a room gated on those answers could not
+    # be finished.
+    boarding_forwarding(True)
     return added
 
 

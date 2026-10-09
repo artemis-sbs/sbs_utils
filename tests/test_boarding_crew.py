@@ -328,3 +328,35 @@ class TestAConsoleThatArrivesLate(CrewPartyBase):
         self.link(self.ship, "consoles", SCI)
         self.assertEqual(A.boarding_latecomers(), [])
         self.assertIsNone(A.boarding_reserved(SCI))
+
+
+class TestAPartyOpenedOnAnEmptyBridge(CrewPartyBase):
+    """Forwarding was decided at the instant the party opened, and only there.
+
+    `boarding_invite_crew` switches it on `if pairs:` - when somebody was seated. A party
+    opened before anyone had picked a station is the case latecomers exist for, and there
+    `pairs` is empty, so forwarding stayed off for the whole visit: a job nobody in the
+    party held was offered to no console at all, and a room that counted those answers
+    could not be finished. Found by the Class 3 author lessons, which open a visit when
+    Helm finds the hulk.
+    """
+
+    def setUp(self):
+        super().setUp()
+        from sbs_utils.procedural.links import link
+        from sbs_utils.procedural.spawn import player_spawn
+        self.link = link
+        self.ship = player_spawn(0, 0, 0, "Artemis", "tsn", "tsn_light_cruiser")
+        A.boarding_invite_crew(self.ship, title="The Hulk")
+
+    def test_nobody_was_there_so_nothing_is_forwarded_yet(self):
+        self.assertFalse(A.FORWARDING)
+        self.assertEqual(A.boarding_latecomers(), [])
+        self.assertFalse(A.FORWARDING)
+
+    def test_THE_FIRST_PERSON_TO_ARRIVE_MAKES_IT_A_CREW_PARTY(self):
+        self.crew(HELM, "helm", "Marek")
+        self.link(self.ship, "consoles", HELM)
+        self.assertEqual(len(A.boarding_latecomers()), 1)
+        self.assertTrue(A.FORWARDING, "a party made of latecomers is still whoever is "
+                                      "on the bridge; its unfilled jobs go to somebody")
