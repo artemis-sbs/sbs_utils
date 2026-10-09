@@ -476,24 +476,38 @@ class Mast():
             self.basedir = saved_basedir
             if content is None:
                 raise Exception(f"Failed to import python in mast library {name} {self.lib_name}")
-            ns_mod = MastGlobals.get_mission_py_module(self.lib_name)
+            # ONE NAMESPACE PER REPO, NOT PER MASTLIB. Keyed by the lib it was once per
+            # addon, so two addons of one repo could not see each other once packaged:
+            # OpenUniverse's `admiral_present()` (universe_core) asks whether the admiral
+            # addon's `admiralty_configure` is in its namespace, and admiral's .py calls
+            # universe_core's helpers by bare name. From SOURCE folders both worked,
+            # because sibling folders share the mission's namespace (below). From
+            # mastlibs neither did - so a mission made by `sbs create -t ou` could add
+            # the admiral mastlib and get no Admiral, no error and an empty log. The
+            # only place it worked was the one mission that never loads the mastlibs.
+            # Found by the Class 5 author lessons. See `Mast.lib_scope_key`.
+            scope_key = Mast.lib_scope_key(self.lib_name)
+            ns_mod = MastGlobals.get_mission_py_module(scope_key)
             # Expose the shared namespace under this file's bare module name so a
             # `from sibling import x` / `import sibling` between the mastlib's .py files
             # resolves to the shared dict. Idempotent; set before exec.
+            # Keyed by the LIB as well as the file: two addons of one repo now share a
+            # namespace, and each may have its own `helpers.py`.
             exec_files = ns_mod.__dict__.setdefault("__mast_files__", set())
-            if name in exec_files:
+            file_id = f"{self.lib_name}::{name}"
+            if file_id in exec_files:
                 return
             # Exec into the FILE's own globals, then publish only its public names.
             # A leading underscore is private - see MastGlobals.PrivateFileNamespace.
-            file_ns = MastGlobals.make_py_file_namespace(self.lib_name)
+            file_ns = MastGlobals.make_py_file_namespace(scope_key)
             # The bare module name binds THIS FILE (privates included), falling back
             # to the shared namespace - see MastGlobals.FileModule. Set before exec so
             # a file importing an already-loaded sibling resolves it.
             sys.modules[module_name] = MastGlobals.FileModule(
                 module_name, file_ns, ns_mod.__dict__)
             exec(compile(content, "<not a real path>/" + module_name + ".py", "exec"), file_ns)
-            MastGlobals.publish_py_file_namespace(self.lib_name, file_ns)
-            exec_files.add(name)
+            MastGlobals.publish_py_file_namespace(scope_key, file_ns)
+            exec_files.add(file_id)
             MastGlobals.register_mission_functions(ns_mod)
             return
 
@@ -874,6 +888,22 @@ class Mast():
         except OSError:
             return None
         return os.path.join(lib_dir, candidates[-1]) if candidates else None
+
+    @staticmethod
+    def lib_scope_key(lib_name):
+        """The Python namespace a mastlib's .py files share: one per REPO.
+
+        A lib is named ``{user}.{repo}.{folder}.{version}.mastlib``, so every addon a
+        repo ships answers the same key - which is what lets `admiral` and
+        `universe_core` call each other packaged the way they do as source folders. A
+        name that is not shaped like that keeps a namespace of its own, as before.
+        """
+        import os
+        base = os.path.basename(str(lib_name).replace("\\", "/"))
+        parts = base.split(".", 3)
+        if len(parts) >= 4 and parts[0] and parts[1]:
+            return f"mastlib::{parts[0]}.{parts[1]}".lower()
+        return str(lib_name)
 
     @staticmethod
     def addon_folder_name(lib_name):
