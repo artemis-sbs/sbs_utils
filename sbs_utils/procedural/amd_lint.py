@@ -1192,6 +1192,41 @@ def _relic_sends(doc):
     return out
 
 
+def _ground_waits(doc):
+    """Signals the things on a boarding party's ground wait on BY THEMSELVES: a door
+    that `Opens with: ... signal X`, and a prop or a person `Hidden until: X`. The
+    library hears those (`boarding_props.py`, `boarding_combat.py`), so the signal has
+    somewhere to go without a route in the story."""
+    out = set()
+    for node in doc.nodes:
+        if str(getattr(node, "kind", "") or "").strip().lower() not in ("prop", "hostile"):
+            continue
+        fields = _plain_fields(node)
+        for _ln, value in fields.get("hidden until", []):
+            if value:
+                out.add(value.strip().lower())
+        for _ln, value in fields.get("opens with", []):
+            for term in value.split(","):
+                words = term.split()
+                if len(words) >= 2 and words[0].lower() == "signal":
+                    out.add(words[1].strip().lower())
+    return out
+
+
+def _ground_sends(doc):
+    """Quest signals the people on the ground send BY THEMSELVES: `hostile_down_<key>`
+    when one is put down for good (`boarding_combat.py`). No story line sends it."""
+    from sbs_utils.procedural.amd import amd_signal_name
+    out = set()
+    for node in doc.nodes:
+        if str(getattr(node, "kind", "") or "").strip().lower() != "hostile":
+            continue
+        key = str(getattr(node, "key", "") or "").strip()
+        if key and node.fence_lines:
+            out.add(amd_signal_name("hostile_down_" + key))
+    return out
+
+
 def amd_lint_cross_file(doc, mast_sources=None, source_index=None):
     """Flag emitted `signal X` with no `//signal/X` route, a quest `When: signal X`
     that nothing emits, and `reach i,j` cells with no landmark `At: i,j`. WARNING.
@@ -1216,14 +1251,15 @@ def amd_lint_cross_file(doc, mast_sources=None, source_index=None):
         quest_emitted = from_amd | source_index.get("quest_emitted", source_index["emitted"])
         # And what the ruins in this file send by themselves - a way opened, a job done,
         # the piece taken. The library sends those, so no story line ever will.
-        sent_by_relics = _relic_sends(doc)
+        sent_by_relics = _relic_sends(doc) | _ground_sends(doc)
         emitted = emitted | sent_by_relics
         quest_emitted = quest_emitted | sent_by_relics
 
     # A signal something in the AMD WAITS on is handled, route or no route: a quest's
     # `Done when: signal X`, or a relic part's `Starts when:` / `Opens when:`. Flagging
     # those told an author to write an empty route for a signal that already did its job.
-    waited = {r.value for r in doc.refs if r.kind == "wait_signal"} | _relic_waits(doc)
+    waited = ({r.value for r in doc.refs if r.kind == "wait_signal"} | _relic_waits(doc)
+              | _ground_waits(doc))
     for ref in doc.refs:
         if ref.kind == "signal" and source_index is not None:
             if ref.value in routes or ref.value in DRIVER_SIGNALS or ref.value in waited:
@@ -3097,6 +3133,11 @@ _AMD_SECTION_CALL = re.compile(r"(?:amd|relic)_section\(\s*[^,()]+,\s*[\"']([\w 
 # `relic_section(...)` - and they were listed here, so a Cutscenes section that
 # nothing read was clean in any mission with a ruin in it.
 _RELIC_FILE_SECTIONS = ("items", "dialogue")
+# What `boarding_ground_load(doc)` reads from the document BY ITSELF: the things on the
+# ground, the people, and the scenes they name (`procedural/boarding_ground.py` - the
+# same frozen keys). It does not read quests or side stories.
+_GROUND_SECTIONS = ("props", "prop", "objects", "people", "hostiles", "hostile",
+                    "scenes", "scene", "boarding")
 _TRIGGER_LABELS_SPACED = ("done when", "starts when", "fails when", "goal", "when")
 
 
@@ -3140,6 +3181,7 @@ def amd_lint_mission_reads(doc, file_path=None, mast_sources=None, source_index=
                              == len(_AMD_SECTION_CALL.findall(text)))
     reads_crew = "crew_load_amd(" in text or "crew_declare_amd(" in text
     reads_relics = any(w in text for w in ("relics_spawn(", "relics_load(", "relics_build("))
+    reads_ground = "boarding_ground_load(" in text
     if literal and every_call_is_literal:
         from sbs_utils.procedural.amd_crew import CREW_KINDS
         from sbs_utils.procedural.amd_schema import archetype_for_section
@@ -3174,6 +3216,8 @@ def amd_lint_mission_reads(doc, file_path=None, mast_sources=None, source_index=
                 continue             # personal quests: `stories-not-handed-out` says how
             if reads_relics and (archetype_for_section(key) == "relic"
                                  or key in _RELIC_FILE_SECTIONS):
+                continue
+            if reads_ground and key in _GROUND_SECTIONS:
                 continue
             findings.append(AmdFinding.at(
                 node.display_span or node.span, WARNING, "section-not-loaded",
@@ -3398,6 +3442,12 @@ def amd_lint_kind_lines(doc):
 
 _SKILL_ENTRY = re.compile(r"^[A-Za-z_][A-Za-z_ ]*\s+-?\d+$")
 
+
+def _never_of_a_flag(op, num):
+    """Whether `name op num` can never be true of something that is only 1 or 0 - a job,
+    or one named fact (`if medical >= 2`, `if learned manifest > 1`)."""
+    return (op == ">=" and num > 1) or (op == ">" and num >= 1) or (op == "==" and num > 1)
+
 #: Words a guard reads as a JOB when no roster says otherwise - `boarding._STOCK_JOBS`.
 _STOCK_JOB_WORDS = ("medical", "engineering", "security", "science", "helm", "weapons",
                     "comms", "captain", "command", "pilot", "doctor", "tactical",
@@ -3520,7 +3570,7 @@ def amd_lint_skills(doc):
                         facts.add(" ".join(str(t) for t in outcome[1:]).strip().lower())
     people = _roster_words(doc)[0] - jobs
 
-    def read_as_a_name(lineno, text, name, what):
+    def read_as_a_name(lineno, text, name, what, never=False):
         """A condition that is one long NAME nobody answers to. True when reported.
 
         A condition is a name, or `name op number`, and nothing else - so every one of
@@ -3529,9 +3579,14 @@ def amd_lint_skills(doc):
             if medical and learned >= 2      two conditions joined
             if medical or engineering        the same
             if not medical                   there is no `not`
-            if learned alive / if learned 3  `learned` only counts
-            if alive                         a fact the party learns, asked for by name
+            if learned 3                     a count with its sign missing
+            if learned alive >= 2            one fact is known or not; it is never 2
+            if learned alvie                 a fact nothing in this file learns
+            if alive                         a fact the party learns, asked for bare
             if hale / if Dr Hale             a person; `if` takes a job
+
+        `if learned alive` - `learned`, then a fact a `; learn alive` records - is a
+        condition, and is left alone.
         """
         parts = name.split()
         code = how = None
@@ -3541,14 +3596,27 @@ def amd_lint_skills(doc):
                    "and `not` are read as part of the name. Write one condition per "
                    "choice; a choice for two jobs is two choices that lead to one room")
         elif parts and parts[0] == "learned" and len(parts) > 1:
-            code = "guard-learned-shape"
-            how = ("is not how `learned` works: it only COUNTS what the party knows. "
-                   "Write `if learned >= 3`")
+            fact = " ".join(parts[1:])
+            if re.match(r"^-?\d+$", fact):
+                code = "guard-learned-shape"
+                how = (f"is read as a fact called `{fact}`, which nothing learns. To "
+                       f"COUNT what the party knows the sign is needed: "
+                       f"`if learned >= {fact}`")
+            elif never:
+                code = "guard-learned-shape"
+                how = (f"can never be true: `learned {fact}` is ONE fact, known or not - "
+                       f"1 or 0. Write `if learned {fact}`, or count everything the "
+                       f"party knows with `if learned >= 2`")
+            elif facts and fact not in facts:
+                code = "guard-learned-unknown"
+                how = (f"asks for a fact called `{fact}`, and no choice in this file "
+                       f"says `; learn {fact}`, so it is never known. What is learned "
+                       f"here: {', '.join(sorted(facts))}")
         elif name in facts and name not in jobs:
             code = "guard-names-a-fact"
-            how = (f"asks for `{name}`, which is something the party LEARNS, and a "
-                   f"condition cannot ask for one fact by name - it is read as a job. "
-                   f"Count them: `if learned >= 2`")
+            how = (f"asks for `{name}`, which is something the party LEARNS, and on its "
+                   f"own that is read as a job. Write `if learned {name}`, or count "
+                   f"them: `if learned >= 2`")
         elif name in people:
             code = "guard-names-a-person"
             how = (f"names a person. `if` takes a JOB from a `Roles:` line; `For:` on a "
@@ -3563,9 +3631,12 @@ def amd_lint_skills(doc):
         text = " ".join(str(guard).split())
         low = text.lower()
         m = _GUARD.match(text)
+        # Whether `name op number` can be true of something that is only ever 1 or 0.
+        never = m is not None and _never_of_a_flag(m.group("op"), int(m.group("num")))
         if read_as_a_name(
                 lineno, text,
-                " ".join(m.group("lhs").split()).lower() if m is not None else low, what):
+                " ".join(m.group("lhs").split()).lower() if m is not None else low, what,
+                never):
             return
         if m is None:
             if _BARE_GUARD.match(text) and (low.startswith("skill ") or low.startswith("skills ")
@@ -3591,8 +3662,6 @@ def amd_lint_skills(doc):
                     f"this is 0 for everyone. Check the spelling against the `Skills:` "
                     f"lines"))
         elif lhs in jobs:
-            never = ((op == ">=" and num > 1) or (op == ">" and num >= 1)
-                     or (op == "==" and num > 1))
             if never:
                 findings.append(AmdFinding(
                     lineno, WARNING, "job-gate-never",

@@ -123,6 +123,8 @@ MastGlobals.import_python_module('sbs_utils.procedural.boarding_deckplan')
 MastGlobals.import_python_module('sbs_utils.procedural.boarding_checks')
 MastGlobals.import_python_module('sbs_utils.procedural.boarding_combat')
 MastGlobals.import_python_module('sbs_utils.procedural.boarding_quests')
+# One call that loads a tile-map away mission's ground: boarding_ground_load(doc).
+MastGlobals.import_python_module('sbs_utils.procedural.boarding_ground')
 # The other body model: a suit flying a relic, where there is no floor to walk.
 MastGlobals.import_python_module('sbs_utils.procedural.eva')
 MastGlobals.import_python_module('sbs_utils.procedural.eva_tools')

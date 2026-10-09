@@ -1,9 +1,7 @@
-# The Tile Map Editor (experimental)
+# The Tile Map Editor
 
-!!! warning "Experimental"
-    New in v1.4.0 and not yet tried on many maps. It edits the text file directly and
-    VS Code's undo covers every change, so it cannot lose work. Keep an eye on what it
-    writes, and report anything odd.
+New in v1.4.0. It edits the text file directly and VS Code's undo covers every change, so
+it cannot lose work. The file formats it reads and writes are settled for 1.4.0.
 
 A [ground tile map](../build/ground-tile-maps.md) is an ASCII grid, and typing one is
 easy. The hard parts are seeing it and checking it. Edges, fringes and shade depend on the

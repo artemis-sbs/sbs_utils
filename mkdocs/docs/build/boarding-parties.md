@@ -63,6 +63,39 @@ crew.
 Before this call a scene had a beginning and no end: the party stayed open after the last
 room, and a console that went down late arrived in an empty one.
 
+The section that holds the rooms can be keyed `scenes`, `scene` or `boarding`:
+`## [Scenes](scenes)`. Older lessons write `(boarding)`, and it keeps working.
+
+### A visit on a tile map
+
+On a [ground tile map](ground-tile-maps.md) there is no first room. The party walks, and
+a scene belongs to the thing or the person that opens it. Give `area=` and leave the first
+room out:
+
+```
+boarding_ground_load(MISSION_DOC)
+
+boarding_visit(ship, boarding_ground_scenes(), title="Kesh Relay", area="landing",
+               stories=amd_section(MISSION_DOC, "side_stories"))
+```
+
+`area` is the `area:` line of a `.tiles` file. Whoever beams down stands at that area's
+`entry:`. The same call owns the whole visit, with these differences from a text visit:
+
+| | On a tile map |
+|---|---|
+| The first scene | None is begun. `scenes` are what a prop's `Scene:` and a person's `Talk scene:` name. |
+| When it ends | Not when a scene closes. It ends when the game does (see [endings](#how-a-visit-ends-and-two-endings)), or when the mission calls `boarding_visit_end()`. |
+| Beaming up | One console can beam up and come back down as the same person. The visit is still there, and so is what the party learned. |
+| Everybody down | A party that is **all** down comes round at the area's `entry:` after 8 seconds, with 1 HP. `boarding_party_revived` is sent (`BOARDING_WHO`, `BOARDING_AREA`), so a route can say what that cost. One person down is left for the others to help. |
+| Side stories | Handed to each person as they arrive, exactly as in a text visit. |
+
+Give a first room as well (`boarding_visit(ship, scenes, "airlock", area="deck")`) and it
+is the text visit described above, standing in that area: the scene is begun and watched.
+
+The `away` starter (`sbs create <Name> -t away`) is a whole mission built on these two
+calls, with no Python in it.
+
 **Where the crew reads it: the xESS.** BEAM DOWN turns the console into the boarding party's
 handheld. Its bar says who you are, your job, and the room you are in; its ACT app is the
 room's line with one button per choice, and CREW is who came and the way home. With an
@@ -91,6 +124,23 @@ knows:
 |---|---|
 | `; learn <name>` | the party now knows `<name>`. A set: the same reading taken twice counts once |
 | `learned` | how many different things the party knows **at this place** |
+| `learned <name>` | whether the party knows that **one** thing: 1 or 0 |
+
+**One fact, by name.** A door that should open once the party has read the manifest, not
+once it has read any two things, asks for it:
+
+```markdown
+- [Read the manifest](hold) ; learn manifest
+- [Open bay nine](bay) if learned manifest
+- [Leave it sealed](hold) if learned manifest < 1
+
+%{learned manifest} The manifest said bay nine. Bay nine is right there.
+```
+
+`if learned manifest` is true once some choice with `; learn manifest` has been taken at
+this place. `if learned manifest < 1` is "not yet". Capitals and spacing do not matter,
+and a fact can be more than one word (`; learn cold start`, `if learned cold start`). The
+count is unchanged: `if learned >= 2` still counts everything.
 
 The facts are the **party's**, not one character's &mdash; the surgeon's reading and the
 engineer's both count &mdash; and they belong to the **place**. Each place counts only its
@@ -109,8 +159,11 @@ out there, go somewhere new and it knows nothing yet. The place is `place=` on
 the party has come home: `boarding_facts(BOARDING_PLACE)`.
 
 `sbs lint` reports a condition the game cannot read (`if learned => 2`), an `if` written
-after the `;`, and `learn` with no name. It cannot tell that `learned >= 5` asks for more
-than the place can teach.
+after the `;`, and `learn` with no name. It knows both forms of `learned`: a fact that no
+choice in the file learns is `guard-learned-unknown` (`if learned manifst`), and a count
+with its sign missing (`if learned 2`) or a named fact asked to be more than 1
+(`if learned manifest >= 2`) is `guard-learned-shape`. It cannot tell that `learned >= 5`
+asks for more than the place can teach.
 
 ## How good they are: `skill` and `check`
 
@@ -204,12 +257,37 @@ Write the quest `Starts when: revealed`. Written `at once` it is running before 
 answers, and finishes whichever answer is given; `sbs lint` reports that as
 `outcome-accepts-running`.
 
-**A condition is one name.** `if medical`, `if learned >= 3`, `if skill science >= 3` - a
-name, or a name, a sign and a number. There is no `and`, `or` or `not`, a condition cannot
-ask for one fact by name, and it takes a job, not a person. Each of those is read as one
-long name nobody answers to, so the choice is offered to nobody; `sbs lint` reports them as
-`guard-joined`, `guard-learned-shape`, `guard-names-a-fact` and `guard-names-a-person`. A
-choice for two jobs is two choices that lead to the same room.
+**Ending the game from a scene.** A quest can carry the last sentence the crew reads:
+`Win:` and `Lose:`. Completing a quest that has `Win:` wins the game with that sentence;
+failing one that has `Lose:` loses it. So an ending is an answer, and no new words:
+
+```amd
+### [Relight Kesh Relay](relight)
+---
+Scope: shared
+Starts when: at once
+Win: The beacon is lit. Every convoy on the Kesh run has its way home again.
+Lose: The beacon is slag. The Kesh run stays dark.
+---
+```
+
+```amd
+- [Call it in]() ; completes relight
+- [Step back from the smoke]() ; fails relight
+```
+
+This works from a room in a text visit and from a prop's or a person's scene on a tile
+map. On a tile map it also ends the visit: every console is brought home before the
+results are shown. The mission needs LegendaryMissions' `quests` addon in `story.json`,
+which is what turns a won or lost quest into the end of the game.
+
+**A condition is one name.** `if medical`, `if learned >= 3`, `if learned manifest`,
+`if skill science >= 3` - a name, or a name, a sign and a number. There is no `and`, `or`
+or `not`, and it takes a job, not a person. A fact is asked for with `learned` in front of
+it: a bare `if manifest` is read as a job. Each of those is read as one long name nobody
+answers to, so the choice is offered to nobody; `sbs lint` reports them as `guard-joined`,
+`guard-names-a-fact` and `guard-names-a-person`. A choice for two jobs is two choices that
+lead to the same room.
 
 A `%` line cannot wrap: its second half, typed on the next line, is a line of its own, and
 the party is shown one half or the other (`line-wrapped`).
@@ -479,6 +557,19 @@ fire — and nothing about the screen. Two things that do:
   just the same one.
 - **The engine**, with a server-side driver that answers for a console every few seconds, so
   a full run — beam down, every beat, beam up — needs nobody to click.
+
+**Getting a run onto the ground with nobody at the consoles.** The setting
+`BOARDING_AUTO_BEAM` (off by default) sends every console on the ship down as soon as a
+`boarding_visit` opens, once each, with nobody pressing BEAM DOWN. It is for a headless
+run and for an engine check with no mouse, never for play:
+
+```
+COSMOS_SETTINGS='{"GAME_RESULTS_SAVE": false, "BOARDING_AUTO_BEAM": true}' python -m cosmos_dev.mission_runner . --test 60 --map 0 --exercise --pilot
+```
+
+`--exercise` is what gives the run a console at all, and `--pilot` keeps the exerciser
+from shooting at the station the mission is about. In the engine it is
+`var.BOARDING_AUTO_BEAM=1` on the launch line.
 
 For engine diagnostics use `logger(name=…, file=…)` **from MAST**, then `log(msg, name)`.
 The engine hands back no stdout, so `print` is invisible there; and `logger` only attaches

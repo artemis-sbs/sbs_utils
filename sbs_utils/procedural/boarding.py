@@ -293,6 +293,9 @@ def boarding_facts_forget(place=None):
 def _boarding_learn_outcome(agent_id, speaker, tokens):
     """The `learn` outcome verb: `- [Read the panel](panel) if engineering >= 1 ; learn cold`
 
+    ASKED ABOUT TWO WAYS: `if learned >= 2` counts what the party knows here, and
+    `if learned cold` asks for this one fact by name (see `_boarding_metric`).
+
     DECLARED IN THE FILE, counted here. The alternative a mission reaches for first is a
     signal per fact plus a route per signal plus a role granted at the threshold - four
     moving parts, in three files, to express "they worked something out". And it cannot
@@ -333,6 +336,14 @@ def _boarding_metric(name, agent_id, speaker):
     # by the module that knows the answer (checks, the pack), registered with
     # `boarding_metric_word`, so this resolver stays one lookup.
     word, _, rest = str(name).strip().partition(" ")
+    # `learned <fact>`: ONE named thing, 1 or 0. `if learned manifest` is then
+    # `learned manifest >= 1`, and `if learned manifest < 1` is "not yet". Answered here
+    # rather than through `boarding_metric_word` because it is the party's and the
+    # place's, like the count above - and a mission must not be able to re-register it.
+    # Capitals and spacing do not matter; the fact keeps the spelling `learn` gave it.
+    if word.lower() == "learned" and rest.strip():
+        want = " ".join(rest.split()).lower()
+        return 1 if any(" ".join(str(f).split()).lower() == want for f in _facts_of()) else 0
     fn = _METRIC_WORDS.get(word.lower())
     if fn is not None and rest.strip():
         return fn(rest.strip(), agent_id)
@@ -900,6 +911,7 @@ def boarding_answer(client_id, index, seq=None, agent=None):
     _REDIRECT.clear()
     _ANSWERED["actor"] = actor          # who answered: the reader credits them
     _ANSWERED["label"] = choice.label   # and with what, whatever words the press sent
+    tile_visit = bool((boarding_visiting() or {}).get("tile"))
     if dialogue_apply(actor, speaker, choice.outcomes) is False:
         # A handler refused (a cost that cannot be paid). The token has ALREADY moved, so
         # every console is holding a stale one and the beat is briefly unanswerable - which
@@ -908,6 +920,13 @@ def boarding_answer(client_id, index, seq=None, agent=None):
         # would reopen the same-frame race this exists to close.
         _REDIRECT.clear()
         return False
+    if tile_visit and boarding_visiting() is None:
+        # THE ANSWER ENDED THE GAME, and the visit with it (`; completes relight` on a
+        # quest that carries `Win:` - see `_visit_on_signal`). Everybody is home and every
+        # conversation is closed; beginning this choice's next scene now would open one
+        # in a place nobody is standing.
+        _REDIRECT.clear()
+        return True
     # An outcome may send the scene somewhere other than the authored target - a failed
     # check (`check engineering 8 else botched`). Read and cleared in this one call.
     target = _REDIRECT.pop("target", choice.target)
@@ -1991,7 +2010,7 @@ def _visit_say(message, once=None):
     logging.getLogger("mast.runtime").warning("boarding_visit: " + message)
 
 
-def boarding_visit(ship, scenes, first, title=None, cast=None, site=None, area=None,
+def boarding_visit(ship, scenes, first=None, title=None, cast=None, site=None, area=None,
                    place=None, stories=None):
     """Run one boarding visit from start to finish.
 
@@ -2000,10 +2019,26 @@ def boarding_visit(ship, scenes, first, title=None, cast=None, site=None, area=N
     every console that went is put back at its station, and ``boarding_visit_ended`` is
     emitted with ``BOARDING_SHIP`` and ``BOARDING_TITLE``.
 
+    ON A TILE MAP there is no first room: the party walks, and a scene belongs to the
+    thing or the person that opens it. Give ``area`` and leave ``first`` out::
+
+        boarding_visit(ship, boarding_ground_scenes(), title="Kesh Relay", area="landing")
+
+    That visit begins no scene and is not ended for want of one. ``scenes`` are what a
+    prop's ``Scene:`` and a person's ``Talk scene:`` name; ``stories`` are handed out as
+    people arrive, exactly as below; a console may beam up and come back down, and the
+    visit is still there; a party that is ALL down comes round at the entry of the area
+    it fell in after ``VISIT_REVIVE_SECONDS`` (``boarding_party_revived`` says so, and
+    what that costs is the mission's to say). It ends when the mission calls
+    ``boarding_visit_end()`` - or when the game does: a quest that carries ``Win:`` or
+    ``Lose:`` being completed or failed (``; completes held``) ends the game with that
+    sentence, and the visit with it.
+
     Args:
         ship: the ship the party leaves from.
         scenes: the rooms - what ``dialogue_scenes(amd_section(doc, "boarding"))`` returns.
-        first (str): the key of the room the party arrives in.
+        first (str): the key of the room the party arrives in. None, with ``area``, for a
+            tile-map visit.
         title (str, optional): what the crew sees as the name of the place.
         cast (list, optional): lifeforms to offer INSTEAD of the crew. Leave it out and the
             party is the crew as themselves - the name, face and ``Roles:`` each console
@@ -2030,7 +2065,18 @@ def boarding_visit(ship, scenes, first, title=None, cast=None, site=None, area=N
     """
     if boarding_visiting() is not None or boarding_invitation() is not None or boarding_is_open():
         return None
-    if not first or dialogue_get(scenes or {}, first) is None:
+    # A TILE-MAP VISIT, and strictly this: an area to stand in and no first room. With a
+    # first room this is the text visit it always was, `area` or not.
+    tile = area is not None and first is None
+    if tile:
+        from .tilemap import tilemap_area, tilemap_areas
+        if tilemap_area(area) is None:
+            known = ", ".join(sorted(str(k) for k in tilemap_areas())) or "none at all"
+            _visit_say("there is no tile area '%s', so nothing was opened. The areas "
+                       "loaded: %s. Check the `area:` line of the .tiles file, and that "
+                       "`boarding_ground_load` ran first." % (area, known))
+            return None
+    elif not first or dialogue_get(scenes or {}, first) is None:
         rooms = ", ".join(sorted(str(k) for k in (scenes or {}))) or "none at all"
         _visit_say("there is no room '%s', so nothing was opened. The rooms it was given: "
                    "%s. Check the key of the first room, and that the section holding "
@@ -2057,6 +2103,20 @@ def boarding_visit(ship, scenes, first, title=None, cast=None, site=None, area=N
     # Handing them out was a second call a mission had to make, in a route of its own -
     # under `boarding_visit(...)` it found nobody aboard yet and handed out nothing. The
     # visit hands each one to its person as they arrive (see the tick below).
+    if tile:
+        Agent.SHARED.set_inventory_value(VISIT_KEY, {
+            "ship": to_id(ship), "title": boarding_invite_title(), "first": None,
+            "place": str(place or title or area), "stories": stories,
+            "tile": True, "area": area, "down_for": 0})
+        # NO PARTY SCENE. What is said down there is said by a thing or a person, to
+        # whoever walked up to it; these are the scenes they name.
+        if scenes:
+            from .boarding_props import boarding_props_scenes
+            boarding_props_scenes(scenes)
+        # The game ending ends the visit (see `_visit_on_signal`).
+        signal_observe(_visit_on_signal)
+        _visit_watch()
+        return invite
     Agent.SHARED.set_inventory_value(VISIT_KEY, {
         "ship": to_id(ship), "title": boarding_invite_title(), "first": first,
         "place": str(place or title or first), "stories": stories})
@@ -2066,7 +2126,9 @@ def boarding_visit(ship, scenes, first, title=None, cast=None, site=None, area=N
 
 
 def boarding_visiting():
-    """The visit in progress - ``{"ship", "title", "first", "place", "stories"}`` - or None."""
+    """The visit in progress - ``{"ship", "title", "first", "place", "stories"}`` - or None.
+
+    A tile-map visit also carries ``"tile": True`` and its ``"area"``."""
     visit = Agent.SHARED.get_inventory_value(VISIT_KEY, None)
     return visit if isinstance(visit, dict) else None
 
@@ -2098,6 +2160,13 @@ def boarding_visit_end():
     # `boarding_came_back`, and a route on that which ends the visit must find it ended.
     Agent.SHARED.set_inventory_value(VISIT_KEY, None)
     _visit_unwatch()
+    if visit.get("tile"):
+        # A tile visit's conversations are side channels - one per thing or person
+        # somebody walked up to - and the party is leaving all of them.
+        signal_unobserve(_visit_on_signal)
+        for channel in list(boarding_channels()):
+            if channel != PARTY:
+                boarding_channel_close(channel)
     boarding_scene_end()
     boarding_invite_close()
     boarding_latecomers_unwatch()
@@ -2149,6 +2218,10 @@ def _boarding_visit_tick(t=None):
         if visit is None:
             _visit_unwatch()
             return
+        _visit_auto_beam(visit)
+        if visit.get("tile"):
+            _visit_tile_tick(visit)
+            return
         if boarding_is_open():
             # The party's scene is still playing. Anyone who has come aboard since the
             # last look gets the personal quest that is theirs: the grant leaves a quest
@@ -2166,6 +2239,116 @@ def _boarding_visit_tick(t=None):
             _visit_unwatch()
 
 
+#: How long a party that is ALL down lies there before it comes round, in seconds. Long
+#: enough to read what happened; short enough that nobody is left looking at a dead screen.
+VISIT_REVIVE_SECONDS = 8
+
+
+def _visit_tile_tick(visit):
+    """One look at a tile-map visit. There is no party scene to wait on, so this never
+    ends the visit - the game ending does (`_visit_on_signal`), or the mission."""
+    if visit.get("stories") is not None:
+        from .boarding_quests import boarding_quests_grant
+        boarding_quests_grant(visit.get("stories"))
+    # EVERYONE ON THE GROUND IS DOWN. Nobody is left to use a medkit, so without this the
+    # visit is over in every way but the one that lets the crew do something else.
+    from .boarding_combat import boarding_is_down, boarding_revive
+    from .tilemap import tilemap_where, tilemap_entry, tilemap_place
+    ground = [(lf, tilemap_where(lf)) for lf in sorted(boarding_team())]
+    ground = [(lf, at) for lf, at in ground if at is not None]
+    if not ground or not all(boarding_is_down(lf) for lf, _at in ground):
+        visit["down_for"] = 0
+        return
+    visit["down_for"] = int(visit.get("down_for") or 0) + 1
+    if visit["down_for"] < VISIT_REVIVE_SECONDS:
+        return
+    visit["down_for"] = 0
+    revived = []
+    for lf, at in ground:
+        if not boarding_revive(lf, 1):
+            continue
+        entry = tilemap_entry(at[0])
+        if entry is not None:
+            tilemap_place(lf, at[0], entry[0], entry[1])
+        revived.append(lf)
+    if revived:
+        signal_emit("boarding_party_revived", {"BOARDING_WHO": revived,
+                                               "BOARDING_AREA": ground[0][1][0],
+                                               "BOARDING_PLACE": visit.get("place")})
+
+
+def _visit_on_signal(name, data):
+    """The game is over, so the visit is. Observed only while a tile-map visit is open.
+
+    `game_over` is what a quest carrying `Win:` / `Lose:` emits when it is completed or
+    failed - from a scene's `; completes held`, a `Fails when:`, anything.
+
+    ENDED HERE, NOT ON THE NEXT TICK. The results screen pauses the sim, and a paused sim
+    ticks nothing: a visit left for its watcher to close stayed open behind the results,
+    every console still wearing the character it went down as. This can run in the
+    middle of the answer that ended the game, so `boarding_answer` checks for it and
+    stops there rather than beginning the choice's next scene.
+    """
+    if name != "game_over":
+        return
+    visit = boarding_visiting()
+    if visit is not None and visit.get("tile"):
+        boarding_visit_end()
+
+
+def _visit_auto_beam(visit):
+    """`BOARDING_AUTO_BEAM`: send every console on the ship down without anyone pressing
+    BEAM DOWN - once each, so a console that beams up afterwards stays up.
+
+    A SETTING, OFF BY DEFAULT, for a run with nobody at the consoles: a headless test
+    that should reach the ground, an engine check with no mouse. It runs here, on the
+    visit's own tick, so it needs no route in the mission and catches a console that
+    connects after the party opened.
+    """
+    try:
+        from .settings import settings_get_defaults
+        from .amd_schema import amd_yes
+        # Read as a yes/no, because a launch line hands it over as text: `"0"` is on to
+        # a plain truth test.
+        if not amd_yes(settings_get_defaults().get("BOARDING_AUTO_BEAM")):
+            return
+    except Exception:                                    # noqa: BLE001
+        return
+    from .links import linked_to, link
+    from .roles import has_role
+    from .gui.boarding_gui import boarding_go_down
+    ship = visit.get("ship")
+    sent = visit.setdefault("auto_beamed", [])
+    # A CONSOLE THAT NEVER SAW THE PICKER. Choosing a ship on the console picker is what
+    # links a console to it, and a run with nobody at the consoles has nobody to do
+    # that: the headless runner's stand-in console is put on a ship directly. This
+    # setting exists for exactly those runs, so it does the picker's one step itself.
+    try:
+        from ..helpers import FrameContext
+        from .query import is_client_id
+        from .roles import role
+        sbs = FrameContext.context.sbs
+        for client_id in sorted(role("__gui__")):       # every console's own agent
+            console = get_inventory_value(client_id, "CONSOLE_TYPE", None)
+            if (is_client_id(client_id) and client_id not in linked_to(ship, "consoles")
+                    and console and sbs.get_ship_of_client(client_id) == ship):
+                link(ship, "consoles", client_id)
+                # ...and somebody to be, which the picker also gives.
+                from .crew import crew_post_of, crew_assign
+                if crew_post_of(client_id) is None:
+                    crew_assign(client_id, ship, console)
+    except Exception:                                    # noqa: BLE001
+        pass
+    for client_id in sorted(linked_to(ship, "consoles")):
+        if client_id in sent or has_role(client_id, "mainscreen") or boarding_held(client_id):
+            continue
+        boarding_latecomers()                # a body for a console that has just arrived
+        if boarding_beam_down(client_id) is None:
+            continue
+        sent.append(client_id)
+        boarding_go_down(client_id)
+
+
 def boarding_visit_said_count():
     """Reset-ledger probe: how many once-only visit notices have been used up."""
     return len(_VISIT_SAID)
@@ -2174,5 +2357,6 @@ def boarding_visit_said_count():
 def boarding_visit_clear():
     """The per-mission reset: no visit, no watcher. Emits nothing and moves nobody."""
     _visit_unwatch()
+    signal_unobserve(_visit_on_signal)
     Agent.SHARED.set_inventory_value(VISIT_KEY, None)
     _VISIT_SAID.clear()

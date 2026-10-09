@@ -92,10 +92,15 @@ class ConditionsNobodyMeets(unittest.TestCase):
             with self.subTest(condition=condition):
                 self.assertEqual(codes(hatch(condition)), ["guard-joined"])
 
-    def test_learned_can_only_count(self):
-        for condition in ("learned alive", "learned 3"):
+    def test_learned_with_a_number_needs_its_sign(self):
+        """`if learned alive` IS a condition since 2026-10-09 (one fact, by name - see
+        test_boarding_learned_fact). A bare number after it is still a slipped sign, and
+        one fact is never two."""
+        for condition in ("learned 3", "learned alive >= 2"):
             with self.subTest(condition=condition):
                 self.assertEqual(codes(hatch(condition)), ["guard-learned-shape"])
+        self.assertEqual(codes(hatch("learned alive")), [])
+        self.assertEqual(codes(hatch("learned rationed >= 1")), [])
 
     def test_a_fact_asked_for_by_name(self):
         self.assertEqual(codes(hatch("alive")), ["guard-names-a-fact"])

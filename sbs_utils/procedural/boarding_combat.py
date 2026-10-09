@@ -12,17 +12,23 @@ HOSTILES are declared as data and walk the tile map as actors::
     ### [Glassback](glassback_1)
     ---
     Area: caves
-    At: 12, 8
-    Sprite: lp:glassback
+    At: 12, 8            # a cell; or `Mark: nest`, a mark in the area file
+    Sprite: fig:glassback
     HP: 2
     Damage: 1
     Notice: 5            # cells
     Stun: 10             # seconds a stun holds
-    Patrol: 12,8  18,8  18,14
+    Patrol: 12 8; 18 8; 18 14
     Drops: coil
     Talk scene: vhesk_parley      # optional: clicking it talks instead of fighting
     Calm: no
+    Hidden until: nest_woken      # optional: not on the map until that signal
+    Scan: Silicate carapace.      # optional: what the xESS Scan app says
     ---
+
+`Hidden until:` is heard HERE: the person is put on the map when that signal is emitted,
+by this module, with no route in the mission (the `summon` outcome verb still does it by
+key).
 
 One tick (``boarding_hostiles_watch``) runs them all: idle or patrolling until a crew
 member is within ``Notice`` and in sight, then chasing, then striking when adjacent every
@@ -39,6 +45,7 @@ Signals: ``boarding_hostile_noticed``, ``boarding_hostile_struck``, ``boarding_h
 ``boarding_party_down``. A downed hostile also emits ``hostile_down_<key>``, so a quest can
 wait on it with an ordinary ``signal`` goal.
 """
+from .amd_schema import amd_yes
 from .inventory import get_inventory_value, set_inventory_value
 from .query import to_id
 
@@ -53,6 +60,7 @@ _NEXT_ID = [0x7F00000000000000]
 _WATCH = {"task": None}
 _STUNNED = {}            # actor id (crew) -> until
 _DROP = {"sprite": None}
+_HEARD = set()           # the signal names some record's `Hidden until` wrote
 
 
 def boarding_drop_sprite(sprite):
@@ -218,11 +226,24 @@ def boarding_hostile_records(section):
             "patrol": _cells(d.get("patrol")),
             "drops": [_norm(x) for x in str(d.get("drops") or "").replace(",", " ").split()],
             "talk": d.get("talk_scene"),
-            "calm": str(d.get("calm") or "").strip().lower() in ("yes", "true", "1"),
+            # The schema's own yes/no parser - the one `Blocks:` on a prop is read by.
+            "calm": amd_yes(d.get("calm"), False),
             "hidden": d.get("hidden_until"),
             "face": _face(d.get("face")),
+            # What the xESS Scan app says; it falls back to the description.
+            "scan": d.get("scan"),
         })
     return out
+
+
+def _on_ground_signal(name, data):
+    """Every emit, as it happens: anybody `Hidden until:` this signal arrives."""
+    name = _norm(name)
+    if name not in _HEARD:
+        return
+    for rec in list(_HOSTILES.values()):
+        if not rec["shown"] and _norm(rec.get("hidden")) == name:
+            boarding_hostile_reveal(rec["key"])
 
 
 def _face(spec):
@@ -244,6 +265,10 @@ def boarding_hostiles_declare(section):
                         "target": None, "leg": 0, "shown": not rec["hidden"],
                         "talked": False})
             _HOSTILES[rec["key"]] = rec
+            if _norm(rec["hidden"]):
+                _HEARD.add(_norm(rec["hidden"]))
+                from .signal import signal_observe
+                signal_observe(_on_ground_signal)
             keys.append(rec["key"])
     return keys
 
@@ -442,6 +467,10 @@ def _hostile_hit(rec, setting, by=None):
         boarding_props_place(at[0])
     signal_emit("boarding_hostile_down", {"BOARDING_HOSTILE": rec["key"], "BOARDING_BY": by})
     signal_emit(f"hostile_down_{rec['key']}", {"BOARDING_HOSTILE": rec["key"]})
+    # ...and again as a quest milestone, exactly as a scene's `; signal x` is: the quest
+    # driver hears `quest_signal`, not the raw name, so `Done when: signal
+    # hostile_down_<key>` waited forever on a signal that was being sent.
+    signal_emit("quest_signal", {"SIGNAL_NAME": f"hostile_down_{rec['key']}"})
     return "down"
 
 
@@ -615,6 +644,9 @@ def boarding_combat_install():
 
 
 def boarding_combat_clear():
+    from .signal import signal_unobserve
+    signal_unobserve(_on_ground_signal)
+    _HEARD.clear()
     boarding_hostiles_unwatch()
     _HOSTILES.clear()
     _BY_ID.clear()
@@ -623,7 +655,7 @@ def boarding_combat_clear():
 
 def boarding_combat_count():
     """Reset-ledger probe."""
-    return len(_HOSTILES) + len(_STUNNED) + (1 if _WATCH["task"] else 0)
+    return len(_HOSTILES) + len(_STUNNED) + len(_HEARD) + (1 if _WATCH["task"] else 0)
 
 
 # --- dialogue verbs: a conversation changes who is hostile --------------------------

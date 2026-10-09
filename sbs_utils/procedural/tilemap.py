@@ -36,8 +36,10 @@ THE PIECES:
   ``tilemap_tileset_load`` - the file is what the linter and the editor read, so a
   mission that writes one gets both. By convention ``tileset: X`` names ``X.tileset``
   in the same folder as the area.
-- **Marks** name cells: a place a scene belongs to, where a prop stands, an exit. A mark
-  can cover many cells. Stepping onto a mark emits ``tilemap_entered``.
+- **Marks** name cells: where a prop or a person stands, where a party arrives, an exit.
+  A mark can cover many cells. Stepping onto a mark emits ``tilemap_entered`` - and that
+  is all it does: a scene belongs to a prop (``Scene:``) or a person (``Talk scene:``),
+  never to a mark.
 - **Actors** are agents (a crew body, a hostile, a survivor) placed on a cell. They walk
   one cell per step at their own speed, around anything that cannot be walked. A big
   one - a parked car, a barn - covers every cell its sprite's ``base`` covers

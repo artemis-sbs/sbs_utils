@@ -10,19 +10,20 @@ anything else), declared as data::
     ### [Survey drone](drone)
     ---
     Area: ridge
-    At: drone_wreck                # a mark in the area file, or "x, y"
-    Sprite: lp:drone
+    Mark: drone_wreck              # a mark in the area file (`At: x, y` is a cell)
+    Sprite: prop:drone
     Scene: drone_search            # opens this dialogue for whoever uses it
     Blocks: yes
+    Scan: Flight recorder intact.  # what the xESS Scan app says about it
     ---
     A colony survey drone, nose-down in the scree.
 
     ### [Depot shutter](depot_door)
     ---
     Area: colony
-    At: depot_door
-    Sprite: lp:door_shut
-    Open sprite: lp:door_open
+    Mark: depot_door
+    Sprite: prop:door
+    Open sprite: prop:door_open
     Opens with: key depot_key, check engineering 9, cut
     Blocks: yes
     ---
@@ -31,9 +32,14 @@ anything else), declared as data::
     ---
     Area: flats
     At: 22, 14
-    Sprite: lp:part
+    Sprite: prop:part
     Item: injector
+    Hidden until: crate_forced     # not on the map until that signal
     ---
+
+WHERE IT STANDS is `Mark:` - a mark named in the area file - or `At: x, y`, a cell. Not a
+mark name in `At:`: that field is a coordinate everywhere in AMD, so a word written there
+reaches this module as nothing and the prop is never placed.
 
 USING ONE. Clicking a prop within ``Reach`` (default 1) uses it; clicking one further off
 walks up to it first and uses it on arrival. Using, in order: a hidden prop cannot be used;
@@ -44,6 +50,11 @@ with them). ``boarding_interacted`` reports what happened.
 ``Opens with`` terms: ``key <item>`` (someone holding it - the item is kept), ``check
 <skill> <dc>`` (the user rolls), ``cut`` (only a CUT shot opens it - see
 ``boarding_combat``), ``signal <name>`` (only that signal opens it - a bridge action).
+
+SIGNALS ARE HEARD HERE. A door that ``Opens with: signal power_on`` opens when
+``power_on`` is emitted, and a prop that is ``Hidden until: crate_forced`` is put on the
+map when ``crate_forced`` is - by this module, which listens for exactly the names its
+props wrote and stops listening on the mission reset. A mission wires nothing.
 
 THE PACK is per BODY: what each crew member is carrying, on their lifeform's inventory.
 Guards read it (``if holding medkit``, ``if party coil >= 3``) and outcome verbs change it
@@ -57,6 +68,7 @@ _PROPS = {}             # key -> record
 _BY_ID = {}             # actor id -> key
 _NEXT_ID = [0x7E00000000000000]
 _SCENES = {"doc": None}
+_HEARD = set()          # the signal names some prop's `Opens with` / `Hidden until` wrote
 
 
 def _norm(s):
@@ -64,11 +76,9 @@ def _norm(s):
 
 
 def _yes(v, default=False):
-    if v is None or v == "":
-        return default
-    if isinstance(v, bool):
-        return v
-    return _norm(v) in ("yes", "true", "1", "on")
+    """One authored yes/no - the schema's own parser, so there is one reading of it."""
+    from .amd_schema import amd_yes
+    return amd_yes(v, default)
 
 
 # --- the pack ------------------------------------------------------------------------
@@ -177,8 +187,35 @@ def boarding_prop_records(section):
             "hidden": g("hidden_until"),
             "once": _yes(g("once"), False),
             "needs": g("needs"),
+            # What the xESS Scan app says. It read `rec.get("scan")` all along and the
+            # record never carried one, so every prop scanned as its description.
+            "scan": g("scan"),
         })
     return out
+
+
+def _listen(rec):
+    """Hear the signals this prop wrote: `Opens with: signal X`, `Hidden until: X`."""
+    names = {_norm(t[1]) for t in rec.get("opens") or () if t[0] == "signal" and len(t) > 1}
+    if rec.get("hidden"):
+        names.add(_norm(rec["hidden"]))
+    names.discard("")
+    if not names:
+        return
+    _HEARD.update(names)
+    from .signal import signal_observe
+    signal_observe(_on_ground_signal)
+
+
+def _on_ground_signal(name, data):
+    """Every emit, as it happens. One set lookup for a name no prop wrote."""
+    name = _norm(name)
+    if name not in _HEARD:
+        return
+    boarding_props_signal(name)
+    for rec in list(_PROPS.values()):
+        if not rec["shown"] and _norm(rec.get("hidden")) == name:
+            boarding_prop_reveal(rec["key"])
 
 
 def boarding_props_declare(section):
@@ -190,6 +227,7 @@ def boarding_props_declare(section):
         rec.update({"id": None, "open": not rec["opens"], "taken": False,
                     "used": False, "shown": not rec["hidden"]})
         _PROPS[rec["key"]] = rec
+        _listen(rec)
         keys.append(rec["key"])
     return keys
 
@@ -199,12 +237,14 @@ def boarding_prop_add(key, area, at, **fields):
     rec = {"key": _norm(key), "name": fields.pop("name", key), "desc": fields.pop("desc", ""),
            "area": _norm(area), "at": at, "sprite": None, "open_sprite": None,
            "color": None, "scene": None, "item": None, "qty": 1, "reach": 1,
-           "blocks": False, "opens": [], "hidden": None, "once": False, "needs": None}
+           "blocks": False, "opens": [], "hidden": None, "once": False, "needs": None,
+           "scan": None}
     for k, v in fields.items():
         rec[k] = _opens(v) if k == "opens" else v
     rec.update({"id": None, "open": not rec["opens"], "taken": False, "used": False,
                 "shown": not rec["hidden"]})
     _PROPS[rec["key"]] = rec
+    _listen(rec)
     return rec["key"]
 
 
@@ -339,7 +379,8 @@ def boarding_props_signal(name):
     """Open every prop whose ``Opens with`` names ``signal <name>``. Returns the keys.
 
     What a bridge action is wired to: the ship powers the Lantern, the Lantern's doors
-    open. Call it from the route that handles the signal.
+    open. The library calls this itself when the signal is emitted (see ``_listen``); a
+    mission calls it only to open those doors WITHOUT the signal.
     """
     opened = []
     for key, rec in _PROPS.items():
@@ -628,6 +669,9 @@ def boarding_props_install():
 
 
 def boarding_props_clear():
+    from .signal import signal_unobserve
+    signal_unobserve(_on_ground_signal)
+    _HEARD.clear()
     _PROPS.clear()
     _BY_ID.clear()
     _NOTES.clear()
@@ -636,4 +680,4 @@ def boarding_props_clear():
 
 def boarding_props_count():
     """Reset-ledger probe."""
-    return len(_PROPS)
+    return len(_PROPS) + len(_HEARD)

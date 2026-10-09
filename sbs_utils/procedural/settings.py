@@ -391,6 +391,10 @@ def settings_get_defaults():
         },
         "AUTO_START": False,
         "AUTO_START_DELAY": 10,
+        # Send every console down as soon as a `boarding_visit` opens, with nobody
+        # pressing BEAM DOWN. For a run with no crew at the consoles - a headless test
+        # that should reach the ground, an engine check with no mouse. Never for play.
+        "BOARDING_AUTO_BEAM": False,
         # Let a mission or mod declare extra hulls. OFF, because the answer depends on
         # the INSTALL: the engine only grew a working extra-ship-data path in v1.3.7,
         # and on v1.3.4 a declared hull never registers - then spawning one dies inside

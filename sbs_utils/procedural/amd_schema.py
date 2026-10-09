@@ -45,11 +45,44 @@ def multiline(hint=None):
 def integer(hint=None):
     return _d("int", hint=hint)
 
-def boolean():
+def boolean(strict=False, hint=None):
     """A yes/no flag. Stays `type: enum` so the editor keeps rendering a two-value
     dropdown, but carries `bool` so `amd_coerce` returns a real bool - `Required: false`
-    used to coerce to the STRING "false", which is truthy."""
+    used to coerce to the STRING "false", which is truthy.
+
+    `strict=True` is a flag that is ONLY ever yes or no - `Blocks:`, `Calm:` - so a value
+    that is neither (`Calm: yse`) is a typo and `sbs lint` says so. It is offered as
+    `yes` / `no`, the words a writer types, and still accepts every spelling `amd_yes`
+    reads. The older flags stay lenient: `Win:` carries its own sentence."""
+    if strict:
+        return _d("enum", values=["yes", "no"], bool=True, strict=True, hint=hint,
+                  value_aka={w: ("yes" if w in _YES_WORDS else "no")
+                             for w in _YES_WORDS + _NO_WORDS if w not in ("yes", "no")})
     return _d("enum", values=["true", "false"], bool=True)
+
+
+# THE yes/no words, in one place. What a strict flag accepts, what `amd_yes` reads, and
+# what the linter does not flag are the same two tuples.
+_YES_WORDS = ("yes", "true", "on", "1")
+_NO_WORDS = ("no", "false", "off", "0")
+
+
+def amd_yes(value, default=False):
+    """Read one authored yes/no. THE parser: the schema, the props and the people on a
+    boarding party's ground all read a flag through this, so `Blocks: yes` cannot mean
+    one thing to the reader and another to the map.
+
+    A real bool passes through (the reader has already coerced a declared field); nothing
+    written is `default`; anything that is not a yes word is no - which is why a typo
+    needs the linter to say so."""
+    if isinstance(value, bool):
+        return value
+    if value is None:
+        return default
+    word = str(value).strip().lower()
+    if not word:
+        return default
+    return word in _YES_WORDS
 
 def enum(*values, **kw):
     """A closed set of string values (dropdown). `open=True` lets the author type
@@ -799,16 +832,16 @@ RELIC = {
 PROP = {
     "area": text(hint="the tile area it stands in"),
     "mark": text(hint="a mark in the area file - drone_wreck"),
-    "sprite": text(hint="an atlas key - lp:door_shut"),
+    "sprite": text(hint="an art key - prop:door"),
     "open sprite": text(hint="what it looks like once opened"),
     "scene": text(hint="the dialogue scene using it opens"),
     "item": text(hint="picked up into the user's pack"),
     "qty": integer(),
     "reach": integer(hint="cells from which it can be used - 1"),
-    "blocks": text(hint="yes / no - whether it closes its cell"),
-    "opens with": text(hint="key depot_key, check engineering 9, cut, signal lp_power"),
+    "blocks": boolean(strict=True, hint="yes / no - whether it closes its cell"),
+    "opens with": text(hint="key depot_key, check engineering 9, cut, signal power_on"),
     "hidden until": text(hint="a signal; until then it cannot be found"),
-    "once": text(hint="yes / no"),
+    "once": boolean(strict=True, hint="yes / no - used once, after that only looked at"),
     "needs": text(hint="a guard word - medical"),
     "scan": text(hint="what the xESS Scan app says about it"),
 }
@@ -827,7 +860,7 @@ HOSTILE = {
     "talk scene": text(hint="clicking it opens this scene instead of a fight"),
     "face": face(hint="shown beside their lines when talked to - a face string, or "
                       "female / male / terran"),
-    "calm": text(hint="yes - never attacks"),
+    "calm": boolean(strict=True, hint="yes - never attacks"),
     "hidden until": text(hint="a signal"),
     "scan": text(hint="what the xESS Scan app says about it"),
 }
@@ -1571,7 +1604,6 @@ def _as_lines(raw):
     return [l.strip() for l in str(raw).splitlines() if l.strip()]
 
 
-_TRUE = ("true", "yes", "on", "1", "")
 
 
 def amd_coerce(descriptor, value):
@@ -1590,7 +1622,9 @@ def amd_coerce(descriptor, value):
     kind = d.get("type")
     raw = value
     if d.get("bool"):
-        return str(raw).strip().lower() in _TRUE
+        # A lenient flag written with no value is ON (`Win:` alone); a strict one is a
+        # field left blank, which decides nothing.
+        return amd_yes(raw, default=not d.get("strict"))
     if kind == "enum":
         # match case-insensitively but STORE the declared spelling
         s = str(raw).strip()

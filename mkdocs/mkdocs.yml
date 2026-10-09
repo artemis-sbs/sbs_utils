@@ -77,7 +77,7 @@ nav:
     - Anatomy of a mission: build/anatomy.md
     - World building: build/world-building.md
     - Tile maps: build/tile-maps.md
-    - Ground tile maps (experimental): build/ground-tile-maps.md
+    - Ground tile maps: build/ground-tile-maps.md
     - Sides, lifeforms & faces: build/sides-lifeforms.md
     - Player ships & consoles: build/players-consoles.md
     - The ePADD (console apps): build/epadd.md
@@ -139,7 +139,7 @@ nav:
     - Publishing AMD (sbs site): tooling/site.md
     - Checking your setup (sbs doctor): tooling/doctor.md
     - GUI Editor: tooling/gui-editor.md
-    - Tile Map Editor (experimental): tooling/tile-editor.md
+    - Tile Map Editor: tooling/tile-editor.md
     - Serving web pages: tooling/web-proxy.md
     - Sharing Python (.sbslib): tooling/libraries.md
 

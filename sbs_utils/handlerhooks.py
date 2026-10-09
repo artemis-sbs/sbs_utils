@@ -200,6 +200,10 @@ def reset_mission_state():
     boarding_combat_clear()
     from .procedural.boarding_quests import boarding_quests_clear
     boarding_quests_clear()
+    # What `boarding_ground_load` remembers: what it loaded, what it has already said,
+    # and the default looks it chose (handed back, so the next mission's art decides).
+    from .procedural.boarding_ground import boarding_ground_clear
+    boarding_ground_clear()
     # What proximity culling had parked. FORGET, don't retrieve: the sim is gone, so
     # every id is dead and pushing/retrieving one is an engine null deref.
     from .procedural.standby import standby_cull_reset
@@ -563,6 +567,8 @@ from .procedural.boarding_combat import boarding_combat_count as _boarding_comba
 register_reset_state("boarding hostiles", _boarding_combat_count)
 from .procedural.boarding_quests import boarding_quests_count as _boarding_quests_count
 register_reset_state("boarding quests", _boarding_quests_count)
+from .procedural.boarding_ground import boarding_ground_count as _boarding_ground_count
+register_reset_state("boarding ground", _boarding_ground_count)
 from .procedural.boarding_site import boarding_site_count as _boarding_site_count
 from .procedural.boarding_site import boarding_figure_count as _boarding_figure_count
 register_reset_state("boarding sites", _boarding_site_count)

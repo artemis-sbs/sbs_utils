@@ -1,10 +1,9 @@
-# Ground tile maps (experimental)
+# Ground tile maps
 
-!!! warning "Experimental"
-    New in v1.4.0 and still settling. The file formats below are what LandingParty
-    (Dawnline) ships with and what the linter and the
-    [Tile Map Editor](../tooling/tile-editor.md) read, but field names and checks may
-    still change. Try it, and report what works and what does not.
+New in v1.4.0. The file formats and field names on this page are **settled for 1.4.0**:
+what you write today keeps working. They are what the `away` starter
+(`sbs create <Name> -t away`) and LandingParty (Dawnline) ship with, and what the linter
+and the [Tile Map Editor](../tooling/tile-editor.md) read.
 
 A **ground tile map** is walkable ground for an away team: a ridge, a colony street, a cave
 system. Each place is an **area** drawn as ASCII in its own file, a party of crew figures
@@ -24,6 +23,8 @@ A mission's ground is made of three kinds of file:
 
 Props, people and hostiles that stand on the ground are placed from an `.amd` file (see
 [Placing things on the ground](#placing-things-on-the-ground)).
+
+One line in `story.mast` loads all of it: [`boarding_ground_load(doc)`](#loading-it).
 
 ## An area file
 
@@ -68,8 +69,11 @@ one character, `#` and `:` are fine as keys: a comment is only a `#` in column 0
 A legend line can also put a **mark** on every cell drawn with that character. For
 example, `pppppp` drawn with `p: deck @pad` makes a six-cell mark called `pad`.
 
-**Marks** name places. A scene can belong to one, and a prop can stand on one. When an
-actor steps onto a mark, the `tilemap_entered` signal fires.
+**Marks** name places: a prop or a person stands on one (`Mark:`), `entry:` names one,
+and an exit is one. A scene does **not** belong to a mark. A scene belongs to the prop
+that opens it (`Scene:`) or the person you talk to (`Talk scene:`), and nothing opens one
+because somebody walked onto a cell. When an actor steps onto a mark the
+`tilemap_entered` signal fires, which a mission's own route can use.
 
 **Exits.** A mark called `to_<area>` is a way out to that area. The `exits:` block is only
 needed to choose where the party arrives in the other area. Without it, they stand beside
@@ -117,27 +121,47 @@ folder**. That is how the linter and the editor find it.
 
 ## Loading it
 
-A mission's own Python (LandingParty's `lp_world.py`, slightly trimmed):
+One line, in the map body of `story.mast`, after the mission's `.amd` is read:
 
-```python
-def lp_setup_tiles(*sets):
-    from sbs_utils.procedural.media import media_read_relative_file as read
-    from sbs_utils.procedural.tilemap import tilemap_tileset_load
-    from sbs_utils.procedural.tilemap_art import tilemap_art_use
-    tileset = tilemap_tileset_load(read("surface/mereth.tileset"))
-    return tilemap_art_use(*sets, tileset=tileset)     # builtin, then TILE_ART
-
-def lp_load_areas():
-    from sbs_utils.procedural.media import media_read_relative_file as read
-    from sbs_utils.procedural.tilemap import tilemap_load
-    return sum(1 for key in ("ridge", "colony", "flats")
-               if tilemap_load(read("surface/%s.tiles" % key)))
+```
+shared MISSION_DOC = document_get_amd_file(get_mission_dir_filename("mission.amd"), data_parser=amd_mission_data)
+boarding_ground_load(MISSION_DOC)
 ```
 
-Load the tileset **before** the art, because an art set dresses the kinds of a tileset
-that already exists. An area or tileset that cannot be read is **logged and skipped**,
-not raised: one bad file should not take a mission down. That is why the
-[checks](#checking-your-maps) matter.
+`boarding_ground_load` does the whole sequence, in the order it has to happen:
+
+1. Every `*.tileset` in the mission folder is declared and every `*.tiles` area is
+   loaded. They can be in any subfolder. These are the same files `sbs lint` and the
+   editor read.
+2. The art is loaded: the mission's own `builtin` set if it has one, then the sets the
+   `TILE_ART` setting names (see [Art sets](#art-sets)).
+3. The document's `Props` section is put on the map, then `People` and `Hostiles`. Its
+   `Scenes` section is what a prop's `Scene:` and a person's `Talk scene:` name, and
+   `Skills:` on its crew are what a `check` rolls with.
+4. Map clicks reach props and people, and the walk tick is started.
+
+It returns what it did (`areas`, `props`, `people`, `scenes`, `art`, `art_missing`,
+`unplaced`). Anything it could **not** place is named in `mast.runtime.log`, with the
+reason: an `Area:` that is no area, a `Mark:` the area file does not have, a mark name
+written in `At:`. A headless `--test` run fails on those.
+
+A mission that keeps its world and its scenes in two files passes both:
+`boarding_ground_load([world_doc, scene_doc])`. Calling it again is safe. Everything is
+keyed, so an area already loaded and a prop already declared are left as they are.
+
+Then open the party with [`boarding_visit`](boarding-parties.md#a-visit-on-a-tile-map),
+naming the area to beam down into:
+
+```
+boarding_visit(ship, boarding_ground_scenes(), title="Kesh Relay", area="landing")
+```
+
+The pieces are still there for a mission that needs to do it by hand
+(`tilemap_tileset_load`, `tilemap_load`, `tilemap_art_use`, `boarding_props_declare`,
+`boarding_hostiles_declare`). If you do, load the tileset **before** the art, because an
+art set dresses the kinds of a tileset that already exists. An area or tileset that
+cannot be read is **logged and skipped**, not raised: one bad file should not take a
+mission down. That is why the [checks](#checking-your-maps) matter.
 
 ## Art sets
 
@@ -148,6 +172,13 @@ the mission's own `builtin` set, then whatever the `TILE_ART` setting names. A s
 come from this mission or from a pinned media pack. A later set wins key by key, so a
 pack that only redraws the people is a valid pack. The manifest format is documented in
 `sbs_utils/procedural/tilemap_art.py`.
+
+A mission does not have to ship any art. The `away` starter has none: it pins the
+Cosmos-Tiles `frontier` and `station` packs under `shared_media` in `story.json` and
+names them in `TILE_ART`. When a named set is **not installed**, `boarding_ground_load`
+says so once, plainly, and carries on. The mission still runs, but a ground kind with no
+art is not drawn, so with no art at all the map on the crew console is black. Fetch the
+packs with `sbs fetch <mission> --update-libs`.
 
 The engine draws a picture mirrored when its rect runs backwards, and art sets use that
 in two ways:
@@ -192,6 +223,18 @@ Sprite: fig:glassback
 
 A mark name goes in `Mark:`, never in `At:`. `At:` reads coordinates only, so a word
 there reads as nothing and the prop is never placed.
+
+Fields the game acts on by itself, with no route in the story:
+
+| Field | On | What happens |
+|---|---|---|
+| `Opens with: signal <name>` | a prop | The door opens when that signal is sent, for example by a scene's `; signal <name>`. |
+| `Hidden until: <name>` | a prop, a person | It is not on the map until that signal is sent. |
+| `Scan:` | a prop, a person | What the xESS **Scan** app says about it. Without one, its description. |
+| `Blocks:`, `Once:`, `Calm:` | | `yes` or `no`. Anything else is reported by `sbs lint`. |
+
+When a hostile is put down for good the game sends `hostile_down_<key>`, and a quest can
+wait on it: `Done when: signal hostile_down_sentry`.
 
 A person or hostile can also have a `Face:`, a face string or a keyword (`female`,
 `male`, `terran`) that is resolved once, so they keep the same face all mission. The

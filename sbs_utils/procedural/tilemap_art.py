@@ -311,8 +311,9 @@ def tilemap_art_load(manifest, folder, name="set", tileset=None):
             tilemap_art_mirror(key, twin, origin=name)
         keys.append(key)
     _fill_facings()
-    if tileset is not None:
-        tilemap_art_ground(tileset, manifest.get("ground") or {})
+    # One tileset, or several: a mission with two tilesets dresses both from one read.
+    for one in ([tileset] if isinstance(tileset, str) else (tileset or ())):
+        tilemap_art_ground(one, manifest.get("ground") or {})
     return keys
 
 
@@ -356,7 +357,8 @@ def tilemap_art_use(*sets, tileset=None):
     Args:
         *sets (str): set names - ``tileart/<name>`` in this mission or a pinned pack.
             With none, ``tilemap_art_sets()``: ``builtin`` plus the ``TILE_ART`` setting.
-        tileset (str, optional): the tileset whose kinds the sets' ``ground`` dresses.
+        tileset (str | list, optional): the tileset - or tilesets - whose kinds the
+            sets' ``ground`` dresses.
 
     Returns:
         list: the sets that were found and loaded.
