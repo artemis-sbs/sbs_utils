@@ -30,7 +30,7 @@ so a set of factions that each name one enemy produces a STAR - one side hostile
 every other pair NEUTRAL - which is invisible headlessly, because what breaks is the
 shooting rather than the script.
 """
-from sbs_utils.procedural.amd import amd_parse_facts, amd_read_text
+from sbs_utils.procedural.amd import amd_parse_facts, amd_read_text, amd_weighted
 from sbs_utils.procedural.sides import side_create, side_set_relations, _side_csv_list
 from sbs_utils.helpers import FrameContext
 from sbs_utils.mast.mast_node import MastDataObject
@@ -79,6 +79,10 @@ def sides_from_section(node):
                 "enemies": data.get("enemies"),
                 "neutral": data.get("neutral"),
                 "civilian": data.get("civilian"),
+                # What this side VALUES - `Values: honest 40, generous 30` - as
+                # `{pole: weight}`. It arrives as text under a side or mission parser
+                # and already a dict under the schema's own coercion; both read here.
+                "leans": amd_weighted(data.get("leans") or data.get("values") or ""),
             }))
     return out
 
@@ -209,6 +213,12 @@ def sides_declare(records):
         # sees them, and kept across documents so another addon's raiders do too.
         if r.get("civilian"):
             _civilian_sides.add(str(r.get("key")).strip().lower())
+        # What the side values, filed where `standing` in a line or a choice reads it.
+        # EVERY declared side, valued or not: a side with no `Values:` still has a
+        # standing (the plain average of what a ship earned with it), and a scene
+        # written `Speaker: guild` finds its side by this record.
+        from sbs_utils.procedural.reputation import reputation_side_register
+        reputation_side_register(r.get("key"), r.get("leans"))
     sbs = FrameContext.context.sbs
     if sbs is not None:
         all_keys = [r.get("key") for r in records]

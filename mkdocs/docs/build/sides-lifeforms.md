@@ -90,6 +90,74 @@ Sides are declared before any ship exists, so `players` resolves from the roster
 point. Call `sides_apply_audiences()` after the crew is real — or after a mission moves a
 crew to another side — and the same rules re-resolve against the live ships.
 
+### Reputation: a side that values deeds
+
+Relations say whether two sides are at war. **Reputation** is how one side sees one *ship*:
+a number that deeds move, and that a line or a choice can ask about. It needs no MAST - a
+mission made with `sbs create -t amd` already loads everything below.
+
+A side says what it values, and a character says whose side they speak for:
+
+```
+### [Harbor Guild](guild)
+---
+Color: #0C6
+Values: honest 40, generous 30
+---
+
+### [Harbormaster Quill](quill)
+---
+Side: guild
+---
+```
+
+A deed is `earns <side> <trait> <number>` - in a quest's `Reward:` (or `Penalty:`), or
+after the `;` of an answer:
+
+```
+Reward: 150 credits, earns guild honest 30
+
+- [Give our fee to the tug crews.]() ; earns guild generous 30
+```
+
+And `standing` asks, on a `%` line or a choice:
+
+```
+%{standing < 30} The Guild yard is for members. Hold outside the markers.
+%{standing >= 30} The tug crews told me what you did. The yard is open to you.
+
+- [Request a berth at the yard.]() if standing >= 30
+```
+
+| Word | Reads |
+|---|---|
+| `standing` | the acting ship's standing with the **speaker's side**, -100 to 100 |
+| a trait: `honest`, `fearsome`, ... | that ship's reading on one trait with the same side |
+
+**Standing is the ship's.** The traits come in pairs, and earning one lowers the other:
+honest / liar, fearsome / cowardly, peaceful / violent, generous / selfish, kind / cruel,
+resourceful / by-the-book, intellectual / foolish. Standing is the average of the traits
+a side values, weighted by the numbers on its `Values:` line - so `earns guild honest 30`
+with the Guild above is a standing of 17 (`40 x 30 / 70`), and adding `generous 30` makes
+it 30. A side with no `Values:` line counts everything earned with it equally.
+
+Who the "speaker's side" is: a character's `Side:`; else the side the speaking object is
+on (a station that hails the crew); else the speaker's own key when that is a side
+(`Speaker: guild`). A speaker with none of those reads 0.
+
+Who is paid: an answer pays the ship that gave it. A `Scope: shared` quest pays every
+player ship flying when it completes; a ship that joins later starts at 0. A quest held by
+a station or a side carries no reputation at all.
+
+`sbs lint` reports `earns-unknown-side` (`earns gild honest 20`), `earns-unknown-trait`
+(`earns guild honset 20` - a made-up trait no side values) and `earns-shape` (no number,
+or no comma before `earns` in a `Reward:`).
+
+One thing reads reputation without being asked: LegendaryMissions' fleets leave a ship
+alone once everything it has earned with their side **adds up to 60** - the plain sum of
+the traits, not the weighted standing. Two generous answers can end a war for one ship
+while the rest of the table is still being shot at.
+
 ## Lifeforms (NPCs)
 
 A lifeform is an NPC used for comms, names, and faces. Create them at the top level

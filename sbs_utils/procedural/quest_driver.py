@@ -166,14 +166,20 @@ def _quest_grant_reputation(agent_id, block):
 
     Deltas apply exactly as authored - a ``Penalty:`` never flips the sign for you (see
     ``amd_reward``).
+
+    A ``Scope: shared`` quest is the whole table's, and its line reaches every player
+    ship flying when it pays (``reputation_grant``) - the same spread its credits get
+    (``_quest_credit_sides``). It used to be filed on the shared story agent alone,
+    where no guard looks: a line written ``if standing >= 30`` asks the SHIP, so a
+    story beat's ``earns`` moved a number nothing could ever read.
     """
     rep = (block or {}).get("reputation")
     if not rep:
         return
     if not _quest_rep_holder(agent_id):
         return
-    from sbs_utils.procedural.reputation import reputation_apply
-    reputation_apply(agent_id, rep)
+    from sbs_utils.procedural.reputation import reputation_grant
+    reputation_grant(agent_id, rep)
 
 
 def quest_payee(agent_id):

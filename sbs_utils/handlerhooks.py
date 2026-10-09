@@ -335,6 +335,8 @@ def reset_mission_state():
     # `civilians` / `*` rules to replay. Both outlive a mission in the reused interpreter
     # cosmos_dev runs, so a second mission would inherit the first one's factions.
     amd_sides_clear()
+    reputation_sides_clear()  # what each declared side VALUES; a second mission's
+                              # `guild` must not be regarded by the first one's
     art_keys_cache_clear()   # the stock->mod hull pairing generated from the theater
     races_clear()  # declared race OVERRIDES (station prefix, faces, call sign, fleet
                    # scale). The race LIST itself is derived from the ship table and resets
@@ -678,6 +680,8 @@ register_reset_state("amd rundowns",      lambda: len(RUNDOWN_AMD))
 register_reset_state("cutscene cast",     lambda: len(CUTSCENE_CAST))
 from .procedural.amd_sides import amd_sides_audience_count, amd_sides_clear
 register_reset_state("amd side audiences", amd_sides_audience_count)
+from .procedural.reputation import reputation_sides_clear, reputation_sides_count
+register_reset_state("reputation sides",  reputation_sides_count)
 from .procedural.amd_theater import amd_theater_clear, amd_theater_count
 from .procedural.races import races_clear, races_count
 from .procedural.player_roster import (player_roster_clear, player_roster_count_records,

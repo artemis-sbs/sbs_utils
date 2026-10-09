@@ -351,7 +351,10 @@ def _boarding_metric(name, agent_id, speaker):
         return 1
     if _PREV_METRIC is not None:
         return _PREV_METRIC(name, agent_id, speaker)
-    return 0
+    # Nothing was installed before this one, so the library's own base answers:
+    # `standing` and the reputation poles. Every other name is still 0.
+    from .amd_dialogue import dialogue_base_metric
+    return dialogue_base_metric(name, agent_id, speaker)
 
 
 _METRIC_WORDS = {}

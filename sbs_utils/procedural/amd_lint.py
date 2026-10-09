@@ -1947,6 +1947,109 @@ def amd_lint_sides(doc, keys=None, mast_sources=None):
     return findings
 
 
+def amd_lint_reputation(doc, keys=None, mast_sources=None):
+    """Flag an `earns` that moves nothing anybody reads. WARNING.
+
+    `earns <side> <trait> <number>` shifts how a side sees the ship - in a quest's
+    `Reward:` / `Penalty:`, and after the `;` of a choice. Each word has a near miss
+    that is applied exactly as written, with no error:
+
+        ; earns gild honest 20           a side nobody declared: filed under `gild`,
+                                         where no speaker's side ever looks
+        ; earns guild honset 20          not a trait: an axis called `honset` is made
+                                         up on the spot, and no side values it
+        ; earns guild honest             no number: nothing is applied at all
+        Reward: 100 credits earns guild honest 20     no comma: the `earns` is lost
+
+    A SIDE is judged against the sides this file declares, every key in the mission (a
+    captain or a character can be regarded personally) and every quoted word in its
+    MAST - and only when the file declares sides or the MAST was read, so a mission that
+    makes its sides elsewhere is not second-guessed. A TRAIT is judged against the
+    reputation axes in use, plus any `Axis:` and `Values:` word this file declares.
+    """
+    try:
+        from sbs_utils.procedural.amd_dialogue import _dlg_parse_choice
+        from sbs_utils.procedural.reputation import reputation_pole_names
+        from sbs_utils.procedural.amd import amd_weighted, amd_norm
+    except Exception:
+        return []
+
+    sides = [n for n in doc.nodes
+             if str(getattr(n, "kind", "") or "").lower() == "side" and n.fence_lines]
+    judge_sides = bool(sides) or mast_sources is not None
+    known = {str(n.key).strip().lower() for n in sides}
+    known |= {str(k).strip().lower() for k in (keys or ())}
+    known |= {str(k).strip().lower() for k in getattr(doc, "keys", ())}
+    known |= {w.lower() for w in re.findall(r"[\"']([A-Za-z_][\w]*)[\"']",
+                                            "\n".join(mast_sources or []))}
+    declared = ", ".join(sorted(str(n.key) for n in sides))
+
+    poles = set(reputation_pole_names())
+    for node in doc.nodes:
+        fields = _plain_fields(node)
+        for _ln, value in fields.get("values", []):
+            poles |= set(amd_weighted(value))
+        for _ln, value in fields.get("axis", []):
+            poles |= {amd_norm(p) for p in str(value).split("/") if p.strip()}
+
+    findings = []
+
+    def judge(lineno, toks, where):
+        """`toks` are the words after `earns`."""
+        said = "earns " + " ".join(toks)
+        if len(toks) < 3 or not toks[-1].lstrip("+-").isdigit():
+            findings.append(AmdFinding(
+                lineno, WARNING, "earns-shape",
+                f"`{said}` is not `earns <side> <trait> <number>`, so {where}. The side "
+                f"is its key, the number is last and written in digits: "
+                f"`earns guild honest 20`"))
+            return
+        side = toks[0].strip().lower()
+        pole = amd_norm(" ".join(toks[1:-1]))
+        if judge_sides and side not in known:
+            here = f" Declared here: {declared}." if declared else ""
+            findings.append(AmdFinding(
+                lineno, WARNING, "earns-unknown-side",
+                f"`{said}` - `{toks[0]}` is not a side in this mission, so the standing "
+                f"is filed where nobody looks. A side is named by its key, the word in "
+                f"round brackets on its heading.{here}"))
+        if pole not in poles:
+            findings.append(AmdFinding(
+                lineno, WARNING, "earns-unknown-trait",
+                f"`{said}` - `{' '.join(toks[1:-1])}` is not a trait a side can value, "
+                f"so no side's standing moves. The traits: "
+                f"{', '.join(sorted(p.replace('_', '-') for p in poles))}"))
+
+    for node in doc.nodes:
+        kind = str(getattr(node, "kind", "") or "").strip().lower()
+        if kind == "dialogue":
+            for lineno, text in (node.body_lines or []):
+                line = text.strip()
+                if not (line.startswith("-") and "](" in line):
+                    continue
+                for outcome in (_dlg_parse_choice(line) or {}).get("outcomes") or []:
+                    if str(outcome[0]).lower() == "earns":
+                        judge(lineno, [str(t) for t in outcome[1:]],
+                              "this choice moves nobody's standing")
+            continue
+        fields = _plain_fields(node)
+        for label in ("reward", "pays", "penalty"):
+            for lineno, value in fields.get(label, []):
+                for clause in str(value).split(","):
+                    toks = clause.split()
+                    if not toks:
+                        continue
+                    if toks[0].lower() == "earns":
+                        judge(lineno, toks[1:], "this line moves nobody's standing")
+                    elif "earns" in [t.lower() for t in toks[1:]]:
+                        findings.append(AmdFinding(
+                            lineno, WARNING, "earns-shape",
+                            f"`{clause.strip()}` has `earns` in the middle of it, so "
+                            f"the `earns` is not read and no standing moves. Put a "
+                            f"comma before `earns`"))
+    return findings
+
+
 _QUEST_SHAPE_FIELDS = ("done when", "starts when", "fails when", "then", "objective")
 
 
@@ -2885,7 +2988,10 @@ def amd_lint_dialogue_outcomes(doc):
     # non-trivial, so the "nothing but the built-in is loaded" guard below stopped
     # tripping - and a plain mission with no vocabulary file of its own was told that
     # `; completes my_quest` in a hail does nothing, which is exactly what it does do.
-    for _mod in ("boarding_props", "boarding_checks", "boarding_combat", "quest_driver"):
+    # AND `earns`, which `reputation` registers - a mission that is not Open Universe
+    # may write `; earns guild honest 20` now, and must not be told it does nothing.
+    for _mod in ("boarding_props", "boarding_checks", "boarding_combat", "quest_driver",
+                 "reputation"):
         try:
             __import__("sbs_utils.procedural." + _mod)
         except Exception:                                # noqa: BLE001
@@ -4443,6 +4549,7 @@ def amd_lint(file_path=None, content=None, mast_sources=None, cross_file=None,
         findings += amd_lint_relic_dressing(doc)
         findings += amd_lint_relic_strays(doc)
         findings += amd_lint_sides(doc, keys, mast_sources)
+        findings += amd_lint_reputation(doc, keys, mast_sources)
         findings += amd_lint_start_only(doc)
         findings += amd_lint_never_revealed(doc, content, source_index)
         findings += amd_lint_signal_with_no_name(doc)

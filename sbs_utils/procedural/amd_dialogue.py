@@ -389,6 +389,24 @@ def dialogue_set_metric_resolver(fn):
     _METRIC_RESOLVER = fn
 
 
+def dialogue_base_metric(name, agent_id, speaker):
+    """What a guard's left side reads when NO resolver claims it: reputation.
+
+    `standing` and the pole names (`honest`, `fearsome`, ...) are the library's own guard
+    words, answered for the acting ship against the speaker's side
+    (`reputation.reputation_metric`); every other name is 0, as it always was.
+
+    The BASE of the chain, not a link in it: it answers when no resolver is installed at
+    all, and it is where the away resolver hands on when nothing was installed before
+    it. A resolver a mission sets itself is asked first and its answer stands.
+    """
+    try:
+        from .reputation import reputation_metric
+    except Exception:                                   # noqa: BLE001
+        return 0
+    return reputation_metric(name, agent_id, speaker)
+
+
 #: What an outcome handler returns to mean "accept the pick, but stop here" - the rest of
 #: the choice's outcomes do not run. A failed `check` is the case: without it,
 #: `; check engineering 12 else held ; open seal` opened the seal on a FAILED roll too,
@@ -426,7 +444,8 @@ def dialogue_guard_ok(guard, agent_id, speaker):
     m = _GUARD.match(guard)
     if m is None:
         return False
-    lhs = _METRIC_RESOLVER(m.group("lhs"), agent_id, speaker) if _METRIC_RESOLVER else 0
+    resolver = _METRIC_RESOLVER or dialogue_base_metric
+    lhs = resolver(m.group("lhs"), agent_id, speaker)
     op = m.group("op")
     rhs = int(m.group("num"))
     if op == ">":
@@ -525,3 +544,11 @@ def dialogue_apply(agent_id, speaker, outcomes):
         if got == OUTCOME_STOP:
             break
     return True
+
+
+# `earns` is the library's own outcome verb and `reputation` registers it as it imports.
+# Imported HERE, at the bottom, so that anything able to apply an outcome - or to ask
+# which verbs exist, as the linter does - has it, without every caller having to know
+# that reputation is where it lives. (`reputation` imports this module at its own bottom;
+# each finds the other complete whichever is imported first.)
+from . import reputation as _reputation_vocab  # noqa: E402,F401

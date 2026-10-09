@@ -52,6 +52,9 @@ def lifeforms_from_section(section):
                 "color": data.get("color") or data.get("title_color") or "green",
                 "path": data.get("path"),
                 "scene": data.get("scene"),
+                # `Side: guild` - the side this person speaks for. It is whose opinion
+                # `standing` reads when they are the speaker.
+                "side": data.get("side"),
                 "data": data,   # carry the raw fence for mission-specific extras
             }))
     return out
@@ -105,16 +108,30 @@ def lifeform_from_record(record, host_id=None):
     # Store the card colour + key on the lifeform so a comms-cast route can resolve its speaker
     # from the hailed lifeform itself (lifeform_speaker_of), with no separate records source.
     set_inventory_value(agent, "lf_color", record.get("color") or "green")
+    if record.get("side"):
+        set_inventory_value(agent, "lf_side", str(record.get("side")).strip())
     if key:
         from sbs_utils.procedural.roles import add_role
         add_role(agent, lifeform_key_role(key, host_id))
     return agent
 
 
+def lifeform_side_of_key(key):
+    """The `Side:` of the cast character spawned for ``key``, or None.
+
+    By key alone, so it reads the character cast with no host; one cast onto a host is
+    reached through the host (`lifeform_of_key(key, host_id)`)."""
+    agent = lifeform_of_key(key)
+    if agent is None:
+        return None
+    return get_inventory_value(to_id(agent), "lf_side", None)
+
+
 def lifeform_speaker_of(agent_id, default_color="#0cf"):
-    """A dialogue speaker card (key/name/color/leans) built from a spawned lifeform Agent ITSELF -
-    for the comms-cast route, where the hailed lifeform IS the speaker (its badge was selected).
-    ``None`` if the id is not a live agent; cast NPCs carry no reputation, so leans is empty."""
+    """A dialogue speaker card (key/name/color/side/leans) built from a spawned lifeform Agent
+    ITSELF - for the comms-cast route, where the hailed lifeform IS the speaker (its badge was
+    selected). ``None`` if the id is not a live agent. A cast NPC is not regarded personally, so
+    leans is empty; ``side`` (its ``Side:``) is whose opinion ``standing`` reads."""
     a = to_object(agent_id)
     if a is None:
         return None
@@ -122,6 +139,7 @@ def lifeform_speaker_of(agent_id, default_color="#0cf"):
         "key": get_inventory_value(agent_id, "lf_key", None),
         "name": a.name,
         "color": get_inventory_value(agent_id, "lf_color", None) or default_color,
+        "side": get_inventory_value(agent_id, "lf_side", None),
         "leans": {},
     })
 
@@ -136,12 +154,14 @@ def lifeforms_spawn(section, host_id=None):
 
 
 def lifeform_speaker(records, key, default_color="#0cf"):
-    """A dialogue voice record (key/name/color/leans) for a cast character, so a scene's
-    ``Speaker: <key>`` resolves to that character's card. ``None`` if the key is not in the cast;
-    cast NPCs carry no reputation, so leans is empty. ``records`` is ``lifeforms_from_section``'s
-    list (or the ``.values()`` of a spawned map's records)."""
+    """A dialogue voice record (key/name/color/side/leans) for a cast character, so a scene's
+    ``Speaker: <key>`` resolves to that character's card. ``None`` if the key is not in the cast.
+    A cast NPC is not regarded personally, so leans is empty; ``side`` (its ``Side:``) is whose
+    opinion ``standing`` reads. ``records`` is ``lifeforms_from_section``'s list (or the
+    ``.values()`` of a spawned map's records)."""
     for r in records:
         if r.get("key") == key:
             return MastDataObject({"key": r.get("key"), "name": r.get("name"),
-                                   "color": r.get("color") or default_color, "leans": {}})
+                                   "color": r.get("color") or default_color,
+                                   "side": r.get("side"), "leans": {}})
     return None

@@ -221,6 +221,9 @@ def hail_speaker(speaker_key, ship_id=None):
     key = str(speaker_key or "").strip()
     if not key:
         return MastDataObject({"name": "", "face": None, "color": None})
+    # `key` and `side` ride on the card as well: they are what a guard written
+    # `standing` reads the speaker's side from (`reputation_speaker_side`). A card a
+    # mission's own resolver returns is passed on exactly as it was given.
     fn = _SPEAKER_RESOLVER[0]
     if fn is not None:
         try:
@@ -253,10 +256,15 @@ def hail_speaker(speaker_key, ship_id=None):
                 continue
             from ..faces import get_face
             return MastDataObject({"name": getattr(obj, "name", None) or key,
-                                   "face": get_face(agent_id), "color": None})
+                                   "face": get_face(agent_id), "color": None,
+                                   "key": key,
+                                   # A character's `Side:`, else the side the speaking
+                                   # object itself is on (a station, a ship).
+                                   "side": (get_inventory_value(agent_id, "lf_side", None)
+                                            or getattr(obj, "side", None))})
     except Exception as e:
         DEBUG(f"[hail] world lookup failed for {key!r}: {e}")
-    return MastDataObject({"name": key, "face": None, "color": None})
+    return MastDataObject({"name": key, "face": None, "color": None, "key": key})
 
 
 def hail_reset():

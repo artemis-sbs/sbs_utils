@@ -470,6 +470,12 @@ LIFEFORM = {
     "path": ref("node", hint="a //comms route = the character's voice"),
     "scene": ref("node"),
     "speaker": ref("node"),
+    # The side this person speaks for - whose opinion `standing` reads when they are the
+    # speaker of a scene. EXACTLY the descriptor Open Universe registers for its
+    # captains (`universe_amd.py`), hint included: `amd_register_fields` raises on a
+    # re-declaration that differs, and the released Open Universe still declares this
+    # field itself - a different descriptor here would cost it its whole vocabulary.
+    "side": ref("node", hint="the side this person flies for"),
 }
 
 # A CREW ROSTER, and the people in it. NOT a lifeform, because a crew member never spawns:
