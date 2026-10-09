@@ -18,15 +18,26 @@ offers the proximity pass made are its own to take back.
 `eva_relics_auto(False)` is the opt-out, for a mission that wires its ruins by hand with
 `eva_relic_open` / `eva_relic_close`.
 
-WHY PROXIMITY, AND WHY ONE AT A TIME
+WHY PROXIMITY, AND WHOSE OFFER IT IS
 ------------------------------------
-`eva_offer` is ONE slot: the relic a console suits up into. Offering every ruin the moment
-it is built meant the last one built won, and SUIT UP worked from the far side of the map.
-Following the ship answers both: the ruin on offer is the one the crew is AT.
+Offering every ruin the moment it is built meant the last one built won, and SUIT UP
+worked from the far side of the map. Following the ship answers both: the ruin on offer is
+the one the crew is AT.
 
-It is still one slot. Two player ships at two ruins get the offer of whichever ruin was
-reached first, and the second ruin waits its turn. Making the offer per ship is a change
-to `eva_offer` itself, not to this.
+THE OFFER IS THE SHIP'S (2026-10-09). `eva_offer` used to be one slot for the whole game,
+so two player ships at two ruins got the offer of whichever was reached first. Each ship
+now has its own: each is offered the ruin at whose door IT is, two ships at one ruin are
+both offered it, and a ship's offer is withdrawn when THAT ship leaves and none of ITS
+crew is still out.
+
+`eva_offer(key)` with no ship is still the offer for EVERY ship, which is what a mission
+written before this means by it - and while one stands the pass makes no offer of its own
+beside it.
+
+THE CREW PARTY IS STILL ONE. `boarding_invite_crew` holds a single invitation, so the
+second ship's crew JOINS the party the first ship opened (`boarding_invite_crew_add`)
+rather than getting one of their own. Each console still goes to its own ship's ruin; what
+they share is the party - one title, one roster.
 
 IDENTITY, NOT A LATCH. Every verb here can be called again - by a mission's own route that
 still does the same job, by a second `relic_built`, by the tick - and does nothing the
@@ -44,7 +55,7 @@ EVA_RELIC_RANGE = 3000.0
 #: close the party every pass.
 EVA_RELIC_LEAVE = 1.15
 
-_STATE_KEY = "__EVA_RELICS__"        # {"open": relic key, "refused": {relic key: why}}
+_STATE_KEY = "__EVA_RELICS__"        # {"open": {ship|None: relic key}, "refused": {relic key: why}}
 _AUTO_KEY = "__EVA_RELICS_AUTO__"    # False when a mission wires by hand
 _TICK_KEY = "__EVA_RELICS_TICK__"
 _BY_PASS = "proximity"               # the mark on an offer the proximity pass made
@@ -136,8 +147,51 @@ def _eva_relic_party_is_ours(invite):
             and invite.get("area") is None)
 
 
+def _eva_relic_crew_out(ship_id, relic_key):
+    """The suits in a ruin that came from one ship.
+
+    `ship_id` None asks for everybody's. A suit whose ship is not on record - one a
+    script handed out with `eva_take` and no `home=` - counts for EVERY ship: not knowing
+    whose it is must never be the reason an offer is pulled from under somebody.
+    """
+    from .eva import eva_suit_home, eva_suits
+    out = set()
+    for suit in eva_suits(relic_key):
+        home = eva_suit_home(suit)
+        if ship_id is None or home is None or home == ship_id:
+            out.add(suit)
+    return out
+
+
+def _eva_relic_opens():
+    """``{ship id | None: relic key}`` - what this wiring has on offer, checked against
+    the offers actually standing, so one a mission has since replaced is not reported."""
+    from .eva import eva_offers
+    got = _state().get("open")
+    if not isinstance(got, dict):
+        return {}
+    offers = eva_offers()
+    return {whose: key for whose, key in got.items()
+            if (offers.get(whose) or {}).get("relic") == key}
+
+
+def _eva_relic_opens_set(whose, relic_key):
+    state = _state()
+    opens = dict(state.get("open") or {}) if isinstance(state.get("open"), dict) else {}
+    if relic_key is None:
+        if whose not in opens:
+            return
+        del opens[whose]
+    elif opens.get(whose) == relic_key:
+        return
+    else:
+        opens[whose] = relic_key
+    state["open"] = opens
+    _save(state)
+
+
 def eva_relic_open(relic_key, volume=None, name=None, ship=None):
-    """Offer a ruin to the crew: SUIT UP goes there, and a crew party is open to join.
+    """Offer a ruin to a crew: SUIT UP goes there, and a crew party is open to join.
 
     The two halves a mission used to write by hand - `eva_offer` says WHICH ruin, and
     `boarding_invite_crew` gives the Boarding Party app a roster to show - in the one
@@ -148,22 +202,25 @@ def eva_relic_open(relic_key, volume=None, name=None, ship=None):
         volume (optional): the volume name. Defaults to the one the relic BUILT, which is
             the only safe guess - see `relic_volume_name`.
         name (optional): what the party is called on screen. Defaults to the relic's own.
-        ship (optional): the ship the crew leaves from. Defaults to the player ship
-            nearest the entrance.
+        ship (optional): the ship whose crew is offered it. **Left out, the ruin is
+            offered to EVERY player ship** - what this call has always done - and the
+            party is opened from the ship nearest the entrance. Named, the offer is that
+            ship's own, and another ship's offer is not touched.
 
     Returns:
-        bool: True when this ruin is on offer afterwards. False is ordinary and logged
-        once: the relic is not registered, a mission's own boarding party is open, or
-        somebody is still out in a different ruin.
+        bool: True when this ruin is on offer to that ship afterwards. False is ordinary
+        and logged once: the relic is not registered, a mission's own boarding party is
+        open, or one of that ship's crew is still out in a different ruin.
 
     IDEMPOTENT BY IDENTITY. Asked again for the ruin already on offer it changes nothing -
     not the offer (a mission that offered it first keeps its own `hull=`), and not the
     party, so nobody who has a place loses it.
     """
     from .amd_relics import relic_record, relic_volume_name
-    from .boarding import (INVITE_KEY, boarding_invitation, boarding_invite_crew,
+    from .boarding import (boarding_invitation, boarding_invite_crew,
+                           boarding_invite_crew_add, boarding_invite_ships,
                            boarding_team)
-    from .eva import eva_offer, eva_offered, eva_suits
+    from .eva import eva_offer, eva_offered, eva_offers
     rec = relic_record(relic_key)
     if rec is None:
         _say_once(relic_key, "unknown",
@@ -183,9 +240,14 @@ def eva_relic_open(relic_key, volume=None, name=None, ship=None):
                   f"offered once that one is closed.")
         return False
 
-    offer = eva_offered()
+    # WHOSE OFFER. None is "every ship" - a mission that named none.
+    whose = to_id(ship) if ship is not None else None
+    title = name or rec.get("name") or relic_key
+    # What that ship is offered NOW: its own offer, else the one a mission made for
+    # everybody. Left alone when it is already this ruin, so a mission's `hull=` stands.
+    offer = eva_offered(ship=whose) if whose is not None else eva_offers().get(None)
     if offer is not None and offer.get("relic") != relic_key:
-        if eva_suits(offer.get("relic")):
+        if _eva_relic_crew_out(whose, offer.get("relic")):
             _say_once(relic_key, "busy",
                       f"EVA: relic '{relic_key}' was not offered because somebody is "
                       f"still out in '{offer.get('relic')}'. It is offered when they "
@@ -195,69 +257,96 @@ def eva_relic_open(relic_key, volume=None, name=None, ship=None):
     if offer is None:
         # No `hull=`: `eva_suit_hull()` answers at the moment a suit is made, so a
         # mission that sets its hull after the ruin is built still gets it.
-        eva_offer(relic_key, volume=volume or relic_volume_name(rec))
+        eva_offer(relic_key, volume=volume or relic_volume_name(rec), ship=whose,
+                  name=title)
     _unsay(relic_key)
 
-    if ship is None:
-        ship = eva_relic_ship(relic_key)
-    ship_id = to_id(ship) if ship is not None else None
-    title = name or rec.get("name") or relic_key
+    ship_id = whose if whose is not None else eva_relic_ship(relic_key)
     if ship_id is not None:
-        same = invite is not None and invite.get("ship") == ship_id
-        if invite is None or (not same and not boarding_team()):
+        ships = boarding_invite_ships()
+        if invite is None:
             # `boarding_invite_crew` is identity too: a console that already has a body
             # keeps it, so opening the party again is the same people.
             invite = boarding_invite_crew(ship_id, title=title)
-        # OURS, said on the invitation, so `eva_relic_close` knows which ruin it is for.
-        if invite.get("eva_relic") != relic_key:
-            invite["eva_relic"] = relic_key
-            Agent.SHARED.set_inventory_value(INVITE_KEY, invite)
+        elif ship_id not in ships:
+            opens = _eva_relic_opens()
+            if boarding_team() or any(s in opens for s in ships):
+                # ANOTHER SHIP'S CREW IS IN IT - down, or still on offer. The party is
+                # one slot, so this crew joins it rather than taking it over.
+                boarding_invite_crew_add(ship_id)
+            else:
+                # Nobody is using the old one: a party left open for a ship that has
+                # since gone. Opened afresh for this ship, as it always was.
+                invite = boarding_invite_crew(ship_id, title=title)
 
-    state = _state()
-    if state.get("open") != relic_key:
-        state["open"] = relic_key
-        _save(state)
+    _eva_relic_opens_set(whose, relic_key)
     return True
 
 
-def eva_relic_close(relic_key=None, force=False):
-    """Withdraw a ruin's offer, and close the crew party that went with it.
+def eva_relic_close(relic_key=None, force=False, ship=None):
+    """Withdraw a ruin's offer, and take its crew back out of the party.
 
     Args:
-        relic_key (optional): which ruin. Defaults to whichever is on offer.
+        relic_key (optional): which ruin. Defaults to whatever is on offer.
         force (bool, optional): withdraw even with somebody still out. For a ruin that is
             being torn down; see `eva_relic_released`.
+        ship (optional): only THIS ship's own offer. Left out, every offer of that ruin
+            goes - each ship's, and the one for everybody.
 
     Returns:
-        bool: False when that ruin is not the one on offer, or somebody is still out in
-        it - an offer withdrawn under a suit would leave its console with no way to send
-        a second crew member after the first.
+        bool: False when nothing was withdrawn: that ruin is not on offer (to that
+        ship), or one of the ship's crew is still out in it - an offer withdrawn under a
+        suit would leave its console with no way to send a second crew member after the
+        first.
     """
-    from .boarding import boarding_invitation, boarding_invite_close
-    from .eva import eva_offer_clear, eva_offered, eva_suits
-    offer = eva_offered()
-    if offer is None:
+    from .boarding import (boarding_invitation, boarding_invite_close,
+                           boarding_invite_crew_drop)
+    from .eva import _eva_offer_drop, eva_offers
+    only = to_id(ship) if ship is not None else None
+    closed = False
+    for whose, offer in list(eva_offers().items()):
+        if ship is not None and whose != only:
+            continue
+        key = offer.get("relic")
+        if relic_key is not None and key != relic_key:
+            continue
+        if not force and _eva_relic_crew_out(whose, key):
+            continue
+        _eva_offer_drop(whose)
+        _eva_relic_opens_set(whose, None)
+        closed = True
+        invite = boarding_invitation()
+        if (whose is not None and invite is not None
+                and _eva_relic_party_is_ours(invite)):
+            # THAT SHIP'S crew leaves the party; the other ship's stays in it. With
+            # nobody left the party closes itself.
+            boarding_invite_crew_drop(whose)
+    if not closed:
         return False
-    key = offer.get("relic")
-    if relic_key is not None and key != relic_key:
-        return False
-    if not force and eva_suits(key):
-        return False
-    eva_offer_clear()
-    invite = boarding_invitation()
-    if invite is not None and _eva_relic_party_is_ours(invite):
-        boarding_invite_close()
-    state = _state()
-    if state.get("open") is not None:
-        state["open"] = None
-        _save(state)
+    if not eva_offers():
+        invite = boarding_invitation()
+        if invite is not None and _eva_relic_party_is_ours(invite):
+            boarding_invite_close()
     return True
 
 
-def eva_relic_opened():
+def eva_relic_opened(ship=None):
     """The ruin this wiring has on offer, or None. Not `eva_offered()`: that answers for
-    an offer a mission made by hand as well."""
-    return _state().get("open")
+    an offer a mission made by hand as well.
+
+    Args:
+        ship (optional): the ruin on offer to THIS ship. Left out: the one offered to
+            every ship, else the lowest-numbered ship's - with one ship, the only one.
+    """
+    opens = _eva_relic_opens()
+    if not opens:
+        return None
+    if ship is not None:
+        whose = to_id(ship)
+        return opens.get(whose, opens.get(None))
+    if None in opens:
+        return opens[None]
+    return opens[sorted(opens)[0]]
 
 
 def eva_relic_released(relic_key):
@@ -297,6 +386,7 @@ def eva_relic_released(relic_key):
         eva_clear(relic_key)
     except Exception:                                    # noqa: BLE001
         pass
+    # EVERY ship's offer of it: the ruin is gone for all of them.
     eva_relic_close(relic_key, force=True)
     _unsay(relic_key)
     return back
@@ -322,68 +412,86 @@ def eva_relics_auto(on=None):
     return True if got is None else bool(got)
 
 
+def _eva_relic_near(ship_id, relic_key, reach):
+    """How far a ship is from a ruin's entrance, or None when it is further than `reach`
+    (or either is gone, or the ruin is not standing)."""
+    from .amd_relics import relic_entrance
+    ship = to_object(ship_id)
+    if ship is None or _eva_relic_built(relic_key) is None:
+        return None
+    door = relic_entrance(relic_key)
+    if door is None:
+        return None
+    p = ship.pos
+    d = _dist((p.x, p.y, p.z), door)
+    return d if d <= float(reach) else None
+
+
 def eva_relics_pass(reach=None):
-    """One proximity pass: offer the ruin the crew is at, withdraw the one they left.
+    """One proximity pass: each ship is offered the ruin IT is at, and loses the one it
+    left.
 
     Asks the WORLD each time rather than keeping a list: every registered relic whose
-    space is standing is a candidate, so a ruin built late, rebuilt on a revisit or torn
-    down needs no bookkeeping here.
+    space is standing is a candidate, and every player ship is asked about separately, so
+    a ruin built late, rebuilt on a revisit or torn down - or a second ship arriving at a
+    second ruin - needs no bookkeeping here.
 
     Returns:
-        The relic key on offer afterwards, or None.
+        A relic key on offer afterwards, or None: the one a mission offered every ship,
+        else the lowest-numbered ship's. With one ship that is simply "the one on offer".
     """
     from .amd_relics import relic_keys
-    from .eva import _OFFER_KEY, eva_offered, eva_suits
+    from .eva import _eva_offer_mark, eva_offered, eva_offers
+    from .roles import role
     reach = float(reach if reach is not None else EVA_RELIC_RANGE)
-    offer = eva_offered()
-    current = offer.get("relic") if offer is not None else None
+    offers = eva_offers()
 
-    if current is not None:
-        # A MISSION'S OWN OFFER STANDS. One made by hand - `eva_offer` from a route the
-        # mission wrote before any of this existed - is the mission saying when, and the
-        # pass neither withdraws it for being far away nor replaces it with a nearer
-        # ruin. Only an offer this pass made is this pass's to take back.
+    # A MISSION'S OWN OFFER STANDS. One made by hand for every ship - `eva_offer` from a
+    # route the mission wrote before any of this existed - is the mission saying when and
+    # where, and the pass neither withdraws it for being far away nor offers any ship a
+    # nearer ruin beside it. Only an offer this pass made is this pass's to take back.
+    general = offers.get(None)
+    if general is not None:
+        return general.get("relic")
+
+    # WITHDRAW, ship by ship: the offer this pass made to a ship that has since left.
+    for whose, offer in list(offers.items()):
         if offer.get("by") != _BY_PASS:
-            return current
-        # Somebody out there keeps it open whatever the ship does: the crew's way to send
-        # a second boarder after the first is this offer.
-        if eva_suits(current):
-            return current
-        near = None
-        if _eva_relic_built(current) is not None:
-            near = eva_relic_ship(current, reach * EVA_RELIC_LEAVE)
-        if near is not None:
-            # Still here. Asked again so a party that was never opened - the ruin was
-            # offered before any ship existed - is put right. Identity, so it is free.
-            eva_relic_open(current, ship=near)
-            return current
-        eva_relic_close(current, force=True)
+            continue                # the mission's own, for that ship: it stands
+        key = offer.get("relic")
+        # One of THIS ship's crew out there keeps it open whatever the ship does: the
+        # crew's way to send a second boarder after the first is this offer. Another
+        # ship's crew in the same ruin is that ship's business.
+        if _eva_relic_crew_out(whose, key):
+            continue
+        if _eva_relic_near(whose, key, reach * EVA_RELIC_LEAVE) is not None:
+            # Still here. Asked again so a party that was never opened is put right.
+            # Identity, so it is free.
+            eva_relic_open(key, ship=whose)
+            continue
+        eva_relic_close(key, force=True, ship=whose)
 
-    # Nothing on offer: the ruin with a ship nearest its door, if any is near enough.
-    best, best_d, best_ship = None, float("inf"), None
-    from .amd_relics import relic_entrance
-    for key in relic_keys():
-        if _eva_relic_built(key) is None:
+    # OFFER, ship by ship: a ship with nothing on offer gets the ruin whose door it is
+    # nearest, if any is near enough. Two ships at one ruin are both offered it.
+    offers = eva_offers()
+    built = [key for key in relic_keys() if _eva_relic_built(key) is not None]
+    for ship_id in sorted(role("__player__")):
+        if ship_id in offers:
             continue
-        ship = eva_relic_ship(key, reach)
-        if ship is None:
+        best, best_d = None, float("inf")
+        for key in built:
+            d = _eva_relic_near(ship_id, key, reach)
+            if d is not None and d < best_d:
+                best, best_d = key, d
+        if best is None or not eva_relic_open(best, ship=ship_id):
             continue
-        p = to_object(ship).pos
-        d = _dist((p.x, p.y, p.z), relic_entrance(key))
-        if d < best_d:
-            best, best_d, best_ship = key, d, ship
-    if best is None:
-        return None
-    if not eva_relic_open(best, ship=best_ship):
-        return None
-    # OURS, said on the offer itself rather than beside it: a mission that offers the
-    # same ruin again afterwards writes a fresh offer without the mark, and from then on
-    # it is the mission's.
-    made = eva_offered()
-    if made is not None and made.get("relic") == best:
-        made["by"] = _BY_PASS
-        Agent.SHARED.set_inventory_value(_OFFER_KEY, made)
-    return best
+        # OURS, said on the offer itself rather than beside it: a mission that offers a
+        # ruin itself afterwards writes a fresh offer without the mark, and from then on
+        # it is the mission's.
+        _eva_offer_mark(ship_id, _BY_PASS)
+
+    left = eva_offered()
+    return left.get("relic") if left is not None else None
 
 
 def _eva_relics_tick(t=None):
@@ -438,6 +546,6 @@ def eva_relics_clear():
 
 
 def eva_relics_count():
-    """Reset-ledger probe: a ruin still on offer, or a pass still ticking."""
+    """Reset-ledger probe: a ruin still on offer (to any ship), or a pass still ticking."""
     n = 1 if _state().get("open") else 0
     return n + (1 if Agent.SHARED.get_inventory_value(_TICK_KEY, None) is not None else 0)

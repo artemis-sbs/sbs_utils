@@ -433,14 +433,24 @@ as a party and its button reads **SUIT UP**. When the ship leaves, the offer is 
 | the offer stays up | for as long as anybody is still out in a suit |
 | suits are brought back aboard | the ruin is torn down (`relic_release`) with crew inside |
 
-One ruin is on offer at a time: the one the ship is at. With two ruins, the offer follows
-the ship from one to the other.
+**The offer belongs to the ship.** Each player ship is offered the ruin it is at, so with
+two ships at two ruins both crews can suit up, each into their own; two ships at one ruin
+are both offered it. A ship's offer is withdrawn when *that* ship leaves and none of *its*
+crew is still out - another ship's boarders in the same ruin do not hold it open. With one
+ship and two ruins, the offer follows the ship from one to the other.
+
+The crew party is still one party: the second ship's crew joins the party the first ship
+opened, each console as its own crew member. The app tells each console the name of the
+ruin its own ship is at.
 
 What a mission did itself is left alone:
 
 - **Its own offer stands.** A ruin the mission offered with `eva_offer` - from a route
   written before any of this existed - is not withdrawn for being far away, and not traded
   for a nearer ruin. Only an offer the automatic wiring made is withdrawn by it.
+  `eva_offer(key)` with no ship is the offer for **every** player ship, and while it
+  stands the automatic wiring offers no ship anything else. `eva_offer(key, ship=id)` is
+  one ship's own.
 - **Its own boarding party stands.** With a cast the mission named open, or a party with an
   interior to beam down into, no ruin is offered until that party is closed. The reason is
   logged once under `eva`.
@@ -458,6 +468,8 @@ eva_relics_auto(False)
 
 `eva_relic_close(key)` withdraws it, and does nothing while somebody is still out there.
 Both can be called again and again: asking for the ruin already on offer changes nothing.
+Both take `ship=`: `eva_relic_open(key, ship=id)` offers the ruin to that ship's crew only,
+and without it the ruin is offered to every ship.
 
 ### The suit
 
@@ -468,7 +480,10 @@ data, so a mission gets it only when all three of these are true:
 |---|---|
 | the `boarding` addon | `story.json`, in `mastlib` |
 | the LegendaryMissions media pack | `story.json`, in `shared_media` |
-| `EXTRA_SHIP_DATA: true` | `settings.yaml` |
+| `EXTRA_SHIP_DATA` left on | nothing to write: it is on by default. `EXTRA_SHIP_DATA: false` in `settings.yaml` turns it off |
+
+A mission made with `sbs create -t amd` has the first two, so its suits are exosuits with
+no setting at all.
 
 When any is missing the suit is drawn as the stock `tsn_shuttle` instead, and one warning
 under `eva` (and in `debug.log`) says which hull was wanted. `eva_set_suit_hull("key")`
@@ -639,9 +654,14 @@ legitimate thing to author — a wall that is simply a wall — so it is allowed
 **Give the crew a second way, and the barrier becomes a choice rather than a wait.** One
 route shut and one long way round is the shape this is for.
 
-**A barrier opening is a story beat.** However it was opened - cut, worked by hand, or by
-its own `Opens when:` - the quest signal `<barrier key>_opened` is sent, once. A quest
-waits on it with no mission code:
+**A ship can shoot one open.** A shut barrier is a real object with 40 hull, so the
+ship's own beams can destroy it from outside. With the `boarding` addon loaded that opens
+the way exactly as a suit's cutter does. A `Repair:` job is the opposite: shooting its
+marker repairs nothing, and the job is still there to do.
+
+**A barrier opening is a story beat.** However it was opened - cut, shot away, worked by
+hand, or by its own `Opens when:` - the quest signal `<barrier key>_opened` is sent, once.
+A quest waits on it with no mission code:
 
 ```
 Done when: signal hatch_opened

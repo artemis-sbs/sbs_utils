@@ -3,7 +3,7 @@
 !!! warning "Experimental"
     The pieces below are new and the engine side is still moving. Ship data, interiors,
     fleet ladders, races and hull art all work on **engine 1.3.6 and later**, and the
-    whole feature is **off until a mission turns it on** — see
+    whole feature is **on unless a mission turns it off** — see
     [The `EXTRA_SHIP_DATA` setting](#the-extra_ship_data-setting). Older engines are not
     supported.
 
@@ -155,27 +155,31 @@ media pack it pinned.
 
 ### The `EXTRA_SHIP_DATA` setting
 
-Extra ship data is **off by default**. Until a mission turns it on, `ship_data_add_extra`
-(and `add_extra`) returns `False` **without even looking for your file**. You get one
-warning per mission, and then your hulls are just absent: no merge, no engine call,
-nothing spawns. The reason is safety. On an engine older than 1.3.6 the first spawn of a
-declared hull kills the engine with `bad allocation`.
+Extra ship data is **on by default** (since library v1.4.0, 2026-10-09; it was off before).
+A mission can turn it off, and then `ship_data_add_extra` (and `add_extra`) returns `False`
+**without even looking for your file**. You get one warning per mission, and then your
+hulls are just absent: no merge, no engine call, nothing spawns. The reason to turn it off
+is safety. On an engine older than 1.3.6 the first spawn of a declared hull kills the
+engine with `bad allocation`.
 
-Turn it on in the **mission that loads your mod**:
+Turn it off in the **mission that loads your mod**, when that mission has to run on such
+an engine:
 
 ```yaml title="settings.yaml (the consuming mission)"
-EXTRA_SHIP_DATA: true
+EXTRA_SHIP_DATA: false
 ```
 
-A profile (`profiles/<name>.yaml`) or `COSMOS_SETTINGS` can set it too. Three rules catch
+A profile (`profiles/<name>.yaml`) or `COSMOS_SETTINGS` can set it too. Four rules catch
 people out:
 
 - **The consuming mission's settings are read, never the mod's.** Your add-on's own
-  `settings.yaml` does nothing when another mission loads it. If the mod also runs as its
-  own mission, such as a viewer or a bake map, that mission needs its own
-  `EXTRA_SHIP_DATA: true`.
+  `settings.yaml` does nothing when another mission loads it.
 - **A quoted `"false"` is false.** The setting fails safe, so only `true`, `yes`, `on` or
   `1` turn it on.
+- **The default never writes a file.** The older `ship_data_merge_mod` route generates
+  `extraShipData.json` in the mission folder, so it runs only when the mission writes
+  `EXTRA_SHIP_DATA: true` itself. On the default alone it declares nothing and says so
+  once. Use `ship_data_add_extra`, which writes nothing.
 - **Gate what spawns your hulls, not just the declaration.** A prefab or fleet ladder that
   spawns `dw_breaker` while the setting is off asks the engine for a hull it was never
   told about. Load them under the same condition. Declaring with nothing spawning is safe;

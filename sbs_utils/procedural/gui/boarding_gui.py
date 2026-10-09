@@ -85,14 +85,15 @@ def gui_boarding_screen(title="Boarding Party"):
     client_id = getattr(page, "client_id", None) if page is not None else None
     held = boarding_held(client_id) if client_id is not None else []
 
-    gui_app_chrome(title, subtitle=boarding_invite_title() if boarding_invitation() else None)
+    gui_app_chrome(title, subtitle=_going_to(client_id) if boarding_invitation() else None)
     gui_section(style="area: 0, 80px, 100, 100;")
 
     if held:
         _down_here(client_id, held)
         return
 
-    if boarding_invitation() is None:
+    from ..boarding import boarding_invited
+    if boarding_invitation() is None or not boarding_invited(client_id):
         gui_row("row-height: content; padding: 24px, 16px, 24px, 0;")
         gui_text(f"$text:No landing party.;font:gui-3;color:{DIM};")
         gui_row("row-height: content; padding: 24px, 4px, 24px, 0;")
@@ -124,7 +125,7 @@ def gui_boarding_screen(title="Boarding Party"):
         return
 
     gui_row("row-height: content; padding: 24px, 14px, 24px, 6px;")
-    gui_text(f"$text:{_esc('Going down to ' + boarding_invite_title())};"
+    gui_text(f"$text:{_esc('Going down to ' + _going_to(client_id))};"
              f"font:gui-1;color:{ACCENT};")
 
     gui_row("padding: 24px, 0, 24px, 8px;")
@@ -133,7 +134,7 @@ def gui_boarding_screen(title="Boarding Party"):
 
     # The pick is the character; the button is the commitment. Choosing a row and
     # pressing are separate so nobody lands on the surface by brushing a list.
-    label, _phrase, door = _go_word()
+    label, _phrase, door = _go_word(client_id)
 
     def _go(_cid=client_id, _door=door):
         chosen = lb.get_value()
@@ -145,7 +146,7 @@ def gui_boarding_screen(title="Boarding Party"):
     gui_button(label, on_press=_go)
 
 
-def _go_word():
+def _go_word(client_id=None):
     """What the button says, and which door it opens.
 
     ONE BRANCH, in one place, because there are two kinds of place to board now. A ship's
@@ -153,14 +154,33 @@ def _go_word():
     and fly it. The party, the roster and the reservation are identical either way - only
     the body differs - so the whole difference is which door the button calls.
 
+    THE OFFER IS THE SHIP'S. Two ships at two ruins each have their own, so the question
+    is asked for the ship THIS console belongs to - a ruin on offer to another crew does
+    not turn this crew's BEAM DOWN into an airlock.
+
     Returns:
         tuple: ``(label, going_to_phrase, door)``.
     """
     from ..eva import eva_offered
     from .eva_gui import eva_go_out
-    if eva_offered() is not None:
+    if client_id is None:
+        page = FrameContext.page
+        client_id = getattr(page, "client_id", None) if page is not None else None
+    if eva_offered(client_id=client_id) is not None:
         return ("SUIT UP", "Going out to", eva_go_out)
     return ("BEAM DOWN", "Going down to", boarding_go_down)
+
+
+def _going_to(client_id):
+    """What the place this console would go to is called.
+
+    The party's title, except that a ruin on offer to this console's own ship names
+    itself: one crew party can now hold the crews of two ships at two ruins, and the
+    second crew is not going to the first crew's ruin.
+    """
+    from ..eva import eva_offered
+    offer = eva_offered(client_id=client_id) or {}
+    return offer.get("name") or boarding_invite_title()
 
 
 def _come_back_word(client_id):
@@ -198,10 +218,10 @@ def _going_as(client_id, lifeform):
     from .face import gui_face
     from ...faces import get_face
 
-    label, phrase, door = _go_word()
+    label, phrase, door = _go_word(client_id)
     name, job = boarding_label(lifeform)
     gui_row("row-height: content; padding: 24px, 14px, 24px, 6px;")
-    gui_text(f"$text:{_esc(phrase + ' ' + boarding_invite_title())};"
+    gui_text(f"$text:{_esc(phrase + ' ' + _going_to(client_id))};"
              f"font:gui-1;color:{ACCENT};")
 
     gui_row("row-height: content; padding: 24px, 10px, 24px, 4px;")

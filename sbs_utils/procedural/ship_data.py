@@ -2,17 +2,29 @@ from ..fs import load_data, load_yaml_string, get_artemis_data_dir, get_mission_
 import os
 
 
-# --- extra ship data: OFF unless the mission asks for it ---------------------
+# --- extra ship data: ON unless the mission turns it off ---------------------
 #
-#     EXTRA_SHIP_DATA: true        # settings.yaml, a profile, or COSMOS_SETTINGS
+#     EXTRA_SHIP_DATA: false       # settings.yaml, a profile, or COSMOS_SETTINGS
 #
 # The answer differs per INSTALL, not per build of this library, which is why this
 # stopped being the hardcoded constant the 2026-08-27 hot fix introduced. The engine
 # only grew a working extra-ship-data path in v1.3.7 and people are still running
 # v1.3.4, where a declared hull never registers - and asking to spawn one does not
 # fail where it is written: it dies INSIDE the engine with `bad allocation`, minutes
-# later, against unrelated code. Off is therefore the only safe default, and a
-# mission that knows which engine it is running on turns it on.
+# later, against unrelated code. A MISSION THAT HAS TO RUN ON SUCH AN ENGINE SETS
+# `EXTRA_SHIP_DATA: false`.
+#
+# The default was OFF until 2026-10-09 and is ON since (the owner's call), so that a
+# hull an addon ships - the EVA exosuit is the one that forced it - exists in a mission
+# whose writer never heard of the setting. A mission that declares nothing is unchanged
+# by that: nothing is loaded, nothing is said, nothing is written.
+#
+# ONE THING STILL NEEDS THE SETTING WRITTEN DOWN: the superseded generated-file route,
+# `ship_data_mod.ship_data_merge_mod` + `ship_data_flush_mod_file`, which WRITES
+# `extraShipData.json` into the mission folder. A default must never put a file in
+# somebody's mission, so that route asks `extra_ship_data_asked()` - the setting typed
+# by the mission, a profile or the launch - and is inert on the default alone, exactly
+# as it was while the default was off.
 #
 # Everything that could load one is gated on this: the mission's own `extraShipData`,
 # `add_extra()`, `merge_mod_ship_yaml()` (the choke point every mod merge funnels
@@ -32,7 +44,7 @@ _EXTRA_SHIP_DATA_FORCE = None
 def extra_ship_data_enabled():
     """Whether extra ship data may be loaded at all.
 
-    Reads the `EXTRA_SHIP_DATA` setting, defaulting to False. A caller that has to
+    Reads the `EXTRA_SHIP_DATA` setting, defaulting to True. A caller that has to
     decide before settings exist - or a test - overrides it with
     `extra_ship_data_force`.
     """
@@ -41,7 +53,7 @@ def extra_ship_data_enabled():
     # Imported here, not at module scope: settings reads ship data for its race
     # lists, so the two modules cannot import each other at load time.
     from .settings import settings_get_defaults
-    value = settings_get_defaults().get("EXTRA_SHIP_DATA", False)
+    value = settings_get_defaults().get("EXTRA_SHIP_DATA", True)
     # NOT bool(): a quoted "false" is a non-empty string and bool() calls it True,
     # which would turn the feature ON in the one place it must not be - a v1.3.4
     # install, where the engine dies on the first spawn of a declared hull. YAML
@@ -56,6 +68,27 @@ def extra_ship_data_force(on=True):
     """Override the setting. `None` hands control back to it."""
     global _EXTRA_SHIP_DATA_FORCE
     _EXTRA_SHIP_DATA_FORCE = None if on is None else bool(on)
+
+
+def extra_ship_data_asked():
+    """Whether somebody ASKED for extra ship data, rather than merely not refusing it.
+
+    True when the feature is on AND the setting was written down for this run -
+    settings.yaml / setup.json, a profile, `COSMOS_SETTINGS`, `var.EXTRA_SHIP_DATA=` -
+    or forced on by a caller. False on the library default alone.
+
+    What may WRITE asks this instead of `extra_ship_data_enabled`. The default is on so
+    that hulls an addon ships simply exist; that is reading. Generating
+    `extraShipData.json` in a mission folder is a different act, and a mission that
+    said nothing must never find a file (and a `.bak`) it did not put there - which is
+    what a default-on run of a mission with `ship_data_merge_mod` callers did.
+    """
+    if not extra_ship_data_enabled():
+        return False
+    if _EXTRA_SHIP_DATA_FORCE is not None:
+        return True
+    from . import settings as _settings
+    return "EXTRA_SHIP_DATA" in _settings._explicit_keys
 
 
 ship_data_cache = None

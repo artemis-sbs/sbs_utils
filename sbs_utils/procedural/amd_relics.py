@@ -1132,9 +1132,22 @@ def relic_barrier_destroyed(obj_id):
 
     Returns the barrier key it opened, or None when the object was not a barrier - so a
     route can hand it every destruction without asking first.
+
+    A REPAIR JOB IS NOT DONE BY BEING SHOT. Handed the marker of a `Repair:` job this
+    repairs nothing and returns None: the job is read from the record, so it is still
+    there to do. It only FORGETS the marker's id - ids are recycled, and
+    `relic_repair_done` puts the plain marker away by id, so a remembered id of a marker
+    that is gone would one day delete whatever the engine gave that number to next.
     """
+    from .query import to_id
+    obj_id = to_id(obj_id)
     for akey, rec in list(_ARMED.items()):
-        if akey[0] != "barrier_obj" or rec.get("id") != obj_id:
+        if rec.get("id") != obj_id or obj_id is None:
+            continue
+        if akey[0] == "repair":
+            rec["id"] = None
+            return None
+        if akey[0] != "barrier_obj":
             continue
         relic_open_barrier(rec.get("relic"), rec.get("barrier"))
         return rec.get("barrier")

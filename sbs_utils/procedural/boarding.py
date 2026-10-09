@@ -1687,6 +1687,112 @@ def boarding_invite_crew(ship, title=None, consoles=None, assign_missing=True,
     return invite
 
 
+# --- a crew party of more than one ship ------------------------------------------------
+#
+# THE INVITATION IS ONE SLOT, and it stays one: the team, the reservations, the scene
+# channels and the visit are all built on there being one party. What it could not do was
+# hold a SECOND SHIP'S crew - `boarding_latecomers` dealt in only the consoles of the ship
+# the party was opened from, so with two ships at two ruins the second crew read "The
+# party is full" whatever was on offer to them.
+#
+# So a CREW party (and only that kind - a mission's cast is deliberate) can be joined by
+# another ship. Its consoles are dealt bodies from their own ship's roster, reserved to
+# them, exactly as the first ship's were. Where each crew then GOES is not the party's
+# business: that is `eva_offer(..., ship=)`, or the `site=`/`area=` a mission passed.
+#
+# What this does NOT make separate: the party has one title, and a job nobody in a scene
+# channel can do is forwarded within that channel as before.
+
+def boarding_invite_ships():
+    """Every ship whose crew the open party is cast from: the one it was opened for,
+    then any that joined. [] with no party open."""
+    invite = boarding_invitation()
+    if invite is None:
+        return []
+    out = []
+    for ship_id in [invite.get("ship")] + list(invite.get("ships") or ()):
+        if ship_id is not None and ship_id not in out:
+            out.append(ship_id)
+    return out
+
+
+def boarding_invited(client_id):
+    """Whether the open party has a place for THIS console to ask for.
+
+    A party a mission cast is open to every console, as it always was. A CREW party is
+    the crews of particular ships, so a console of some other ship is not in it - and is
+    told there is no party rather than that a party it was never part of is full.
+    """
+    from .links import linked_to
+    invite = boarding_invitation()
+    if invite is None:
+        return False
+    if not invite.get("crew") or client_id is None:
+        return True
+    if client_id in (invite.get("reserved") or {}) or boarding_held(client_id):
+        return True
+    return any(client_id in linked_to(ship_id, "consoles")
+               for ship_id in boarding_invite_ships())
+
+
+def boarding_invite_crew_add(ship):
+    """Bring another ship's crew into the open CREW party.
+
+    Identity, like the rest of the party: a ship already in it changes nothing, and a
+    console that already has a body keeps it.
+
+    Returns:
+        bool: True when that ship's crew is in the party afterwards. False with no party
+        open, or when the open one was cast by a mission rather than from a bridge.
+    """
+    invite = boarding_invitation()
+    ship_id = to_id(ship)
+    if invite is None or not invite.get("crew") or ship_id is None:
+        return False
+    if ship_id not in boarding_invite_ships():
+        invite.setdefault("ships", []).append(ship_id)
+        Agent.SHARED.set_inventory_value(INVITE_KEY, invite)
+    # The same pass that deals in a console that sat down late, run now rather than on
+    # the next tick: this ship's consoles are all "late" to a party opened elsewhere.
+    boarding_latecomers()
+    boarding_latecomers_watch()
+    return True
+
+
+def boarding_invite_crew_drop(ship):
+    """Take one ship's crew back out of the open CREW party. Anyone already down stays.
+
+    The bodies held for that ship's consoles are let go unless somebody is playing them,
+    so a console of that ship is no longer offered a place. The party itself is left
+    open for the ships still in it; with none left it is closed.
+
+    Returns:
+        bool: True when the ship was in the party.
+    """
+    from .links import linked_to
+    invite = boarding_invitation()
+    ship_id = to_id(ship)
+    if invite is None or not invite.get("crew") or ship_id not in boarding_invite_ships():
+        return False
+    rest = [s for s in boarding_invite_ships() if s != ship_id]
+    mine = set(linked_to(ship_id, "consoles"))
+    reserved = invite.get("reserved") or {}
+    taken = boarding_team()
+    for cid in list(reserved):
+        if cid not in mine or boarding_held(cid):
+            continue
+        body = reserved.pop(cid)
+        if body not in taken and body in (invite.get("roster") or []):
+            invite["roster"].remove(body)
+    if rest:
+        invite["ship"], invite["ships"] = rest[0], rest[1:]
+        Agent.SHARED.set_inventory_value(INVITE_KEY, invite)
+    else:
+        Agent.SHARED.set_inventory_value(INVITE_KEY, invite)
+        boarding_invite_close()
+    return True
+
+
 # --- consoles that arrive after the party opened --------------------------------------
 #
 # THE WINDOW WAS A MOMENT WIDE, and that is the bug. `boarding_invite_crew` casts from the
@@ -1718,24 +1824,26 @@ def boarding_latecomers():
     invite = boarding_invitation()
     if invite is None or not invite.get("crew"):
         return []
-    ship_id = invite.get("ship")
-    if ship_id is None:
-        return []
     known = set((invite.get("reserved") or {}).keys())
-    fresh = [cid for cid in sorted(linked_to(ship_id, "consoles"))
-             if cid not in known and not has_role(cid, "mainscreen")
-             and not boarding_held(cid)]
-    if not fresh:
-        return []
     added = []
-    for client_id, body in _crew_bodies(ship_id, fresh, True):
-        lf = to_id(body)
-        if lf is None:
+    # EVERY SHIP OF THE PARTY. One ship is the ordinary case; a crew party can also hold
+    # the crews of several (`boarding_invite_crew_add`), each console cast from the roster
+    # of its OWN ship.
+    for ship_id in boarding_invite_ships():
+        fresh = [cid for cid in sorted(linked_to(ship_id, "consoles"))
+                 if cid not in known and not has_role(cid, "mainscreen")
+                 and not boarding_held(cid)]
+        if not fresh:
             continue
-        roster = invite.setdefault("roster", [])
-        if lf not in roster:
-            roster.append(lf)
-        added.append((client_id, body))
+        for client_id, body in _crew_bodies(ship_id, fresh, True):
+            lf = to_id(body)
+            if lf is None:
+                continue
+            roster = invite.setdefault("roster", [])
+            if lf not in roster:
+                roster.append(lf)
+            added.append((client_id, body))
+            known.add(client_id)
     if not added:
         return []
     Agent.SHARED.set_inventory_value(INVITE_KEY, invite)
@@ -1883,7 +1991,8 @@ def boarding_job_vocabulary():
     # quartermaster's choice was never forwarded and a short crew could not reach it,
     # while the surgeon's was, because `medical` happens to be a stock word.
     if isinstance(invite, dict) and invite.get("crew"):
-        out |= _roster_jobs(invite.get("ship"))
+        for ship_id in [invite.get("ship")] + list(invite.get("ships") or ()):
+            out |= _roster_jobs(ship_id)
     return out
 
 

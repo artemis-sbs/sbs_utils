@@ -13,8 +13,8 @@ They share all of their combat code and differ only in where position comes from
 ## Turning turrets on
 
 Turrets need **extra ship data**: every turret hull exists only in the add-on's own
-`turrets/extraShipData_turrets` file. Set `EXTRA_SHIP_DATA: true` in the mission's settings
-or profile on an engine that loads it. `lm_turrets_enabled()` is then true exactly when
+`turrets/extraShipData_turrets` file. `EXTRA_SHIP_DATA` is on by default; a mission that
+has to run on an engine that cannot load it sets `EXTRA_SHIP_DATA: false`. `lm_turrets_enabled()` is then true exactly when
 those hulls reached the engine this mission. With it off, turrets are off - prefabs yield
 0, kits never spawn, and the Peacetime job built on them is not offered - so a turret can
 never ask the engine for a hull it was not given.

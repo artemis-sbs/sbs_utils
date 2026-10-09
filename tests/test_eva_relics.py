@@ -437,6 +437,244 @@ class Proximity(_Base):
             self.assertIn(name, MastGlobals.globals, name)
 
 
+# Two more real consoles, one for each of two ships.
+CID_A = 0x8080000000000051
+CID_B = 0x8080000000000052
+CID_B2 = 0x8080000000000053
+
+AT_HOLLOW = (DOOR[0] - 2000, 0, DOOR[2])
+AT_CYST = (60000 - 1500, 0, 0)
+
+
+class TwoShips(_Base):
+    """EVA offers are per SHIP.
+
+    `eva_offer` was one slot on the shared agent, so with two player ships at two ruins
+    only the first one reached got SUIT UP - and the crew party was cast from one ship's
+    bridge, so the second crew read "The party is full" whatever was on offer.
+
+    Everything here goes through what the game calls: the proximity pass makes the
+    offers, and the SUIT UP door (`_go_word`, `boarding_beam_down`, `eva_go_out`) is what
+    the Boarding Party app's button presses.
+    """
+
+    def setUp(self):
+        super().setUp()
+        from sbs_utils.procedural.links import link
+        self.link = link
+        self.a = self.ship(AT_HOLLOW, "Artemis")
+        self.b = self.ship(AT_CYST, "Intrepid")
+        self.seat(CID_A, self.a, "helm", "Marek")
+        self.seat(CID_B, self.b, "science", "Sorel")
+
+    def seat(self, cid, ship, console, name):
+        """Sit somebody at a console of a ship, the way the console door publishes it."""
+        from sbs_utils.procedural.inventory import set_inventory_value
+        GuiClient(cid)
+        set_inventory_value(cid, "CONSOLE_TYPE", console)
+        set_inventory_value(cid, "CREW_NAME", name)
+        self.link(ship.id, "consoles", cid)
+        sbs.assign_client_to_ship(cid, ship.id)
+
+    def door(self, cid):
+        """Press the Boarding Party app's one button for this console."""
+        from sbs_utils.procedural.gui import boarding_gui as G
+        label, _phrase, go = G._go_word(cid)
+        if B.boarding_beam_down(cid) is None:
+            return label, False
+        return label, bool(go(cid))
+
+    def test_each_ship_is_offered_the_ruin_it_is_at(self):
+        W.eva_relics_pass()
+        self.assertEqual(E.eva_offered(ship=self.a)["relic"], "hollow")
+        self.assertEqual(E.eva_offered(ship=self.b)["relic"], "cyst")
+        self.assertEqual(W.eva_relic_opened(self.a), "hollow")
+        self.assertEqual(W.eva_relic_opened(self.b), "cyst")
+        self.assertEqual(E.eva_offered(client_id=CID_A)["relic"], "hollow")
+        self.assertEqual(E.eva_offered(client_id=CID_B)["relic"], "cyst")
+
+    def test_both_crews_suit_up_each_into_their_own_ruin(self):
+        W.eva_relics_pass()
+        self.assertEqual(self.door(CID_A), ("SUIT UP", True))
+        self.assertEqual(self.door(CID_B), ("SUIT UP", True),
+                         "the second ship's crew must have a place in the party")
+        self.assertEqual(E.eva_my_relic(CID_A), "hollow")
+        self.assertEqual(E.eva_my_relic(CID_B), "cyst")
+        self.assertEqual(len(E.eva_suits("hollow")), 1)
+        self.assertEqual(len(E.eva_suits("cyst")), 1)
+        # And each suit knows which ship sent it out.
+        self.assertEqual(E.eva_suit_home(E.eva_my_suit(CID_A)), self.a.id)
+        self.assertEqual(E.eva_suit_home(E.eva_my_suit(CID_B)), self.b.id)
+
+    def test_each_crew_goes_as_itself_and_is_told_where(self):
+        from sbs_utils.procedural.gui import boarding_gui as G
+        W.eva_relics_pass()
+        self.assertEqual(to_object(B.boarding_reserved(CID_A)).name, "Marek")
+        self.assertEqual(to_object(B.boarding_reserved(CID_B)).name, "Sorel")
+        self.assertEqual(G._going_to(CID_A), "The Hollow")
+        self.assertEqual(G._going_to(CID_B), "The Cyst")
+        self.assertEqual(B.boarding_invite_ships(), [self.a.id, self.b.id])
+
+    def test_two_ships_at_one_ruin_both_can(self):
+        self.move(self.b, (AT_HOLLOW[0], 0, AT_HOLLOW[2] + 500))
+        W.eva_relics_pass()
+        self.assertEqual(E.eva_offered(ship=self.a)["relic"], "hollow")
+        self.assertEqual(E.eva_offered(ship=self.b)["relic"], "hollow")
+        self.assertEqual(self.door(CID_A), ("SUIT UP", True))
+        self.assertEqual(self.door(CID_B), ("SUIT UP", True))
+        self.assertEqual(len(E.eva_suits("hollow")), 2)
+
+    def test_a_ship_that_leaves_loses_ITS_offer_only(self):
+        W.eva_relics_pass()
+        self.move(self.a, FAR)
+        W.eva_relics_pass()
+        self.assertIsNone(E.eva_offered(ship=self.a))
+        self.assertIsNone(E.eva_offered(client_id=CID_A))
+        self.assertEqual(E.eva_offered(ship=self.b)["relic"], "cyst")
+        # The party goes on for the ship still at its ruin, without the one that left.
+        self.assertEqual(B.boarding_invite_ships(), [self.b.id])
+        self.assertIsNone(B.boarding_reserved(CID_A))
+        self.assertFalse(B.boarding_invited(CID_A))
+        self.assertIsNotNone(B.boarding_reserved(CID_B))
+        from sbs_utils.procedural.gui import boarding_gui as G
+        self.assertEqual(G._go_word(CID_A)[0], "BEAM DOWN")
+        self.assertEqual(G._go_word(CID_B)[0], "SUIT UP")
+
+    def test_the_last_ship_leaving_closes_the_party(self):
+        W.eva_relics_pass()
+        self.move(self.a, FAR)
+        self.move(self.b, FAR)
+        self.assertIsNone(W.eva_relics_pass())
+        self.assertEqual(E.eva_offers(), {})
+        self.assertIsNone(B.boarding_invitation())
+
+    def test_its_own_crew_out_keeps_a_ships_offer_open(self):
+        W.eva_relics_pass()
+        self.door(CID_A)
+        self.move(self.a, FAR)
+        W.eva_relics_pass()
+        self.assertEqual(E.eva_offered(ship=self.a)["relic"], "hollow")
+
+    def test_ANOTHER_ships_crew_out_does_not(self):
+        """Both at the Hollow; B's boarder goes out, A flies away. A's offer goes: the
+        suit out there is B's, and B's offer is the one it keeps open."""
+        self.move(self.b, (AT_HOLLOW[0], 0, AT_HOLLOW[2] + 500))
+        W.eva_relics_pass()
+        self.door(CID_B)
+        self.move(self.a, FAR)
+        W.eva_relics_pass()
+        self.assertIsNone(E.eva_offered(ship=self.a))
+        self.assertEqual(E.eva_offered(ship=self.b)["relic"], "hollow")
+        # And B itself leaving does not pull it from under B's own suit.
+        self.move(self.b, FAR)
+        W.eva_relics_pass()
+        self.assertEqual(E.eva_offered(ship=self.b)["relic"], "hollow")
+
+    def test_coming_back_aboard_lets_the_offer_go(self):
+        from sbs_utils.procedural.gui.eva_gui import eva_go_in
+        W.eva_relics_pass()
+        self.door(CID_A)
+        self.move(self.a, FAR)
+        W.eva_relics_pass()
+        self.assertTrue(eva_go_in(CID_A))
+        DeleteQueue.clear()
+        W.eva_relics_pass()
+        self.assertIsNone(E.eva_offered(ship=self.a))
+        self.assertEqual(E.eva_offered(ship=self.b)["relic"], "cyst")
+
+    def test_a_second_console_of_the_second_ship_is_dealt_in_late(self):
+        W.eva_relics_pass()
+        self.seat(CID_B2, self.b, "engineering", "Okafor")
+        B.boarding_latecomers()
+        self.assertEqual(to_object(B.boarding_reserved(CID_B2)).name, "Okafor")
+        self.assertEqual(self.door(CID_B2), ("SUIT UP", True))
+        self.assertEqual(E.eva_my_relic(CID_B2), "cyst")
+
+    def test_the_pass_twice_is_the_same_offers_and_the_same_people(self):
+        W.eva_relics_pass()
+        offers, party = E.eva_offers(), B.boarding_invitation()
+        mine = (B.boarding_reserved(CID_A), B.boarding_reserved(CID_B))
+        W.eva_relics_pass()
+        self.assertEqual(E.eva_offers(), offers)
+        self.assertIs(B.boarding_invitation(), party)
+        self.assertEqual((B.boarding_reserved(CID_A), B.boarding_reserved(CID_B)), mine)
+
+    # --- the calls a mission written before this makes ------------------------------
+
+    def test_an_offer_with_NO_ship_is_for_every_ship(self):
+        """Storm's Beacon's own handler: `eva_offer(key, volume=, hull=)` and a crew
+        party for one ship, from wherever the ships are."""
+        E.eva_offer("hollow", volume="hollow", hull="tsn_shuttle")
+        B.boarding_invite_crew(self.a, title="Mine")
+        self.assertEqual(E.eva_offered()["relic"], "hollow")
+        for who in (self.a, self.b):
+            self.assertEqual(E.eva_offered(ship=who)["hull"], "tsn_shuttle")
+        for cid in (CID_A, CID_B):
+            self.assertEqual(E.eva_offered(client_id=cid)["relic"], "hollow")
+            self.assertTrue(E.eva_relevant(cid))
+        # The pass adds nothing beside a mission's own offer, and withdraws nothing.
+        self.assertEqual(W.eva_relics_pass(), "hollow")
+        self.assertEqual(list(E.eva_offers()), [None])
+        self.assertEqual(B.boarding_invitation()["title"], "Mine")
+        self.assertEqual(self.door(CID_A), ("SUIT UP", True))
+        self.assertEqual(E.eva_my_relic(CID_A), "hollow")
+
+    def test_a_mission_offering_after_the_pass_takes_over_for_every_ship(self):
+        """Both handlers present, the library's first: the mission's `hull=` must be the
+        one a suit is made in, not the per-ship offer the pass made a moment earlier."""
+        W.eva_relics_pass()
+        E.eva_offer("hollow", volume="hollow", hull="tsn_shuttle")
+        self.assertEqual(list(E.eva_offers()), [None])
+        self.assertEqual(E.eva_offered(ship=self.b)["hull"], "tsn_shuttle")
+
+    def test_clearing_with_no_ship_clears_everything(self):
+        W.eva_relics_pass()
+        E.eva_offer_clear()
+        self.assertIsNone(E.eva_offered())
+        self.assertEqual(E.eva_offers(), {})
+
+    def test_tearing_one_ruin_down_leaves_the_other_ships_offer(self):
+        W.eva_relics_pass()
+        self.door(CID_A)
+        R.relic_release("hollow")
+        DeleteQueue.clear()
+        self.assertIsNone(E.eva_offered(ship=self.a))
+        self.assertIsNone(E.eva_my_suit(CID_A))
+        self.assertEqual(E.eva_offered(ship=self.b)["relic"], "cyst")
+
+    def test_a_reset_leaves_nothing(self):
+        W.eva_relics_pass()
+        reset_mission_state()
+        self.assertEqual(E.eva_offers(), {})
+        self.assertEqual(W.eva_relics_count(), 0)
+        self.assertIsNone(B.boarding_invitation())
+
+
+class BarrierShot(_Base):
+    """`relic_barrier_destroyed` - what LegendaryMissions' `//damage/destroy` route calls
+    (`boarding/test_eva_wiring.py` drives the route itself)."""
+
+    def barrier_object(self):
+        from sbs_utils.procedural.rails import rail_barriers
+        for bkey, bar in rail_barriers("hollow", shut_only=True):
+            if bkey == "nave_hatch":
+                return bar.get("object")
+        return None
+
+    def test_a_destroyed_barrier_opens_and_says_so_once(self):
+        oid = self.barrier_object()
+        self.assertIsNotNone(oid)
+        self.assertEqual(R.relic_barrier_destroyed(oid), "nave_hatch")
+        self.assertEqual(self.quest, ["nave_hatch_opened"])
+        self.assertIsNone(R.relic_barrier_destroyed(oid))
+        self.assertEqual(self.quest, ["nave_hatch_opened"])
+
+    def test_anything_else_is_nothing(self):
+        self.assertIsNone(R.relic_barrier_destroyed(self.ship().id))
+        self.assertIsNone(R.relic_barrier_destroyed(None))
+        self.assertEqual(self.quest, [])
+
+
 class SuitHull(_Base):
     def setUp(self):
         super().setUp()

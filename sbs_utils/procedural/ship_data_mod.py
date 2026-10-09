@@ -72,7 +72,8 @@ import os
 import re
 
 from ..fs import get_mission_dir, load_yaml_string
-from .ship_data import SHIP_DATA_MOD_KEY, merge_mod_ship_yaml, extra_ship_data_enabled
+from .ship_data import (SHIP_DATA_MOD_KEY, merge_mod_ship_yaml, extra_ship_data_enabled,
+                        extra_ship_data_asked)
 
 #: A whole line whose first non-space characters are `//`.
 _LINE_COMMENT = re.compile(r"^[ \t]*//.*$", re.M)
@@ -99,6 +100,7 @@ EXTRA_SHIP_DATA = "extraShipData.json"
 _pending = {}          # ship key -> entry, contributed by mods this mission
 _pending_mods = {}     # ship key -> which mod supplied it
 _last_written = None   # the exact text last written, so a re-flush is a no-op
+_not_asked_told = False  # the one line that says why this route did nothing
 
 
 def ship_data_merge_mod(content, mod=None):
@@ -128,11 +130,26 @@ def ship_data_merge_mod(content, mod=None):
     Returns:
         int: How many entries are pending, or ``None`` if nothing parsed.
     """
-    # Extra ship data is off unless the mission set EXTRA_SHIP_DATA.
+    # THIS ROUTE WRITES A FILE INTO THE MISSION FOLDER, so it needs the setting WRITTEN
+    # DOWN - `EXTRA_SHIP_DATA: true` in settings.yaml, a profile or COSMOS_SETTINGS - and
+    # not merely left at its default (on since 2026-10-09). The first default-on run of
+    # a mission with a caller of this rewrote that mission's tracked extraShipData.json
+    # and left a .bak beside it; a default never does that.
+    #
     # Nothing is accumulated, so the flush below has nothing to write and the engine is
     # never pointed at a generated file. Reports 0 pending rather than None - None means
-    # "did not parse", and this parsed fine, it is simply not wanted.
-    if not extra_ship_data_enabled():
+    # "did not parse", and this parsed fine, it is simply not wanted. Exactly what this
+    # did while the default was off.
+    if not extra_ship_data_asked():
+        global _not_asked_told
+        if extra_ship_data_enabled() and not _not_asked_told:
+            _not_asked_told = True
+            from .execution import log
+            log("ship_data_merge_mod generates extraShipData.json in the mission folder, "
+                "so it only runs when the mission says `EXTRA_SHIP_DATA: true` itself "
+                "(settings.yaml, a profile or COSMOS_SETTINGS) - the default being on is "
+                "not enough. Nothing was declared. Prefer ship_data_add_extra, which "
+                "writes nothing.", "ship_data", "warning")
         return 0
     if not content:
         return None
@@ -220,7 +237,11 @@ def ship_data_flush_mod_file(mission_dir=None):
     # The engine reads that file INSIDE create_new_sim(), so leaving the write in would
     # re-introduce exactly the loading everything else here is guarding against - and it
     # would do it by putting a file on disk that outlives the run.
-    if not extra_ship_data_enabled():
+    #
+    # ASKED, not merely enabled: the default is on, and a default must never write into
+    # a mission folder that asked for nothing. `ship_data_merge_mod` already holds
+    # nothing in that case; this is the same rule at the place the file is written.
+    if not extra_ship_data_asked():
         return None
     if not _pending:
         return None
@@ -292,7 +313,8 @@ def ship_data_mod_reset():
     Per-mission state: the next mission enables its own add-ons, and inheriting these would
     write ships it never asked for into its folder.
     """
-    global _last_written
+    global _last_written, _not_asked_told
     _pending.clear()
     _pending_mods.clear()
     _last_written = None
+    _not_asked_told = False     # per MISSION, like every other told-once latch here

@@ -58,7 +58,9 @@ def eva_go_out(client_id, relic_key=None):
 
     if not boarding_held(client_id):
         return False
-    offer = eva_offered() or {}
+    # THE SHIP'S OFFER: the ruin this console's own ship is at. Asked BEFORE anything
+    # moves - once the console is assigned to a suit, "its ship" is the suit.
+    offer = eva_offered(client_id=client_id) or {}
     key = relic_key or offer.get("relic")
     if not key:
         return False

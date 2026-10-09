@@ -395,12 +395,22 @@ def settings_get_defaults():
         # pressing BEAM DOWN. For a run with no crew at the consoles - a headless test
         # that should reach the ground, an engine check with no mouse. Never for play.
         "BOARDING_AUTO_BEAM": False,
-        # Let a mission or mod declare extra hulls. OFF, because the answer depends on
-        # the INSTALL: the engine only grew a working extra-ship-data path in v1.3.7,
-        # and on v1.3.4 a declared hull never registers - then spawning one dies inside
-        # the engine as `bad allocation`, minutes later, against unrelated code. A
-        # mission that knows its engine sets this true, usually in a profile.
-        "EXTRA_SHIP_DATA": False,
+        # Let a mission or mod declare extra hulls. ON since 2026-10-09 (the owner's
+        # call): the hulls an addon ships - the EVA exosuit, turrets, the enemy base
+        # kinds, a relic kit - are there for a mission that never heard of this setting.
+        #
+        # THE ANSWER STILL DEPENDS ON THE INSTALL. The engine only grew a working
+        # extra-ship-data path in v1.3.7, and on an old engine (v1.3.4) a declared hull
+        # never registers - then spawning one dies inside the engine as
+        # `bad allocation`, minutes later, against unrelated code. A mission that has
+        # to run on such an engine sets this FALSE (settings.yaml or a profile).
+        #
+        # A mission that declares nothing is unchanged by the default: nothing is
+        # loaded, nothing is logged and no file is written. The one thing that still
+        # needs the setting WRITTEN is the superseded generated-file route
+        # (`ship_data_merge_mod`, which writes `extraShipData.json` into the mission
+        # folder) - see `ship_data.extra_ship_data_asked`.
+        "EXTRA_SHIP_DATA": True,
         # Come back on the setup screen with the settings the LAST game started with,
         # instead of the ones in settings.yaml. Off by default, deliberately: a venue or
         # convention machine wants every group to start from the same known state, and

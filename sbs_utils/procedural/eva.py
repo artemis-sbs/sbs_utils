@@ -383,8 +383,62 @@ def _dist(a, b):
 # floor exists. A relic is not an object with an interior, it is a VOLUME and a key, so it
 # needs its own word. This is that word, and it is deliberately the same shape: the
 # mission says where once, and every console suiting up reads it.
+#
+# THE OFFER BELONGS TO A SHIP (2026-10-09). It was one slot for the whole game, so with two
+# player ships at two ruins only the first one reached got SUIT UP. Now there is one offer
+# per ship, plus the one a mission makes WITHOUT naming a ship, which is for every ship -
+# what the single slot always meant, and what a mission written before this still gets.
+#
+# Stored as ``{ship id | None: offer}`` on the shared agent, `None` being "every ship". A
+# ship's own offer wins over the general one.
 
-def eva_offer(relic_key, volume=None, entry=None, side=None, hull=None):
+_EVERY_SHIP = None
+
+
+def _eva_offers():
+    """The stored table. Tolerates the single-offer shape an older save or a test that
+    wrote the key by hand may still hold."""
+    got = Agent.SHARED.get_inventory_value(_OFFER_KEY, None)
+    if not isinstance(got, dict) or not got:
+        return {}
+    if "relic" in got:                   # the old shape: one offer, for everybody
+        return {_EVERY_SHIP: got}
+    return got
+
+
+def _eva_offers_save(table):
+    Agent.SHARED.set_inventory_value(_OFFER_KEY, dict(table) if table else None)
+
+
+def eva_client_ship(client_id):
+    """The ship a console BELONGS to - the one whose offer it reads.
+
+    A console out in a suit is assigned to the suit, so the engine's answer for it is the
+    suit. The ship it left is on record (`eva_my_home`), and a console still aboard asks
+    the viewscreen, which already knows about cutscene shots.
+    """
+    if client_id is None:
+        return None
+    home = eva_my_home(client_id)
+    if home:
+        return home
+    try:
+        from .gui.viewscreen import viewscreen_home_ship
+        return viewscreen_home_ship(client_id) or None
+    except Exception:                                    # noqa: BLE001
+        return None
+
+
+def _eva_offer_ship(ship=None, client_id=None):
+    if ship is not None:
+        return to_id(ship)
+    if client_id is not None:
+        return eva_client_ship(client_id)
+    return None
+
+
+def eva_offer(relic_key, volume=None, entry=None, side=None, hull=None, ship=None,
+              name=None):
     """Declare the relic a boarding party will suit up into.
 
     Args:
@@ -395,34 +449,107 @@ def eva_offer(relic_key, volume=None, entry=None, side=None, hull=None):
         entry (optional): where suits appear. Defaults to the relic's `entrance` point.
         side (optional): the side the suits belong to. Give it one.
         hull (optional): the ship-data key suits are drawn as.
+        ship (optional): the player ship this offer is FOR. Left out, the offer is for
+            EVERY player ship - which is what this call has always meant, so a mission
+            with one ship, or one that wants every crew sent to the same ruin, changes
+            nothing. A ship's own offer wins over the one for everybody.
+        name (optional): what the place is called on the SUIT UP screen.
     """
-    Agent.SHARED.set_inventory_value(_OFFER_KEY, {
+    table = _eva_offers()
+    if ship is None:
+        # THE MISSION HAS SPOKEN FOR EVERY SHIP, so an offer the automatic wiring made
+        # for one ship (it marks its own with `by`) gives way: a ship's own offer wins
+        # over this one, and a guess must not outrank what the story said.
+        table = {k: v for k, v in table.items() if not v.get("by")}
+    table[to_id(ship) if ship is not None else _EVERY_SHIP] = {
         "relic": relic_key, "volume": volume or relic_key,
-        "entry": tuple(entry) if entry else None, "side": side, "hull": hull})
+        "entry": tuple(entry) if entry else None, "side": side, "hull": hull,
+        "name": name}
+    _eva_offers_save(table)
     return relic_key
 
 
-def eva_offered():
-    """The relic on offer, or None. What `eva_relevant` and the suit-up door read."""
-    return Agent.SHARED.get_inventory_value(_OFFER_KEY, None)
+def eva_offered(ship=None, client_id=None):
+    """The relic on offer, or None. What `eva_relevant` and the suit-up door read.
+
+    Args:
+        ship (optional): the offer THIS ship has - its own, else the one for every ship.
+        client_id (optional): the same, for the ship this console belongs to.
+
+    Asked with neither, the answer is "is anything on offer at all": the offer for every
+    ship if a mission made one, else the offer of the lowest-numbered ship that has one.
+    With one player ship that is the same answer as before there was a choice.
+    """
+    table = _eva_offers()
+    if not table:
+        return None
+    if ship is not None or client_id is not None:
+        whose = _eva_offer_ship(ship, client_id)
+        if whose:
+            mine = table.get(whose)
+            return mine if mine is not None else table.get(_EVERY_SHIP)
+        # A console that is on no ship at all - the server's own screen, a harness page
+        # nobody assigned - has no ship to ask for, so it is told what is on offer at all.
+        # Every console that can press SUIT UP is on a ship.
+    if _EVERY_SHIP in table:
+        return table[_EVERY_SHIP]
+    return table[sorted(table)[0]]
 
 
-def eva_offer_clear():
-    """Nobody is going into a relic any more."""
-    Agent.SHARED.set_inventory_value(_OFFER_KEY, None)
+def eva_offers():
+    """Every offer standing, as ``{ship id: offer}`` - the key `None` is the offer a
+    mission made for every ship. A copy."""
+    return dict(_eva_offers())
+
+
+def _eva_offer_drop(whose):
+    """Withdraw exactly one entry - a ship's own offer, or (None) the one for every
+    ship - and leave the rest. True when there was one."""
+    table = _eva_offers()
+    if whose not in table:
+        return False
+    del table[whose]
+    _eva_offers_save(table)
+    return True
+
+
+def _eva_offer_mark(whose, by):
+    """Say who made an offer, on the offer itself. See `eva_relics._BY_PASS`."""
+    table = _eva_offers()
+    if whose in table:
+        table[whose] = dict(table[whose], by=by)
+        _eva_offers_save(table)
+
+
+def eva_offer_clear(ship=None):
+    """Nobody is going into a relic any more.
+
+    Args:
+        ship (optional): withdraw only THIS ship's own offer. Left out, every offer goes -
+            the one for everybody and each ship's own - which is what clearing the single
+            slot always did.
+    """
+    if ship is None:
+        Agent.SHARED.set_inventory_value(_OFFER_KEY, None)
+        return
+    table = _eva_offers()
+    if table.pop(to_id(ship), None) is not None:
+        _eva_offers_save(table)
 
 
 def eva_relevant(client_id=None):
     """Whether this console has anything to suit up for.
 
-    True while a relic is on offer, or once this console is already out in one. Put it on
-    the ROUTE, the way `boarding_relevant` is used - a route's own condition is what ePADD
-    tests when it builds the app list.
+    True while a relic is on offer TO THIS CONSOLE'S SHIP, or once this console is already
+    out in one. Put it on the ROUTE, the way `boarding_relevant` is used - a route's own
+    condition is what ePADD tests when it builds the app list.
     """
-    if eva_offered() is not None:
-        return True
     cid = _client(client_id)
-    return bool(cid is not None and eva_my_suit(cid) is not None)
+    if cid is None:
+        return eva_offered() is not None
+    if eva_offered(client_id=cid) is not None:
+        return True
+    return bool(eva_my_suit(cid) is not None)
 
 
 def eva_entry(relic_key=None, offer=None):
@@ -540,9 +667,9 @@ def eva_suit_hull(hull=None):
     THE CHECK IS NOT POLITENESS. A hull the engine was never given does not fail where
     it is asked for: it draws the `unknown` placeholder, or the spawn dies inside the
     engine with `bad allocation` minutes later against an unrelated line. The exosuit
-    comes from a mod file, so it is absent whenever `EXTRA_SHIP_DATA` is off (the library
-    default), the `boarding` addon is not loaded, or the media pack holding
-    `lm_eva_ships` is not in the mission's `shared_media`.
+    comes from a mod file, so it is absent whenever the mission turned `EXTRA_SHIP_DATA`
+    off (it is on by default), the `boarding` addon is not loaded, or the media pack
+    holding `lm_eva_ships` is not in the mission's `shared_media`.
 
     A FUNCTION because MAST only sees functions.
     """
@@ -557,8 +684,8 @@ def eva_suit_hull(hull=None):
         note = (f"EVA: the suit hull '{want}' is not in this mission's ship data, so "
                 f"suits are drawn as '{EVA_SUIT_FALLBACK}'. The exosuit needs three "
                 f"things: the LegendaryMissions `boarding` addon, the LegendaryMissions "
-                f"media pack in story.json `shared_media`, and `EXTRA_SHIP_DATA: true` "
-                f"in settings.yaml.")
+                f"media pack in story.json `shared_media`, and `EXTRA_SHIP_DATA` left on "
+                f"(it is on by default; `EXTRA_SHIP_DATA: false` turns it off).")
         log(note, "eva", "warning")
         try:
             # debug.log as well: `log()` has no handler in the engine, and this is a
