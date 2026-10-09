@@ -1159,6 +1159,39 @@ def _relic_waits(doc):
     return out
 
 
+def _relic_sends(doc):
+    """Quest signals the relics in this document send BY THEMSELVES, folded as the game
+    folds them. No story line sends these - the library does (`amd_relics.py`) - so a
+    quest waiting on one has a sender the source scan cannot see:
+
+    * ``<barrier key>_opened`` for every part with a `Barrier:`;
+    * ``<repair key>_repaired`` for every part with a `Repair:`;
+    * ``<relic key>_taken`` for a relic that has a part with `Roles: relic_piece` - the
+      thing whose leaving, or collection, is what sends it.
+    """
+    from sbs_utils.procedural.amd import amd_signal_name
+    out = set()
+    try:
+        nodes = _relic_nodes(doc)
+    except Exception:                                    # noqa: BLE001
+        return out
+    for node, fields in nodes:
+        key = str(getattr(node, "key", "") or "").strip()
+        if not key or "relic" not in fields:
+            continue
+        if "barrier" in fields:
+            out.add(amd_signal_name(key + "_opened"))
+        if "repair" in fields:
+            out.add(amd_signal_name(key + "_repaired"))
+        roles = [r.strip().lower()
+                 for r in str(fields.get("roles", (0, ""))[1]).split(",")]
+        if "relic_piece" in roles:
+            owner = str(fields["relic"][1]).strip()
+            if owner:
+                out.add(amd_signal_name(owner + "_taken"))
+    return out
+
+
 def amd_lint_cross_file(doc, mast_sources=None, source_index=None):
     """Flag emitted `signal X` with no `//signal/X` route, a quest `When: signal X`
     that nothing emits, and `reach i,j` cells with no landmark `At: i,j`. WARNING.
@@ -1181,6 +1214,11 @@ def amd_lint_cross_file(doc, mast_sources=None, source_index=None):
         emitted = from_amd | source_index["emitted"]
         # What a QUEST can hear. An index built by an older caller has no such set.
         quest_emitted = from_amd | source_index.get("quest_emitted", source_index["emitted"])
+        # And what the ruins in this file send by themselves - a way opened, a job done,
+        # the piece taken. The library sends those, so no story line ever will.
+        sent_by_relics = _relic_sends(doc)
+        emitted = emitted | sent_by_relics
+        quest_emitted = quest_emitted | sent_by_relics
 
     # A signal something in the AMD WAITS on is handled, route or no route: a quest's
     # `Done when: signal X`, or a relic part's `Starts when:` / `Opens when:`. Flagging
@@ -1510,7 +1548,8 @@ def _relic_seg_dist(p, a, b):
 
 
 #: Fields that make a record a PART of a relic - a room, a place, a thing in the way.
-_RELIC_PART_FIELDS = ("chamber", "box", "solid", "point", "barrier", "prop", "passage to")
+_RELIC_PART_FIELDS = ("chamber", "box", "solid", "point", "barrier", "repair", "prop",
+                      "passage to")
 
 
 def _relic_section_above(node):
@@ -2196,7 +2235,7 @@ def amd_lint_relics(doc):
                     ln, "warning", "relic-short-point",
                     f"'point' needs 3 numbers, got {len(nums)} - "
                     f"the part is skipped rather than half-placed"))
-        for label, need in (("chamber", 4), ("box", 6)):
+        for label, need in (("chamber", 4), ("box", 6), ("repair", 4)):
             if label in fields:
                 ln, value = fields[label]
                 nums = _relic_nums(value)
@@ -2208,6 +2247,10 @@ def amd_lint_relics(doc):
                     findings.append(AmdFinding(
                         ln, "warning", "relic-bad-radius",
                         "a chamber radius must be positive or it encloses nothing"))
+                elif label == "repair" and nums[3] <= 0:
+                    findings.append(AmdFinding(
+                        ln, "warning", "relic-bad-radius",
+                        "a repair's radius must be positive - it is how big the job is"))
                 elif label == "box" and min(nums[3:6]) <= 0:
                     findings.append(AmdFinding(
                         ln, "warning", "relic-bad-radius",
@@ -2322,8 +2365,8 @@ def amd_lint_relics(doc):
                     continue
                 findings.append(AmdFinding(
                     ln, "warning", "relic-unknown-clear",
-                    f"'{entry}' is not a way to clear a barrier - use beam, tether, or "
-                    f"check <skill> <dc>"))
+                    f"'{entry}' is not a way to clear a barrier or do a repair - use "
+                    f"beam, tether, or check <skill> <dc>"))
     findings.extend(_lint_relic_web(doc))
     return findings
 

@@ -76,6 +76,7 @@ HAUL_ROLES = "item,upgrade,relic_piece,salvage"
 KEY_WORK = "EVA_WORK"        # {"target","verb","until","kind"} while something is running
 KEY_ARMED = "EVA_ARMED"      # which verb the console is holding
 KEY_RETRY = "EVA_RETRY"      # {barrier: sim time it may be worked again} after a failure
+KEY_PICK = "EVA_PICK"        # the repair job this console chose - picked, never locked
 
 _TICK_KEY = "__EVA_TOOLS_TICK__"
 
@@ -107,10 +108,11 @@ def eva_targets(client_id, reach=None):
 
     Nearest first, the same as `eva_points`, because the same hand is picking from it.
 
-    `kind` is `"barrier"` or `"haul"`. `verbs` is what may be done to it: a barrier says
-    so itself (`Clear with:`), and anything haulable takes a tether.
+    `kind` is `"barrier"`, `"repair"` or `"haul"`. `verbs` is what may be done to it: a
+    barrier or a repair job says so itself (`Clear with:`), and anything haulable takes a
+    tether.
     """
-    from .amd_relics import relic_barriers, relic_rails_ensure
+    from .amd_relics import relic_barriers, relic_rails_ensure, relic_repair_jobs
     from .eva import eva_my_relic, eva_my_suit, eva_my_volume
     from .rails import rail_barriers
     suit = eva_my_suit(client_id)
@@ -132,6 +134,17 @@ def eva_targets(client_id, reach=None):
         spec = authored.get(bkey) or []
         verbs = _barrier_verbs(spec[5] if len(spec) > 5 else None)
         out.append((bkey, bar.get("display") or bkey, "barrier", gap, verbs))
+
+    # A REPAIR JOB is worked exactly like a barrier - the same `Clear with:` verbs, the
+    # same reach - and is a different KIND, so the app can call it what it is. Read from
+    # the relic's record rather than the rail web: a job is in nobody's way, so the web
+    # does not know it as anything but a place.
+    for rkey, job in relic_repair_jobs(key, open_only=True):
+        gap = _dist(here, job["pos"])
+        if gap > reach:
+            continue
+        out.append((rkey, job["display"], "repair", gap,
+                    _barrier_verbs(job["clear_with"])))
 
     # THE SUIT ITSELF IS IN `role()` FOR SOME OF THESE. A suit is a player hull with
     # `__player__` removed, so it is a space object like any other and a party of six is
@@ -168,9 +181,11 @@ def _barrier_verbs(clear_with):
 
 
 def eva_barrier_check(relic_key, barrier):
-    """``(skill, dc)`` when a barrier can be worked open by hand, else None."""
-    from .amd_relics import relic_barriers
-    spec = (relic_barriers(relic_key) or {}).get(barrier) or []
+    """``(skill, dc)`` when a barrier - or a repair job, which is written the same way -
+    can be worked by hand, else None."""
+    from .amd_relics import relic_barriers, relic_repairs
+    spec = ((relic_barriers(relic_key) or {}).get(barrier)
+            or (relic_repairs(relic_key) or {}).get(barrier) or [])
     for entry in (spec[5] if len(spec) > 5 and spec[5] else ()):
         bits = str(entry).split()
         if len(bits) >= 3 and bits[0].lower() == "check":
@@ -201,7 +216,7 @@ def eva_target_object(client_id, target):
     web - and a sphere is not something a beam can hit, which is why it now carries an
     object standing in for it.
     """
-    from .amd_relics import relic_rails_ensure
+    from .amd_relics import relic_rails_ensure, relic_repair_jobs
     from .eva import eva_my_relic, eva_my_volume
     from .rails import rail_barrier_object
     if target is None:
@@ -212,6 +227,9 @@ def eva_target_object(client_id, target):
         oid = rail_barrier_object(vol, target)
         if oid is not None:
             return oid
+        for rkey, job in relic_repair_jobs(key):
+            if rkey == target:
+                return job["object"] if to_object(job["object"]) is not None else None
     obj = to_object(target)
     return None if obj is None else to_id(obj)
 
@@ -228,8 +246,22 @@ def eva_aim(client_id, target):
     from .query import set_weapons_selection
     suit = eva_my_suit(client_id)
     oid = eva_target_object(client_id, target)
+    if suit and _eva_is_repair(client_id, target):
+        # A REPAIR IS PICKED, NOT LOCKED. The weapons lock is how a hull's beams FIRE,
+        # and a suit that opened up on the panel it was sent to mend would be the wrong
+        # end of the tool. So the choice is kept on the console instead - which also
+        # means a job whose marker is gone can still be chosen and done.
+        set_inventory_value(client_id, KEY_PICK, target)
+        if oid is not None:
+            try:
+                from .science import science_set_2dview_focus
+                science_set_2dview_focus(client_id, oid)
+            except Exception:                            # noqa: BLE001
+                pass
+        return True
     if not suit or oid is None:
         return False
+    set_inventory_value(client_id, KEY_PICK, None)
     set_weapons_selection(suit, oid)
     try:
         from .science import science_set_2dview_focus
@@ -255,13 +287,33 @@ def eva_selected_target(client_id):
     What makes a click on the 2D view and a row in the app the same act: whatever the
     crew selected, if it is something this suit can work on, is the target.
     """
+    rows = eva_targets(client_id)
+    # A repair job picked in the app. Only while it is still in reach and still to do -
+    # a pick that outlived either is not a target, and is not cleared here because
+    # asking must not change anything.
+    pick = get_inventory_value(client_id, KEY_PICK, None)
+    if pick is not None:
+        for key, _display, kind, _gap, _verbs in rows:
+            if kind == "repair" and key == pick:
+                return key
     aimed = eva_aimed(client_id)
     if not aimed:
         return None
-    for key, _display, _kind, _gap, _verbs in eva_targets(client_id):
-        if eva_target_object(client_id, key) == aimed:
+    for key, _display, kind, _gap, _verbs in rows:
+        if kind != "repair" and eva_target_object(client_id, key) == aimed:
             return key
     return None
+
+
+def _eva_is_repair(client_id, target):
+    """Whether a target key names a repair job in this console's relic."""
+    from .amd_relics import relic_repairs
+    from .eva import eva_my_relic
+    key = eva_my_relic(client_id)
+    try:
+        return bool(key) and target in (relic_repairs(key) or {})
+    except TypeError:                                    # an unhashable target
+        return False
 
 
 def eva_target_verbs(client_id, target):
@@ -333,14 +385,16 @@ def eva_use(client_id, target, verb=None):
         retry = (get_inventory_value(client_id, KEY_RETRY, None) or {}).get(str(target))
         if retry is not None and (FrameContext.sim_seconds or 0.0) < float(retry):
             return _report(client_id, target, verb, "not yet", display)
-        return _eva_work(client_id, target, verb, display, seconds=WORK_SECONDS)
+        return _eva_work(client_id, target, verb, display, seconds=WORK_SECONDS,
+                         kind=kind)
     # LOCK FIRST. Working on a thing and having the weapons pointed at it are the same
     # intention, and a beam that has to be aimed separately from the app that started it
-    # is two controls for one act.
+    # is two controls for one act. (A repair job is picked rather than locked - `eva_aim`
+    # knows the difference.)
     eva_aim(client_id, target)
     if kind == "haul":
         return _eva_haul(client_id, target, display)
-    return _eva_work(client_id, target, verb, display)
+    return _eva_work(client_id, target, verb, display, kind=kind)
 
 
 def _eva_haul(client_id, target, display):
@@ -414,16 +468,36 @@ def _eva_unlist(client_id, target):
     return False
 
 
-def _eva_work(client_id, target, verb, display, seconds=CUT_SECONDS):
-    """Start a timed job on a barrier - a cut, a haul on the blockage itself, or a try
-    by hand."""
+def _eva_work(client_id, target, verb, display, seconds=CUT_SECONDS, kind="barrier"):
+    """Start a timed job on a barrier or a repair - a cut, a haul on the blockage itself,
+    or a try by hand."""
     from ..helpers import FrameContext
     now = FrameContext.sim_seconds or 0.0
     set_inventory_value(client_id, KEY_WORK, {
-        "target": target, "verb": verb, "kind": "barrier",
+        "target": target, "verb": verb,
+        "kind": "repair" if kind == "repair" else "barrier",
         "until": now + float(seconds), "display": display})
     eva_tools_watch()
     return _report(client_id, target, verb, "ok", display)
+
+
+def _eva_finish(relic_key, work):
+    """What a finished job did: ``"opened"``, ``"repaired"`` or ``"no effect"``."""
+    from .amd_relics import relic_open_barrier, relic_repair_done
+    if not relic_key:
+        return "no effect"
+    if work.get("kind") == "repair":
+        return "repaired" if relic_repair_done(relic_key, work["target"]) else "no effect"
+    return "opened" if relic_open_barrier(relic_key, work["target"]) else "no effect"
+
+
+def eva_working_kind(client_id):
+    """``"barrier"`` or ``"repair"`` while a job runs, else None - what the Fire app
+    reads to say REPAIR rather than the name of the tool doing it.
+
+    Separate from `eva_working`, whose four-tuple callers destructure."""
+    work = get_inventory_value(client_id, KEY_WORK, None)
+    return (work.get("kind") or "barrier") if work else None
 
 
 def eva_working(client_id):
@@ -462,9 +536,8 @@ def eva_tools_tick(t=None):
         if work["verb"] == VERB_WORK:
             _eva_try(cid, key, work, now)
             continue
-        opened = relic_open_barrier(key, work["target"]) if key else False
-        _report(cid, work["target"], work["verb"],
-                "opened" if opened else "no effect", work.get("display"))
+        _report(cid, work["target"], work["verb"], _eva_finish(key, work),
+                work.get("display"))
     return True
 
 
@@ -482,8 +555,7 @@ def _eva_try(client_id, relic_key, work, now):
     result = boarding_check(who, spec[0], spec[1])
     boarding_reader_note(client_id, result["text"])
     if result["ok"]:
-        opened = relic_open_barrier(relic_key, target)
-        return _report(client_id, target, VERB_WORK, "opened" if opened else "no effect",
+        return _report(client_id, target, VERB_WORK, _eva_finish(relic_key, work),
                        display)
     retry = dict(get_inventory_value(client_id, KEY_RETRY, None) or {})
     retry[str(target)] = now + WORK_RETRY_SECONDS
@@ -558,6 +630,7 @@ def eva_tools_clear(client_id=None):
         set_inventory_value(cid, KEY_WORK, None)
         set_inventory_value(cid, KEY_ARMED, None)
         set_inventory_value(cid, KEY_RETRY, None)
+        set_inventory_value(cid, KEY_PICK, None)
     if client_id is None:
         eva_tools_unwatch()
     return True

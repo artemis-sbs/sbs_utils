@@ -127,6 +127,8 @@ MastGlobals.import_python_module('sbs_utils.procedural.boarding_quests')
 MastGlobals.import_python_module('sbs_utils.procedural.eva')
 MastGlobals.import_python_module('sbs_utils.procedural.eva_tools')
 MastGlobals.import_python_module('sbs_utils.procedural.eva_places')
+# The join between a built ruin and the crew: SUIT UP offered while a ship is at its door.
+MastGlobals.import_python_module('sbs_utils.procedural.eva_relics')
 MastGlobals.import_python_module('sbs_utils.procedural.volume_kit')
 # The survey log the boarding party fills in by scanning. The MODULE is survey_log and
 # the FUNCTION is xess_log - a submodule sharing a name with a function the package

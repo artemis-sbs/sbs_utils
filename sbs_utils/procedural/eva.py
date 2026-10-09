@@ -492,7 +492,7 @@ def eva_suit_spawn(lifeform, relic_key, x, y, z, hull=None, name=None, side=None
     who = to_object(lifeform)
     label = name or (getattr(who, "name", None) if who is not None else None) or "EVA"
     suit = to_object(player_spawn(x, y, z, label, "#," + SUIT_ROLE,
-                                  hull or eva_suit_hull()))
+                                  eva_suit_hull(hull)))
     if suit is None:
         return None
 
@@ -516,21 +516,81 @@ def eva_suit_spawn(lifeform, relic_key, x, y, z, hull=None, name=None, side=None
     return suit
 
 
-def eva_suit_hull():
-    """The ship-data key a suit is drawn as.
+#: The suit a boarder wears: the crew exosuit, declared by LegendaryMissions' `boarding`
+#: addon (`ship_data_add_extra("lm_eva_ships")`) from its media pack.
+EVA_SUIT_HULL = "lm_eva_suit"
 
-    A FUNCTION because MAST only sees functions, and overridable because the custom suit
-    hull is registered by a mod: a mission that has not declared one still gets a flyable
-    suit, drawn as whatever this says.
+#: What a suit is drawn as when the hull it asked for is not in this mission's ship data.
+#: `tsn_shuttle`, NOT "shuttle" - the latter is not a ship-data key, and a hull key the
+#: engine does not know draws the unknown placeholder rather than failing.
+EVA_SUIT_FALLBACK = "tsn_shuttle"
+
+_HULL_KEY = "__EVA_HULL__"
+_HULL_WARNED_KEY = "__EVA_HULL_WARNED__"
+
+
+def eva_suit_hull(hull=None):
+    """The ship-data key a suit is drawn as - one that this mission actually HAS.
+
+    In order: `hull` when it is given, else what `eva_set_suit_hull` said, else the crew
+    exosuit (`lm_eva_suit`). Whichever it is, it is only used when its ship data is
+    loaded; otherwise the answer is the stock `tsn_shuttle`, and the reason is logged
+    ONCE per hull.
+
+    THE CHECK IS NOT POLITENESS. A hull the engine was never given does not fail where
+    it is asked for: it draws the `unknown` placeholder, or the spawn dies inside the
+    engine with `bad allocation` minutes later against an unrelated line. The exosuit
+    comes from a mod file, so it is absent whenever `EXTRA_SHIP_DATA` is off (the library
+    default), the `boarding` addon is not loaded, or the media pack holding
+    `lm_eva_ships` is not in the mission's `shared_media`.
+
+    A FUNCTION because MAST only sees functions.
     """
-    # `tsn_shuttle`, NOT "shuttle" - the latter is not a ship-data key, and a hull key the
-    # engine does not know draws the unknown placeholder rather than failing.
-    return Agent.SHARED.get_inventory_value("__EVA_HULL__", None) or "tsn_shuttle"
+    want = hull or Agent.SHARED.get_inventory_value(_HULL_KEY, None) or EVA_SUIT_HULL
+    if eva_suit_hull_known(want):
+        return want
+    told = set(Agent.SHARED.get_inventory_value(_HULL_WARNED_KEY, None) or ())
+    if want not in told:
+        told.add(want)
+        Agent.SHARED.set_inventory_value(_HULL_WARNED_KEY, told)
+        from .execution import log
+        note = (f"EVA: the suit hull '{want}' is not in this mission's ship data, so "
+                f"suits are drawn as '{EVA_SUIT_FALLBACK}'. The exosuit needs three "
+                f"things: the LegendaryMissions `boarding` addon, the LegendaryMissions "
+                f"media pack in story.json `shared_media`, and `EXTRA_SHIP_DATA: true` "
+                f"in settings.yaml.")
+        log(note, "eva", "warning")
+        try:
+            # debug.log as well: `log()` has no handler in the engine, and this is a
+            # fault only the engine shows.
+            from ..mast.mast import DEBUG
+            DEBUG("[eva] " + note)
+        except Exception:                                # noqa: BLE001
+            pass
+    return EVA_SUIT_FALLBACK
+
+
+def eva_suit_hull_known(hull):
+    """Whether a hull can be spawned here: the library has its ship data, and - for a
+    hull that came from an extra ship-data file - the engine was told about that file."""
+    try:
+        from . import ship_data as _sd
+        if _sd.get_ship_data_for(hull) is None:
+            return False
+        if hull in _sd._extra_keys:
+            # Merged into the library but never handed to the engine: an engine too old
+            # for `add_extra_ship_data`, or the engine side switched off. The hull has
+            # stats everywhere sbs_utils can see and does not exist where it is drawn.
+            return _sd.extra_ship_data_enabled() and any(
+                rec[2] for rec in _sd.extra_loaded())
+        return True
+    except Exception:                                    # noqa: BLE001
+        return False
 
 
 def eva_set_suit_hull(hull):
     """Draw suits as this ship-data key from now on."""
-    Agent.SHARED.set_inventory_value("__EVA_HULL__", hull)
+    Agent.SHARED.set_inventory_value(_HULL_KEY, hull)
     return hull
 
 
@@ -1194,6 +1254,10 @@ def eva_clear(relic_key=None):
             pass
         from .eva_tools import eva_tools_clear
         eva_tools_clear()
+        # And the wiring that put a ruin on offer in the first place: its record of which
+        # one, and its proximity tick.
+        from .eva_relics import eva_relics_clear
+        eva_relics_clear()
 
 
 def eva_suit_count():

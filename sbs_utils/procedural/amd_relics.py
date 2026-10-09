@@ -64,6 +64,10 @@ _HOLDS = {"tractor": HOLD_TRACTOR, "clamp": HOLD_CLAMP, "none": HOLD_NONE}
 #: its place - so "what is still lying about in this ruin" is one role query.
 RELIC_PLACED_ROLE = "relic_placed"
 
+#: The role that makes a placed thing THE PIECE - what the crew came for. Carrying it out
+#: of the ruin, or reeling it in from a suit, sends the quest signal `<relic key>_taken`.
+RELIC_PIECE_ROLE = "relic_piece"
+
 
 def _amd_relic_numbers(value):
     """Every number in a value, comma or space separated. Non-numeric words are skipped,
@@ -160,6 +164,12 @@ def amd_relic_facts():
             # a size, not a property of an edge. Nothing in a relic authors an edge.
             nums = _amd_relic_numbers(value)
             data["barrier"] = nums[:4] if len(nums) >= 4 else None
+        elif label == "repair":
+            # A JOB, written exactly like a barrier - x, y, z, radius - and done with the
+            # same `Clear with:` verbs. The one difference is the point of it: a repair
+            # never touches the rail web, so nothing is ever shut behind one.
+            nums = _amd_relic_numbers(value)
+            data["repair"] = nums[:4] if len(nums) >= 4 else None
         elif label in ("opens when", "opens_when"):
             # Stored RAW, like `Starts when:`, and parsed by the same `amd_trigger` at arm
             # time - so a barrier's grammar is the one an author already knows.
@@ -261,6 +271,7 @@ def relics_from_section(section, source=None, section_key=None):
             "points": {},
             "props": {},
             "barriers": {},
+            "repairs": {},
             "contents": [],
             "parts": [],
             "data": data,   # carry the raw fence for mission-specific extras
@@ -282,7 +293,8 @@ def relics_from_section(section, source=None, section_key=None):
         info = {"kind": ("point" if data.get("point") else "prop" if data.get("prop")
                          else "chamber" if data.get("chamber")
                          else "box" if data.get("box") else "solid" if data.get("solid")
-                         else "barrier" if data.get("barrier") else None),
+                         else "barrier" if data.get("barrier")
+                         else "repair" if data.get("repair") else None),
                 "display": node.get("display_text") or name}
         for k in ("scene", "scan", "dress", "facing"):
             if data.get(k):
@@ -324,6 +336,14 @@ def relics_from_section(section, source=None, section_key=None):
                                   data.get("opens_when"),
                                   data.get("clear_with") or [],
                                   node.get("display_text") or name]
+        if data.get("repair"):
+            # THE SAME SEVEN SLOTS AS A BARRIER, so everything that reads one reads the
+            # other: [x, y, z, radius, None, clear_with, display]. Slot 4 is a barrier's
+            # `Opens when:`, which a repair does not have - a job is done by somebody.
+            r = data["repair"]
+            rec.repairs[name] = [r[0], r[1], r[2], r[3], None,
+                                 data.get("clear_with") or [],
+                                 node.get("display_text") or name]
         # CONTENTS may hang off any part - a point marks a spot, but a chamber carrying
         # `Item:` means "somewhere in this room", which is how an author thinks about a
         # ruin. The position is resolved at arm time, from whichever part it is on.
@@ -583,6 +603,32 @@ def relic_entrance(relic_key):
     return tuple(relic_pos(rec))
 
 
+def relic_holds(relic_key, pos):
+    """Is this position inside relic `relic_key`? The extraction test.
+
+    Hauling a thing OUT of a ruin is the one question containment cannot answer: the
+    containment latch tracks ships, and the thing on the end of a tether is cargo. So the
+    cargo is asked instead - `pos` is an (x, y, z), a Vec3, or anything with a position.
+
+    False for a relic that is not registered or whose space is not built, which is the
+    same answer as "it is not in there".
+    """
+    from .volume import volume_contains
+    rec = _RELIC_RECORDS.get(relic_key)
+    if rec is None or pos is None:
+        return False
+    vol = volume_get(relic_volume_name(rec))
+    if vol is None:
+        return False
+    if not isinstance(pos, (tuple, list)):
+        p = getattr(pos, "pos", pos)
+        try:
+            pos = (p.x, p.y, p.z)
+        except AttributeError:
+            return False
+    return bool(volume_contains(vol, pos))
+
+
 def relic_spawn(relic_key, walls=True, atmosphere=True, contents=True, marker=True,
                 contain=False, props=None):
     """Put one registered relic in the game: space, walls, nebula, contents, map marker.
@@ -819,6 +865,16 @@ def relic_release(key):
         name = key
     from .volume import volume_remove
     from .rails import rail_remove
+    # THE CREW FIRST, while the ruin is still there to come back from. A suit left flying
+    # a volume that no longer exists has no route home, and SUIT UP left pointing at it
+    # would put the next boarder inside nothing. Never raises: a teardown that dies half
+    # way leaves a volume watching ships in a system that is gone.
+    try:
+        from .eva_relics import eva_relic_released
+        eva_relic_released(key)
+    except Exception as e:                              # noqa: BLE001
+        log(f"relic '{key}': its boarding party was not brought in: {e}", "relics",
+            "warning")
     removed = volume_remove(name)
     rail_remove(name)
     relic_contents_clear(key)
@@ -1118,6 +1174,7 @@ def relic_open_barrier(relic_key, barrier, name=None):
                 f"could not be removed: {e}", "relics", "warning")
     signal_emit("rail_opened", {"RAIL_VOLUME": volume, "RAIL_RELIC": relic_key,
                                 "RAIL_BARRIER": barrier})
+    relic_quest_signal(str(barrier) + "_opened")
     return True
 
 
@@ -1129,6 +1186,153 @@ def relic_barriers(relic_key):
     """
     rec = _RELIC_RECORDS.get(relic_key)
     return dict(rec.get("barriers") or {}) if rec is not None else {}
+
+
+# --- repair jobs ------------------------------------------------------------------------
+#
+# `Repair: x, y, z, radius` is a barrier that is not in anybody's way. It is a thing in the
+# world with a position and a size, a suit works on it with the same tools (`Clear with:`),
+# and it reports the same way - but it never touches the rail web, so a ruin, or a station
+# under repair, is never divided by its own to-do list. Doing one sends the quest signal
+# `<repair key>_repaired`.
+
+RELIC_REPAIR_ROLE = "relic_repair"
+RELIC_REPAIRED_ROLE = "relic_repaired"
+
+
+def relic_repairs(relic_key):
+    """``{name: [x, y, z, radius, None, clear_with, display]}`` as AUTHORED - the shape
+    `relic_barriers` returns, so one reader serves both. Positions are relic-relative."""
+    rec = _RELIC_RECORDS.get(relic_key)
+    return dict(rec.get("repairs") or {}) if rec is not None else {}
+
+
+def relic_repair_jobs(relic_key, open_only=False):
+    """``[(name, job)]`` with the live state: ``{"pos", "radius", "display",
+    "clear_with", "fixed", "object"}``, `pos` in WORLD coordinates.
+
+    What the suit's Fire app lists. Read from the record, not from the objects standing
+    in for the jobs - so a job whose marker was never placed, or was destroyed, is still
+    a job that can be done.
+    """
+    rec = _RELIC_RECORDS.get(relic_key)
+    if rec is None:
+        return []
+    base = relic_pos(rec)
+    out = []
+    for name, r in (rec.get("repairs") or {}).items():
+        armed = _ARMED.get(("repair", relic_key, name)) or {}
+        fixed = bool(armed.get("fixed"))
+        if open_only and fixed:
+            continue
+        out.append((name, {
+            "pos": (base[0] + r[0], base[1] + r[1], base[2] + r[2]),
+            "radius": float(r[3]),
+            "display": r[6] if len(r) > 6 and r[6] else name,
+            "clear_with": list(r[5] or []) if len(r) > 5 else [],
+            "fixed": fixed,
+            "object": armed.get("id")}))
+    return out
+
+
+def relic_repair_fixed(relic_key, repair):
+    """Whether a repair job has been done."""
+    return bool((_ARMED.get(("repair", relic_key, repair)) or {}).get("fixed"))
+
+
+def relic_repairs_spawn(relic_key, name=None):
+    """Give every repair job a marker in the world, and somewhere to fly to.
+
+    The marker is what the crew sees and selects - dressed with the part's `Dress:` art
+    when it has any, else the plain sphere a barrier uses. It has no exclusion radius and
+    is NOT what makes the job doable: `relic_repair_jobs` reads the record.
+
+    The job also joins the rail web as a DESTINATION (`rail_attach`), so the Nav app can
+    send a suit to it. That adds a node and its own legs; it severs nothing.
+
+    Idempotent per (relic, job). Returns how many were placed.
+    """
+    from .spawn import terrain_spawn
+    rec = _RELIC_RECORDS.get(relic_key)
+    if rec is None:
+        return 0
+    volume = relic_volume_name(rec, name)
+    placed = 0
+    for rkey, job in relic_repair_jobs(relic_key):
+        akey = ("repair", relic_key, rkey)
+        if akey in _ARMED:
+            continue
+        pos, label = job["pos"], job["display"]
+        oid = None
+        art, mult = _relic_dress_pick(relic_part_info(relic_key, rkey).get("dress"))
+        try:
+            obj = terrain_spawn(pos[0], pos[1], pos[2], str(label),
+                                "#," + RELIC_REPAIR_ROLE,
+                                art or "generic-sphere", "behav_selection")
+            if art:
+                from .volume_dress import _mesh_size
+                size = _mesh_size(art, (200.0, 200.0, 200.0))
+                s = 2.0 * float(job["radius"] or 200.0) / max(size) * mult
+                for axis in "xyz":
+                    obj.data_set.set("local_scale_%s_coeff" % axis, s, 0)
+            obj.engine_object.exclusion_radius = 0
+            oid = getattr(obj, "id", None)
+        except Exception as e:                            # noqa: BLE001
+            log(f"relic '{relic_key}': could not mark repair '{rkey}': {e}",
+                "relics", "warning")
+        try:
+            from .rails import rail_attach
+            rail_attach(volume, rkey, pos, roles=("repair",), display=label)
+        except Exception as e:                            # noqa: BLE001
+            log(f"relic '{relic_key}': repair '{rkey}' could not join the rail web: {e}",
+                "relics", "warning")
+        # `done` so the contents tick never treats it as waiting on a trigger; `at`, not
+        # `pos`, so the reveal tick never mistakes it for a marker to light.
+        _ARMED[akey] = {"kind": "repair", "done": True, "id": oid, "relic": relic_key,
+                        "repair": rkey, "at": pos, "fixed": False, "dressed": bool(art)}
+        placed += 1
+    return placed
+
+
+def relic_repair_done(relic_key, repair):
+    """A repair job is finished - what a suit's tool, or a story beat, ends in.
+
+    Emits `relic_repaired` (RELIC_KEY, RELIC_REPAIR) and sends the quest signal
+    `<repair key>_repaired`. False when there is no such job or it was already done.
+
+    The plain marker goes: it marked a fault, and the fault is gone. A DRESSED job - a
+    panel, a coupling - stays where it is and wears `relic_repaired` instead.
+    """
+    rec = _RELIC_RECORDS.get(relic_key)
+    if rec is None or repair not in (rec.get("repairs") or {}):
+        return False
+    akey = ("repair", relic_key, repair)
+    armed = _ARMED.get(akey)
+    if armed is None:
+        # Never armed - a relic built without its contents. The job is still a job.
+        armed = _ARMED[akey] = {"kind": "repair", "done": True, "id": None,
+                                "relic": relic_key, "repair": repair, "fixed": False}
+    if armed.get("fixed"):
+        return False
+    armed["fixed"] = True
+    oid = armed.get("id")
+    if oid is not None:
+        try:
+            from .query import to_object
+            obj = to_object(oid)
+            if obj is not None and armed.get("dressed"):
+                obj.remove_role(RELIC_REPAIR_ROLE)
+                obj.add_role(RELIC_REPAIRED_ROLE)
+            elif obj is not None:
+                from .space_objects import delete_object
+                delete_object(oid)          # queued, like a barrier's - see above
+                armed["id"] = None
+        except Exception as e:                            # noqa: BLE001
+            log(f"relic '{relic_key}': repair '{repair}' is done but its marker could "
+                f"not be put away: {e}", "relics", "warning")
+    signal_emit("relic_repaired", {"RELIC_KEY": relic_key, "RELIC_REPAIR": repair})
+    relic_quest_signal(str(repair) + "_repaired")
+    return True
 
 
 def relic_point_hidden(relic_key, name):
@@ -1704,6 +1908,8 @@ def relic_contents_arm(relic_key, radius_default=900.0,
     # A SHUT BARRIER GETS A BODY. Arming is where the ruin stops being geometry and starts
     # being things, and a barrier with no object is a door a beam cannot touch.
     relic_barriers_spawn(relic_key)
+    # And a repair job gets a marker and a place on the web - but severs nothing.
+    relic_repairs_spawn(relic_key)
     for c in relic_contents(relic_key):
         key = (relic_key, c["part"])
         if key in _ARMED:
@@ -2027,6 +2233,13 @@ def _relic_mark_placed(obj, c):
         set_inventory_value(obj.id, "relic_part", c.get("part"))
     except Exception:
         pass
+    # A PIECE IS WATCHED, so `<relic>_taken` is sent when it leaves - see
+    # `_relic_taken_tick`. Keyed ("piece", relic, id): a three-part key with the relic
+    # second, the shape `relic_contents_clear(key)` already forgets a relic by.
+    if RELIC_PIECE_ROLE in (c.get("roles") or []) and c.get("relic"):
+        _ARMED[("piece", c.get("relic"), obj.id)] = {
+            "kind": "piece", "done": True, "id": obj.id, "relic": c.get("relic"),
+            "item": c.get("item"), "taken": False}
 
 
 def _relic_spawn_phrase(phrase, pos, c):
@@ -2099,6 +2312,7 @@ def _relic_contents_tick(t=None):
     """Place every armed record whose trigger has now fired, and light up the places the
     crew has reached."""
     _relic_reveal_tick()
+    _relic_taken_tick()
     pending = [(k, v) for k, v in _ARMED.items() if not v.get("done")]
     if not pending:
         return
@@ -2112,6 +2326,126 @@ def _relic_contents_tick(t=None):
         rec["done"] = True
 
 
+# --- the quest signals a ruin sends by itself --------------------------------------------
+#
+# Three story beats belong to the RUIN rather than to any one mission, so the library
+# sends them: a way opened (`<barrier key>_opened`), the piece carried out
+# (`<relic key>_taken`) and a job done (`<repair key>_repaired`). A quest waits on one
+# with `Done when: signal shaft_grate_opened` and no mission code is involved.
+#
+# ONCE EACH, per mission. A piece that leaves the volume and is then reeled in is one
+# event, and a mission that still sends the same name from a route of its own is harmless
+# rather than a double count. Names, not objects: the name is what a quest hears.
+_QUEST_SENT = set()
+
+
+def relic_quest_signal(name):
+    """Send a quest signal on a relic's behalf, once per mission. True when it was sent.
+
+    `signal_emit("quest_signal", {"SIGNAL_NAME": name})` - the line a quest's
+    `Done when: signal <name>` hears. Called from a tick or from another signal's
+    handler, which is always the server, so it is sent once whatever the console count.
+    """
+    from .amd import amd_signal_name
+    name = amd_signal_name(name)
+    if not name or name in _QUEST_SENT:
+        return False
+    _QUEST_SENT.add(name)
+    signal_emit("quest_signal", {"SIGNAL_NAME": name})
+    return True
+
+
+def relic_quest_signal_sent(name):
+    """Whether a relic already sent this quest signal. What a test or a report asks."""
+    from .amd import amd_signal_name
+    return amd_signal_name(name) in _QUEST_SENT
+
+
+def relic_quest_signal_count():
+    """Reset-ledger probe: quest signals relics have sent this mission."""
+    return len(_QUEST_SENT)
+
+
+def _relic_piece_taken(rec):
+    """One watched piece is out of its ruin: say so, once, and stop watching it."""
+    if rec.get("taken"):
+        return False
+    rec["taken"] = True
+    relic_key = rec.get("relic")
+    signal_emit("relic_piece_taken", {"RELIC_KEY": relic_key,
+                                      "RELIC_PIECE": rec.get("id"),
+                                      "RELIC_ITEM": rec.get("item")})
+    relic_quest_signal(str(relic_key) + "_taken")
+    return True
+
+
+def _relic_taken_tick():
+    """Send `<relic>_taken` for every piece that has LEFT its ruin.
+
+    Asked of the piece, not of the ship towing it: see `relic_holds`. A piece whose
+    object is gone is NOT taken by that alone - it may have been destroyed, or torn down
+    with its system - so it is only marked as gone, and `relic_piece_collected` is what
+    says it was picked up. A relic whose space is not standing is skipped rather than
+    read as "outside": `relic_holds` answers False for both, and only one is an exit.
+    """
+    from .query import to_object
+    for rec in list(_ARMED.values()):
+        if rec.get("kind") != "piece" or rec.get("taken") or rec.get("gone"):
+            continue
+        obj = to_object(rec.get("id"))
+        if obj is None:
+            rec["gone"] = True
+            continue
+        owner = _RELIC_RECORDS.get(rec.get("relic"))
+        if owner is None or volume_get(relic_volume_name(owner)) is None:
+            continue
+        p = obj.pos
+        if not relic_holds(rec.get("relic"), (p.x, p.y, p.z)):
+            _relic_piece_taken(rec)
+
+
+def relic_piece_collected(item_key, item_id=None):
+    """A pickup was collected: if it was a relic's piece, send `<relic>_taken`.
+
+    What an `item_collected` route calls, with the signal's `key` and - when the sender
+    carries it - the id of the pickup itself. REELING A PIECE IN from a suit collects and
+    deletes it while it is still inside the ruin, so it never "leaves the volume"; without
+    this the crew would hold the piece and the quest would wait forever.
+
+    Matched by id when there is one, else by the item key against pieces not yet taken.
+    Returns the relic key whose piece it was, or None - so a route can hand it every
+    pickup without asking first.
+    """
+    for rec in list(_ARMED.values()):
+        if rec.get("kind") != "piece" or rec.get("taken"):
+            continue
+        if item_id is not None:
+            if rec.get("id") != item_id:
+                continue
+        elif not item_key or rec.get("item") != item_key:
+            continue
+        _relic_piece_taken(rec)
+        return rec.get("relic")
+    return None
+
+
+def relic_pieces(relic_key=None, taken=None):
+    """The ids of the pieces relics have placed - one relic's, or every one's.
+
+    `taken=True` / `taken=False` narrows to the ones already out, or still inside.
+    """
+    out = []
+    for rec in _ARMED.values():
+        if rec.get("kind") != "piece":
+            continue
+        if relic_key is not None and rec.get("relic") != relic_key:
+            continue
+        if taken is not None and bool(rec.get("taken")) != bool(taken):
+            continue
+        out.append(rec.get("id"))
+    return out
+
+
 def _relic_open_barrier(rec):
     """Open one barrier and say so, so a suit holding for a shut way re-plans at once."""
     owner = _RELIC_RECORDS.get(rec.get("relic"))
@@ -2123,6 +2457,7 @@ def _relic_open_barrier(rec):
         signal_emit("rail_opened", {"RAIL_VOLUME": volume,
                                     "RAIL_RELIC": rec.get("relic"),
                                     "RAIL_BARRIER": rec.get("barrier")})
+        relic_quest_signal(str(rec.get("barrier")) + "_opened")
 
 
 def _relic_trigger_fired(rec):
@@ -2212,6 +2547,7 @@ def relic_contents_clear(relic_key=None):
         return
     _ARMED.clear()
     _SIGNALS_SEEN.clear()
+    _QUEST_SENT.clear()
     _ARM_TASK = None
     from .signal import signal_unobserve
     signal_unobserve(_relic_signal_observer)

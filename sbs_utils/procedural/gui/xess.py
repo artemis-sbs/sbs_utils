@@ -1554,16 +1554,19 @@ def _work_app(client_id):
     from ..eva_tools import (VERB_BEAM, VERB_TETHER, VERB_WORK, eva_abort, eva_aim,
                              eva_arm, eva_armed, eva_barrier_check, eva_disarm,
                              eva_reach, eva_selected_target, eva_targets, eva_use,
-                             eva_working)
+                             eva_working, eva_working_kind)
     from ..eva import eva_my_relic
 
     gui_xess_head(client_id, "Fire")
 
     target, verb, left, display = eva_working(client_id)
     if target is not None:
+        # A REPAIR SAYS REPAIR. The tool doing it is a beam or a pair of hands either
+        # way, and "BEAM - coolant coupling" reads as shooting the thing being mended.
+        doing = "REPAIR" if eva_working_kind(client_id) == "repair" else str(verb).upper()
         gui_row("row-height: 2.4em; font:gui-3; padding: 6px, 6px, 6px, 6px;")
         gui_text("$text:%s;justify:center;font:gui-3;color:%s;background: %s;"
-                 % (_esc("%s - %s, %ds" % (str(verb).upper(), display or target,
+                 % (_esc("%s - %s, %ds" % (doing, display or target,
                                            int(left))), ARMED, PANEL_HI))
         gui_row("row-height: 2.2em; font:gui-2;")
         gui_button("Stop", on_press=lambda _cid=client_id: eva_abort(_cid))
@@ -1599,8 +1602,9 @@ def _work_app(client_id):
             if spec:
                 mark = "  (%s %d)" % (spec[0], spec[1])
         on = (key == aimed)
-        rows.append((key, "%s%s   %d%s" % ("> " if on else "", label, int(gap), mark),
-                     on, ok, kind))
+        what = "Repair: " if kind == "repair" else ""
+        rows.append((key, "%s%s%s   %d%s" % ("> " if on else "", what, label, int(gap),
+                                             mark), on, ok, kind))
     if not rows:
         gui_row("row-height: 1fr;")
         gui_text("$text:%s;font:gui-2;color:%s;"
@@ -1626,9 +1630,11 @@ def _work_app(client_id):
 
     gui_row("row-height: 1.4em; font:gui-1;")
     gui_text("$text:%s;font:gui-1;color:%s;"
-             % (_esc("Reach %d. BEAM cuts a way open; TETHER hauls a find in.%s"
+             % (_esc("Reach %d. BEAM cuts a way open; TETHER hauls a find in.%s%s"
                      % (int(eva_reach(client_id)),
-                        " WORK tries it by hand." if VERB_WORK in tools else "")), DIM))
+                        " WORK tries it by hand." if VERB_WORK in tools else "",
+                        " A Repair takes the tool it names."
+                        if any(row[2] == "repair" for row in targets) else "")), DIM))
 
     gui_row("row-height: 2.2em; font:gui-2;")
     gui_button("Stow", on_press=lambda _cid=client_id: eva_disarm(_cid))

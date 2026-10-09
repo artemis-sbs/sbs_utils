@@ -419,6 +419,61 @@ marker_point(*relic_point("ossuary", "mouth"), "The Ossuary")
 `relic_points("ossuary", "spawn")` gives every point with a role, for when there are
 several.
 
+## Going inside
+
+With LegendaryMissions' `boarding` addon loaded, **a built ruin offers itself to the crew
+and you write nothing**. While a player ship is within 3000 of the ruin's entrance - the
+point carrying `Roles: entrance`, else its `Loc:` - the Boarding Party app shows the crew
+as a party and its button reads **SUIT UP**. When the ship leaves, the offer is withdrawn.
+
+| What happens | When |
+|---|---|
+| SUIT UP is offered, and a crew party opens | a player ship comes within 3000 of the entrance |
+| both are withdrawn | the ship goes more than 3450 away, or the ruin is torn down |
+| the offer stays up | for as long as anybody is still out in a suit |
+| suits are brought back aboard | the ruin is torn down (`relic_release`) with crew inside |
+
+One ruin is on offer at a time: the one the ship is at. With two ruins, the offer follows
+the ship from one to the other.
+
+What a mission did itself is left alone:
+
+- **Its own offer stands.** A ruin the mission offered with `eva_offer` - from a route
+  written before any of this existed - is not withdrawn for being far away, and not traded
+  for a nearer ruin. Only an offer the automatic wiring made is withdrawn by it.
+- **Its own boarding party stands.** With a cast the mission named open, or a party with an
+  interior to beam down into, no ruin is offered until that party is closed. The reason is
+  logged once under `eva`.
+
+**To wire a ruin by hand instead**, turn the automatic wiring off at the top of the story
+and say when:
+
+```
+eva_relics_auto(False)
+
+//shared/signal/relic_built
+    eva_relic_open(RELIC_KEY)      # SUIT UP goes here, and the crew party opens
+    ->END
+```
+
+`eva_relic_close(key)` withdraws it, and does nothing while somebody is still out there.
+Both can be called again and again: asking for the ruin already on offer changes nothing.
+
+### The suit
+
+A suit is drawn as the crew exosuit, `lm_eva_suit`. That hull is not in the game's own ship
+data, so a mission gets it only when all three of these are true:
+
+| Needs | Where |
+|---|---|
+| the `boarding` addon | `story.json`, in `mastlib` |
+| the LegendaryMissions media pack | `story.json`, in `shared_media` |
+| `EXTRA_SHIP_DATA: true` | `settings.yaml` |
+
+When any is missing the suit is drawn as the stock `tsn_shuttle` instead, and one warning
+under `eva` (and in `debug.log`) says which hull was wanted. `eva_set_suit_hull("key")`
+names a different hull; the same check applies to it.
+
 ## What a place says
 
 A crew in suits flies to places by name, and a place can **say something when they get
@@ -505,14 +560,13 @@ the ship's sensors), for anything a mission wants to hang on the moment.
 ### Stories inside a ruin
 
 A relic file can carry its own `## Side Stories`, one per job, and the crew who go inside
-pick up the ones for their jobs:
+pick up the ones for their jobs. With the `boarding` addon loaded that is automatic: each
+crew member who suits up is handed the story for their job, and once the party has reached
+its first place with something to say, a story nobody aboard has the job for goes to all of
+them.
 
-```
-//shared/signal/eva_went_out
-    boarding_quests_grant(relic_section(EVA_RELIC, "side_stories"))
-```
-
-`relic_section(key, section)` reads any section of the file a relic came from. A story's
+`relic_section(key, section)` reads any section of the file a relic came from, for a
+mission that wants one for something else. A story's
 `Leads to:` names places in that relic and marks them on the crew member's Nav list and
 their Tasks app, where one press flies the suit there.
 
@@ -585,6 +639,76 @@ legitimate thing to author — a wall that is simply a wall — so it is allowed
 **Give the crew a second way, and the barrier becomes a choice rather than a wait.** One
 route shut and one long way round is the shape this is for.
 
+**A barrier opening is a story beat.** However it was opened - cut, worked by hand, or by
+its own `Opens when:` - the quest signal `<barrier key>_opened` is sent, once. A quest
+waits on it with no mission code:
+
+```
+Done when: signal hatch_opened
+```
+
+### A job to do
+
+`Repair:` is written exactly like `Barrier:` - a spot and a size - and a suit works on it
+with the same tools. The difference is the point of it: **a repair is in nobody's way**. It
+never severs a route, so a station under repair is not divided by its own to-do list.
+
+```
+### [Hull Breach](hull_breach)
+---
+Relic: worksite
+Repair: 0, 0, -560, 80
+Clear with: beam
+---
+```
+
+| field | means |
+|---|---|
+| `Repair: x, y, z, r` | where the job is, and how big |
+| `Clear with:` | `beam`, `tether`, `check <skill> <dc>` - the tool that does it. The beam when the line is absent |
+| `Dress:` | what the job is drawn as. A dressed job stays in place when it is done; a plain marker goes |
+
+The job is a destination on the suit's Nav list, and in the Fire app its row reads
+`Repair: Hull Breach`. Working it takes as long as cutting a barrier does. When it is done
+the quest signal `<repair key>_repaired` is sent, once:
+
+```
+Done when: signal hull_breach_repaired
+```
+
+A story beat can finish one too: `relic_repair_done("worksite", "hull_breach")`.
+
+**A worksite is a relic with the ruin turned off.** `Walls: none`, `Debris: 0`, no
+`Atmosphere:` line, one `Chamber:` for the work area and a `Solid:` where the station is:
+
+```
+### [Kessler Station Worksite](worksite)
+---
+Loc: 0, 0, 0
+Walls: none
+Debris: 0
+---
+
+### [the work area](work_area)
+---
+Relic: worksite
+Chamber: 0, 0, 0, 1500
+---
+
+### [the hull](station_hull)
+---
+Relic: worksite
+Solid: sphere, 0, 0, 0, 500
+---
+
+### [the airlock](airlock)
+---
+Relic: worksite
+Point: 0, 0, -1200
+Roles: entrance
+---
+```
+
 ### Somewhere they have not found yet
 
 `Hidden: yes` on a point keeps it off the destination list until the crew has been near
@@ -655,6 +779,28 @@ the point: whether a hull scoops a pickup up is decided by its art's `interactio
 and the `unknown` placeholder has none - an item left at `Art: unknown` can be seen and
 never taken. A piece that must be CARRIED out rather than scooped wants art with no
 interaction radius at all.
+
+**The thing the crew came for** is the item at a place carrying `Roles: relic_piece`.
+Taking it sends the quest signal `<relic key>_taken`, once - when it is carried out of the
+ruin on a tether, or when a suit reels it in and it is collected where it lies:
+
+```
+### [the cradle](cradle)
+---
+Relic: ossuary
+Point: 4651, 0, 3188
+Roles: relic_piece
+Item: red_beacon
+---
+```
+
+```
+Done when: signal ossuary_taken
+```
+
+`sbs lint` knows these three signals have a sender when the file holds the record that
+sends them - a `Barrier:`, a `Repair:`, or a relic with a `relic_piece` place - so a quest
+waiting on one is not reported as waiting on nothing.
 
 `Item:` is a **reference**, not free text, so a typo is a lint error with a line number
 rather than a beacon that never appears:

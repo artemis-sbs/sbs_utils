@@ -597,6 +597,15 @@ from .procedural.amd_relics import relics_count as _relics_count
 register_reset_state("relic records", _relics_count)
 from .procedural.amd_relics import relic_contents_count as _relic_contents_count
 register_reset_state("relic contents", _relic_contents_count)
+# The quest signals a ruin has sent (`<barrier>_opened`, `<relic>_taken`,
+# `<repair>_repaired`) are remembered so none is sent twice. A name that survived a
+# reset would make the NEXT mission's ruin silent about the same beat.
+from .procedural.amd_relics import relic_quest_signal_count as _relic_quest_signal_count
+register_reset_state("relic quest signals", _relic_quest_signal_count)
+# What the automatic EVA wiring knows: which ruin it put on offer, and its proximity
+# tick. A tick that outlived its mission is the brains-still-ticking soak signature.
+from .procedural.eva_relics import eva_relics_count as _eva_relics_count
+register_reset_state("eva relic wiring", _eva_relics_count)
 from .procedural.grav_tether import _TETHERS as _GRAV_TETHERS
 register_reset_state("grav tethers",       lambda: len(_GRAV_TETHERS))
 from .procedural.modifiers import modifiers_count

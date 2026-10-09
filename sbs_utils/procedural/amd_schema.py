@@ -749,6 +749,17 @@ RELIC = {
                             "`Clear with:`, nothing can ever open it - which `sbs lint` "
                             "reports as `relic-barrier-seals` if it walls anything off."),
     "clear with": csv(hint="beam, tether, check engineering 12   - how a suit can open it"),
+    # -- a job to DO
+    #
+    # Written exactly like a barrier and worked with the same `Clear with:` tools - but it
+    # is in nobody's way: a repair never severs a leg of the rail web. Doing one sends the
+    # quest signal `<this record's key>_repaired`.
+    "repair": field(text(hint="x, y, z, radius   - a job a suit does here; blocks nothing"),
+                    doc="A repair job at this spot. Worked with the tools `Clear with:` "
+                        "names (the beam when it names none), it reads `Repair` in the "
+                        "suit's Fire app, and finishing it sends the quest signal "
+                        "`<key>_repaired` - so `Done when: signal <key>_repaired` waits "
+                        "on it with no mission code."),
     # -- what is AT a part, and when it appears
     #
     # `item` is a reference rather than free text on purpose: a typo in `Roles:` is
