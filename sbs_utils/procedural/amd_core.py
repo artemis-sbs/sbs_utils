@@ -375,6 +375,8 @@ def _extract_data_refs(node, fence_lines):
                     r.value = rest[0].strip("/") or rest[0]
         elif verb == "signal" and len(toks) >= 2:
             r = _token_span(fence_lines, "Then", toks[1], key, "signal")
+        elif verb == "learn" and len(toks) >= 2:
+            r = None                    # a fact, not a reference to anything
         elif verb not in ("reveal", "signal"):
             r = _token_span(fence_lines, "Then", str(then).strip(), key, "reveal")
         else:

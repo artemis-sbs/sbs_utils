@@ -61,6 +61,9 @@ _WATCH = {"task": None}
 _STUNNED = {}            # actor id (crew) -> until
 _DROP = {"sprite": None}
 _HEARD = set()           # the signal names some record's `Hidden until` wrote
+# Who a SAVED GAME says is already down, by key. A ledger, for the reason the props keep
+# one: a save is handed back before the site it describes has been declared.
+_SAVED = {"down": set()}
 
 
 def boarding_drop_sprite(sprite):
@@ -264,6 +267,7 @@ def boarding_hostiles_declare(section):
                         "hp_left": rec["hp"], "stunned_until": 0.0, "next_strike": 0.0,
                         "target": None, "leg": 0, "shown": not rec["hidden"],
                         "talked": False})
+            _saved_apply(rec)
             _HOSTILES[rec["key"]] = rec
             if _norm(rec["hidden"]):
                 _HEARD.add(_norm(rec["hidden"]))
@@ -278,6 +282,8 @@ def boarding_hostiles_place(area=None):
     from .tilemap import tilemap_place, tilemap_area, tilemap_mark_cells, _xy
     placed = 0
     for rec in _HOSTILES.values():
+        if rec["id"] is None:
+            _saved_apply(rec)       # a save restored AFTER the ground was declared
         if rec["id"] is not None or rec["state"] == "down" or not rec["shown"]:
             continue
         if area is not None and rec["area"] != _norm(area):
@@ -455,6 +461,7 @@ def _hostile_hit(rec, setting, by=None):
         return "wounded"
     at = tilemap_where(rec["id"])
     rec["state"] = "down"
+    _saved_touch()
     tilemap_remove(rec["id"])
     _BY_ID.pop(rec["id"], None)
     rec["id"] = None
@@ -643,6 +650,55 @@ def boarding_combat_install():
     boarding_tile_click_handler(boarding_hostile_click)
 
 
+# --- kept by a saved game --------------------------------------------------------------
+#
+# WHAT IS KEPT: who is DOWN - shot, or sent away by a scene (`dismiss`) - by key. Not
+# wounds, not who has been talked round (`calm`), not where anybody was standing.
+#
+# RESTORED STATE IS NOT NEWS: somebody who comes back down is simply not there. No
+# `boarding_hostile_down`, no `hostile_down_<key>` quest signal, and nothing is dropped
+# where they fell - what they dropped was dropped then.
+
+def _saved_touch():
+    try:
+        from .persistence import persist_provider_touch
+        persist_provider_touch("boarding_hostiles")
+    except Exception:                                    # noqa: BLE001
+        pass
+
+
+def _saved_apply(rec):
+    if rec.get("key") in _SAVED["down"]:
+        rec["state"] = "down"
+        rec["hp_left"] = 0
+
+
+def _hostiles_snapshot():
+    down = set(_SAVED["down"])
+    down.update(key for key, rec in _HOSTILES.items() if rec.get("state") == "down")
+    return {"down": sorted(down)} if down else {}
+
+
+def _hostiles_restore(blob):
+    """REPLACE the ledger with what a save says, and bring anybody already declared (and
+    not standing on a map) into line with it. Announces nothing."""
+    blob = blob if isinstance(blob, dict) else {}
+    _SAVED["down"] = {_norm(k) for k in (blob.get("down") or ())}
+    for rec in _HOSTILES.values():
+        if rec["id"] is None:
+            _saved_apply(rec)
+
+
+def boarding_hostiles_saved_count():
+    """Reset-ledger probe: how many people a saved game is still speaking for."""
+    return len(_SAVED["down"])
+
+
+from .persistence import persist_provider_register as _persist_provider_register  # noqa: E402
+_persist_provider_register("boarding_hostiles", _hostiles_snapshot, _hostiles_restore,
+                           library=True)
+
+
 def boarding_combat_clear():
     from .signal import signal_unobserve
     signal_unobserve(_on_ground_signal)
@@ -651,6 +707,7 @@ def boarding_combat_clear():
     _HOSTILES.clear()
     _BY_ID.clear()
     _STUNNED.clear()
+    _SAVED["down"] = set()
 
 
 def boarding_combat_count():
@@ -671,6 +728,7 @@ def boarding_hostile_dismiss(key):
     _BY_ID.pop(rec["id"], None)
     rec["id"] = None
     rec["state"] = "down"
+    _saved_touch()
     return True
 
 

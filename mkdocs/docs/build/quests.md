@@ -36,7 +36,8 @@ it is — is in [The AMD file format](amd-format.md).
 | `Done when:` | The COMPLETION trigger - what has to happen for this quest to be done. | `Goal:` |
 | `Starts when:` | When it ARMS - `at once`, `accepted` (the player takes it off the board), `revealed` (another quest reveals it). Not what completes it; that is `Done when:`. | `When:` |
 | `Fails when:` | What FAILS it - the same trigger grammar, plus `all dead <role>` and a bare time. |  |
-| `Then:` | Follow-up on COMPLETION - `reveal <quest>` to unlock another, or `signal <name>`. Those two verbs only; anything else is read as a reveal target. |  |
+| `Then:` | Follow-up on COMPLETION - `reveal <quest>` to unlock another, `signal <name>`, or `learn <fact>` (the crew now knows it: `if learned <fact>` in a later hail). Those three verbs only; anything else is read as a reveal target. |  |
+| `Was:` | The key this record USED to have. A saved game moves what the crew had done under the old key to this record, so a rename does not start the step again. A comma list when it was renamed twice. |  |
 | `Action:` | What the world does the moment this beat STARTS - one stage direction per line, all simultaneous. `Then:` is the other end. |  |
 | `Part of:` | The quest this one belongs under, by key. | `Parent:` |
 | `Scope:` | Who holds it - `shared` is one quest for the whole game, `ship` gives every player ship its own copy. |  |
@@ -233,6 +234,20 @@ fails in total silence.
 | `quest_completed` | `AGENT_ID`, `QUEST_ID` | mark the quest complete |
 | `quest_failed` | `AGENT_ID`, `QUEST_ID` | mark the quest failed |
 | `quest_signal` | `SIGNAL_NAME` | advance any quest whose `Done when: signal <name>` matches |
+
+!!! note "`Then: learn <fact>` - finishing a step is how the crew comes to know it"
+    `Then: learn manifest` records the fact `manifest` when the step completes. It is
+    filed under the CAMPAIGN, not a place, so `if learned manifest` then answers in any
+    hail and on any door inside any site. A fact can be several words
+    (`Then: learn the ledger page`). `Then:` takes one line: `reveal`, `signal` or
+    `learn`.
+
+!!! note "`Was: <old key>` - renaming a record in a mission that saves"
+    A saved game files a step's progress under its key. `Was: find_book` on the record
+    now keyed `find_ledger` says it is the same step, and the saved state moves across on
+    the next Continue. Only a mission that saves reads it (Open Universe); `sbs lint`
+    reports a `Was:` that names the record's own key (`was-own-key`) or a key that is
+    still in the file (`was-key-still-used`).
 
 !!! note "`Then: signal X` reaches other quests too"
     `Then: signal X` fires the raw signal `X` — so a `//signal/X` route still matches

@@ -158,9 +158,28 @@ out there, go somewhere new and it knows nothing yet. The place is `place=` on
 `boarding_visit_ended` carries `BOARDING_PLACE`, so a route can ask what was learned after
 the party has come home: `boarding_facts(BOARDING_PLACE)`.
 
+**What the crew learned on the bridge is known everywhere.** A hail is answered by the
+SHIP, not by somebody in a party, so `; learn manifest` there is filed under the campaign -
+wherever the ship is parked, party on offer or not - and so is a quest step's
+`Then: learn manifest`. A NAMED condition asks the place first and the campaign second, so
+`if learned manifest` on a door inside a site is true for a crew who were told about the
+manifest before they ever beamed down. The COUNT does not look past its own pool:
+`if learned >= 2` inside a site is two things worked out there, and in a hail it is two
+things the campaign knows.
+
+| Where it was learned | `if learned manifest` | `if learned >= 2` counts it |
+|---|---|---|
+| in this place, by the party | yes, here | here |
+| in another place | no | there |
+| in a hail or a message reply, or by a step's `Then: learn` | yes, everywhere | in a hail |
+
+`boarding_learn(fact, place="")` records a campaign fact from MAST. A mission that saves
+keeps every place's facts (see `persistence.md`, state providers); Open Universe does.
+
 `sbs lint` reports a condition the game cannot read (`if learned => 2`), an `if` written
-after the `;`, and `learn` with no name. It knows both forms of `learned`: a fact that no
-choice in the file learns is `guard-learned-unknown` (`if learned manifst`), and a count
+after the `;`, and `learn` with no name. It knows both forms of `learned`: a fact that
+nothing in the MISSION learns - no `; learn` and no `Then: learn`, in this file or any
+other `.amd` beside it - is `guard-learned-unknown` (`if learned manifst`), and a count
 with its sign missing (`if learned 2`) or a named fact asked to be more than 1
 (`if learned manifest >= 2`) is `guard-learned-shape`. It cannot tell that `learned >= 5`
 asks for more than the place can teach.

@@ -667,6 +667,29 @@ A quest waits on it with no mission code:
 Done when: signal hatch_opened
 ```
 
+### A ruin remembers
+
+What the crew did in a ruin stays done. A galaxy tears a system down behind a ship and
+builds it again on the way back, and the ruin used to be rebuilt from its file each time:
+every barrier shut, every repair undone, the piece the crew carried out sitting where it
+had always been. Now the ruin keeps a ledger, and is rebuilt as it was left:
+
+| What happened | When the ruin is built again |
+|---|---|
+| a barrier was opened | it is open, and has no body to shoot |
+| a `Repair:` job was done | it is done (a dressed job stands as repaired) |
+| a `Roles: relic_piece` item was taken | it is not put back, and neither is anything else on that record |
+| a waiting `Starts when:` record had its trigger | it is simply there |
+
+Coming back sends nothing: `<barrier>_opened`, `<relic>_taken` and `<key>_repaired` were
+sent when it happened, once, and are not sent again. A mission that saves writes the
+ledger down and hands it back (Open Universe does; see `persistence.md`), which is the
+same thing over a longer gap. `relic_ledger(key)` reads it; `relic_ledger_forget(key)` is
+for a ruin that is meant to be new each time it is found.
+
+Ordinary loot (an `Item:` on a record with no `relic_piece` role) is not in the ledger:
+it is placed again on each visit, as it always was.
+
 ### A job to do
 
 `Repair:` is written exactly like `Barrier:` - a spot and a size - and a suit works on it

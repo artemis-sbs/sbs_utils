@@ -31,6 +31,14 @@ Semantics (carried over verbatim from the OU save layer):
   payload itself has already decided.
 - Unknown top-level keys ride through load -> modify -> save untouched, so a
   later build (or an addon) can add a section without a format change.
+
+STATE PROVIDERS (the second half of this module, `persist_provider_*`): a library
+module that owns per-mission state worth keeping - what a boarding party learned,
+which barrier of a ruin is open - registers a pair of functions, and a mission that
+saves asks for every provider's state in one call and hands it back in one call.
+The store above neither knows nor cares; the mission decides which file and key
+the blobs live under. A mission that never saves never calls either, and nothing
+changes for it.
 """
 import os
 import shutil
@@ -244,3 +252,153 @@ def persist_save(path, data, *, version=1, fmt="yaml",
 def persist_migrate(data, *, version, migrations, version_key=DEFAULT_VERSION_KEY):
     return PersistentStore("", version=version, migrations=migrations,
                            version_key=version_key).migrate(data)
+
+
+# --- state providers ---------------------------------------------------------
+# WHO OWNS WHAT. The save file belongs to a mission (Open Universe keeps it under
+# one key, `state`). The STATE belongs to whichever library module holds it, and
+# that module is the only thing that knows how to write it down and how to take it
+# back. A provider is that pair, under a name:
+#
+#     persist_provider_register("relics", snapshot_fn, restore_fn)
+#
+#   snapshot_fn() -> a plain, YAML-safe value (dicts, lists, strings, numbers), or
+#                    None / empty when there is nothing to keep.
+#   restore_fn(blob) REPLACES what the provider holds with `blob`. `None` means
+#                    "nothing was saved": forget everything. It must be LAZY where
+#                    the world is not built yet - fill a ledger the owner consults
+#                    when it builds the thing - and it must not announce anything:
+#                    restored state is not news, so no quest signal, no reward.
+#
+# The library's own providers register as their modules import (`library=True`),
+# the way the library's own dispatcher handlers do, and the per-mission reset puts
+# exactly those back. A provider a MISSION registers is dropped by the reset.
+_PROVIDERS = {}            # name -> (snapshot_fn, restore_fn)
+_LIBRARY_PROVIDERS = {}    # the ones the reset puts back
+_RESTORED = {}             # name -> the blob last handed to persist_providers_restore
+_DIRTY = [False]
+
+
+def persist_provider_register(name, snapshot_fn, restore_fn, library=False):
+    """Register a state provider under `name`. Re-registering a name replaces it.
+
+    If a save was already restored this mission and it held a blob under this name,
+    the new provider is handed it at once - so a provider that registers late (an
+    addon that loads after the campaign was opened) is not left empty.
+
+    `library=True` is for sbs_utils' own modules, which register once as they
+    import: the per-mission reset keeps those and drops the rest."""
+    name = str(name)
+    _PROVIDERS[name] = (snapshot_fn, restore_fn)
+    if library:
+        _LIBRARY_PROVIDERS[name] = (snapshot_fn, restore_fn)
+    if name in _RESTORED and restore_fn is not None:
+        _persist_call_restore(name, restore_fn, _RESTORED[name])
+    return name
+
+
+def persist_provider_unregister(name):
+    """Drop a provider. A blob restored under its name is still kept for the next
+    snapshot. True when there was one."""
+    _LIBRARY_PROVIDERS.pop(str(name), None)
+    return _PROVIDERS.pop(str(name), None) is not None
+
+
+def persist_provider_names():
+    """Every registered provider, sorted."""
+    return sorted(_PROVIDERS)
+
+
+def _persist_log(message):
+    try:
+        from .execution import log
+        log(message, "persistence", "warning")
+    except Exception:                                   # noqa: BLE001
+        pass
+
+
+def _persist_call_restore(name, restore_fn, blob):
+    try:
+        restore_fn(blob)
+        return True
+    except Exception as e:                              # noqa: BLE001
+        _persist_log(f"state provider '{name}' would not restore: {type(e).__name__}: {e}")
+        return False
+
+
+def persist_providers_snapshot():
+    """Every provider's state, as `{name: blob}`. What a mission writes to its save.
+
+    Three rules, all in service of "never lose what was saved":
+      * a provider with nothing to keep is left out;
+      * a provider whose snapshot RAISES keeps the blob it was last restored with -
+        a fault in one module must not delete that module's saved state;
+      * a blob that was restored under a name NO provider claims is passed through
+        as it was (an addon that is not loaded tonight keeps its state).
+    Clears the "something changed" flag (`persist_providers_dirty`)."""
+    out = {}
+    for name, blob in _RESTORED.items():
+        if name not in _PROVIDERS and blob not in (None, {}, []):
+            out[name] = blob
+    for name in sorted(_PROVIDERS):
+        snapshot_fn = _PROVIDERS[name][0]
+        if snapshot_fn is None:
+            continue
+        try:
+            blob = snapshot_fn()
+        except Exception as e:                          # noqa: BLE001
+            _persist_log(f"state provider '{name}' would not snapshot: {type(e).__name__}: {e}")
+            blob = _RESTORED.get(name)
+        if blob not in (None, {}, []):
+            out[name] = blob
+    _DIRTY[0] = False
+    return out
+
+
+def persist_providers_restore(blobs):
+    """Hand each provider its saved blob. Returns the names that were restored.
+
+    EVERY registered provider is called - with its blob, or with None when the save
+    held nothing under its name - so "Continue" and "New Game" both leave a provider
+    holding exactly what the save says and nothing left over from before. Blobs under
+    a name nobody has registered are kept, handed to a provider that registers later,
+    and passed through `persist_providers_snapshot` untouched."""
+    blobs = dict(blobs) if isinstance(blobs, dict) else {}
+    _RESTORED.clear()
+    _RESTORED.update(blobs)
+    done = []
+    for name in sorted(_PROVIDERS):
+        restore_fn = _PROVIDERS[name][1]
+        if restore_fn is None:
+            continue
+        if _persist_call_restore(name, restore_fn, blobs.get(name)):
+            done.append(name)
+    _DIRTY[0] = False
+    return done
+
+
+def persist_provider_touch(name=None):
+    """A provider's state just changed: something worth saving happened. Cheap, and
+    safe to call from anywhere - it sets one flag a saving mission polls."""
+    _DIRTY[0] = True
+
+
+def persist_providers_dirty():
+    """True when a provider's state has changed since the last snapshot or restore."""
+    return bool(_DIRTY[0])
+
+
+def persist_providers_reset():
+    """The per-mission reset: forget restored blobs and the changed flag, drop the
+    providers a mission registered, and put the library's own back."""
+    _RESTORED.clear()
+    _DIRTY[0] = False
+    _PROVIDERS.clear()
+    _PROVIDERS.update(_LIBRARY_PROVIDERS)
+
+
+def persist_providers_count():
+    """Reset-ledger probe: what a mission left behind - restored blobs, the changed
+    flag, and providers the library did not register itself."""
+    return (len(_RESTORED) + (1 if _DIRTY[0] else 0)
+            + len([n for n in _PROVIDERS if n not in _LIBRARY_PROVIDERS]))

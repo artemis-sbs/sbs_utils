@@ -288,7 +288,11 @@ _CANONICAL_TO_LEGACY = {
 # COMPLETION, and the things a mission wants there ("now they call you back") belong to
 # the beat that STARTS, which is `Action:`. Kept named so the linter checks the same set
 # the parser reads.
-THEN_VERBS = ("reveal", "signal")
+#
+# `learn <fact>` joined them 2026-10-09: finishing a step can be how the crew comes to
+# KNOW something, and a fact is the one thing a later hail can ask about (`if learned
+# manifest`) that survives the evening - it is filed under the campaign and saved.
+THEN_VERBS = ("reveal", "signal", "learn")
 
 _STATE_ALIASES = {"available": "idle", "offered": "idle",
                   "running": "active", "hidden": "secret", "done": "complete"}
@@ -397,7 +401,10 @@ def amd_quest_facts(aliases=None):
                 toks = [toks[0]] + rest
             else:
                 toks = str(value).split()
-            if len(toks) >= 2 and toks[0].lower() in THEN_VERBS:
+            if len(toks) >= 2 and toks[0].lower() == "learn":
+                # A fact may be several words, like the one after `; learn` in a choice.
+                data["learn"] = " ".join(toks[1:])
+            elif len(toks) >= 2 and toks[0].lower() in THEN_VERBS:
                 data[toks[0].lower()] = toks[1]
             else:
                 # A bare value is a reveal target, which is what makes an unrecognized
@@ -405,6 +412,15 @@ def amd_quest_facts(aliases=None):
                 # "reveal a quest called `hail brief`" and says nothing about it. That
                 # is what `unknown-then-verb` exists to tell the author.
                 data["reveal"] = value
+        elif label == "was":
+            # The key this record USED to have. A saved game files a step's progress
+            # under its key, so renaming a record orphaned what the crew had done: the
+            # old key came back as a ghost and the new one started fresh. A mission that
+            # saves reads this on Continue and moves the saved state across. Several old
+            # keys (a record renamed twice) are a comma list.
+            # Kept AS WRITTEN: a key is whatever is in the heading's round brackets.
+            data["was"] = [k for k in (p.strip().strip("/") for p in str(value).split(","))
+                           if k]
         elif label == "pays":
             data["reward"] = amd_reward(value)
         elif label == "penalty":

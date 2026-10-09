@@ -255,6 +255,12 @@ def reset_mission_state():
     # would still answer relic_record() in this one.
     from .procedural.amd_relics import relics_clear
     relics_clear()
+    # What a saved game handed back (opened barriers, taken pieces, what was learned) is
+    # held by its owners' own ledgers, cleared by their own clears above. This is the
+    # hand-over itself: restored blobs nobody claimed, the "something changed" flag, and
+    # any provider a MISSION registered. The library's own providers are put back.
+    from .procedural.persistence import persist_providers_reset
+    persist_providers_reset()
     # Signal OBSERVERS - library watchers registered on signal_emit. A relic's contents
     # watcher registers one, and it holds a reference into the last mission's records.
     from .procedural.signal import signal_observers_clear
@@ -610,6 +616,18 @@ register_reset_state("relic contents", _relic_contents_count)
 # reset would make the NEXT mission's ruin silent about the same beat.
 from .procedural.amd_relics import relic_quest_signal_count as _relic_quest_signal_count
 register_reset_state("relic quest signals", _relic_quest_signal_count)
+# What a ruin REMEMBERS between visits - opened barriers, done repairs, taken pieces -
+# and what a tile site remembers. These outlive a system being torn down on purpose;
+# they must not outlive the mission.
+from .procedural.amd_relics import relic_ledger_count as _relic_ledger_count
+register_reset_state("relic ledger", _relic_ledger_count)
+from .procedural.boarding_props import boarding_props_saved_count as _boarding_props_saved_count
+register_reset_state("boarding props ledger", _boarding_props_saved_count)
+from .procedural.boarding_combat import boarding_hostiles_saved_count as _boarding_hostiles_saved_count
+register_reset_state("boarding hostiles ledger", _boarding_hostiles_saved_count)
+# The save hand-over: restored blobs nobody claimed, and mission-registered providers.
+from .procedural.persistence import persist_providers_count as _persist_providers_count
+register_reset_state("save state providers", _persist_providers_count)
 # What the automatic EVA wiring knows: which ruin it put on offer, and its proximity
 # tick. A tick that outlived its mission is the brains-still-ticking soak signature.
 from .procedural.eva_relics import eva_relics_count as _eva_relics_count

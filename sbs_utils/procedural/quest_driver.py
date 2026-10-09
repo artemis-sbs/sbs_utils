@@ -428,6 +428,15 @@ def quest_mark_complete(agent_id, quest_id):
     quest_set_key(agent_id, quest_id, "state", QuestState.COMPLETE)
     quest_grant_reward(agent_id, data.get("reward"))
     quest_reveal(agent_id, data.get("reveal"))
+    # `Then: learn <fact>`: finishing this is how the crew comes to know it. Filed under
+    # the CAMPAIGN, not a place - a quest is the story's, wherever its last step was
+    # done - so `if learned <fact>` answers in any hail and inside any site afterwards.
+    if data.get("learn"):
+        try:
+            from sbs_utils.procedural.boarding import boarding_learn
+            boarding_learn(data.get("learn"), place="")
+        except Exception as e:                           # noqa: BLE001
+            _quest_driver_log(f"quest {quest_id!r}: `Then: learn` failed: {e}")
     # On-complete actions: emit an optional custom signal (e.g. to flip
     # diplomacy), and the generic SUCCESS announcement carrying the data so addons
     # can react (the universe applies the declarative rep: block from it).
@@ -535,6 +544,69 @@ def _quest_swap_in_armed(agent_id, quest_id, data):
     except Exception:                                    # noqa: BLE001
         pass
     return True
+
+
+def quest_restore_started(agent_id, quest_id):
+    """A saved game says this step had already STARTED: put its real trigger in.
+
+    A step written `Starts when: <trigger>` is granted armed with that trigger and its
+    `Done when:` set aside. A mission that saves re-grants its story on Continue, so a
+    step that started last evening came back armed again - waiting a second time for a
+    signal that had already been sent. This is the swap `quest_mark_complete` makes when
+    the start trigger fires, with none of the news: no `Action:`, no announcement, and
+    the saved progress is left for the caller to put back.
+
+    True when the step was armed and is now started; False when there was nothing to do
+    (no such quest, or it is not waiting on a start).
+    """
+    data = quest_get_data(agent_id, quest_id)
+    if not isinstance(data, dict) or data.get("armed_trigger") is None:
+        return False
+    return _quest_swap_in_armed(agent_id, quest_id, data)
+
+
+def quest_clocks(agent_id, quest_id):
+    """The running clocks of one quest, as seconds LEFT: `{"fail": n, "done": n}`.
+
+    What a saved game writes down. A clock is an agent timer measured against the sim's
+    own time, which starts again at zero on the next launch, so the time left is the
+    only form that means anything tomorrow. A clock that is not running, or has run
+    out, is left out.
+    """
+    out = {}
+    for word, prefix in (("fail", "qfail:"), ("done", "qdone:")):
+        name = prefix + str(quest_id)
+        try:
+            if is_timer_set(agent_id, name) and not is_timer_finished(agent_id, name):
+                out[word] = max(1, int(get_time_remaining(agent_id, name) or 0))
+        except Exception:                                # noqa: BLE001
+            pass
+    return out
+
+
+def quest_clocks_restore(agent_id, quest_id, clocks):
+    """Start one quest's clocks again with the time that was LEFT (`quest_clocks`).
+
+    Set before the driver's first tick, so the tick finds a timer already running and
+    does not start a full one. Returns how many were set.
+    """
+    if not isinstance(clocks, dict):
+        return 0
+    n = 0
+    for word, prefix in (("fail", "qfail:"), ("done", "qdone:")):
+        left = clocks.get(word)
+        try:
+            left = int(left)
+        except (TypeError, ValueError):
+            continue
+        if left <= 0:
+            continue
+        try:
+            set_timer(agent_id, prefix + str(quest_id), seconds=left)
+            n += 1
+        except Exception:                                # noqa: BLE001
+            pass
+    return n
 
 
 def _scale_goal_counts(data, scale):
@@ -677,6 +749,26 @@ def quest_actions_owed():
     """How many granted-running quests are still waiting for their `Action:` to run."""
     owed = Agent.SHARED.get_inventory_value(_PENDING_ACTIONS_KEY, None)
     return len(owed) if isinstance(owed, (list, tuple)) else 0
+
+
+def quest_action_settle(agent_id, quest_id):
+    """This quest's `Action:` is NOT owed after all: it ran on an earlier evening.
+
+    A quest granted already running owes its `Action:` to the first tick. A mission that
+    saves grants its story again on Continue, so every such step owed its block again -
+    the station hailed the crew a second time about a step they had finished last week.
+    A restore calls this for each step the save already knows about. True when a block
+    was owed and no longer is.
+    """
+    owed = Agent.SHARED.get_inventory_value(_PENDING_ACTIONS_KEY, None)
+    if not owed:
+        return False
+    want = (to_id(agent_id), str(quest_id))
+    kept = [(a, q) for a, q in owed if (to_id(a), str(q)) != want]
+    if len(kept) == len(owed):
+        return False
+    Agent.SHARED.set_inventory_value(_PENDING_ACTIONS_KEY, kept)
+    return True
 
 
 def quest_tick_actions():

@@ -282,11 +282,19 @@ QUEST = {
                         key="fails_when",
                         doc="What FAILS it - the same trigger grammar, plus "
                             "`all dead <role>` and a bare time."),
-    "then": field(compound({"reveal": ref("node"), "signal": signal()},
-                           hint="reveal KEY  |  signal NAME"),
-                  doc="Follow-up on COMPLETION - `reveal <quest>` to unlock another, or "
-                      "`signal <name>`. Those two verbs only; anything else is read as a "
-                      "reveal target."),
+    "then": field(compound({"reveal": ref("node"), "signal": signal(),
+                            "learn": text(hint="the fact")},
+                           hint="reveal KEY  |  signal NAME  |  learn FACT"),
+                  doc="Follow-up on COMPLETION - `reveal <quest>` to unlock another, "
+                      "`signal <name>`, or `learn <fact>` (the crew now knows it: "
+                      "`if learned <fact>` in a later hail). Those three verbs only; "
+                      "anything else is read as a reveal target."),
+    # The key this record used to have. Only a mission that SAVES reads it: on Continue
+    # the saved state filed under the old key moves to this record.
+    "was": field(text(hint="the old key"),
+                 doc="The key this record USED to have. A saved game moves what the crew "
+                     "had done under the old key to this record, so a rename does not "
+                     "start the step again. A comma list when it was renamed twice."),
     # What happens the MOMENT this record starts. `Then:` is the other end - it fires on
     # completion - and the two were being conflated because there was no entry slot.
     # Lines are simultaneous; see procedural/amd_action.py.

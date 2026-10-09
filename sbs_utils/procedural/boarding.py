@@ -236,6 +236,12 @@ _FACTS = {}                       # place -> the set of things worked out there
 #: The pool a scene writes to when it has no place at all: no visit, and no invitation
 #: with a title. A mission that drives scenes by hand and never named one gets exactly
 #: the single pool it always had.
+#:
+#: THE CAMPAIGN'S POOL. A hail answered on the bridge has no place, so `; learn x` there
+#: lands here - and so does a quest step's `Then: learn x`. A fact in this pool is known
+#: EVERYWHERE: `if learned x` (the named form) asks the place first and this pool second,
+#: so what the crew was told on the bridge still opens a door inside a ruin. The COUNT
+#: form (`if learned >= 2`) is the place's alone, as it always was.
 _NO_PLACE = ""
 
 
@@ -274,6 +280,125 @@ def boarding_learned(fact=None, place=None):
     return 1 if str(fact).strip() in facts else 0
 
 
+def _fact_fold(fact):
+    """A fact as it is COMPARED: capitals and spacing do not matter."""
+    return " ".join(str(fact).split()).lower()
+
+
+def _asked_on_the_bridge(agent_id):
+    """True when a choice is being taken, or a condition asked, ON THE BRIDGE - by a
+    ship (a hail) or by the story itself (a message reply) - rather than by somebody in
+    a boarding party.
+
+    WHO IS ASKING decides which pool `learn` writes to and `learned` counts, not where
+    the ship happens to be parked. It used to be the place alone: with a party on offer
+    at a ruin's door, a hail answered on the bridge filed its fact under that RUIN, and
+    the same question asked two systems later - no party on offer - looked in the
+    campaign's pool and found nothing. Lint clean, no log, and the answer never offered.
+
+    A boarding scene asks for a body (a lifeform, which is never `__player__`) or for
+    nobody at all (the room's line is the party's), so `None` is not the bridge.
+    """
+    if agent_id is None:
+        return False
+    aid = to_id(agent_id)
+    if aid is None:
+        return False
+    if aid == Agent.SHARED_ID:
+        return True
+    try:
+        return bool(has_role(aid, "__player__"))
+    except Exception:                                   # noqa: BLE001
+        return False
+
+
+def boarding_learn(fact, place=None):
+    """Record one fact. ``place`` is where it is filed: None for wherever the party is
+    (:func:`boarding_place`), ``""`` for the CAMPAIGN - known everywhere.
+
+    What ``; learn x`` and a quest step's ``Then: learn x`` both end in. True when the
+    fact is new there. A set, so learning the same thing twice is learning it once.
+    """
+    fact = " ".join(str(fact or "").split())
+    if not fact:
+        return False
+    pool = _FACTS.setdefault(boarding_place() if place is None else str(place), set())
+    if fact in pool:
+        return False
+    pool.add(fact)
+    try:
+        from .persistence import persist_provider_touch
+        persist_provider_touch("boarding_facts")
+    except Exception:                                   # noqa: BLE001
+        pass
+    return True
+
+
+def boarding_learned_named(fact, place=None):
+    """1 when the party knows this ONE fact - here, or as something the campaign knows.
+
+    The named form of the guard: ``if learned manifest``. It asks the place the party is
+    in and then the campaign's pool, so a fact learned in a bridge hail is known inside
+    every site. (The count form never looks past the place.)
+    """
+    want = _fact_fold(fact)
+    if not want:
+        return 0
+    if any(_fact_fold(f) == want for f in _facts_of(place)):
+        return 1
+    if any(_fact_fold(f) == want for f in _FACTS.get(_NO_PLACE, ())):
+        return 1
+    return 0
+
+
+def boarding_learned_guard(name, agent_id=None):
+    """Answer a guard's left side when it is about what is KNOWN, else None.
+
+    ``learned`` is a count - of the campaign's facts when ``agent_id`` is a ship or the
+    story (a hail on the bridge), of the place's otherwise. ``learned <fact>`` is one
+    named fact, 1 or 0, asked of the place and then of the campaign. Anything else is
+    not this module's word, and the caller's own resolver carries on. For a mission that
+    installs a guard resolver of its own (Open Universe does) and still wants these two
+    to answer.
+    """
+    text = " ".join(str(name).split())
+    word, _, rest = text.partition(" ")
+    if word.lower() != "learned":
+        return None
+    if not rest.strip():
+        if _asked_on_the_bridge(agent_id):
+            return len(_FACTS.get(_NO_PLACE, ()))
+        return len(_facts_of())
+    return boarding_learned_named(rest)
+
+
+# --- kept by a saved game ------------------------------------------------------------
+# The state provider (see `persistence.persist_provider_register`). What is written down
+# is every place's facts, the campaign's among them, as sorted lists.
+
+def _boarding_facts_snapshot():
+    return {place: sorted(facts) for place, facts in _FACTS.items() if facts}
+
+
+def _boarding_facts_restore(blob):
+    """REPLACE what is known with what the save says. Nothing is announced."""
+    _FACTS.clear()
+    if not isinstance(blob, dict):
+        return
+    for place, facts in blob.items():
+        if isinstance(facts, (list, tuple, set)):
+            kept = {" ".join(str(f).split()) for f in facts if str(f).strip()}
+            if kept:
+                _FACTS[str(place)] = kept
+
+
+# Registered AS THIS MODULE IMPORTS, like the `learn` verb below: a mission that saves
+# asks every provider at once and must not have to know this one exists.
+from .persistence import persist_provider_register as _persist_provider_register  # noqa: E402
+_persist_provider_register("boarding_facts", _boarding_facts_snapshot,
+                           _boarding_facts_restore, library=True)
+
+
 def boarding_facts_count():
     """Reset-ledger probe: how many facts are held, across every place."""
     return sum(len(facts) for facts in _FACTS.values())
@@ -304,7 +429,10 @@ def _boarding_learn_outcome(agent_id, speaker, tokens):
     """
     if not tokens:
         return None
-    _FACTS.setdefault(boarding_place(), set()).add(" ".join(str(t) for t in tokens).strip())
+    # A hail answered on the bridge teaches the CAMPAIGN; a choice taken by somebody in
+    # the party teaches the place they are in.
+    boarding_learn(" ".join(str(t) for t in tokens).strip(),
+                   place=_NO_PLACE if _asked_on_the_bridge(agent_id) else None)
     return None
 
 
@@ -331,6 +459,10 @@ def _boarding_metric(name, agent_id, speaker):
     # Any capitals: jobs and skills never minded them, and `if Learned >= 3` was a door
     # nobody could open while `%{Learned < 3}` was a line always spoken.
     if str(name).strip().lower() == "learned":
+        # ...except on the BRIDGE, where there is no party: a hail counts what the
+        # campaign knows, so `; learn` and `if learned >= 1` in two hails always meet.
+        if _asked_on_the_bridge(agent_id):
+            return len(_FACTS.get(_NO_PLACE, ()))
         return len(_facts_of())
     # A WORD AND AN ARGUMENT - `skill engineering`, `holding medkit`, `party coil` - owned
     # by the module that knows the answer (checks, the pack), registered with
@@ -341,9 +473,9 @@ def _boarding_metric(name, agent_id, speaker):
     # rather than through `boarding_metric_word` because it is the party's and the
     # place's, like the count above - and a mission must not be able to re-register it.
     # Capitals and spacing do not matter; the fact keeps the spelling `learn` gave it.
+    # The place first, then the CAMPAIGN: what a bridge hail taught is known in here too.
     if word.lower() == "learned" and rest.strip():
-        want = " ".join(rest.split()).lower()
-        return 1 if any(" ".join(str(f).split()).lower() == want for f in _facts_of()) else 0
+        return boarding_learned_named(rest)
     fn = _METRIC_WORDS.get(word.lower())
     if fn is not None and rest.strip():
         return fn(rest.strip(), agent_id)

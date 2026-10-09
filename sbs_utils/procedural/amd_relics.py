@@ -1077,6 +1077,10 @@ def relic_barriers_spawn(relic_key, name=None):
     if rec is None:
         return 0
     volume = relic_volume_name(rec, name)
+    # WHAT WAS OPENED STAYS OPEN. The web is solved fresh each time the ruin is built,
+    # with every barrier shut, so the ledger opens the ones the crew already dealt with
+    # before anything is given a body. Quietly: this is not news (see the ledger).
+    _relic_ledger_open_web(relic_key, volume)
     placed = 0
     for bkey, bar in rail_barriers(volume, shut_only=True):
         akey = ("barrier_obj", relic_key, bkey)
@@ -1185,6 +1189,7 @@ def relic_open_barrier(relic_key, barrier, name=None):
         except Exception as e:                            # noqa: BLE001
             log(f"relic '{relic_key}': barrier '{barrier}' opened but its object "
                 f"could not be removed: {e}", "relics", "warning")
+    _relic_ledger_note(relic_key, "opened", barrier)
     signal_emit("rail_opened", {"RAIL_VOLUME": volume, "RAIL_RELIC": relic_key,
                                 "RAIL_BARRIER": barrier})
     relic_quest_signal(str(barrier) + "_opened")
@@ -1233,9 +1238,10 @@ def relic_repair_jobs(relic_key, open_only=False):
         return []
     base = relic_pos(rec)
     out = []
+    done = _relic_ledger_has(relic_key, "repaired")
     for name, r in (rec.get("repairs") or {}).items():
         armed = _ARMED.get(("repair", relic_key, name)) or {}
-        fixed = bool(armed.get("fixed"))
+        fixed = bool(armed.get("fixed")) or name in done
         if open_only and fixed:
             continue
         out.append((name, {
@@ -1249,8 +1255,9 @@ def relic_repair_jobs(relic_key, open_only=False):
 
 
 def relic_repair_fixed(relic_key, repair):
-    """Whether a repair job has been done."""
-    return bool((_ARMED.get(("repair", relic_key, repair)) or {}).get("fixed"))
+    """Whether a repair job has been done - now, or on an earlier visit."""
+    return (bool((_ARMED.get(("repair", relic_key, repair)) or {}).get("fixed"))
+            or repair in _relic_ledger_has(relic_key, "repaired"))
 
 
 def relic_repairs_spawn(relic_key, name=None):
@@ -1278,9 +1285,15 @@ def relic_repairs_spawn(relic_key, name=None):
         pos, label = job["pos"], job["display"]
         oid = None
         art, mult = _relic_dress_pick(relic_part_info(relic_key, rkey).get("dress"))
+        # DONE ON AN EARLIER VISIT (the ledger): the fault is not there to mark. A
+        # dressed job - a panel, a coupling - is still furniture and stands as repaired;
+        # a plain marker is simply not made. Nothing is announced.
+        was_done = rkey in _relic_ledger_has(relic_key, "repaired")
         try:
+            if was_done and not art:
+                raise _RelicNothingToPlace()
             obj = terrain_spawn(pos[0], pos[1], pos[2], str(label),
-                                "#," + RELIC_REPAIR_ROLE,
+                                "#," + (RELIC_REPAIRED_ROLE if was_done else RELIC_REPAIR_ROLE),
                                 art or "generic-sphere", "behav_selection")
             if art:
                 from .volume_dress import _mesh_size
@@ -1290,6 +1303,8 @@ def relic_repairs_spawn(relic_key, name=None):
                     obj.data_set.set("local_scale_%s_coeff" % axis, s, 0)
             obj.engine_object.exclusion_radius = 0
             oid = getattr(obj, "id", None)
+        except _RelicNothingToPlace:
+            pass
         except Exception as e:                            # noqa: BLE001
             log(f"relic '{relic_key}': could not mark repair '{rkey}': {e}",
                 "relics", "warning")
@@ -1302,7 +1317,8 @@ def relic_repairs_spawn(relic_key, name=None):
         # `done` so the contents tick never treats it as waiting on a trigger; `at`, not
         # `pos`, so the reveal tick never mistakes it for a marker to light.
         _ARMED[akey] = {"kind": "repair", "done": True, "id": oid, "relic": relic_key,
-                        "repair": rkey, "at": pos, "fixed": False, "dressed": bool(art)}
+                        "repair": rkey, "at": pos, "fixed": was_done,
+                        "dressed": bool(art)}
         placed += 1
     return placed
 
@@ -1343,6 +1359,7 @@ def relic_repair_done(relic_key, repair):
         except Exception as e:                            # noqa: BLE001
             log(f"relic '{relic_key}': repair '{repair}' is done but its marker could "
                 f"not be put away: {e}", "relics", "warning")
+    _relic_ledger_note(relic_key, "repaired", repair)
     signal_emit("relic_repaired", {"RELIC_KEY": relic_key, "RELIC_REPAIR": repair})
     relic_quest_signal(str(repair) + "_repaired")
     return True
@@ -1923,12 +1940,23 @@ def relic_contents_arm(relic_key, radius_default=900.0,
     relic_barriers_spawn(relic_key)
     # And a repair job gets a marker and a place on the web - but severs nothing.
     relic_repairs_spawn(relic_key)
+    taken = _relic_ledger_has(relic_key, "taken")
+    fired = _relic_ledger_has(relic_key, "placed")
     for c in relic_contents(relic_key):
         key = (relic_key, c["part"])
         if key in _ARMED:
             continue
+        # THE PIECE THE CREW TOOK IS NOT PUT BACK. The ledger outlives the system being
+        # torn down, so coming back the same evening - or tomorrow, from a save - finds
+        # the room as it was left. Nothing else of that record is placed either: what
+        # guarded the piece guarded it.
+        if c["part"] in taken:
+            _ARMED[key] = {"done": True, "taken_before": True}
+            continue
         trig = _relic_trigger(c.get("starts_when"))
-        if trig is None:
+        # A record whose trigger ALREADY FIRED on an earlier visit is simply there: the
+        # signal it waited for was sent once and will not be sent again.
+        if trig is None or c["part"] in fired:
             _relic_place_contents(c)
             _ARMED[key] = {"done": True}
             continue
@@ -1956,9 +1984,15 @@ def _relic_arm_barriers(rec, relic_key):
     one vocabulary for "when does this happen", not two.
     """
     waiting = 0
+    opened = _relic_ledger_has(relic_key, "opened")
     for name, b in (rec.get("barriers") or {}).items():
         key = ("barrier", relic_key, name)
         if key in _ARMED:
+            continue
+        if name in opened:
+            # Opened on an earlier visit: nothing to wait for.
+            _ARMED[key] = {"kind": "barrier", "done": True, "relic": relic_key,
+                           "barrier": name}
             continue
         phrase = b[4] if len(b) > 4 else None
         trig = _relic_trigger(phrase)
@@ -2252,7 +2286,7 @@ def _relic_mark_placed(obj, c):
     if RELIC_PIECE_ROLE in (c.get("roles") or []) and c.get("relic"):
         _ARMED[("piece", c.get("relic"), obj.id)] = {
             "kind": "piece", "done": True, "id": obj.id, "relic": c.get("relic"),
-            "item": c.get("item"), "taken": False}
+            "part": c.get("part"), "item": c.get("item"), "taken": False}
 
 
 def _relic_spawn_phrase(phrase, pos, c):
@@ -2336,7 +2370,129 @@ def _relic_contents_tick(t=None):
             _relic_open_barrier(rec)
         else:
             _relic_place_contents(rec["content"])
+            _relic_ledger_note(rec["content"].get("relic"), "placed",
+                               rec["content"].get("part"))
         rec["done"] = True
+
+
+# --- what a ruin REMEMBERS ---------------------------------------------------------------
+#
+# `_ARMED` is what is standing in a ruin RIGHT NOW, and `relic_release` forgets it - it
+# has to, the objects are gone. So a galaxy that tears a system down behind the crew
+# rebuilt the ruin from its file on the way back: every barrier shut again, every repair
+# undone, and the piece the crew had carried out sitting where it had always been.
+#
+# The LEDGER is what has HAPPENED there: which barriers were opened, which repairs were
+# done, which pieces were taken, and which waiting contents have had their trigger. It is
+# keyed by relic and by the author's own part names, never by object ids; it outlives a
+# release, for the length of the mission; and arming CONSULTS it, so a ruin is rebuilt as
+# it was left. A saved game writes it down and hands it back (the state provider below),
+# which is the same thing over a longer gap.
+#
+# RESTORED STATE IS NOT NEWS. Nothing that reads the ledger sends a signal or grants
+# anything: the barrier is simply open, the piece simply is not there. `<barrier>_opened`,
+# `<relic>_taken` and `<key>_repaired` were sent when it happened and are not sent again.
+_LEDGER = {}            # relic key -> {"opened": set, "repaired": set, "taken": set, "placed": set}
+_LEDGER_KINDS = ("opened", "repaired", "taken", "placed")
+
+
+class _RelicNothingToPlace(Exception):
+    """A repair that was done on an earlier visit and has no furniture to stand as."""
+
+
+def _relic_ledger_has(relic_key, kind):
+    """The part names of one kind remembered for a relic. An empty set when none."""
+    return (_LEDGER.get(relic_key) or {}).get(kind) or frozenset()
+
+
+def _relic_ledger_note(relic_key, kind, name):
+    if relic_key is None or not name:
+        return False
+    names = _LEDGER.setdefault(relic_key, {}).setdefault(kind, set())
+    if name in names:
+        return False
+    names.add(name)
+    try:
+        from .persistence import persist_provider_touch
+        persist_provider_touch("relics")
+    except Exception:                                    # noqa: BLE001
+        pass
+    return True
+
+
+def _relic_ledger_open_web(relic_key, volume):
+    """Open, on a freshly solved web, every barrier the ledger says was opened."""
+    opened = _relic_ledger_has(relic_key, "opened")
+    if not opened:
+        return 0
+    from .rails import rail_barrier_open
+    return sum(1 for name in opened if rail_barrier_open(volume, name))
+
+
+def relic_ledger(relic_key=None):
+    """What has happened in a ruin - or in every ruin - as plain sorted lists.
+
+    `{"opened": [...], "repaired": [...], "taken": [...], "placed": [...]}` for one
+    relic, `{relic key: {...}}` for all of them. `taken` and `placed` name the PART a
+    content record hangs off. What a report, a test or a mission asks; the ruin does
+    not have to be standing.
+    """
+    def plain(entry):
+        return {k: sorted(entry.get(k) or ()) for k in _LEDGER_KINDS if entry.get(k)}
+    if relic_key is not None:
+        return plain(_LEDGER.get(relic_key) or {})
+    return {key: plain(entry) for key, entry in _LEDGER.items() if plain(entry)}
+
+
+def relic_ledger_forget(relic_key=None):
+    """Forget what happened in one ruin - or in all of them, with no key.
+
+    For a ruin that RESETS: one that is meant to be a different ruin each time it is
+    found. The next build is from the file. The quest signals it sent stay sent.
+    """
+    if relic_key is None:
+        _LEDGER.clear()
+    else:
+        _LEDGER.pop(relic_key, None)
+
+
+def relic_ledger_count():
+    """Reset-ledger probe: how many things ruins are remembering."""
+    return sum(len(names) for entry in _LEDGER.values() for names in entry.values())
+
+
+def _relic_state_snapshot():
+    """The state provider's half: the ledger, and the quest signals already sent."""
+    out = {}
+    ruins = relic_ledger()
+    if ruins:
+        out["ruins"] = ruins
+    if _QUEST_SENT:
+        out["sent"] = sorted(_QUEST_SENT)
+    return out
+
+
+def _relic_state_restore(blob):
+    """REPLACE the ledger with what a save says. Lazy: no ruin is touched, and the next
+    one armed reads it. Announces nothing."""
+    _LEDGER.clear()
+    _QUEST_SENT.clear()
+    if not isinstance(blob, dict):
+        return
+    for key, entry in (blob.get("ruins") or {}).items():
+        if not isinstance(entry, dict):
+            continue
+        kept = {kind: {str(n) for n in (entry.get(kind) or ())}
+                for kind in _LEDGER_KINDS if entry.get(kind)}
+        if kept:
+            _LEDGER[str(key)] = kept
+    for name in (blob.get("sent") or ()):
+        _QUEST_SENT.add(str(name))
+
+
+from .persistence import persist_provider_register as _persist_provider_register  # noqa: E402
+_persist_provider_register("relics", _relic_state_snapshot, _relic_state_restore,
+                           library=True)
 
 
 # --- the quest signals a ruin sends by itself --------------------------------------------
@@ -2385,6 +2541,8 @@ def _relic_piece_taken(rec):
         return False
     rec["taken"] = True
     relic_key = rec.get("relic")
+    if rec.get("part"):
+        _relic_ledger_note(relic_key, "taken", rec.get("part"))
     signal_emit("relic_piece_taken", {"RELIC_KEY": relic_key,
                                       "RELIC_PIECE": rec.get("id"),
                                       "RELIC_ITEM": rec.get("item")})
@@ -2467,6 +2625,7 @@ def _relic_open_barrier(rec):
     from .rails import rail_barrier_open
     volume = relic_volume_name(owner)
     if rail_barrier_open(volume, rec.get("barrier")):
+        _relic_ledger_note(rec.get("relic"), "opened", rec.get("barrier"))
         signal_emit("rail_opened", {"RAIL_VOLUME": volume,
                                     "RAIL_RELIC": rec.get("relic"),
                                     "RAIL_BARRIER": rec.get("barrier")})
@@ -2561,6 +2720,7 @@ def relic_contents_clear(relic_key=None):
     _ARMED.clear()
     _SIGNALS_SEEN.clear()
     _QUEST_SENT.clear()
+    _LEDGER.clear()
     _ARM_TASK = None
     from .signal import signal_unobserve
     signal_unobserve(_relic_signal_observer)

@@ -3577,7 +3577,134 @@ def _plain_fields(node):
     return out
 
 
-def amd_lint_skills(doc):
+_LEARN_THEN = re.compile(r"^\s*then\s*:\s*learn\s+(\S.*?)\s*$", re.I)
+_LEARNED_ELSEWHERE = {}        # mission root -> {path: (mtime, size, facts)}
+
+
+def _learn_facts_in(text):
+    """Every fact a file's text can teach: `; learn x` after an answer, and
+    `Then: learn x` on a quest step. Lower-cased, spacing folded."""
+    from sbs_utils.procedural.amd import amd_choice
+    facts = set()
+    for raw in str(text or "").splitlines():
+        line = raw.strip()
+        if line.startswith("//"):
+            continue
+        if line.startswith("-") and "](" in line and "learn" in line:
+            try:
+                outcomes = (amd_choice(line) or {}).get("outcomes") or []
+            except Exception:                           # noqa: BLE001
+                outcomes = []
+            for outcome in outcomes:
+                if str(outcome[0]).lower() == "learn" and len(outcome) > 1:
+                    facts.add(" ".join(str(t) for t in outcome[1:]).strip().lower())
+            continue
+        m = _LEARN_THEN.match(line)
+        if m is not None:
+            facts.add(" ".join(m.group(1).split()).lower())
+    facts.discard("")
+    return facts
+
+
+def _mission_root_of(file_path):
+    """The mission folder a file belongs to: the nearest folder, going up, that holds a
+    `story.json`, `story.mast` or `script.py`. The file's own folder when none does."""
+    here = os.path.dirname(os.path.abspath(file_path))
+    probe = here
+    for _ in range(5):
+        if any(os.path.isfile(os.path.join(probe, n))
+               for n in ("story.json", "story.mast", "script.py")):
+            return probe
+        parent = os.path.dirname(probe)
+        if parent == probe:
+            break
+        probe = parent
+    return here
+
+
+def amd_learned_elsewhere(file_path):
+    """The facts every OTHER `.amd` in this file's mission can teach.
+
+    A campaign learns a thing in one file and asks about it in another - a hail in the
+    universe file says `; learn manifest`, a door in a ruin's own file says
+    `if learned manifest`. Judged one file at a time, that door asks for a fact "nothing
+    learns". Read from disk, and remembered per file by its size and time, so a
+    whole-mission lint reads each file once.
+    """
+    if not file_path:
+        return set()
+    try:
+        me = os.path.normcase(os.path.abspath(file_path))
+        root = _mission_root_of(file_path)
+        seen = _LEARNED_ELSEWHERE.setdefault(root, {})
+        out = set()
+        for folder, dirs, names in os.walk(root):
+            dirs[:] = [d for d in dirs if not d.startswith((".", "__"))]
+            for name in names:
+                if not name.lower().endswith(".amd"):
+                    continue
+                path = os.path.join(folder, name)
+                if os.path.normcase(os.path.abspath(path)) == me:
+                    continue
+                st = os.stat(path)
+                had = seen.get(path)
+                if had is None or had[0] != st.st_mtime or had[1] != st.st_size:
+                    had = (st.st_mtime, st.st_size, _learn_facts_in(amd_read_text(path)))
+                    seen[path] = had
+                out |= had[2]
+        return out
+    except Exception:                                   # noqa: BLE001
+        return set()
+
+
+def amd_lint_was(doc):
+    """Flag a `Was:` that cannot move anything. WARNING.
+
+    `Was: old_key` on a quest record says the record used to have that key, so a saved
+    game moves what the crew had done under it to this record. Two ways to write one
+    that does nothing, or does the wrong thing, with no error at run time:
+
+    * the old key is this record's own key - nothing was renamed;
+    * the old key is STILL a record in the file - both are granted, the saved state goes
+      to this one, and the old record starts again from nothing.
+    """
+    findings = []
+    leaves = {}
+    for node in doc.nodes:
+        leaf = str(node.key or "").split("/")[-1]
+        if leaf:
+            leaves.setdefault(leaf, []).append(node)
+    for node in doc.nodes:
+        own = str(node.key or "").split("/")[-1]
+        for lineno, _raw, label, value in _fence_fields(node):
+            if label.strip().lower() != "was":
+                continue
+            olds = [p.strip().strip("/") for p in str(value).split(",") if p.strip()]
+            if not olds:
+                findings.append(AmdFinding(
+                    lineno, WARNING, "was-empty",
+                    "`Was:` names the key this record used to have, and none is "
+                    "written. Write the old key, or take the line out"))
+            for old in olds:
+                leaf = old.split("/")[-1]
+                if leaf == own:
+                    findings.append(AmdFinding(
+                        lineno, WARNING, "was-own-key",
+                        f"`Was: {old}` is this record's own key, so nothing was renamed "
+                        f"and nothing is moved. `Was:` takes the key the record USED to "
+                        f"have"))
+                elif any(n is not node for n in leaves.get(leaf, ())):
+                    findings.append(AmdFinding(
+                        lineno, WARNING, "was-key-still-used",
+                        f"`Was: {old}` - there is still a record keyed `{leaf}` in this "
+                        f"file. A saved game moves what was done under `{leaf}` to "
+                        f"`{node.display or own}`, and the record still keyed `{leaf}` "
+                        f"starts again from nothing. Take `Was:` off, or give the other "
+                        f"record a new key"))
+    return findings
+
+
+def amd_lint_skills(doc, file_path=None):
     """Flag a skill number, a skill gate or a skill check the game cannot act on. WARNING.
 
     A crew roster says how good each person is (`Skills: engineering 4, science 1`), a
@@ -3674,6 +3801,15 @@ def amd_lint_skills(doc):
                 for outcome in (_dlg_parse_choice(body) or {}).get("outcomes") or []:
                     if str(outcome[0]).lower() == "learn" and len(outcome) > 1:
                         facts.add(" ".join(str(t) for t in outcome[1:]).strip().lower())
+    # ...and what a quest step teaches: `Then: learn manifest`.
+    for node in doc.nodes:
+        for _ln, raw in (getattr(node, "fence_lines", None) or []):
+            m = _LEARN_THEN.match(raw)
+            if m is not None:
+                facts.add(" ".join(m.group(1).split()).lower())
+    # What the REST OF THE MISSION can teach. A fact learned in another file is known:
+    # it only ever widens what `if learned <fact>` may ask for.
+    elsewhere = amd_learned_elsewhere(file_path)
     people = _roster_words(doc)[0] - jobs
 
     def read_as_a_name(lineno, text, name, what, never=False):
@@ -3713,11 +3849,13 @@ def amd_lint_skills(doc):
                 how = (f"can never be true: `learned {fact}` is ONE fact, known or not - "
                        f"1 or 0. Write `if learned {fact}`, or count everything the "
                        f"party knows with `if learned >= 2`")
-            elif facts and fact not in facts:
+            elif (facts or elsewhere) and fact not in facts and fact not in elsewhere:
                 code = "guard-learned-unknown"
-                how = (f"asks for a fact called `{fact}`, and no choice in this file "
-                       f"says `; learn {fact}`, so it is never known. What is learned "
-                       f"here: {', '.join(sorted(facts))}")
+                where = "this mission" if elsewhere else "this file"
+                how = (f"asks for a fact called `{fact}`, and nothing in {where} "
+                       f"says `; learn {fact}` or `Then: learn {fact}`, so it is never "
+                       f"known. What is learned: "
+                       f"{', '.join(sorted(facts | elsewhere))}")
         elif name in facts and name not in jobs:
             code = "guard-names-a-fact"
             how = (f"asks for `{name}`, which is something the party LEARNS, and on its "
@@ -4562,7 +4700,8 @@ def amd_lint(file_path=None, content=None, mast_sources=None, cross_file=None,
         findings += amd_lint_dialogue_outcomes(doc)
         findings += amd_lint_guards(doc)
         findings += amd_lint_choices(doc, keys)
-        findings += amd_lint_skills(doc)
+        findings += amd_lint_skills(doc, file_path)
+        findings += amd_lint_was(doc)
         findings += amd_lint_personal_quests(doc, file_path, mast_sources)
         findings += amd_lint_kind_lines(doc)
         findings += amd_lint_mission_reads(doc, file_path, mast_sources, source_index)

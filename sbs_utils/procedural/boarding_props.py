@@ -69,6 +69,11 @@ _BY_ID = {}             # actor id -> key
 _NEXT_ID = [0x7E00000000000000]
 _SCENES = {"doc": None}
 _HEARD = set()          # the signal names some prop's `Opens with` / `Hidden until` wrote
+# What a SAVED GAME says about props, by key: which were opened and which were taken.
+# A ledger rather than a write into `_PROPS`, because a save is handed back before the
+# site it describes has been declared - the ground is loaded when the crew arrives. A
+# prop reads it as it is declared and again as it is placed. See the provider below.
+_SAVED = {"opened": set(), "taken": set()}
 
 
 def _norm(s):
@@ -226,6 +231,7 @@ def boarding_props_declare(section):
             continue
         rec.update({"id": None, "open": not rec["opens"], "taken": False,
                     "used": False, "shown": not rec["hidden"]})
+        _saved_apply(rec)
         _PROPS[rec["key"]] = rec
         _listen(rec)
         keys.append(rec["key"])
@@ -243,6 +249,7 @@ def boarding_prop_add(key, area, at, **fields):
         rec[k] = _opens(v) if k == "opens" else v
     rec.update({"id": None, "open": not rec["opens"], "taken": False, "used": False,
                 "shown": not rec["hidden"]})
+    _saved_apply(rec)
     _PROPS[rec["key"]] = rec
     _listen(rec)
     return rec["key"]
@@ -269,6 +276,8 @@ def boarding_props_place(area=None):
     from .tilemap import tilemap_place, tilemap_area
     placed = 0
     for rec in _PROPS.values():
+        if rec["id"] is None:
+            _saved_apply(rec)       # a save restored AFTER the ground was declared
         if rec["id"] is not None or rec["taken"] or not rec["shown"]:
             continue
         if area is not None and rec["area"] != _norm(area):
@@ -365,6 +374,7 @@ def boarding_prop_open(key, how="opened"):
     if rec is None or rec["open"]:
         return False
     rec["open"] = True
+    _saved_touch()
     if rec["id"] is not None:
         at = tilemap_where(rec["id"])
         if at:
@@ -465,6 +475,7 @@ def boarding_interact(client_id, key):
     elif rec["item"]:
         boarding_give(lf, rec["item"], rec["qty"])
         rec["taken"] = True
+        _saved_touch()
         boarding_prop_remove(rec["key"])
         try:
             from .quest_driver import quest_on_collect
@@ -668,6 +679,74 @@ def boarding_props_install():
     boarding_tile_click_handler(boarding_prop_click)
 
 
+# --- kept by a saved game --------------------------------------------------------------
+#
+# WHAT IS KEPT: a door that was opened, and a thing that was picked up, by the prop's key.
+# Not where a thing was dropped, not what is in a pack, not a hidden prop that has been
+# revealed (the signal that reveals it is the story's to send again).
+#
+# RESTORED STATE IS NOT NEWS: a prop that comes back open is simply open - no
+# `boarding_prop_opened`, no `boarding_interacted`, and a taken prop is not handed to
+# anybody a second time.
+
+def _saved_touch():
+    try:
+        from .persistence import persist_provider_touch
+        persist_provider_touch("boarding_props")
+    except Exception:                                    # noqa: BLE001
+        pass
+
+
+def _saved_apply(rec):
+    """Make one declared prop agree with the saved game. Silent, and only ever opens or
+    takes: a save cannot shut a door the crew has opened since."""
+    key = rec.get("key")
+    if key in _SAVED["taken"]:
+        rec["taken"] = True
+        rec["used"] = True
+    if key in _SAVED["opened"] and rec.get("opens"):
+        rec["open"] = True
+        rec["used"] = True
+
+
+def _props_snapshot():
+    """Every prop that is open or taken now - plus what the save said about props that
+    have not been declared this session (a site the crew did not go back to)."""
+    opened = set(_SAVED["opened"])
+    taken = set(_SAVED["taken"])
+    for key, rec in _PROPS.items():
+        if rec.get("opens") and rec.get("open"):
+            opened.add(key)
+        if rec.get("taken"):
+            taken.add(key)
+    out = {}
+    if opened:
+        out["opened"] = sorted(opened)
+    if taken:
+        out["taken"] = sorted(taken)
+    return out
+
+
+def _props_restore(blob):
+    """REPLACE the ledger with what a save says, and bring anything already declared
+    into line with it. Announces nothing."""
+    blob = blob if isinstance(blob, dict) else {}
+    _SAVED["opened"] = {_norm(k) for k in (blob.get("opened") or ())}
+    _SAVED["taken"] = {_norm(k) for k in (blob.get("taken") or ())}
+    for rec in _PROPS.values():
+        if rec["id"] is None:
+            _saved_apply(rec)
+
+
+def boarding_props_saved_count():
+    """Reset-ledger probe: how many props a saved game is still speaking for."""
+    return len(_SAVED["opened"]) + len(_SAVED["taken"])
+
+
+from .persistence import persist_provider_register as _persist_provider_register  # noqa: E402
+_persist_provider_register("boarding_props", _props_snapshot, _props_restore, library=True)
+
+
 def boarding_props_clear():
     from .signal import signal_unobserve
     signal_unobserve(_on_ground_signal)
@@ -675,6 +754,8 @@ def boarding_props_clear():
     _PROPS.clear()
     _BY_ID.clear()
     _NOTES.clear()
+    _SAVED["opened"] = set()
+    _SAVED["taken"] = set()
     _SCENES["doc"] = None
 
 
