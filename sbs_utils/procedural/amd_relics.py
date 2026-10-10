@@ -420,6 +420,10 @@ def _relic_section_any(doc):
 _RELIC_TEXT = {}
 
 
+#: Sections of a relic file that hold quests, and so are read with the quest vocabulary.
+_QUEST_SECTIONS = ("side_stories", "quests", "jobs")
+
+
 def relic_section(relic_key, section_key):
     """Another section of the file a relic came from - its `side_stories`, its `items`.
 
@@ -435,7 +439,18 @@ def relic_section(relic_key, section_key):
         return None
     try:
         from sbs_utils.procedural.quest import document_get_amd_file
-        doc = document_get_amd_file(source, content=_RELIC_TEXT.get(source))
+        # A SECTION OF QUESTS IS READ AS QUESTS. With no parser the fence stays what the
+        # writer typed - `Done when: signal x` is the string 'signal x' under `goal` -
+        # so a ruin's side story was granted, sat idle with a trigger nobody could
+        # fire, and never started. `eva_wiring.mast` hands this straight to
+        # `boarding_quests_grant`, so the stories every ruin lesson promised did
+        # nothing. Found by the Class 4 author lessons.
+        parser = None
+        if str(section_key).strip().lower().replace(" ", "_") in _QUEST_SECTIONS:
+            from sbs_utils.procedural.amd_quest import amd_quest_data
+            parser = amd_quest_data
+        doc = document_get_amd_file(source, content=_RELIC_TEXT.get(source),
+                                    data_parser=parser)
         return amd_section(doc, section_key)
     except Exception as e:                                # noqa: BLE001
         log(f"relic '{relic_key}': section '{section_key}' not read: {e}", "relics",

@@ -187,6 +187,18 @@ class RelicSections(_Base):
         section = R.relic_section(RELIC, "side_stories")
         self.assertEqual([n.get("key") for n in section["children"]], ["gl_story"])
 
+    def test_ITS_SIDE_STORIES_ARE_READ_AS_QUESTS(self):
+        """With no parser `Done when: signal gl_found` stayed the string 'signal gl_found',
+        so the story was granted and could never finish - or start."""
+        data = R.relic_section(RELIC, "side_stories")["children"][0]["data"]
+        self.assertNotIsInstance(data.get("goal"), str,
+                                 "the trigger was left as the words the writer typed")
+        self.assertTrue(any(k.startswith("on_") for k in data), sorted(data))
+
+    def test_any_other_section_is_read_as_typed(self):
+        plain = R.relic_section(RELIC, "relics")
+        self.assertIsNotNone(plain)
+
     def test_an_unknown_relic_has_none(self):
         self.assertIsNone(R.relic_section("nope", "side_stories"))
 
