@@ -157,8 +157,11 @@ driver then matches with `has_role`, which is exact.
 
 ### `Then:` and `Action:`
 
-- `Then:` fires on COMPLETION and accepts only `reveal <key>` and `signal <name>`
-  (`THEN_VERBS`). **A bare or unknown value is a reveal target**: `Then: hail brief` means
+- `Then:` fires on COMPLETION and accepts `reveal <key>`, `signal <name>` and
+  `learn <fact>` (`THEN_VERBS`). It takes SEVERAL actions since 2026-10-10: a comma
+  list (`Then: reveal next, learn the ledger page`) and repeated `Then:` lines both
+  work, run in order; a comma is the only separator. **A bare or unknown value is a
+  reveal target**: `Then: hail brief` means
   "reveal a quest called `hail brief`". Lint flags `unknown-then-verb` / `dangling-reveal`.
 - `Action:` fires when the beat STARTS (`becomes`, `is no longer`, `joins`, `arrives`,
   `departs`, `hails`). All lines happen at once - sequence is a second beat. Use `Action:`
