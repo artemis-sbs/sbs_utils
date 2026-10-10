@@ -181,8 +181,12 @@ after the `;`, and `learn` with no name. It knows both forms of `learned`: a fac
 nothing in the MISSION learns - no `; learn` and no `Then: learn`, in this file or any
 other `.amd` beside it - is `guard-learned-unknown` (`if learned manifst`), and a count
 with its sign missing (`if learned 2`) or a named fact asked to be more than 1
-(`if learned manifest >= 2`) is `guard-learned-shape`. It cannot tell that `learned >= 5`
-asks for more than the place can teach.
+(`if learned manifest >= 2`) is `guard-learned-shape`. A fact asked for with another word
+(`if learnt manifest`, `if knows manifest`) is `guard-learned-word`, and a line whose
+condition has lost its curly brackets (`%learned manifest The clerk nods.`, `%standing >=
+30 Welcome back.` - spoken aloud, condition and all) is `guard-no-braces`. It cannot tell
+that `learned >= 5` asks for more than the place can teach, and it does not judge a word
+that could be a job or a role (`if medcal`): only the game knows who wears what.
 
 ## How good they are: `skill` and `check`
 
@@ -355,6 +359,11 @@ shared` (`for-shared`), one nested under another (`for-nested`), a quest in the 
 no `For:` (`story-no-for`), a section nothing hands out (`stories-not-handed-out`), `For:`
 under the section the ship is given (`for-in-quests`), and two outcomes with no comma
 between them, `; learn suits signal names_read` (`outcome-run-together`).
+
+Two places need no `stories=` line, and lint knows both: a ruin's own
+`## [Side Stories](side_stories)` (the `boarding` addon hands them to the crew who suit
+up) and a universe site's (the universe hands them to the visit). A story there with no
+`For:` is still nobody's, and is reported as `story-no-for`.
 
 Before `stories=` this was a second call, `boarding_quests_grant(section)`, that a mission
 had to make in a route of its own. Written under `boarding_visit(...)` it found nobody

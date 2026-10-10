@@ -708,6 +708,14 @@ def amd_lint_unknown_fields(doc):
                 continue
             if amd_is_declared(label, node.kind, traits):
                 continue
+            # `File:` ON A CHAPTER is the table of contents (`amd_doc.amd_includes`
+            # reads it off any record directly under the file's heading), whatever kind
+            # of record the chapter holds.
+            top = node.parent
+            if (label.strip().lower() in ("file", "files") and top is not None
+                    and top.key != "__root__"
+                    and (top.parent is None or top.parent.key == "__root__")):
+                continue
             col = 0 if ":" not in raw else len(raw) - len(raw.lstrip())
             findings.append(AmdFinding(
                 lineno, WARNING, "unknown-field",
@@ -947,6 +955,51 @@ def amd_lint_references(doc, known_keys=frozenset(), items=None):
                 findings.append(AmdFinding.at(
                     ref.span, WARNING, "dangling-link",
                     f"`{ref.owner}` links to `{ref.value}`, which is not written yet"))
+    return findings
+
+
+def amd_lint_relic_items(doc, known_keys=frozenset(), items=None, file_path=None):
+    """Flag a ruin's `Item:` in a mission where NOTHING is an item. WARNING.
+
+    `Item: canister` on a place only names a thing; what makes the name mean something
+    is a record in an Items section (or an item an addon makes). `amd_lint_references`
+    judges the name wherever it can see what an item is - and where it could see none
+    at all it said nothing, on the reasoning that the items might live in an addon it
+    was not shown. So the commonest slip of all, a ruin with no Items section, was
+    clean: a marker is placed, and there is nothing there to take.
+
+    The addons can be read now (`_mission_code`), so "none at all" can be said for sure:
+    no item record in any of the mission's files, and no addon that makes an item of
+    that key.
+    """
+    if _item_universe_known(doc, items):
+        return []                    # `amd_lint_references` has judged these
+    code = _mission_code(file_path)
+    if not code:
+        return []
+    made = None
+    findings = []
+    kinds = {str(n.key): str(getattr(n, "kind", "") or "").lower() for n in doc.nodes}
+    for ref in doc.refs:
+        if ref.kind != "item" or kinds.get(str(ref.owner)) != "relic":
+            continue
+        if made is None:
+            made = mast_item_keys([text for _name, text in code])
+            elsewhere = _mission_union(file_path, "keys")
+        if (ref.value in made or ref.value in elsewhere
+                or _resolves(doc, ref.value, known_keys)):
+            continue
+        # Code that makes an item by hand names its key in quotes; that is enough.
+        if any(('"' + ref.value + '"') in text or ("'" + ref.value + "'") in text
+               for _name, text in code):
+            continue
+        findings.append(AmdFinding.at(
+            ref.span, WARNING, "relic-unknown-item",
+            f"`{ref.owner}` holds `{ref.value}`, which is not a defined item: no file "
+            f"of this mission has an item with that key, and none of its addons makes "
+            f"one. A marker is placed there and there is nothing to take. Write the "
+            f"thing as a record in an Items section of this file - `## [Items](items)`, "
+            f"then `### [Its Name]({ref.value})`"))
     return findings
 
 
@@ -1227,15 +1280,447 @@ def _ground_sends(doc):
     return out
 
 
-def amd_lint_cross_file(doc, mast_sources=None, source_index=None):
+def _ground_keys_and_items(doc):
+    """(the keys of what stands on the ground here, the things something here hands to a
+    pack). A thing reaches a pack three ways and no other (`boarding_props.py`): a
+    pickup with `Item:`, a person who `Drops:` it, and an answer that says `; give`."""
+    ground, given = set(), set()
+    try:
+        from sbs_utils.procedural.amd_dialogue import _dlg_parse_choice
+    except Exception:                                    # noqa: BLE001
+        _dlg_parse_choice = None
+    for node in doc.nodes:
+        kind = str(getattr(node, "kind", "") or "").strip().lower()
+        if kind in ("prop", "hostile") and node.fence_lines:
+            ground.add(str(node.key).strip().lower())
+            fields = _plain_fields(node)
+            for _ln, value in fields.get("item", []):
+                if value:
+                    given.add(value.strip().lower())
+            for _ln, value in fields.get("drops", []):
+                given.update(w.lower() for w in value.replace(",", " ").split())
+        elif kind == "dialogue" and _dlg_parse_choice is not None:
+            for _ln, text in (node.body_lines or []):
+                line = text.strip()
+                if not (line.startswith("-") and "](" in line and "give" in line):
+                    continue
+                for outcome in (_dlg_parse_choice(line) or {}).get("outcomes") or []:
+                    if str(outcome[0]).lower() == "give" and len(outcome) > 1:
+                        given.add(str(outcome[1]).strip().lower())
+    return ground, given
+
+
+def _doc_outcome_targets(doc, verbs):
+    """Every key an answer in this document names after one of `verbs`, lower-cased."""
+    out = set()
+    try:
+        from sbs_utils.procedural.amd_dialogue import _dlg_parse_choice
+    except Exception:                                    # noqa: BLE001
+        return out
+    for node in doc.nodes:
+        if str(getattr(node, "kind", "") or "").strip().lower() != "dialogue":
+            continue
+        for _ln, text in (node.body_lines or []):
+            line = text.strip()
+            if not (line.startswith("-") and "](" in line):
+                continue
+            for outcome in (_dlg_parse_choice(line) or {}).get("outcomes") or []:
+                if str(outcome[0]).lower() in verbs:
+                    out.update(str(t).strip().lower() for t in outcome[1:])
+    return out
+
+
+def _doc_site_files(doc):
+    """The file names this document's landmarks name as sites: `Site file:` as written,
+    else `<Site key>.amd`. Lower-cased base names."""
+    out = set()
+    for node in doc.nodes:
+        fields = _plain_fields(node)
+        for _ln, key in fields.get("site", []):
+            if not key:
+                continue
+            named = [v for _l, v in fields.get("site file", []) if v]
+            fname = named[0] if named else key + ".amd"
+            out.add(os.path.basename(fname.replace(chr(92), "/")).lower())
+    return out
+
+
+_LIBRARY_SIGNALS = None
+
+
+def _library_signal_names():
+    """Every signal name the LIBRARY sends with a written-out name (`boarding_down`,
+    `relic_built`...), lower-cased, read once from its own source. A door may wait on
+    one of those, and no line in a mission will ever be seen sending it."""
+    global _LIBRARY_SIGNALS
+    if _LIBRARY_SIGNALS is not None:
+        return _LIBRARY_SIGNALS
+    names = set()
+    try:
+        import sbs_utils
+        base = os.path.dirname(os.path.abspath(sbs_utils.__file__))
+        texts = []
+        if os.path.isdir(base):
+            for folder, _dirs, files in os.walk(base):
+                for name in files:
+                    if name.endswith((".py", ".mast")):
+                        try:
+                            texts.append(amd_read_text(os.path.join(folder, name)))
+                        except Exception:                # noqa: BLE001
+                            pass
+        else:
+            import zipfile
+            archive = base
+            while archive and not os.path.isfile(archive):
+                archive = os.path.dirname(archive)
+            with zipfile.ZipFile(archive) as z:
+                for entry in z.namelist():
+                    if entry.endswith((".py", ".mast")):
+                        texts.append(z.read(entry).decode("utf-8", "replace"))
+        for text in texts:
+            for rx in (_RE_EMIT_FIRST, _RE_SIGNAL_NAME, _RE_CREDIT, _RE_QUEST_ON):
+                names.update(m.group(1).strip().lower() for m in rx.finditer(text))
+    except Exception:                                    # noqa: BLE001
+        pass
+    names.discard("")
+    _LIBRARY_SIGNALS = frozenset(names)
+    return _LIBRARY_SIGNALS
+
+
+#: The ways a door opens (`boarding_props._try_open`, `boarding_combat.boarding_tile_fire`).
+_OPENS_WORDS = ("key", "check", "cut", "signal")
+#: Ground code a mission's own Python or MAST can call, each of which makes one of the
+#: checks below a guess: things put on the map or in a pack that no `.amd` holds.
+_GROUND_BY_HAND = ("boarding_hostiles_declare(", "boarding_hostile_add(", "boarding_prop_add(",
+                   "boarding_props_declare(")
+_GENERATED_CREW = re.compile(r"_crew_\d+$")
+
+
+def amd_lint_ground(doc, keys=None, file_path=None, source_index=None):
+    """Flag a door, a pack or a ground verb that names something which is not there.
+    WARNING.
+
+    A door, a pickup and an answer are tied together by plain words, and each near miss
+    is read as a door that stays shut or an answer that does nothing - no error, no log:
+
+        Opens with: kee pump_key              not a way a door opens: skipped
+        Opens with: key pump_key check engineering 8      no commas: the check is lost
+        Opens with: check engineering         no number: skipped
+        Opens with: key brass_key             nothing in the mission gives a brass_key
+        Opens with: signal cistern_draind     a signal nothing sends
+        Hidden until: stash_shwn              the same, and nothing reveals it either
+        Talk scene: marow_talk                no such scene
+        - [..](..) if holding tablt           nothing gives a tablt: never offered
+        - [..](..) ; take tablt               the same: the game refuses the answer
+        - [..](..) ; calm sentri              nobody has that key: does nothing
+        - [..](..) ; reveal cach              nothing has that key: does nothing
+
+    Only the checks that cannot be wrong. What is in a pack is judged only in a mission
+    whose own code never calls `boarding_give`; a verb's target only where no code puts
+    people or things on the map by hand; a signal only in a whole-mission lint (the
+    story's own emits are needed). A door with `Blocks: yes` and no `Opens with:` is NOT
+    reported: that is how a wall is written.
+    """
+    try:
+        from sbs_utils.procedural.amd import amd_body_variant
+        from sbs_utils.procedural.amd_dialogue import (_dlg_parse_choice, _GUARD,
+                                                       _BARE_GUARD)
+    except Exception:                                    # noqa: BLE001
+        return []
+    findings = []
+    in_mission = bool(_mission_code(file_path))
+    ground_here, given_here = _ground_keys_and_items(doc)
+    given = given_here | _mission_union(file_path, "given")
+    judge_items = in_mission and not _mission_says(file_path, "boarding_give(")
+    judge_targets = in_mission and not _mission_says(file_path, *_GROUND_BY_HAND)
+    all_keys = ({str(k).strip().lower() for k in doc.keys}
+                | {str(k).strip().lower() for k in (keys or ())}
+                | {k.lower() for k in _mission_union(file_path, "keys")})
+    shown_given = ", ".join(sorted(given)) or "nothing"
+    known_any = set(keys or ()) | _mission_union(file_path, "keys")
+
+    # What is SENT, by anything: this file, the mission's other files, the story and its
+    # addons, and the library itself. Lower-cased - the ground folds both sides.
+    sent = None
+    if source_index is not None and in_mission:
+        sent = {str(x).lower() for x in (_doc_signal_sends(doc)
+                                         | _mission_union(file_path, "sends")
+                                         | set(source_index.get("emitted") or ()))}
+        sent |= _library_signal_names()
+    revealed = (_doc_outcome_targets(doc, ("reveal", "summon"))
+                | _mission_union(file_path, "revealed"))
+    opened = (_doc_outcome_targets(doc, ("open",)) | _mission_union(file_path, "opened"))
+    by_hand = _mission_says(file_path, "boarding_prop_reveal(", "boarding_hostile_reveal(",
+                            "boarding_prop_open(", "boarding_props_signal(")
+
+    def no_item(lineno, said, item, what):
+        findings.append(AmdFinding(
+            lineno, WARNING, "item-nothing-gives",
+            f"`{said}` - nothing in this mission gives anybody `{item}`: no pickup has "
+            f"`Item: {item}`, nobody `Drops:` one and no answer says `; give {item}`. So "
+            f"{what}. Check the spelling against the `Item:` line of the thing you mean. "
+            f"Given in this mission: {shown_given}"))
+
+    # --- doors, pickups, people ----------------------------------------------------
+    for node in doc.nodes:
+        kind = str(getattr(node, "kind", "") or "").strip().lower()
+        if kind not in ("prop", "hostile") or not node.fence_lines:
+            continue
+        fields = _plain_fields(node)
+        key = str(node.key).strip().lower()
+        for lineno, value in fields.get("opens with", []):
+            for term in [t.strip() for t in value.split(",") if t.strip()]:
+                words = term.split()
+                how = words[0].lower()
+                # A way a door opens, written INSIDE another: the comma before it is
+                # missing. `cut` stands alone; the others need a word after them, so a
+                # last word `key` is the end of an item's name (`key brass key`).
+                lost = [w for i, w in enumerate(words[1:], start=1)
+                        if w.lower() in _OPENS_WORDS
+                        and (w.lower() == "cut" or i + 1 < len(words))]
+                problem = None
+                if how not in _OPENS_WORDS:
+                    if key in opened or by_hand:
+                        continue     # a word of the writer's own, on a door an answer
+                                     # (`; open <key>`) or the story opens: shut till then
+                    problem = (f"`{words[0]}` is not a way a door opens, so this is "
+                               f"skipped")
+                elif lost:
+                    problem = (f"there is no comma before `{lost[0]}`, so everything "
+                               f"from `{lost[0]}` on is thrown away")
+                elif how in ("key", "signal") and len(words) < 2:
+                    problem = (f"`{how}` names no "
+                               + ("item" if how == "key" else "signal")
+                               + ", so this is skipped")
+                elif how == "key" and len(words) > 2:
+                    problem = (f"an item's key is ONE word, so this is read as the key "
+                               f"`{words[1]}` and the rest is ignored. Join it with "
+                               f"underscores: `key {'_'.join(words[1:])}`")
+                elif how == "check" and (len(words) != 3
+                                         or not re.match(r"^-?\d+$", words[2])):
+                    problem = ("a check is a skill and a number - `check engineering 8` "
+                               "- and this is not, so nobody can make it")
+                if problem:
+                    findings.append(AmdFinding(
+                        lineno, WARNING, "opens-with-shape",
+                        f"`Opens with: {term}` - {problem}. `Opens with:` takes `key "
+                        f"<item>`, `check <skill> <number>`, `cut` and `signal <name>`, "
+                        f"with a comma between each"))
+                    continue
+                if how == "key" and judge_items and words[1].lower() not in given:
+                    no_item(lineno, f"Opens with: key {words[1]}", words[1],
+                            "this door never opens with a key")
+                if (how == "signal" and sent is not None and not by_hand
+                        and words[1].lower() not in sent and key not in opened):
+                    findings.append(AmdFinding(
+                        lineno, WARNING, "ground-signal-unsent",
+                        f"`Opens with: signal {words[1]}` waits for the signal "
+                        f"`{words[1]}`, and nothing in the mission sends it, so this "
+                        f"never opens that way. Check the spelling against the answer "
+                        f"(`; signal {words[1]}`) or the story line that sends it"))
+        for lineno, value in fields.get("hidden until", []):
+            if not value:
+                continue
+            if value.lower().startswith("signal ") and len(value.split()) == 2:
+                findings.append(AmdFinding(
+                    lineno, WARNING, "hidden-until-shape",
+                    f"`Hidden until:` takes the signal's name by itself, and "
+                    f"`{value}` is read as a signal called all of that - which nothing "
+                    f"sends, so this stays hidden. Write `Hidden until: "
+                    f"{value.split()[1]}`"))
+                continue
+            if (sent is not None and not by_hand and value.lower() not in sent
+                    and key not in revealed):
+                verb = "summon" if kind == "hostile" else "reveal"
+                findings.append(AmdFinding(
+                    lineno, WARNING, "ground-signal-unsent",
+                    f"`Hidden until: {value}` waits for the signal `{value}`, and "
+                    f"nothing in the mission sends it - and no answer says `; {verb} "
+                    f"{node.key}` - so this stays hidden for good. Check the spelling "
+                    f"against the answer (`; signal {value}`) or the story line that "
+                    f"sends it"))
+        for lineno, value in fields.get("talk scene", []):
+            if value and not _resolves(doc, value, known_any):
+                findings.append(AmdFinding(
+                    lineno, WARNING, "dangling-scene",
+                    f"`{node.key}` Talk scene points at `{value}`, which is not a "
+                    f"defined node"))
+        for lineno, value in fields.get("needs", []):
+            m = _GUARD.match(" ".join(value.split()))
+            lhs = (m.group("lhs") if m is not None else value).split()
+            if (judge_items and len(lhs) == 2 and lhs[0].lower() in ("holding", "party")
+                    and lhs[1].lower() not in given):
+                no_item(lineno, f"Needs: {value}", lhs[1],
+                        "nobody can ever use this")
+
+    # --- answers and lines ---------------------------------------------------------
+    def gate(lineno, guard, what):
+        text = " ".join(str(guard).split())
+        m = _GUARD.match(text)
+        lhs = (m.group("lhs") if m is not None else text).split()
+        if (judge_items and len(lhs) == 2 and lhs[0].lower() in ("holding", "party")
+                and (m is not None or _BARE_GUARD.match(text))
+                and lhs[1].lower() not in given):
+            no_item(lineno, f"if {text}", lhs[1], what)
+
+    for node in doc.nodes:
+        if str(getattr(node, "kind", "") or "").strip().lower() != "dialogue":
+            continue
+        for lineno, text in (node.body_lines or []):
+            line = text.strip()
+            if not line or line.startswith("//"):
+                continue
+            if line.startswith("-") and "](" in line:
+                ch = _dlg_parse_choice(line) or {}
+                if ch.get("guard"):
+                    gate(lineno, ch["guard"], "this choice is never offered")
+                for outcome in ch.get("outcomes") or []:
+                    verb = str(outcome[0]).lower()
+                    toks = [str(t) for t in outcome[1:]]
+                    if verb == "take" and toks and judge_items \
+                            and (len(toks) == 1 or re.match(r"^-?\d+$", toks[-1])) \
+                            and toks[0].lower() not in given:
+                        no_item(lineno, f"; take {' '.join(toks)}", toks[0],
+                                "nobody can ever have one, and the game refuses an "
+                                "answer that takes what is not there: none of its "
+                                "outcomes happens")
+                    if not judge_targets or "if" in [t.lower() for t in toks]:
+                        continue
+                    if verb in ("summon", "dismiss", "calm", "rouse"):
+                        who, what = "nobody", "the person"
+                    elif verb in ("open", "reveal"):
+                        who, what = "nothing", "the thing"
+                    else:
+                        continue
+                    for tok in toks:
+                        low = tok.lower()
+                        if low in all_keys or _GENERATED_CREW.search(low):
+                            continue
+                        findings.append(AmdFinding(
+                            lineno, WARNING, "ground-verb-target",
+                            f"`; {verb} {tok}` - {who} in this mission has the key "
+                            f"`{tok}`, so this does nothing. Use the key in round "
+                            f"brackets on the heading of {what} you mean"))
+                continue
+            if line.startswith("%") or line.startswith("{"):
+                _text, g = amd_body_variant(line)
+                if g:
+                    gate(lineno, g, "this line is never spoken")
+    return findings
+
+
+def _doc_signal_sends(doc):
+    """Every signal this document SENDS, by any road: an answer's `; signal x`, a step's
+    `Then: signal x`, and what its ruins and its people on the ground send by
+    themselves."""
+    return ({str(r.value) for r in doc.refs if r.kind == "signal"}
+            | _relic_sends(doc) | _ground_sends(doc))
+
+
+def _doc_signal_waits(doc):
+    """Every signal something in this document WAITS for: a quest's trigger, a relic
+    part's `Starts when:` / `Opens when:`, a door's `Opens with: signal x`, a thing
+    `Hidden until: x`."""
+    return ({str(r.value) for r in doc.refs if r.kind == "wait_signal"}
+            | _relic_waits(doc) | _ground_waits(doc))
+
+
+_MISSION_FACTS = {}            # mission root -> {path: (mtime, size, facts)}
+
+
+def _file_facts(text):
+    """What ONE `.amd` gives the rest of its mission, read once: the signals it sends and
+    waits for, the keys of what stands on its ground, the things its pickups and answers
+    hand out, the scenes it holds and the facts it teaches."""
+    from sbs_utils.procedural.amd_core import parse
+    facts = {"sends": set(), "waits": set(), "ground": set(), "given": set(),
+             "scenes": set(), "sides": set(), "keys": set(), "traits": set(),
+             "sites": set(), "revealed": set(), "opened": set(), "axes": set()}
+    try:
+        doc = parse(text)
+    except Exception:                                   # noqa: BLE001
+        return facts
+    facts["sends"] = _doc_signal_sends(doc)
+    facts["waits"] = _doc_signal_waits(doc)
+    facts["keys"] = {str(k) for k in doc.keys}
+    facts["ground"], facts["given"] = _ground_keys_and_items(doc)
+    facts["traits"] = _doc_earned_traits(doc)
+    facts["sites"] = _doc_site_files(doc)
+    facts["revealed"] = _doc_outcome_targets(doc, ("reveal", "summon"))
+    facts["opened"] = _doc_outcome_targets(doc, ("open",))
+    facts["axes"] = _doc_axis_words(doc)
+    for node in doc.nodes:
+        kind = str(getattr(node, "kind", "") or "").strip().lower()
+        if kind == "dialogue":
+            facts["scenes"].add(str(node.key).strip().lower())
+        elif kind == "side" and node.fence_lines:
+            facts["sides"].add(str(node.key).strip().lower())
+    return facts
+
+
+def amd_mission_facts(file_path):
+    """`_file_facts` of every OTHER `.amd` in this file's mission, as a list.
+
+    A mission is ONE thing written in several files: a universe keeps its jobs, its
+    dialogue, each site and each ruin in a file of its own, and what one file sends
+    another waits for. Judged a file at a time, every such pair was "a signal nothing
+    sends" and "a signal with no route" - three false warnings on a universe the moment
+    its dialogue was moved out of the main file, nine with two sites.
+
+    Empty for a file that is in no mission (no `story.json`, `story.mast` or `script.py`
+    in a folder above it): a loose file has no neighbors to answer for it. Read from
+    disk, and remembered per file by its size and time."""
+    if not file_path or not os.path.isfile(file_path):
+        return []                    # a name with no file behind it is in no mission
+    try:
+        me = os.path.normcase(os.path.abspath(file_path))
+        root = _mission_root_of(file_path)
+        if not any(os.path.isfile(os.path.join(root, n))
+                   for n in ("story.json", "story.mast", "script.py")):
+            return []
+        seen = _MISSION_FACTS.setdefault(root, {})
+        out = []
+        for folder, dirs, names in os.walk(root):
+            dirs[:] = [d for d in dirs if not d.startswith((".", "__"))]
+            for name in names:
+                if not name.lower().endswith(".amd"):
+                    continue
+                path = os.path.join(folder, name)
+                if os.path.normcase(os.path.abspath(path)) == me:
+                    continue
+                st = os.stat(path)
+                had = seen.get(path)
+                if had is None or had[0] != st.st_mtime or had[1] != st.st_size:
+                    had = (st.st_mtime, st.st_size, _file_facts(amd_read_text(path)))
+                    seen[path] = had
+                out.append(had[2])
+        return out
+    except Exception:                                   # noqa: BLE001
+        return []
+
+
+def _mission_union(file_path, name):
+    out = set()
+    for facts in amd_mission_facts(file_path):
+        out |= facts.get(name, set())
+    return out
+
+
+def amd_lint_cross_file(doc, mast_sources=None, source_index=None, file_path=None):
     """Flag emitted `signal X` with no `//signal/X` route, a quest `When: signal X`
     that nothing emits, and `reach i,j` cells with no landmark `At: i,j`. WARNING.
 
     The signal checks need `mast_sources` (a list of .mast/.py source strings) to
     know the mission's routes and emits; without it they are skipped. Pass a
-    prebuilt `source_index` (`mast_source_index`) to skip re-scanning them."""
+    prebuilt `source_index` (`mast_source_index`) to skip re-scanning them.
+
+    With `file_path`, the mission's OTHER `.amd` files answer too: a signal an answer
+    sends in one file is heard by a step that waits for it in another, and the reverse
+    (`amd_mission_facts`)."""
     findings = []
     routes = set()
+    sent_elsewhere = _mission_union(file_path, "sends")
+    waited_elsewhere = _mission_union(file_path, "waits")
 
     # The signals this mission actually emits: .amd raw emits + statically-scanned
     # signal_emit()/SIGNAL_NAME + declared `emits:` + the always-present driver
@@ -1252,14 +1737,17 @@ def amd_lint_cross_file(doc, mast_sources=None, source_index=None):
         # And what the ruins in this file send by themselves - a way opened, a job done,
         # the piece taken. The library sends those, so no story line ever will.
         sent_by_relics = _relic_sends(doc) | _ground_sends(doc)
-        emitted = emitted | sent_by_relics
-        quest_emitted = quest_emitted | sent_by_relics
+        # ...and what the mission's other files send: an answer in the dialogue file, a
+        # ruin in its own file. An answer's `; signal x` goes out both ways (plain, and
+        # as a quest signal), so a quest anywhere hears it.
+        emitted = emitted | sent_by_relics | sent_elsewhere
+        quest_emitted = quest_emitted | sent_by_relics | sent_elsewhere
 
     # A signal something in the AMD WAITS on is handled, route or no route: a quest's
     # `Done when: signal X`, or a relic part's `Starts when:` / `Opens when:`. Flagging
     # those told an author to write an empty route for a signal that already did its job.
     waited = ({r.value for r in doc.refs if r.kind == "wait_signal"} | _relic_waits(doc)
-              | _ground_waits(doc))
+              | _ground_waits(doc) | waited_elsewhere)
     for ref in doc.refs:
         if ref.kind == "signal" and source_index is not None:
             if ref.value in routes or ref.value in DRIVER_SIGNALS or ref.value in waited:
@@ -1820,8 +2308,32 @@ def amd_lint_never_revealed(doc, content=None, source_index=None):
             r"\b(?:reveals?|accepts?|starts?|begins?|grants?|completes?|opens?)\b[^\n]*?"
             r"(?<![\w])(?:[\w]+[ \t]*/[ \t]*)*" + re.escape(leaf) + r"(?![\w/])", re.I)
         own = node.span.line if node.span else 0
-        if any(named.search(text) for i, text in enumerate(lines, start=1)
-               if i != own and not text.lstrip().startswith("//")):
+        # AN ANSWER'S `; reveal x` REVEALS NO QUEST. From an answer `reveal` shows a
+        # thing on the ground or a place in a ruin (`boarding_props._reveal_outcome`);
+        # what starts a quest there is `accepts`. So on an answer's line the word does
+        # not count - it used to, and a step that only an answer "revealed" was clean
+        # here and hidden for good in the game. (`outcome-quest-verb` is said of the
+        # answer itself.)
+        from_answer = re.compile(
+            r"\b(?:accepts?|starts?|begins?|grants?|completes?|opens?)\b[^\n]*?"
+            r"(?<![\w])(?:[\w]+[ \t]*/[ \t]*)*" + re.escape(leaf) + r"(?![\w/])", re.I)
+
+        def names_it(text):
+            line = text.lstrip()
+            if line.startswith("//"):
+                return False
+            if line.startswith("-") and "](" in line:
+                return bool(from_answer.search(text))
+            return bool(named.search(text))
+
+        if any(names_it(text) for i, text in enumerate(lines, start=1) if i != own):
+            continue
+        # `Then: tern_ledger` - no verb. The library reads a bare value as a reveal
+        # (so does the parser here: it is a `reveal` reference), and the step was
+        # still called never-revealed because the line has no word `reveal` on it.
+        if any(r.kind == "reveal" and r.owner != node.key
+               and str(r.value).strip().strip("/").split("/")[-1] == leaf
+               for r in doc.refs):
             continue
         ln = start[0][0]
         path = _quest_path(node) or key
@@ -1943,17 +2455,43 @@ _SIDE_STOCK_WORDS = frozenset(("*", "all", "everyone", "players", "player", "civ
                                "civilian", "civs"))
 
 
-def amd_lint_sides(doc, keys=None, mast_sources=None):
+def _doc_axis_words(doc):
+    """What this document says a side can value beyond the stock traits: every word of
+    an `Axis:` line, and - for a universe that replaces the whole set with a
+    `reputation:` block on its root - the mark `*`, which means "cannot be judged"."""
+    from sbs_utils.procedural.amd import amd_norm
+    out = set()
+    for node in doc.nodes:
+        for _ln, raw in (node.fence_lines or []):
+            low = raw.strip().lower()
+            if low.startswith("reputation:") or low.startswith("axes:"):
+                out.add("*")
+            elif low.startswith("axis:"):
+                out |= {amd_norm(p) for p in raw.split(":", 1)[1].split("/") if p.strip()}
+    return out
+
+
+def amd_lint_sides(doc, keys=None, mast_sources=None, file_path=None):
     """Flag a side key that names no side. WARNING.
 
-    A side is named by its KEY - the word in round brackets on its heading - in three
+    A side is named by its KEY - the word in round brackets on its heading - in four
     places: another side's `Enemies:` / `Allies:` / `Neutral:` line, and `Side:` on a
-    landmark. A key nothing declares is not an error anywhere: the relation is not made,
-    the landmark is on no side, and the crew sees a contact that is `unknown` for good.
+    landmark or on a character. A key nothing declares is not an error anywhere: the
+    relation is not made, the landmark is on no side, the crew sees a contact that is
+    `unknown` for good - and a character on a side nobody declared is somebody the
+    ship's standing never moves with.
 
         Enemies: tsm                 a typo
         Enemies: tsn guild           no comma: one side called "tsn guild"
         Side: braker                 on a landmark
+        Side: gild                   on a character
+
+    And what a side VALUES (`Values: honest 40, generous 30`), which is what `standing`
+    is worked out from:
+
+        Values: honset 40            not a trait: nothing the ship does counts
+        Values: honest 40 generous 30    no comma: ONE trait with a long name
+        Values: honest, generous     no numbers: every weight is 0, standing stays 0
 
     Judged only in a file that declares sides, and against every key in the mission plus
     every quoted word in its MAST (a side made by `prefab_side_generic` there counts).
@@ -1966,8 +2504,13 @@ def amd_lint_sides(doc, keys=None, mast_sources=None):
     known |= {str(k).strip().lower() for k in (keys or ())}
     known |= {w.lower() for w in re.findall(r"[\"']([A-Za-z_][\w]*)[\"']",
                                             "\n".join(mast_sources or []))}
+    # ...and in the code of the addons the mission loads: a side an addon makes is a
+    # side, and a whole-mission lint is handed only an addon's signal lines.
+    for _name, text in _mission_code(file_path):
+        known |= {w.lower() for w in re.findall(r"[\"']([A-Za-z_][\w]*)[\"']", text)}
     declared = ", ".join(sorted(str(n.key) for n in sides))
     findings = []
+    findings += _lint_side_values(doc, sides, file_path)
 
     def judge(lineno, label, value):
         for word in [w.strip() for w in str(value).split(",") if w.strip()]:
@@ -1988,9 +2531,55 @@ def amd_lint_sides(doc, keys=None, mast_sources=None):
             for label in ("enemies", "allies", "neutral"):
                 for lineno, value in fields.get(label, []):
                     judge(lineno, label.capitalize(), value)
-        elif str(getattr(node, "kind", "") or "").lower() == "landmark":
+        elif str(getattr(node, "kind", "") or "").lower() in ("landmark", "lifeform"):
             for lineno, value in fields.get("side", []):
                 judge(lineno, "Side", value)
+    return findings
+
+
+def _lint_side_values(doc, sides, file_path=None):
+    """`Values:` on a side: each entry is a trait and a weight (see `amd_lint_sides`)."""
+    try:
+        from sbs_utils.procedural.reputation import (reputation_pole_names,
+                                                     reputation_axis_names)
+        from sbs_utils.procedural.amd import amd_weighted
+    except Exception:                                    # noqa: BLE001
+        return []
+    extra = _doc_axis_words(doc) | _mission_union(file_path, "axes")
+    if "*" in extra or (_mission_says(file_path, "reputation_configure(")
+                        - {"universe.mast"}):
+        return []                    # the mission has traits of its own: cannot judge
+    traits = set(reputation_pole_names()) | set(reputation_axis_names()) | extra
+    shown = ", ".join(sorted(t.replace("_", "-") for t in reputation_pole_names()))
+    findings = []
+    for node in sides:
+        for lineno, value in _plain_fields(node).get("values", []):
+            if not value or value[:1] in "{[":
+                continue
+            for part in [p.strip() for p in value.split(",") if p.strip()]:
+                got = amd_weighted(part)
+                if len(got) != 1:
+                    continue
+                trait, weight = next(iter(got.items()))
+                words = part.split()
+                if trait not in traits:
+                    if any(re.match(r"^[+-]?\d+$", w) for w in words[:-1]):
+                        why = ("has a number in the middle of it, so it is read as ONE "
+                               "trait by that whole name. Put a comma after each number")
+                    else:
+                        why = ("is not a trait a side can value, so nothing the ship "
+                               "does counts toward it")
+                    findings.append(AmdFinding(
+                        lineno, WARNING, "values-unknown-trait",
+                        f"`Values: {part}` - `{' '.join(words[:-1]) or part}` {why}. "
+                        f"The traits: {shown}"))
+                elif not weight and not re.match(r"^[+-]?\d+$", words[-1]):
+                    findings.append(AmdFinding(
+                        lineno, WARNING, "values-no-weight",
+                        f"`Values: {part}` has no number after it, so `{part}` counts "
+                        f"for nothing: a side whose values all weigh 0 has a standing "
+                        f"of 0 with everybody, whatever they do. Write how much it "
+                        f"matters: `Values: {part} 40`"))
     return findings
 
 
@@ -2016,7 +2605,8 @@ def amd_lint_reputation(doc, keys=None, mast_sources=None):
     """
     try:
         from sbs_utils.procedural.amd_dialogue import _dlg_parse_choice
-        from sbs_utils.procedural.reputation import reputation_pole_names
+        from sbs_utils.procedural.reputation import (reputation_pole_names,
+                                                     reputation_axis_names)
         from sbs_utils.procedural.amd import amd_weighted, amd_norm
     except Exception:
         return []
@@ -2032,6 +2622,12 @@ def amd_lint_reputation(doc, keys=None, mast_sources=None):
     declared = ", ".join(sorted(str(n.key) for n in sides))
 
     poles = set(reputation_pole_names())
+    # AN AXIS IS ACCEPTED BY ITS OWN NAME. `earns guild honesty 30` is filed on the
+    # `honesty` axis exactly as `earns guild honest 30` is (`reputation._axis_sign`
+    # reads an unknown word as an axis of that name, in its plus direction), so it
+    # moves the standing of any side that values `honest` - and it was called "not a
+    # trait a side can value".
+    poles |= set(reputation_axis_names())
     for node in doc.nodes:
         fields = _plain_fields(node)
         for _ln, value in fields.get("values", []):
@@ -2421,14 +3017,22 @@ def amd_lint_relics(doc):
                     ln, "warning", "relic-short-point",
                     f"'point' needs 3 numbers, got {len(nums)} - "
                     f"the part is skipped rather than half-placed"))
-        for label, need in (("chamber", 4), ("box", 6), ("repair", 4)):
+        for label, need in (("chamber", 4), ("box", 6), ("repair", 4), ("barrier", 4)):
             if label in fields:
                 ln, value = fields[label]
                 nums = _relic_nums(value)
                 if len(nums) < need:
                     findings.append(AmdFinding(
                         ln, "warning", "relic-short-part",
-                        f"'{label}' needs {need} numbers, got {len(nums)}"))
+                        f"'{label}' needs {need} numbers, got {len(nums)}"
+                        + (" - across, height, along, and how big it is. With no size "
+                           "there is no barrier at all: the way is open, and nothing "
+                           "ever sends its `_opened` signal" if label == "barrier" else "")))
+                elif label == "barrier" and nums[3] <= 0:
+                    findings.append(AmdFinding(
+                        ln, "warning", "relic-bad-radius",
+                        "a barrier's size must be positive - it is how much of the way "
+                        "it shuts"))
                 elif label == "chamber" and nums[3] <= 0:
                     findings.append(AmdFinding(
                         ln, "warning", "relic-bad-radius",
@@ -3007,6 +3611,15 @@ def amd_lint_hails(doc):
     return findings + _lint_hails_verb(doc)
 
 
+#: Every library module that registers an outcome verb as it imports
+#: (`dialogue_register_outcome`). `boarding_tiles` was not here, so `; discover <area>`
+#: - on the frozen list, and working - was "not an outcome verb" in any mission whose
+#: story had not imported it by the time lint ran. `tests/test_amd_lint_outcome_verbs.py`
+#: reads the library's source and fails when a module that registers one is missing.
+_OUTCOME_VERB_MODULES = ("boarding", "boarding_props", "boarding_checks", "boarding_combat",
+                         "boarding_tiles", "quest_driver", "reputation")
+
+
 def amd_lint_dialogue_outcomes(doc):
     """Flag a choice outcome (`; <verb> ...`) no handler answers to. WARNING.
 
@@ -3037,8 +3650,7 @@ def amd_lint_dialogue_outcomes(doc):
     # `; completes my_quest` in a hail does nothing, which is exactly what it does do.
     # AND `earns`, which `reputation` registers - a mission that is not Open Universe
     # may write `; earns guild honest 20` now, and must not be told it does nothing.
-    for _mod in ("boarding_props", "boarding_checks", "boarding_combat", "quest_driver",
-                 "reputation"):
+    for _mod in _OUTCOME_VERB_MODULES:
         try:
             __import__("sbs_utils.procedural." + _mod)
         except Exception:                                # noqa: BLE001
@@ -3335,7 +3947,9 @@ def amd_lint_mission_reads(doc, file_path=None, mast_sources=None, source_index=
     way), and whenever a section is read through a name lint cannot see.
     """
     findings = []
-    text = "\n".join(mast_sources or [])
+    # A NOTE IS NOT CODE. `#` in front of `relics_spawn(...)` takes the ruin out of the
+    # game, and the line still counted as the one that reads the Relics section.
+    text = "\n".join(_without_notes(s) for s in (mast_sources or []))
     name = os.path.basename(file_path) if file_path else ""
     if not text or not name or name not in text:
         return findings
@@ -3384,11 +3998,22 @@ def amd_lint_mission_reads(doc, file_path=None, mast_sources=None, source_index=
                 continue
             if reads_ground and key in _GROUND_SECTIONS:
                 continue
+            # EVERYTHING the story reads, not only what it asks for by name: a line
+            # like `relics_spawn(...)` reads three sections by itself, and leaving them
+            # out told a writer whose Items section had the wrong key that `items` was
+            # not a key this mission reads.
+            read = set(literal)
+            if reads_relics:
+                read |= {"relics"} | set(_RELIC_FILE_SECTIONS)
+            if reads_ground:
+                read |= {"props", "people", "scenes"}
+            if reads_crew:
+                read |= {"crew"}
             findings.append(AmdFinding.at(
                 node.display_span or node.span, WARNING, "section-not-loaded",
                 f"nothing in this mission reads a section keyed `{node.key}`, so its "
                 f"records are never loaded. The story asks this file for: "
-                f"{', '.join(sorted(literal))}. Change the key in round brackets to one "
+                f"{', '.join(sorted(read))}. Change the key in round brackets to one "
                 f"of those, or add the line that reads it"))
 
     # --- landmarks the bulk spawner will not place as written --------------------------
@@ -3690,6 +4315,105 @@ def _mission_root_of(file_path):
     return here
 
 
+_MISSION_CODE = {}             # mission root -> [(module file name, text)]
+
+
+def _mission_code(file_path):
+    """[(file name, text)] for every `.py` and `.mast` this file's mission runs: its own
+    folder, and each addon its `story.json` declares (a source folder, or the packaged
+    `.mastlib` in `__lib__`). Read once per mission. Empty for a file in no mission.
+
+    For the few checks that are only true when NO code gives the game a word of its
+    own - a guard word, a thing put in a pack. The addons count, because that is where
+    such code usually lives, and a whole-mission lint is handed only their signal
+    lines."""
+    if not file_path or not os.path.isfile(file_path):
+        return []                    # a name with no file behind it is in no mission
+    try:
+        root = _mission_root_of(file_path)
+        if root in _MISSION_CODE:
+            return _MISSION_CODE[root]
+        out = []
+        if any(os.path.isfile(os.path.join(root, n))
+               for n in ("story.json", "story.mast", "script.py")):
+            import zipfile
+            from sbs_utils.procedural.amd_vocab import declared_addon_paths
+            folders = [root] + [p for p in declared_addon_paths(root) if os.path.isdir(p)]
+            done = set()
+            for top in folders:
+                for folder, dirs, names in os.walk(top):
+                    dirs[:] = [d for d in dirs if not d.startswith((".", "__"))]
+                    for name in names:
+                        path = os.path.join(folder, name)
+                        if not name.lower().endswith((".py", ".mast")) or path in done:
+                            continue
+                        done.add(path)
+                        try:
+                            out.append((name, _without_notes(amd_read_text(path))))
+                        except Exception:               # noqa: BLE001
+                            pass
+            for addon in declared_addon_paths(root):
+                if os.path.isdir(addon):
+                    continue
+                try:
+                    with zipfile.ZipFile(addon) as z:
+                        for entry in z.namelist():
+                            if entry.lower().endswith((".py", ".mast")):
+                                out.append((os.path.basename(entry), _without_notes(
+                                    z.read(entry).decode("utf-8", "replace"))))
+                except Exception:                       # noqa: BLE001
+                    pass
+        _MISSION_CODE[root] = out
+        return out
+    except Exception:                                   # noqa: BLE001
+        return []
+
+
+def _mission_says(file_path, *needles):
+    """The file names of the mission's code that hold any of `needles`."""
+    return {name for name, text in _mission_code(file_path)
+            if any(n in text for n in needles)}
+
+
+def _guard_words_are_the_librarys(file_path, doc, name):
+    """Whether a guard's words can be judged: nothing in this mission's code gives a
+    guard a word, or an answer, of its own.
+
+    Open Universe's resolver (`universe_dialogue.py`) is known and allowed for: it adds
+    `carrying` and `have`, and reads any other name as a reputation trait - which is
+    only ever more than nothing when an `earns` somewhere uses that very name."""
+    if not file_path or not _mission_code(file_path):
+        return False
+    if _mission_says(file_path, "boarding_metric_word("):
+        return False
+    resolvers = _mission_says(file_path, "dialogue_set_metric_resolver(")
+    if resolvers - {"universe_dialogue.py"}:
+        return False
+    if resolvers:
+        if name.split()[0] in ("carrying", "have"):
+            return False
+        from sbs_utils.procedural.amd import amd_norm
+        earned = _doc_earned_traits(doc) | _mission_union(file_path, "traits")
+        if amd_norm(name) in earned:
+            return False
+    return True
+
+
+def _doc_earned_traits(doc):
+    """Every trait word an `earns` in this document names, as reputation keys it."""
+    from sbs_utils.procedural.amd import amd_norm
+    out = set()
+    for node in doc.nodes:
+        for _ln, raw in list(node.body_lines or []) + list(node.fence_lines or []):
+            for m in _EARNS.finditer(raw):
+                out.add(amd_norm(m.group(1)))
+    return out
+
+
+#: `earns <side> <trait...> <number>`, wherever it is written.
+_EARNS = re.compile(r"\bearns\s+\S+\s+([A-Za-z][\w -]*?)\s+[+-]?\d+")
+
+
 def amd_learned_elsewhere(file_path):
     """The facts every OTHER `.amd` in this file's mission can teach.
 
@@ -3922,6 +4646,17 @@ def amd_lint_skills(doc, file_path=None):
                        f"says `; learn {fact}` or `Then: learn {fact}`, so it is never "
                        f"known. What is learned: "
                        f"{', '.join(sorted(facts | elsewhere))}")
+        elif (len(parts) >= 2 and " ".join(parts[1:]) in (facts | elsewhere)
+              and parts[0] not in _GUARD_ARGUMENT_WORDS and parts[0] not in jobs
+              and _guard_words_are_the_librarys(file_path, doc, name)):
+            # `if learnt manifest`, `if knows manifest`: the second word IS a fact this
+            # mission learns, and the first is not the word that asks for one. Judged
+            # only where no code in the mission gives guards words of its own.
+            code = "guard-learned-word"
+            fact = " ".join(parts[1:])
+            how = (f"asks about the fact `{fact}` with the word `{parts[0]}`, and "
+                   f"the game knows only `learned`: this is read as a job called "
+                   f"`{name}`, which nobody has. Write `if learned {fact}`")
         elif name in facts and name not in jobs:
             code = "guard-names-a-fact"
             how = (f"asks for `{name}`, which is something the party LEARNS, and on its "
@@ -4033,7 +4768,40 @@ def amd_lint_skills(doc, file_path=None):
                 _text, g = amd_body_variant(line)
                 if g:
                     gate(lineno, g, "this line is never spoken")
+                elif line.startswith("%"):
+                    # A CONDITION WITH ITS CURLY BRACKETS MISSING. `%learned manifest The
+                    # keeper nods.` is spoken to everybody, condition and all. Only two
+                    # shapes are sure enough to say so: `%` touching `name sign number`,
+                    # and `%learned` touching a fact this mission learns.
+                    m = _BARE_GATE.match(line)
+                    said = None
+                    if m is not None:
+                        said = m.group(1).strip()
+                    else:
+                        # `%learned` and then the LONGEST run of words that is a
+                        # fact this mission learns (a fact may be a whole phrase).
+                        m = _BARE_LEARNED.match(line)
+                        words = line[m.end(1):].split() if m is not None else []
+                        for n in range(len(words), 0, -1):
+                            if " ".join(words[:n]).lower() in (facts | elsewhere):
+                                said = f"{m.group(1)} {' '.join(words[:n])}"
+                                break
+                    if said:
+                        findings.append(AmdFinding(
+                            lineno, WARNING, "guard-no-braces",
+                            f"`%{said}` has no curly brackets round it, so it is not a "
+                            f"condition: the words `{said}` are spoken aloud, to "
+                            f"everybody. Write `%{{{said}}}` and then the line"))
     return findings
+
+
+#: `%standing >= 30 Welcome back.` - a name, a sign and a number touching the `%`.
+_BARE_GATE = re.compile(r"^%([A-Za-z_][\w ]*?\s*(?:>=|<=|==|!=|>|<)\s*-?\d+)(?=\s|$)")
+#: `%learned manifest The keeper nods.` - judged only when the word is a known fact.
+_BARE_LEARNED = re.compile(r"^%(learned)\s+([A-Za-z_]\w*)(?=\s|$)", re.I)
+#: The words a guard may put in front of an argument: `skill engineering`,
+#: `holding medkit`, `party coil`, `learned manifest` (`boarding.boarding_metric_word`).
+_GUARD_ARGUMENT_WORDS = ("skill", "skills", "holding", "party", "learned")
 
 
 _TRIGGER_LABELS = {
@@ -4374,6 +5142,9 @@ def amd_lint_named_hulls(doc):
 
 
 _STORIES_CALLS = ("stories=", "boarding_quests_grant(", "boarding_quests_open_unclaimed(")
+#: The route in the `boarding` addon's `eva_wiring.mast` that hands a ruin's own
+#: `side_stories` to the crew who suit up.
+_RUIN_STORIES_ROUTE = re.compile(r"^[ \t]*//(?:shared/)?signal/eva_went_out\b", re.M)
 _QUEST_START_FIELDS = ("starts when", "when", "state", "at start")
 _QUEST_ASLEEP = ("accepted", "on accept", "when accepted", "offered", "idle")
 _RUNNING_KIND_WORDS = ("objective", "beat", "cue")
@@ -4462,9 +5233,20 @@ def amd_lint_personal_quests(doc, file_path=None, mast_sources=None):
 
     # --- quests that say `For:` ---------------------------------------------------------
     people, rosters = _roster_words(doc)
-    text = "\n".join(mast_sources or [])
+    text = "\n".join(_without_notes(s) for s in (mast_sources or []))
     name = os.path.basename(file_path) if file_path else ""
     in_mission = bool(text and name and name in text)
+    # A RUIN'S OWN SIDE STORIES NEED NO LINE IN THE STORY. The `boarding` addon hands
+    # the `side_stories` section of a ruin's file to the crew who go out to it
+    # (`eva_wiring.mast`: `//shared/signal/eva_went_out` ->
+    # `boarding_quests_grant(relic_section(EVA_RELIC, "side_stories"))`). True when this
+    # file builds a ruin and that route is in the mission - the addon's source in the
+    # folder, or its packaged copy, whose route lines a whole-mission lint is handed.
+    try:
+        has_ruin = any("relic" in fields for _n, fields in _relic_nodes(doc))
+    except Exception:                                   # noqa: BLE001
+        has_ruin = False
+    ruin_stories = has_ruin and bool(_RUIN_STORIES_ROUTE.search(text))
     sections = {}                                        # id(section) -> (section, [quests])
     lost = set()                                         # quests written as sections
     for node in doc.nodes:
@@ -4535,6 +5317,42 @@ def amd_lint_personal_quests(doc, file_path=None, mast_sources=None):
                 f"it from a choice, write `Done when: signal <name>` here and `; signal "
                 f"<name>` on the choice"))
 
+    # A STORY NOBODY IS NAMED FOR, in a section the game hands out one person at a
+    # time. `boarding_quests_grant` skips a record with no `For:` - it is not handed to
+    # the party instead - so it is nobody's. Sure in three places: a site's own
+    # `side_stories` (the universe hands them to the visit), a ruin's (the boarding
+    # addon does), and a section the story itself gives to `stories=`.
+    site_file = bool(name) and name.lower() in _mission_union(file_path, "sites")
+    told = set()
+    for node in doc.nodes:
+        top = node.parent
+        if top is None or top.key == "__root__" or not node.children:
+            continue
+        if not (top.parent is None or top.parent.key == "__root__"):
+            continue                                   # not a top-level section
+        key = str(node.key or "").strip()
+        handed = key.lower() == "side_stories" and (site_file or ruin_stories)
+        if not handed and in_mission:
+            quoted = ('"' + key + '"') in text or ("'" + key + "'") in text
+            granted = any(("quest_grant_amd(" in line or "quest_add_amd(" in line)
+                          and (('"' + key + '"') in line or ("'" + key + "'") in line)
+                          for line in text.splitlines())
+            handed = (quoted and not granted and key.lower() == "side_stories"
+                      and any(call in text for call in _STORIES_CALLS))
+        if not handed:
+            continue
+        for child in node.children:
+            if not child.fence_lines or "for" in _plain_fields(child):
+                continue
+            if str(getattr(child, "kind", "") or "").lower() != "quest":
+                continue
+            told.add(id(child))
+            findings.append(AmdFinding.at(
+                child.display_span or child.span, WARNING, "story-no-for",
+                f"`{child.display}` is in a section of quests that each belong to one "
+                f"person, and has no `For:`, so it is handed to nobody. Add `For: "
+                f"<job>`"))
+
     for section, quests in sections.values():
         key = str(section.key or "").strip()
         quoted = ('"' + key + '"') in text or ("'" + key + "'") in text
@@ -4551,6 +5369,8 @@ def amd_lint_personal_quests(doc, file_path=None, mast_sources=None):
                               for _n, l in (c.body_lines or []))]
         if not granted and len(quests) >= len(others):
             for child in others:
+                if id(child) in told:
+                    continue
                 findings.append(AmdFinding.at(
                     child.display_span or child.span, WARNING, "story-no-for",
                     f"`{child.display}` is in a section of quests that each belong to one "
@@ -4566,6 +5386,8 @@ def amd_lint_personal_quests(doc, file_path=None, mast_sources=None):
                 f"`{quests[0].display}` is ignored. Move the quests that are for one "
                 f"person into a section of their own (`## [Side Stories](side_stories)`) "
                 f"and give that to `boarding_visit(..., stories=...)`"))
+        elif ruin_stories and key.lower() == "side_stories":
+            pass                         # the addon hands these out itself
         elif not (quoted and any(call in text for call in _STORIES_CALLS)):
             findings.append(AmdFinding.at(
                 section.display_span or section.span, WARNING, "stories-not-handed-out",
@@ -4737,6 +5559,8 @@ def amd_lint(file_path=None, content=None, mast_sources=None, cross_file=None,
         findings += amd_lint_fence(doc)
         findings += amd_lint_references(
             doc, keys, items=(source_index or {}).get("items"))
+        findings += amd_lint_relic_items(
+            doc, keys, (source_index or {}).get("items"), file_path)
         findings += amd_lint_keys(doc)
         findings += amd_lint_unknown_fields(doc)
         findings += amd_lint_field_slips(doc)
@@ -4747,7 +5571,7 @@ def amd_lint(file_path=None, content=None, mast_sources=None, cross_file=None,
         findings += amd_lint_relic_structure(doc)
         findings += amd_lint_relic_dressing(doc)
         findings += amd_lint_relic_strays(doc)
-        findings += amd_lint_sides(doc, keys, mast_sources)
+        findings += amd_lint_sides(doc, keys, mast_sources, file_path)
         findings += amd_lint_reputation(doc, keys, mast_sources)
         findings += amd_lint_start_only(doc)
         findings += amd_lint_never_revealed(doc, content, source_index)
@@ -4760,6 +5584,7 @@ def amd_lint(file_path=None, content=None, mast_sources=None, cross_file=None,
         findings += amd_lint_reveal_paths(doc)
         findings += amd_lint_dialogue_outcomes(doc)
         findings += amd_lint_ground_numbers(doc)
+        findings += amd_lint_ground(doc, keys, file_path, source_index)
         findings += amd_lint_guards(doc)
         findings += amd_lint_choices(doc, keys)
         findings += amd_lint_skills(doc, file_path)
@@ -4773,7 +5598,7 @@ def amd_lint(file_path=None, content=None, mast_sources=None, cross_file=None,
         findings += amd_lint_boss_names(doc, file_path)
         findings += amd_lint_trigger_roles(doc, source_index)
         if cross_file is not False:
-            findings += amd_lint_cross_file(doc, mast_sources, source_index)
+            findings += amd_lint_cross_file(doc, mast_sources, source_index, file_path)
     except Exception as e:
         findings.append(AmdFinding(0, WARNING, "parse-skipped",
                                    f"reference checks skipped - parse failed: {e}"))

@@ -358,6 +358,16 @@ def reputation_pole_names():
     return sorted(_REP_POLES)
 
 
+def reputation_axis_names():
+    """Every configured AXIS by its own name (`honesty`, `nerve`...), sorted.
+
+    A deed may be written against the axis as well as against a pole: `_axis_sign` reads
+    a word that is no pole as an axis of that name, plus direction, so `earns guild
+    honesty 30` and `earns guild honest 30` land in the same place. A GUARD is
+    different - `if honesty >= 30` is not a pole and reads 0."""
+    return sorted({axis for axis, _sign in _REP_POLES.values()})
+
+
 def reputation_metric(name, agent_id, speaker, any_pole=False):
     """A guard's left side, where it is about reputation: `if standing >= 30`,
     `%{fearsome > 20}`.

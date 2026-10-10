@@ -206,6 +206,19 @@ linter can't see statically — a dynamic or computed `signal_emit` — add an o
 `emits: [name, …]` (or `handles: [name]`) line to a `metadata:` block; it needs no
 new syntax (MAST just treats the key as an unused variable).
 
+**A mission is checked as one thing, however many files it is written in.** A signal
+an answer sends in one `.amd` (`; signal ledger_read`) answers a step that waits for it
+in another (`Done when: signal ledger_read`), and the reverse; so does what a ruin in a
+file of its own sends by itself (`<barrier>_opened`, `<repair>_repaired`,
+`<ruin>_taken`). Every `.amd` in the mission's folder counts. `signal-no-route` and
+`unfired-signal` are said only of a signal nothing in the whole mission waits for, or
+sends. The same goes for a fact (`; learn manifest` in one file, `if learned manifest`
+in another), a thing in a pack, and the key of a person or a thing on the ground.
+
+A chapter that is a table of contents - `## [Jobs](jobs)` with `File: jobs.amd` in its
+fence - may also hold records of its own under it; they are read as what the chapter
+holds, the same as the ones in the other file.
+
 `--format compact` emits `file:line:col:` lines for editor problem-matchers;
 `--format json` emits structured findings (with exact ranges) for tools/CI.
 
@@ -223,6 +236,19 @@ indent is reported as an error, with its line:
 
 Skip it with `--no-compile`. And a line that can never run because the label already ended
 is a warning (`mast-unreachable`): a line pasted under `->END` compiles, and is skipped.
+
+`story.json` is read before anything else, because it is the list of libraries the mission
+loads and nothing can be checked without them. A `story.json` that is not valid - a comma
+left off the end of a line is the usual one - is ONE error, with the file and the line,
+and `lint` stops there:
+
+```
+== story.json ==
+  [ERROR] line 7: `story.json` cannot be read: expecting ',' delimiter (line 7, column 9).
+  The usual cause is a comma missing from the end of the line above: every line of a list
+  but the last ends in one. This file is the list of libraries the mission loads, so until
+  it is fixed the mission does not start, and nothing else in it can be checked (story-json)
+```
 
 ### Files a mission reads from outside its folder
 

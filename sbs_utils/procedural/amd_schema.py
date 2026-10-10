@@ -1177,7 +1177,7 @@ def amd_resolve_kind(own_kind=None, ancestor_kinds=(), section_key=None,
 
 
 def amd_resolve_kind_chain(own_kind=None, ancestors=(), field_labels=(),
-                           own_section=None):
+                           own_section=None, chapter=False):
     """Which kind of record this is, asking each ancestor IN TURN, closest first.
 
     `ancestors` is `[(kind_line, section_key), ...]` ordered **nearest first** - one pair
@@ -1191,9 +1191,22 @@ def amd_resolve_kind_chain(own_kind=None, ancestors=(), field_labels=(),
     it and typed a whole file. Both readers (`amd_core` for the tooling, `quest.py` for
     the game) call this now, because two copies of this grammar is exactly how the
     tooling and the game came to disagree about the same file.
+
+    `chapter` says the record sits directly under the file's own heading. Such a record
+    whose fence names a `File:` is a TABLE-OF-CONTENTS CHAPTER (`amd_doc.amd_includes`
+    reads exactly those), and a chapter is named by its own key before its file's kind:
+    `## [Jobs](jobs)` with `File: jobs.amd` holds quests, whatever the file is. It used
+    to take the file's kind - a `Universe` file made it a map - and hand that down, so
+    a job written under the chapter, beside the ones in the other file, was read as a
+    map: five "not a field a map has" warnings on a file the game reads correctly.
     """
     if own_kind:
         arch = _kind_to_archetype(own_kind)
+        if arch:
+            return arch
+    if chapter and own_section and any(
+            str(lab).strip().lower() in ("file", "files") for lab in field_labels):
+        arch = archetype_for_section(own_section)
         if arch:
             return arch
     pairs = [p for p in ancestors if p and (p[0] or p[1])]

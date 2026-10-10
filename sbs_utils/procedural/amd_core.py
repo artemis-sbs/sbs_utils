@@ -581,8 +581,13 @@ def _resolve_node_kind(node, block):
     # the discriminating-field fallback would never fire.
     from sbs_utils.procedural.amd import amd_fact_lines
     labels = [lab for lab, _v in amd_fact_lines(block)]
+    # Directly under the file's own heading: where a table-of-contents chapter lives.
+    top = node.parent
+    chapter = (top is not None and top.key != "__root__"
+               and (top.parent is None or top.parent.key == "__root__"))
     return amd_resolve_kind_chain(own_kind=amd_kind_line(block), ancestors=ancestors,
-                                  field_labels=labels, own_section=node.key)
+                                  field_labels=labels, own_section=node.key,
+                                  chapter=chapter)
 
 
 def _extract_choice_refs(node, lineno, raw):

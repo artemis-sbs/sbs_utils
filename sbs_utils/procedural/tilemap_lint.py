@@ -260,9 +260,38 @@ def tilemap_lint_area(content, world=None):
                                 f"can stand on it or be sent to it",
                                 col=col, end_col=len(raw.rstrip())))
 
+    findings += _lint_size(rec, scan)
     findings += _lint_entry(rec, scan, world)
     findings += _lint_exits(rec, scan, world)
     return findings
+
+
+def _lint_size(rec, scan):
+    """`size:` smaller than the map under it. The map is CUT to the size, silently: a
+    row's last cells, or the bottom rows, are simply not in the game."""
+    if "size" not in scan["header"]:
+        return []
+    w, h = rec["w"], rec["h"]
+    out = []
+    wide = [(n, raw) for n, raw in scan["rows"][:h] if len(raw.rstrip()) > w]
+    if wide:
+        n, raw = wide[0]
+        more = f" ({len(wide)} rows are too wide)" if len(wide) > 1 else ""
+        out.append(_at(n, WARNING, "tiles-size-cut",
+                       f"this row is {len(raw.rstrip())} cells wide and `size:` says "
+                       f"{w}, so everything past column {w} is cut off and is not in "
+                       f"the game{more}. Make `size:` fit the map, or take the line "
+                       f"out - the map is then as big as it is drawn",
+                       col=w, end_col=len(raw.rstrip())))
+    below = [(n, raw) for n, raw in scan["rows"][h:] if raw.strip()]
+    if below:
+        n, raw = below[0]
+        out.append(_at(n, WARNING, "tiles-size-cut",
+                       f"`size:` says the map is {h} rows, and this is row {h + 1}: it "
+                       f"and every row below it are cut off and are not in the game. "
+                       f"Make `size:` fit the map, or take the line out",
+                       col=0, end_col=len(raw.rstrip())))
+    return out
 
 
 def _lint_entry(rec, scan, world):
@@ -317,6 +346,16 @@ def _lint_exits(rec, scan, world):
             findings.append(_at(n, WARNING, "tiles-exit",
                                 f"exit {mark} arrives at {where}, which is not a mark "
                                 f"in {target}", col=col, end_col=len(raw.rstrip())))
+        elif where and not where.startswith("@") and _xy(where) is None:
+            # A mark's name with its `@` left off is neither a mark nor a cell: it is
+            # ignored, and the party arrives beside the way back instead.
+            hint = (f" Write `{target} @{where}`" if _norm(where) in areas[target]["marks"]
+                    else "")
+            findings.append(_at(n, WARNING, "tiles-exit",
+                                f"exit {mark} arrives at {where!r}, which is neither "
+                                f"`@` and a mark's name nor x, y - so it is ignored, and "
+                                f"whoever takes this exit arrives beside the way back."
+                                f"{hint}", col=col, end_col=len(raw.rstrip())))
     for ch, (n, raw) in scan["legend"].items():
         mark = _norm(raw.strip()[2:].partition("@")[2])
         if not mark:
@@ -412,6 +451,19 @@ def tilemap_lint_placements(content, world, doc=None):
         if "patrol" in f:
             n, col, patrol = f["patrol"]
             raw_line = dict(node.fence_lines).get(n, "")
+            crowded = [c for c in patrol.replace(";", "  ").split("  ")
+                       if len(re.findall(r"-?\d+(?:\.\d+)?", c)) > 2]
+            if crowded:
+                nums = re.findall(r"-?\d+(?:\.\d+)?", patrol)
+                fixed = "; ".join(f"{a}, {b}" for a, b in zip(nums[0::2], nums[1::2]))
+                first = _xy(crowded[0])
+                findings.append(_at(n, WARNING, "patrol-shape",
+                                    f"{node.key}: the points of a Patrol: are separated "
+                                    f"by a semicolon. With commas only, `{crowded[0].strip()}` "
+                                    f"is read as ONE point ({first[0]}, {first[1]}) and "
+                                    f"the rest is ignored, so a patrol written this way "
+                                    f"does not go where it says. Write `Patrol: {fixed}`",
+                                    col=col, end_col=col + len(patrol)))
             for chunk in patrol.replace(";", "  ").split("  "):
                 pt = _xy(chunk)
                 if pt is None:
@@ -534,6 +586,7 @@ def tilemap_lint_sites(root, world=None, texts=None):
     from .amd_core import parse
     amd_files = sorted(glob.glob(os.path.join(root, "**", "*.amd"), recursive=True))
     sites = []                          # (key, file name as written, landmark display)
+    said_at = {}                        # site key -> (file, line, label) that names it
     for path in amd_files:
         text = read(path) or ""
         if not _SITE_LINE.search(text):
@@ -549,6 +602,8 @@ def tilemap_lint_sites(root, world=None, texts=None):
             key = f["site"][2].strip()
             fname = f["site file"][2].strip() if "site file" in f else ""
             sites.append((key, fname or key + ".amd", node.display or node.key))
+            said_at[key] = (path, f["site file"][0] if fname else f["site"][0],
+                            "Site file" if fname else "Site")
     if not sites:
         return []
     if world is None:
@@ -566,17 +621,36 @@ def tilemap_lint_sites(root, world=None, texts=None):
         return by_name.get(os.path.basename(fname).lower())
 
     out = []
+    missing = set()
     seen_files = {}                     # site file path -> site key (first landmark wins)
     placed = {}                         # prop / person key -> (path, site key)
     for key, fname, _landmark in sites:
         path = find(fname)
-        if path is None or path in seen_files:
+        if path is None:
+            # THE FILE IS NOT THERE. The game looks beside the universe file, then in
+            # the addon the universe came from; a name in neither is a landmark with no
+            # site, and docking there does nothing. (Said in the runtime log - once the
+            # crew is already playing.)
+            if key in said_at and key not in missing and not _in_an_addon(root, fname):
+                missing.add(key)
+                where, line, label = said_at[key]
+                named = (f"names the file `{fname}`" if label == "Site file" else
+                         f"is looked for in `{fname}`")
+                out.append((where, _at(line, WARNING, "site-file-missing",
+                                       f"`Site: {key}` {named}, and there is no file of "
+                                       f"that name in this mission. This landmark has no "
+                                       f"site, so docking there does nothing. A site's "
+                                       f"file is `<key>.amd` unless the landmark says "
+                                       f"`Site file:`")))
+            continue
+        if path in seen_files:
             continue
         seen_files[path] = key
         try:
             doc = parse(read(path) or "")
         except Exception:                                # noqa: BLE001
             continue
+        out += [(path, f) for f in _lint_site_file(doc, key, _norm(key) in areas)]
         # A RECORD, not the section above it (which has the kind too): something with
         # an `Area:` to stand in.
         things = [n for n in doc.nodes if n.kind in _PLACED and str(n.key or "").strip()
@@ -628,6 +702,95 @@ def tilemap_lint_sites(root, world=None, texts=None):
     return out
 
 
+def _in_an_addon(root, fname):
+    """Whether one of the addons this mission loads carries a file of this name - the
+    second place the game looks for a site's file."""
+    try:
+        import zipfile
+        from .amd_vocab import declared_addon_paths
+        base = os.path.basename(fname.replace(chr(92), "/")).lower()
+        for addon in declared_addon_paths(root):
+            if os.path.isdir(addon):
+                for _folder, _dirs, names in os.walk(addon):
+                    if any(n.lower() == base for n in names):
+                        return True
+                continue
+            with zipfile.ZipFile(addon) as z:
+                if any(os.path.basename(n).lower() == base for n in z.namelist()):
+                    return True
+    except Exception:                                    # noqa: BLE001
+        return True                     # cannot tell: say nothing
+    return False
+
+
+def _lint_site_file(doc, key, has_area):
+    """What `universe_site_load` refuses or says of one site file, read the same way.
+
+    * ``site-no-rooms``: no tile area of the site's key, nothing to stand on a map, and
+      no room under a chapter keyed ``boarding`` - the site does not exist. The usual
+      cause is rooms headed ``## [Scenes](scenes)``, which is where a WALKED site keeps
+      the scenes of its things and people.
+    * ``site-hail-no-way-down``: a ``## Hails`` chapter none of whose answers ends
+      ``; signal boarding_down`` - the crew can take the call and can never go down.
+    """
+    from .amd import amd_choice
+    out = []
+    chapters = {}
+    for n in doc.nodes:
+        top = n.parent
+        if n.level == 2 or (top is not None and top.key != "__root__"
+                            and (top.parent is None or top.parent.key == "__root__")):
+            chapters.setdefault(_norm(n.key), n)
+    rooms = list(chapters["boarding"].children) if "boarding" in chapters else []
+    walked = [c for name in ("scenes", "scene") if name in chapters
+              for c in chapters[name].children]
+    things = [n for n in doc.nodes if n.kind in _PLACED and str(n.key or "").strip()
+              and "area" in _fields(n)]
+    exists = has_area or bool(rooms)
+    if not exists and not things:                # with things, `site-no-area` says it
+        at = (chapters.get("scenes") or chapters.get("scene") or
+              (doc.nodes[0] if doc.nodes else None))
+        span = (at.display_span or at.span) if at is not None else None
+        if walked:
+            why = (f"this file is the site `{key}`, and its rooms are under a chapter "
+                   f"keyed `scenes` - where a site the party WALKS keeps the scenes of "
+                   f"its things and people - and no .tiles file in this mission says "
+                   f"`area: {key}`. So this site will not exist: no call when the ship "
+                   f"docks, and nothing to board. For a site of rooms and choices with "
+                   f"no map, key the chapter `boarding`: `## [Scenes](boarding)`")
+        else:
+            why = (f"this file is the site `{key}` and it has no rooms, so this site "
+                   f"will not exist: no call when the ship docks, and nothing to board. "
+                   f"A site's rooms go in a chapter keyed `boarding` - `## "
+                   f"[Scenes](boarding)` - and the first one is where the party arrives")
+        out.append(_at(span.line if span is not None else 1, WARNING, "site-no-rooms", why))
+    hails = chapters.get("hails")
+    if exists and hails is not None and hails.children:
+        sends = False
+        for scene in hails.children:
+            for _n, raw in (scene.body_lines or []):
+                line = raw.strip()
+                if not (line.startswith("-") and "](" in line):
+                    continue
+                try:
+                    outcomes = (amd_choice(line) or {}).get("outcomes") or []
+                except Exception:                        # noqa: BLE001
+                    outcomes = []
+                if any(len(o) >= 2 and str(o[0]).lower() == "signal"
+                       and str(o[1]).strip().lower() == "boarding_down" for o in outcomes):
+                    sends = True
+        if not sends:
+            span = hails.display_span or hails.span
+            out.append(_at(span.line, WARNING, "site-hail-no-way-down",
+                           f"the site `{key}` has a call in `{hails.display}`, and none "
+                           f"of its answers sends a party: no answer ends with `; signal "
+                           f"boarding_down`. The crew can take the call and can never "
+                           f"go down. Add it to the answer that accepts - `- [Assemble "
+                           f"a boarding party]() ; signal boarding_down` - or take the "
+                           f"chapter out, and the party is offered on arrival"))
+    return out
+
+
 # --- a whole mission -------------------------------------------------------------------------
 
 def tilemap_lint_mission(root):
@@ -643,8 +806,25 @@ def tilemap_lint_mission(root):
     for path in sorted(glob.glob(os.path.join(root, "**", "*.tileset"), recursive=True)):
         out += [(rel(path), f) for f in tilemap_lint_tileset(amd_read_text(path))]
     tiles = sorted(glob.glob(os.path.join(root, "**", "*.tiles"), recursive=True))
+    first_file = {}                     # area key -> the first file that says it
     for path in tiles:
-        out += [(rel(path), f) for f in tilemap_lint_area(amd_read_text(path), world)]
+        text = amd_read_text(path)
+        out += [(rel(path), f) for f in tilemap_lint_area(text, world)]
+        # TWO FILES, ONE AREA. An area's key is its name to everything that stands on it
+        # or leads to it, so only one of the two can be in the game - and the other's
+        # map, with everything placed on it, is silently not.
+        rec = tilemap_area_lenient(text)
+        if rec is None:
+            continue
+        other = first_file.setdefault(rec["key"], path)
+        if other != path:
+            n, _raw = _scan(text)["header"].get("area", (1, ""))
+            out.append((rel(path), _at(
+                n, WARNING, "tiles-duplicate-area",
+                f"`area: {rec['key']}` - {rel(other)} says the same. Two files cannot "
+                f"be one area: the game keeps one of them, and the other's map, and "
+                f"everything that stands on it, is never loaded. Give this area a key "
+                f"of its own")))
     # Every .amd, areas or none: `Area: deck` needs no area file, and a file with nothing
     # aboard a deck costs one search when the mission has no areas either.
     for path in sorted(glob.glob(os.path.join(root, "**", "*.amd"), recursive=True)):

@@ -924,7 +924,9 @@ def _document_get_amd_file(file_path, root_display_text="", strip_comments=True,
                 section["kind"] = amd_resolve_kind_chain(
                     own_kind=amd_kind_line(block), ancestors=ancestors,
                     field_labels=[lab for lab, _v in amd_fact_lines(block)],
-                    own_section=section.get("key"))
+                    own_section=section.get("key"),
+                    # root, the file's heading, this record: a chapter's place.
+                    chapter=len(toc_stack) == 3)
                 # ASK for the parse problems. amd_core (the linter) has always
                 # passed a collector here; the runtime passed none, so `_err` returned
                 # immediately and every fence error was discarded - a mistyped field

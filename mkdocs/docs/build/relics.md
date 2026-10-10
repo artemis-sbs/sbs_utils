@@ -845,8 +845,15 @@ Done when: signal ossuary_taken
 sends them - a `Barrier:`, a `Repair:`, or a relic with a `relic_piece` place - so a quest
 waiting on one is not reported as waiting on nothing.
 
+`sbs lint` joins those across files: a ruin in a file of its own answers a step that waits
+for `<barrier>_opened` or `<ruin>_taken` in the mission's main file. And a `Barrier:` with
+fewer than four numbers - no size - is reported (`relic-short-part`): there is no barrier
+at all, the way is open, and nothing ever sends its `_opened` signal.
+
 `Item:` is a **reference**, not free text, so a typo is a lint error with a line number
-rather than a beacon that never appears:
+rather than a beacon that never appears. A mission with no item anywhere - no Items
+section in any of its files, and no addon that makes an item of that key - is reported
+the same way: a marker is placed, and there is nothing to take.
 
 ```
   relic-unknown-item  `cache` holds `red_becon`, which is not a defined item

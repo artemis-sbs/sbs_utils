@@ -68,8 +68,10 @@ is the shooting rather than the script: ships spawn on the right sides, correctl
 simply never fire.
 
 `sbs lint` reports a side key that names nothing as `dangling-side` (`Enemies: tsm`, two
-keys with no comma between them, `Side: braker` on a landmark), and the game writes
-`Side not found` to `mast.runtime.log` the first time it meets one.
+keys with no comma between them, `Side: braker` on a landmark, `Side: gild` on a
+character), and the game writes `Side not found` to `mast.runtime.log` the first time it
+meets one. A side counts when a record declares it, in any file of the mission, or when
+the story or an addon the mission loads names it in quotes.
 
 Three reserved words save you from naming every pair. **Explicit names always win over a
 token.**
@@ -151,7 +153,17 @@ a station or a side carries no reputation at all.
 
 `sbs lint` reports `earns-unknown-side` (`earns gild honest 20`), `earns-unknown-trait`
 (`earns guild honset 20` - a made-up trait no side values) and `earns-shape` (no number,
-or no comma before `earns` in a `Reward:`).
+or no comma before `earns` in a `Reward:`). A deed may be written against a trait
+(`honest`, `liar`) or against the name of the line the trait is one end of (`honesty`):
+`earns guild honesty 30` and `earns guild honest 30` do the same thing, and neither is
+reported. A condition is stricter: `if honesty >= 30` reads nothing; ask with the trait.
+
+It also reads a side's `Values:` line: a word that is not a trait, or two entries with
+the comma missing (`Values: honest 40 generous 30` is ONE trait with a long name), is
+`values-unknown-trait`; an entry with no number (`Values: honest, generous`) is
+`values-no-weight`, since a side whose values all weigh nothing has a standing of 0 with
+everybody. A universe that names traits of its own (an `Axis:` line, or a `reputation:`
+block) is not judged.
 
 One thing reads reputation without being asked: LegendaryMissions' fleets leave a ship
 alone once everything it has earned with their side **adds up to 60** - the plain sum of

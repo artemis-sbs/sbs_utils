@@ -624,11 +624,29 @@ The same findings appear as squiggles in VS Code while you type (Artemis AMD ext
 | `tiles-legend-duplicate` | warning | The same character in the legend twice. The later line wins. |
 | `tiles-mark-unplaced` | warning | A mark in the legend that is never drawn on the map. |
 | `tiles-entry` | error/warning | `entry:` names nothing, or puts the party on ground it cannot move from. |
-| `tiles-exit` | warning | An exit to an area that does not exist, an arrival mark that is not there, or an exit on ground nobody can walk onto. |
+| `tiles-exit` | warning | An exit to an area that does not exist, an arrival mark that is not there, an arrival written without its `@` (`gully gully_mouth` - it is ignored, and the party arrives beside the way back), or an exit on ground nobody can walk onto. |
+| `tiles-duplicate-area` | warning | Two `.tiles` files with the same `area:`. The game keeps one; the other's map, and everything standing on it, is never loaded. |
+| `tiles-size-cut` | warning | A row wider than `size:` says, or more rows than it says. The map is cut to the size, and what is cut is not in the game. |
 | `tiles-unknown-area` / `tiles-unknown-mark` | warning | A placement's `Area:` or `Mark:` names nothing. It is never placed. |
 | `tiles-at-not-a-cell` | warning | A mark name written in `At:`. |
 | `tiles-off-map` | warning | An `At:` or `Patrol:` cell outside the area. |
 | `tiles-unwalkable` | warning | Someone who walks is placed on, or patrols through, ground that cannot be walked. A prop may stand anywhere. |
+| `patrol-shape` | warning | A `Patrol:` whose points are split by commas only (`1, 1, 3, 2`). It is read as ONE point and the rest is ignored. Points are separated by a semicolon: `1, 1; 3, 2`. |
+
+And for the words that tie a door, a pickup and an answer together. Each of these is
+reported only where it cannot be wrong, so each has a condition:
+
+| Code | What it catches | Judged when |
+|---|---|---|
+| `opens-with-shape` | `Opens with:` in a shape the game skips: `kee pump_key`, `check engineering` with no number, `key pump_key check engineering 8` with the comma missing, `key` or `signal` with no name. | Always. |
+| `item-nothing-gives` | `Opens with: key brass_key`, `if holding tablt`, `Needs: holding crowbr`, `; take tablt` - a thing no pickup has as its `Item:`, nobody `Drops:` and no answer gives with `; give`, in any file of the mission. | No code of the mission, or of an addon it loads, calls `boarding_give`. |
+| `ground-signal-unsent` | `Opens with: signal x` or `Hidden until: x` for a signal nothing sends: no answer in any file, no line of the story or its addons, and not the library itself. A thing an answer shows by its key (`; reveal stash`, `; summon keeper`) is not reported. | In a whole-mission lint (`sbs lint <mission>`). |
+| `hidden-until-shape` | `Hidden until: signal x`. The field takes the name alone. | Always. |
+| `ground-verb-target` | `; calm sentri`, `; summon`, `; dismiss`, `; rouse`, `; open`, `; reveal` naming a key that nothing in the mission has. | No code of the mission puts people or things on the map by hand. |
+| `dangling-scene` | `Talk scene:` (and a prop's `Scene:`) naming no scene. | Always. |
+
+A door with `Blocks: yes` and no `Opens with:` is not reported: that is how a wall is
+written.
 
 ## Editing visually
 
