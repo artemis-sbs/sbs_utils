@@ -659,3 +659,182 @@ class TestTilesetOverTheServer(unittest.TestCase):
         self.assertEqual(res["art"]["dirt"], "g:dirt")
         self.assertEqual(res["usage"]["dirt"], 7 + 3)       # ridge, and colony's r
         self.assertEqual(res["problems"], [])
+
+
+# --- an Open Universe mission's sites -------------------------------------------------------
+
+SITE_UNIVERSE = """# [Verge](verge)
+
+## [Landmarks](landmarks)
+
+### [Tally Yard](tally_station)
+---
+At: 0, 0
+Kind: station
+Site: yard
+---
+A counting yard.
+
+### [Customs House](customs_station)
+---
+At: 0, 0
+Kind: station
+Site: customs
+Site file: places/customs_house.amd
+---
+A customs post.
+"""
+
+SITE_YARD = """# [Tally Yard](yard)
+
+## [Props](props)
+
+### [Door](yard_door)
+---
+Area: yard
+Mark: door
+---
+
+## [People](people)
+
+### [Keeper](yard_keeper)
+---
+Area: yard
+Mark: door
+Calm: yes
+---
+
+## [Scenes](scenes)
+
+### [The Door](yard_door)
+% Shut.
+
+- [Step back]()
+"""
+
+SITE_CUSTOMS_TEXT = """# [Customs](customs)
+
+## [Scenes](boarding)
+
+### [The Counter](counter)
+% A long counter.
+
+- [Beam back up]()
+"""
+
+AREA_YARD = """area: yard
+tileset: test
+entry: door
+legend:
+  .: dirt
+  D: dirt @door
+---
+...
+.D.
+...
+"""
+
+
+class TestSitesOfAUniverse(unittest.TestCase):
+    """A landmark's `Site:` is walked when the mission has a tile area of the same key.
+    Each test is a small mission folder on disk, linted the way `sbs lint` lints it."""
+
+    def setUp(self):
+        self.root = tempfile.mkdtemp(prefix="site_lint_")
+        self.addCleanup(shutil.rmtree, self.root, True)
+        self.put("verge.amd", SITE_UNIVERSE)
+        self.put("yard.amd", SITE_YARD)
+        self.put("places/customs_house.amd", SITE_CUSTOMS_TEXT)
+        self.put("ground/test.tileset", TILESET)
+        self.put("ground/yard.tiles", AREA_YARD)
+
+    def put(self, name, text):
+        path = os.path.join(self.root, *name.split("/"))
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        with open(path, "w", encoding="utf-8", newline="\n") as f:
+            f.write(text)
+
+    def sites(self):
+        return [(os.path.relpath(path, self.root).replace("\\", "/"), f)
+                for path, f in TL.tilemap_lint_sites(self.root)]
+
+    def test_a_walked_site_and_a_text_site_side_by_side_are_clean(self):
+        self.assertEqual(self.sites(), [])
+        self.assertEqual([f.code for _p, f in TL.tilemap_lint_mission(self.root)], [])
+
+    def test_SITE_NO_AREA_things_for_a_map_and_no_map_of_that_key(self):
+        os.remove(os.path.join(self.root, "ground", "yard.tiles"))
+        found = self.sites()
+        self.assertEqual([(p, f.code, f.line) for p, f in found],
+                         [("yard.amd", "site-no-area", 5)])
+        self.assertIn("area: yard", found[0][1].message)
+        self.assertIn("2 thing(s)", found[0][1].message)
+
+    def test_an_area_with_ANOTHER_key_does_not_count(self):
+        self.put("ground/yard.tiles", AREA_YARD.replace("area: yard", "area: yrad"))
+        self.assertEqual([f.code for _p, f in self.sites()], ["site-no-area"])
+
+    def test_a_text_site_needs_no_area(self):
+        os.remove(os.path.join(self.root, "ground", "yard.tiles"))
+        os.remove(os.path.join(self.root, "yard.amd"))
+        self.put("yard.amd", SITE_CUSTOMS_TEXT)
+        self.assertEqual(self.sites(), [])
+
+    def test_SITE_KEY_COLLISION_one_prop_key_in_two_site_files(self):
+        self.put("places/customs_house.amd", SITE_CUSTOMS_TEXT + """
+## [Props](props)
+
+### [Customs door](yard_door)
+---
+Area: yard
+Mark: door
+---
+""")
+        found = [(p, f) for p, f in self.sites() if f.code == "site-key-collision"]
+        self.assertEqual([(p, f.line) for p, f in found],
+                         [("places/customs_house.amd", 12)])
+        message = found[0][1].message
+        self.assertIn("yard_door", message)
+        self.assertIn("yard.amd", message)
+        self.assertIn("customs_yard_door", message)
+
+    def test_a_person_colliding_with_a_prop_counts_too(self):
+        self.put("places/customs_house.amd", SITE_CUSTOMS_TEXT + """
+## [People](people)
+
+### [Clerk](YARD_KEEPER)
+---
+Area: yard
+Mark: door
+Calm: yes
+---
+""")
+        self.assertIn("site-key-collision", [f.code for _p, f in self.sites()])
+
+    def test_a_scene_keyed_like_a_prop_is_not_a_collision(self):
+        """`yard.amd` has a prop and a scene both keyed `yard_door`: the usual shape."""
+        self.assertEqual(self.sites(), [])
+
+    def test_two_landmarks_on_one_site_file_are_one_site(self):
+        self.put("verge.amd", SITE_UNIVERSE + """
+### [Yard Annex](annex)
+---
+At: 1, 0
+Kind: station
+Site: yard
+---
+The same yard, reached from next door.
+""")
+        self.assertEqual(self.sites(), [])
+
+    def test_a_mission_where_nothing_says_Site_is_not_read_at_all(self):
+        self.put("verge.amd", SITE_UNIVERSE.replace("Site: yard\n", "")
+                 .replace("Site: customs\n", ""))
+        os.remove(os.path.join(self.root, "ground", "yard.tiles"))
+        self.assertEqual(self.sites(), [])
+
+    def test_the_whole_mission_lint_reports_them(self):
+        os.remove(os.path.join(self.root, "ground", "yard.tiles"))
+        got = [(rel.replace("\\", "/"), f.code)
+               for rel, f in TL.tilemap_lint_mission(self.root)]
+        self.assertIn(("yard.amd", "site-no-area"), got)

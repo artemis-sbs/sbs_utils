@@ -6,6 +6,8 @@ watching, and a prop whose ``Mark:`` is not on the map is simply never placed. S
 mistakes that cost a debug loop are the quiet ones: a grid character the legend lacks,
 a kind the tileset never declared, an exit into an area that does not exist, a hostile
 standing in rock with a patrol through a cliff, a hand-counted ``At:`` one column off.
+And in an Open Universe mission: a site file with things for a map and no map of its
+key, or two site files using one prop key (``tilemap_lint_sites``).
 This is what makes them loud - in ``sbs lint`` and, through the language server, as
 squiggles while you type.
 
@@ -492,6 +494,122 @@ def _cell_findings(node, rec, world, cell, n, col, end_col, what):
     return []
 
 
+# --- a universe's sites: a landmark's `Site:` and the file it names -------------------------
+
+_SITE_LINE = re.compile(r"^[ \t]*site[ \t]*:", re.I | re.M)
+
+
+def tilemap_lint_sites(root, world=None, texts=None):
+    """Findings for the SITES of an Open Universe mission: ``[(path, finding)]``.
+
+    A landmark's ``Site: <key>`` names a place the crew leaves the ship for, held in a
+    file of its own (``<key>.amd``, or the landmark's ``Site file:``). It is WALKED when
+    the mission has a tile area of the same key, and its ``## Props`` / ``## People`` /
+    ``## Hostiles`` are what stands on that map. Two quiet mistakes:
+
+    * ``site-no-area``: the site's file puts things on a map and no ``.tiles`` file says
+      ``area: <key>`` - it is played as a text site and none of them is ever seen;
+    * ``site-key-collision``: two site files use one prop or person key. The ground is
+      keyed across the whole universe (that is what lets a door stay open when its
+      system is rebuilt), so the second file's record is never declared: it IS the
+      first file's, wherever that one stands.
+
+    Empty for a mission where nothing says ``Site:``.
+    """
+    texts = texts or {}
+
+    def read(path):
+        key = os.path.normcase(os.path.abspath(path))
+        if key in texts:
+            return texts[key]
+        try:
+            from .amd import amd_read_text
+            return amd_read_text(path)
+        except Exception:                                # noqa: BLE001
+            return None
+
+    from .amd_core import parse
+    amd_files = sorted(glob.glob(os.path.join(root, "**", "*.amd"), recursive=True))
+    sites = []                          # (key, file name as written, landmark display)
+    for path in amd_files:
+        text = read(path) or ""
+        if not _SITE_LINE.search(text):
+            continue
+        try:
+            doc = parse(text)
+        except Exception:                                # noqa: BLE001
+            continue
+        for node in doc.nodes:
+            f = _fields(node)
+            if "site" not in f or not f["site"][2]:
+                continue
+            key = f["site"][2].strip()
+            fname = f["site file"][2].strip() if "site file" in f else ""
+            sites.append((key, fname or key + ".amd", node.display or node.key))
+    if not sites:
+        return []
+    if world is None:
+        world = tilemap_world(root, texts)
+    areas = (world or {}).get("areas") or {}
+
+    by_name = {}
+    for path in amd_files:
+        by_name.setdefault(os.path.basename(path).lower(), path)
+
+    def find(fname):
+        direct = os.path.join(root, *fname.replace("\\", "/").split("/"))
+        if os.path.isfile(direct):
+            return direct
+        return by_name.get(os.path.basename(fname).lower())
+
+    out = []
+    seen_files = {}                     # site file path -> site key (first landmark wins)
+    placed = {}                         # prop / person key -> (path, site key)
+    for key, fname, _landmark in sites:
+        path = find(fname)
+        if path is None or path in seen_files:
+            continue
+        seen_files[path] = key
+        try:
+            doc = parse(read(path) or "")
+        except Exception:                                # noqa: BLE001
+            continue
+        # A RECORD, not the section above it (which has the kind too): something with
+        # an `Area:` to stand in.
+        things = [n for n in doc.nodes if n.kind in _PLACED and str(n.key or "").strip()
+                  and "area" in _fields(n)]
+        if not things:
+            continue
+        if _norm(key) not in areas:
+            first = things[0]
+            span = first.display_span or first.span
+            out.append((path, _at(span.line, WARNING, "site-no-area",
+                                  f"this file is the site `{key}` and puts {len(things)} "
+                                  f"thing(s) on a map, and no .tiles file in this mission "
+                                  f"says `area: {key}` - so it is played as a text site "
+                                  f"and none of them is ever seen. Add a tile area file "
+                                  f"whose header says `area: {key}` (the same key as the "
+                                  f"site), or take the Props and People out")))
+        for node in things:
+            k = _norm(node.key)
+            had = placed.get(k)
+            if had is None:
+                placed[k] = (path, key)
+                continue
+            if had[0] == path:
+                continue                # twice in one file is `duplicate-key`'s to say
+            span = node.display_span or node.span
+            out.append((path, _at(span.line, WARNING, "site-key-collision",
+                                  f"{node.key}: the site `{had[1]}` "
+                                  f"({os.path.relpath(had[0], root)}) already has a prop or "
+                                  f"a person with this key. Keys are unique across ALL of "
+                                  f"a universe's site files - this one is never put on "
+                                  f"the map, and what it opens or drops is the other "
+                                  f"one's. Give it a key of its own (the site's key in "
+                                  f"front is the easy way: `{key}_{node.key}`)")))
+    return out
+
+
 # --- a whole mission -------------------------------------------------------------------------
 
 def tilemap_lint_mission(root):
@@ -514,4 +632,7 @@ def tilemap_lint_mission(root):
     for path in sorted(glob.glob(os.path.join(root, "**", "*.amd"), recursive=True)):
         out += [(rel(path), f)
                 for f in tilemap_lint_placements(amd_read_text(path), world)]
+    # A universe's sites (a landmark's `Site:`): a walked one needs a map of its own key,
+    # and no two may share a prop or person key. Nothing to do where nothing says `Site:`.
+    out += [(rel(path), f) for path, f in tilemap_lint_sites(root, world)]
     return out
