@@ -210,8 +210,15 @@ def boarding_hostile_records(section):
     out = []
     if section is None:
         return out
+    from .boarding_props import boarding_field_number
     for n in section.get("children", []) or []:
         d = n.get("data") or {}
+
+        def num(field, default, label, whole=False, _d=d, _n=n):
+            # `HP: three` was read as the default and nobody was told.
+            return boarding_field_number(_d.get(field), default, label,
+                                         _n.get("display_text"), _norm(_n.get("key")),
+                                         whole=whole)
         out.append({
             "key": _norm(n.get("key")),
             "name": n.get("display_text") or n.get("key"),
@@ -220,12 +227,12 @@ def boarding_hostile_records(section):
             "at": d.get("mark") or d.get("at"),     # see boarding_props: Mark vs At
             "sprite": d.get("sprite"),
             "color": d.get("color"),
-            "hp": int(_num(d.get("hp"), 2)),
-            "damage": int(_num(d.get("damage"), 1)),
-            "notice": int(_num(d.get("notice"), 5)),
-            "stun": _num(d.get("stun"), 8),
-            "cooldown": _num(d.get("cooldown"), 2),
-            "speed": _num(d.get("speed"), 2.5),
+            "hp": int(num("hp", 2, "HP")),
+            "damage": int(num("damage", 1, "Damage")),
+            "notice": int(num("notice", 5, "Notice")),
+            "stun": num("stun", 8, "Stun"),
+            "cooldown": num("cooldown", 2, "Cooldown"),
+            "speed": num("speed", 2.5, "Speed"),
             "patrol": _cells(d.get("patrol")),
             "drops": [_norm(x) for x in str(d.get("drops") or "").replace(",", " ").split()],
             "talk": d.get("talk_scene"),
@@ -565,7 +572,22 @@ def _in_parley(area):
 def boarding_tile_fire(client_id, x, y):
     """Shoot the cell this console clicked. A shot disarms, whatever happens.
 
-    Returns True when something was hit, and always reports through ``xess_fired``.
+    WHAT A SHOT DOES, one rule for every setting and every thing:
+
+    - **a hostile** is shot: STUN holds them still, CUT takes a hit point, FULL puts
+      them down whatever their health;
+    - **somebody CALM** (`Calm: yes`, or calmed by an answer) is NOT HARMED, by any
+      setting - the shot is refused and says ``calm``;
+    - **a prop is NEVER REMOVED.** A shut prop whose `Opens with:` lists ``cut`` is
+      OPENED by CUT or by FULL, exactly as cutting it always did. Every other prop - a
+      terminal, a beacon, a door that only a key or a signal opens, a pickup, a bunk -
+      is ``scorched`` and stays where it is, as shut as it was. STUN does ``nothing``;
+    - a cell holding a hostile AND a prop: the hostile is the one hit, wherever each
+      was put down first. People before things.
+
+    Returns True when something was hit, and always reports through ``xess_fired``
+    (``XESS_EFFECT``: ``stunned`` / ``wounded`` / ``down`` / ``opened`` / ``scorched`` /
+    ``nothing``; ``XESS_DESTROYED`` is never true of a prop).
     """
     from .boarding import boarding_me
     from .boarding_site import boarding_setting, boarding_disarm
@@ -581,7 +603,9 @@ def boarding_tile_fire(client_id, x, y):
             "XESS_CLIENT": client_id, "XESS_SITE": at[0] if at else None,
             "XESS_SETTING": setting, "XESS_X": int(x), "XESS_Y": int(y),
             "XESS_HIT": what, "XESS_REASON": reason, "XESS_EFFECT": effect,
-            "XESS_DESTROYED": bool(hit and setting == "full")})
+            # Of a PERSON only: nothing a shot does removes a prop.
+            "XESS_DESTROYED": bool(hit and setting == "full"
+                                   and effect not in ("opened", "scorched", "nothing"))})
         return hit
 
     if at is None:
@@ -597,11 +621,18 @@ def boarding_tile_fire(client_id, x, y):
         return report(False, None, "no line of sight")
     from .boarding import boarding_team
     team = set(boarding_team())
-    for aid in tilemap_actors_at(area, x, y):
-        if aid == lf:
-            continue
+    # PEOPLE BEFORE THINGS. Actors come back in the order they were put down, and a
+    # pickup is put down before whoever is standing on it - so a shot at a hostile on a
+    # pickup's cell used to take the pickup and leave the hostile.
+    here = [aid for aid in tilemap_actors_at(area, x, y) if aid != lf]
+    here.sort(key=lambda aid: 0 if _BY_ID.get(aid) else (1 if aid in team else 2))
+    for aid in here:
         key = _BY_ID.get(aid)
         if key:
+            if _HOSTILES[key]["state"] == "calm":
+                # Not harmed, by any setting: they are no threat, and a FULL shot at
+                # somebody a parley stood down was a second road to what they carry.
+                return report(False, key, "calm", "nothing")
             return report(True, key, None, _hostile_hit(_HOSTILES[key], setting, lf))
         if aid in team:
             if setting == "stun":
@@ -609,8 +640,7 @@ def boarding_tile_fire(client_id, x, y):
                 return report(True, aid, None, "stunned")
             boarding_hurt(aid, 99 if setting == "full" else 1, by=lf)
             return report(True, aid, None, "wounded")
-        from .boarding_props import boarding_prop_of, _PROPS, boarding_prop_open, \
-            boarding_prop_remove
+        from .boarding_props import boarding_prop_of, _PROPS, boarding_prop_open
         pkey = boarding_prop_of(aid)
         if pkey:
             rec = _PROPS[pkey]
@@ -620,9 +650,9 @@ def boarding_tile_fire(client_id, x, y):
                     any(t[0] == "cut" for t in rec["opens"]):
                 boarding_prop_open(pkey, "cut")
                 return report(True, pkey, None, "opened")
-            if setting == "full":
-                boarding_prop_remove(pkey)
-                return report(True, pkey, None, "destroyed")
+            # Everything else stays where it is. FULL used to REMOVE it - the terminal,
+            # the beacon, the strongbox that holds the endings, a door only a signal
+            # should open - and a mission could be made unwinnable with one click.
             return report(True, pkey, None, "scorched")
     return report(False, None, "nothing there")
 
@@ -631,6 +661,7 @@ def boarding_strike(area, x, y, radius=2, setting="full"):
     """Fire support from orbit: everything hostile within ``radius`` of a cell.
 
     Crew caught in it are hurt too - the bridge is firing blind at a point on a map.
+    Somebody CALM is not harmed, as with any shot, and no prop is touched.
     Returns the hostile keys that went down.
     """
     from .tilemap import tilemap_actors
@@ -644,6 +675,8 @@ def boarding_strike(area, x, y, radius=2, setting="full"):
         if at is None or abs(at[1] - x) + abs(at[2] - y) > radius:
             continue
         key = _BY_ID.get(aid)
+        if key and _HOSTILES[key]["state"] == "calm":
+            continue
         if key and _hostile_hit(_HOSTILES[key], setting, "orbit") == "down":
             down.append(key)
         elif aid in team:

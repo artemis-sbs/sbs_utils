@@ -480,7 +480,7 @@ never dropped.
 | `Done when:` | What completes it — `destroy 6 raiders`, `reach 6, 4`, `signal drone_down` |
 | `Starts when:` | What activates it (same grammar) |
 | `Action:` | What happens the moment it **starts** — see below |
-| `Then:` | What happens next, once it **finishes** — `reveal <key>`, `signal <name>` or `learn <fact>` |
+| `Then:` | What happens next, once it **finishes** — `reveal <key>`, `signal <name>` or `learn <fact>`. Several: a comma list (`reveal next, learn the ledger page`) or a `Then:` line each |
 | `Was:` | The key this record used to have. A mission that saves moves the saved state to this record |
 | `Reward:` | What completing it gives — `500 credits` |
 | `Penalty:` | What failing it costs |

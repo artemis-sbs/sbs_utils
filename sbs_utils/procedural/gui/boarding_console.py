@@ -162,12 +162,37 @@ def where_text(client_id):
 
 
 def _tile_place(tile):
-    """On a TILE world: the place mark under their feet, else the area itself."""
+    """On a TILE world: the place mark under their feet, else the area itself.
+
+    A MARK IS ALSO HOW A WRITER PLACES A THING, and this word is on the bar, in Crew and
+    at the head of Scan. So a mark that is the placement of something NOT YET ON THE MAP
+    (`Hidden until:` a signal that has not been sent) is not said - the area's title is,
+    as on a cell with no mark - or standing on `@cache` told the crew there was a cache.
+    Once the thing is revealed, the mark is a place like any other.
+    """
     from ..tilemap import tilemap_mark_at, tilemap_title, tilemap_exit_target
     mark = tilemap_mark_at(*tile)
-    if mark and not tilemap_exit_target(tile[0], mark)[0]:
+    if mark and not tilemap_exit_target(tile[0], mark)[0] \
+            and not _mark_keeps_a_secret(tile[0], mark):
         return mark.replace("_", " ")
     return tilemap_title(tile[0]) or tile[0]
+
+
+def _mark_keeps_a_secret(area, mark):
+    """Whether a prop or a person placed by this mark is still hidden."""
+    from ..boarding_props import _PROPS
+    from ..boarding_combat import _HOSTILES
+    area = str(area or "").strip().lower()
+    mark = str(mark or "").strip().lower()
+    for table in (_PROPS, _HOSTILES):
+        for rec in table.values():
+            if rec.get("shown") or rec.get("area") != area:
+                continue
+            # Where it was WRITTEN to stand: `deck_mark` when a deck moved it to a cell.
+            at = rec.get("deck_mark", rec.get("at"))
+            if isinstance(at, str) and at.strip().lower() == mark:
+                return True
+    return False
 
 
 def _grid_where(client_id):

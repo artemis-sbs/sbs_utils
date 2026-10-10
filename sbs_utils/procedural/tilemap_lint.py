@@ -508,7 +508,10 @@ def tilemap_lint_sites(root, world=None, texts=None):
     ``## Hostiles`` are what stands on that map. Two quiet mistakes:
 
     * ``site-no-area``: the site's file puts things on a map and no ``.tiles`` file says
-      ``area: <key>`` - it is played as a text site and none of them is ever seen;
+      ``area: <key>``. With rooms of its own under ``## [Scenes](boarding)`` it is played
+      as a text site and none of those things is ever seen; with none - the usual case,
+      a walked site keeps its scenes under ``(scenes)`` - the site DOES NOT EXIST: no
+      call when the ship docks and nothing to board. The message says which;
     * ``site-key-collision``: two site files use one prop or person key. The ground is
       keyed across the whole universe (that is what lets a door stay open when its
       system is rebuilt), so the second file's record is never declared: it IS the
@@ -583,13 +586,28 @@ def tilemap_lint_sites(root, world=None, texts=None):
         if _norm(key) not in areas:
             first = things[0]
             span = first.display_span or first.span
+            # WHAT THE GAME DOES depends on whether there is anything to play as text: a
+            # room under a chapter keyed `boarding`. A walked site's own scenes are keyed
+            # `scenes` and belong to its things and people - none is a room to arrive in.
+            chapters = [n for n in doc.nodes if n.level == 2
+                        and _norm(n.key) == "boarding"]
+            rooms = [n for n in doc.nodes if any(n.parent is c for c in chapters)]
+            if rooms:
+                what = (f"so it is played as a text site (its rooms are under "
+                        f"`## [Scenes](boarding)`) and none of them is ever seen")
+                fix = "or take the Props and People out"
+            else:
+                what = (f"and it has no rooms under `## [Scenes](boarding)` to play as "
+                        f"text - so this site will not exist: no call when the ship "
+                        f"docks, and nothing to board")
+                fix = ("which is the usual mistake: the area's key and the site's key "
+                       "are not the same word")
             out.append((path, _at(span.line, WARNING, "site-no-area",
                                   f"this file is the site `{key}` and puts {len(things)} "
                                   f"thing(s) on a map, and no .tiles file in this mission "
-                                  f"says `area: {key}` - so it is played as a text site "
-                                  f"and none of them is ever seen. Add a tile area file "
+                                  f"says `area: {key}` - {what}. Add a tile area file "
                                   f"whose header says `area: {key}` (the same key as the "
-                                  f"site), or take the Props and People out")))
+                                  f"site), {fix}")))
         for node in things:
             k = _norm(node.key)
             had = placed.get(k)

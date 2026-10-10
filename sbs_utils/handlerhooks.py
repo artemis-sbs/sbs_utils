@@ -357,6 +357,7 @@ def reset_mission_state():
     landmarks_registry_clear()  # declared landmark records an `Action:` line places by name
     dialogue_scenes_registry_clear()  # declared dialogue scenes an `Action: X hails Y` opens
     dialogue_slots_clear()      # `{name}` resolvers a mission registered for its scenes
+    dialogue_outcome_notes_clear()  # bad `; outcome` lines already said this mission
     lore_clear()                # Library sources registered by addons
     amd_declared_addons_clear()  # cached story.json addon list (+ the resolution cache)
     amd_doc_cache_clear()   # parsed .amd trees. Keyed on content, so a stale entry is
@@ -713,9 +714,14 @@ from .procedural.amd_landmarks import _RECORDS as _AMD_LANDMARKS, landmarks_regi
 register_reset_state("amd landmarks",     lambda: len(_AMD_LANDMARKS))
 from .procedural.amd_dialogue import (_SCENES as _AMD_SCENES, _SLOTS as _AMD_SLOTS,
                                       dialogue_scenes_registry_clear,
-                                      dialogue_slots_clear)
+                                      dialogue_slots_clear,
+                                      dialogue_outcome_notes_clear,
+                                      dialogue_outcome_notes_count)
 register_reset_state("amd dialogue scenes", lambda: len(_AMD_SCENES))
 register_reset_state("amd dialogue slots", lambda: len(_AMD_SLOTS))
+# Bad `; outcome` lines already said in mast.runtime.log: a "said once" set that outlived
+# a mission would keep the next one quiet about the same mistake.
+register_reset_state("dialogue outcome notes", dialogue_outcome_notes_count)
 from .procedural.amd_doc import (lore_clear, lore_sources,
                                  amd_declared_addons_clear, _DECLARED_ADDONS,
                                  amd_content_cache_size)
@@ -733,6 +739,8 @@ register_reset_state("ship_data_cache",   ship_data_is_loaded)
 from .procedural.grid import (grid_data_is_loaded, grid_theme_is_loaded,
                               grid_theme_current_index)
 register_reset_state("grid_data",         grid_data_is_loaded)
+from .procedural.grid import grid_plans_kept as _grid_plans_kept
+register_reset_state("grid reading plans", _grid_plans_kept)
 register_reset_state("grid_theme",        grid_theme_is_loaded)
 register_reset_state("grid_theme_current", grid_theme_current_index)
 from .procedural.fleet_tables import fleet_tables_count

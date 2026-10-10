@@ -381,6 +381,8 @@ def dialogue_fill_slots(text, agent_id=None, speaker=None, values=None):
 # --- Injected seams ----------------------------------------------------------
 _METRIC_RESOLVER = None
 _OUTCOME_HANDLERS = {}
+_OUTCOME_CHECKS = {}        # verb -> check(tokens) -> None | one sentence (see below)
+_OUTCOME_SAID = set()       # bad outcomes already reported this mission (reset ledger)
 
 
 def dialogue_set_metric_resolver(fn):
@@ -414,11 +416,51 @@ def dialogue_base_metric(name, agent_id, speaker):
 OUTCOME_STOP = "__outcome_stop__"
 
 
-def dialogue_register_outcome(verb, fn):
+def dialogue_register_outcome(verb, fn, check=None):
     """Register an outcome handler: fn(agent_id, speaker, tokens) - tokens are the words
     after the verb. Returning False refuses the pick; returning ``OUTCOME_STOP`` accepts
-    it but skips the outcomes after this one. (`signal` is built in.)"""
+    it but skips the outcomes after this one. (`signal` is built in.)
+
+    ``check(tokens)`` may say the words after the verb cannot be read: it returns None
+    when they can, or one sentence for the writer when they cannot. Every check of an
+    answer runs BEFORE any of its outcomes is applied (``dialogue_apply``), so an answer
+    with one bad outcome does nothing at all rather than half of what it says."""
     _OUTCOME_HANDLERS[verb] = fn
+    if check is not None:
+        _OUTCOME_CHECKS[verb] = check
+    else:
+        _OUTCOME_CHECKS.pop(verb, None)
+
+
+def dialogue_outcome_check(verb, tokens):
+    """What is wrong with one outcome's words - one sentence - or None. Read by the
+    linter too, so it warns of exactly what the game will refuse."""
+    check = _OUTCOME_CHECKS.get(str(verb or "").lower())
+    if check is None:
+        return None
+    try:
+        return check(tuple(tokens or ()))
+    except Exception:                                    # noqa: BLE001
+        return None
+
+
+def _outcome_say(message, once):
+    """One line in `mast.runtime.log`, once a mission for the same mistake."""
+    if once in _OUTCOME_SAID:
+        return
+    _OUTCOME_SAID.add(once)
+    import logging
+    logging.getLogger("mast.runtime").warning("dialogue: " + message)
+
+
+def dialogue_outcome_notes_clear():
+    """Forget what has been said about bad outcomes - the per-mission reset."""
+    _OUTCOME_SAID.clear()
+
+
+def dialogue_outcome_notes_count():
+    """For the reset ledger."""
+    return len(_OUTCOME_SAID)
 
 
 def dialogue_outcome_verbs():
@@ -521,7 +563,22 @@ def dialogue_choices(scene, agent_id, speaker):
 
 def dialogue_apply(agent_id, speaker, outcomes):
     """Apply a chosen line's outcomes: built-in `signal`, plus any registered verbs. Returns
-    False if a handler refuses (e.g. a cost can't be afforded) - the pick is rejected."""
+    False if a handler refuses (e.g. a cost can't be afforded) - the pick is rejected.
+
+    AN ANSWER WHOSE OUTCOMES CANNOT BE READ DOES NOTHING. Every verb's own check runs
+    first; if one fails (`; calm sentry, give power cell` - an item key is one word)
+    NONE of the outcomes is applied, one line in `mast.runtime.log` says which and why,
+    and the pick is still accepted so the conversation goes on. It used to raise after
+    `calm` had already been applied. A handler that raises anyway is said the same way
+    and skipped; the outcomes after it still run.
+    """
+    for oc in (outcomes or []):
+        problem = dialogue_outcome_check(oc[0], oc[1:])
+        if problem:
+            written = ", ".join(" ".join(str(t) for t in o) for o in outcomes)
+            _outcome_say("the answer `; %s` was skipped whole, and nothing it says was "
+                         "done: %s" % (written, problem), once=written)
+            return True
     for oc in (outcomes or []):
         verb = oc[0]
         if verb == "signal":
@@ -538,7 +595,14 @@ def dialogue_apply(agent_id, speaker, outcomes):
         fn = _OUTCOME_HANDLERS.get(verb)
         if fn is None:
             continue
-        got = fn(agent_id, speaker, tuple(oc[1:]))
+        try:
+            got = fn(agent_id, speaker, tuple(oc[1:]))
+        except Exception as e:                           # noqa: BLE001
+            written = " ".join(str(t) for t in oc)
+            _outcome_say("the outcome `; %s` could not be applied and was skipped (%s: "
+                         "%s). Check its words: `sbs lint` reads the same line."
+                         % (written, type(e).__name__, e), once="raised:" + written)
+            continue
         if got is False:
             return False
         if got == OUTCOME_STOP:

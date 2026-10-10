@@ -49,13 +49,19 @@ Two settings, because "which races can a player BE" and "which races raid them" 
 different questions â€” most missions want few of the first and many of the second.
 
 ```yaml title="settings.yaml"
-PLAYABLE_RACES: "TSN, USFP"                  # whose interiors load
+PLAYABLE_RACES: "TSN, USFP"                  # whose floor plans become interiors
 NPC_RACES: "Kralien, Torgoth, Pirate"        # whose fleet ladders load
 ```
 
-Each race's content is skipped when it is not listed. An interior is only ever built for a
-**player** ship, so floor plans for a race nobody can fly are parsed at load and never
-used â€” with `PLAYABLE_RACES: "TSN"` that is 25 floor plans loaded instead of 63.
+A fleet ladder is skipped when its race is not listed. A floor plan is not skipped: for a
+race in `PLAYABLE_RACES` it becomes the hull's **interior** (`grid_merge_ascii`), and for
+any other race it is kept for **reading only** (`grid_plan_ascii`). An interior is what a
+player ship's Engineering is built from and what a hull's fighter and shuttle bays are
+counted from, so it stays with the races a player may fly. A plan kept for reading is
+none of that: it is there so a ship of that race that has surrendered has a deck a
+boarding party can be sent aboard (see
+[Boarding a ship that has surrendered](ground-tile-maps.md#boarding-a-ship-that-has-surrendered)).
+All 63 plans parse in under ten milliseconds.
 
 Both settings ignore case and spacing, and an **empty** setting means *no restriction*
 rather than *nothing* â€” clearing it gives you every race.
@@ -70,6 +76,8 @@ provides races_myrace
 
 if settings_race_is_playable("MyRace"):
     grid_merge_ascii(media_read_relative_file("myrace_cruiser.grid"), "races_myrace")
+else:
+    grid_plan_ascii(media_read_relative_file("myrace_cruiser.grid"), "races_myrace")
 
 if settings_race_is_npc("MyRace"):
     fleet_table_load_yaml(media_read_relative_file("myrace_fleets.yaml"), "races_myrace")

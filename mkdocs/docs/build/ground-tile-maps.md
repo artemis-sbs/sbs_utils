@@ -224,17 +224,62 @@ Sprite: fig:glassback
 A mark name goes in `Mark:`, never in `At:`. `At:` reads coordinates only, so a word
 there reads as nothing and the prop is never placed.
 
+**The crew reads your marks.** The mark under a crew member's feet is the place word on
+the handheld: on the bar beside their name, in the Crew app, and as the heading of Scan
+(`landing_pad` is shown as `landing pad`). Name a mark for the place. One exception is
+made for you: a mark that places something still `Hidden until:` a signal is not shown,
+and the area's title is shown instead, until that thing is revealed. A mark with nothing
+placed on it is always shown, whatever it is called.
+
 Fields the game acts on by itself, with no route in the story:
 
 | Field | On | What happens |
 |---|---|---|
 | `Opens with: signal <name>` | a prop | The door opens when that signal is sent, for example by a scene's `; signal <name>`. |
+| `Opens with: cut` | a prop | The door can be cut open: a **CUT** or a **FULL** shot from the xESS Fire app opens it. It is the only thing a weapon does to a prop. |
 | `Hidden until: <name>` | a prop, a person | It is not on the map until that signal is sent. |
 | `Scan:` | a prop, a person | What the xESS **Scan** app says about it. Without one, its description. |
 | `Blocks:`, `Once:`, `Calm:` | | `yes` or `no`. Anything else is reported by `sbs lint`. |
+| `Qty:`, `Reach:` | a prop | A whole number, in figures. |
+| `HP:`, `Damage:`, `Notice:`, `Stun:`, `Cooldown:`, `Speed:` | a person | A number, in figures. |
+
+A number that is not one (`Qty: two`, `Reach: far`, `HP: three`) never stops the mission.
+The game reads the default instead (a `Qty:` and a `Reach:` of 1, an `HP:` of 2), says so
+once in `mast.runtime.log` with the record's name, and `sbs lint` reports it first as
+`not-a-number`.
+
+An answer that gives or takes names the item as **one word**, then at most how many:
+`; give power_cell`, `; take fuse 2`. Written as `; give power cell`, or with the comma
+missing before the next outcome (`; take tablet completes pim_tablet`), the game cannot
+read it. It then skips **the whole answer**, so none of its outcomes happens, not even
+the ones written before the mistake. It says which answer and why, once, in
+`mast.runtime.log`, and the conversation goes on. `sbs lint` reports it first as
+`pack-item-shape`.
 
 When a hostile is put down for good the game sends `hostile_down_<key>`, and a quest can
 wait on it: `Done when: signal hostile_down_sentry`.
+
+### What a shot does
+
+A crew member arms the xESS **Fire** app with one of three settings and clicks a cell.
+
+| The shot lands on | STUN | CUT | FULL |
+|---|---|---|---|
+| a hostile | held still for its `Stun:` seconds | loses one `HP:` | put down, whatever its `HP:` |
+| somebody calm (`Calm: yes`, or calmed by an answer) | nothing | nothing | nothing |
+| a shut prop whose `Opens with:` lists `cut` | nothing | it opens | it opens |
+| any other prop | nothing | nothing | nothing |
+
+**A shot never removes a prop.** A terminal, a beacon, a strongbox, a pickup lying on the
+floor, a door that only a key or a signal opens: each is still there after any shot, and
+as shut as it was. So a prop is safe to hang an ending on, and a door without `cut` is a
+door the party cannot shoot its way through. If the crew should be able to force a door,
+say so: add `cut` to its `Opens with:`.
+
+**Somebody calm is not harmed**, by any setting, so a party cannot shoot a person it has
+talked down to take what they carry. Set off again (`; rouse <key>`), they can be shot.
+
+When a hostile stands on the same cell as a pickup, the hostile is the one hit.
 
 A person or hostile can also have a `Face:`, a face string or a keyword (`female`,
 `male`, `terran`) that is resolved once, so they keep the same face all mission. The
@@ -409,6 +454,13 @@ cruiser that has a brig and a scout that has not. Something that blocks (`Blocks
 anybody `Calm: yes`) is also put in the hallway when its room is one cell with a way
 through it, because it would cut the deck in two there.
 
+**Nothing aboard is ever shut in.** Each thing is stood only where the whole deck can
+still be walked from where the party arrives, and where it and everything stood before it
+can still be walked up to. The game checks this by walking the deck, each time, so it
+holds on every hull and whatever else you add. On a very small hull (a fighter) with a
+great many things that block, one may find no floor left: it is then not aboard that
+ship, and one line in `debug.log` says so.
+
 The records wait until a ship is boarded. `boarding_ground_load` reads them like any
 other prop or person, and does not report them as unplaced while there is no deck. When
 the party leaves, they wait again for the next ship, and what was taken, opened or put
@@ -416,6 +468,12 @@ down stays so.
 
 The ship's own crew is put aboard for you, drawn as her race. Aboard a ship that has
 surrendered they are all calm. The `## Hostiles` a writer adds are the hold-outs.
+
+Her crew stand still, in the cabins, the mess and the other rooms people live and work
+in, and the party has to walk round them. They come aboard after your records and under
+the same rule: none of them stands in a doorway, on the way in, or anywhere that would
+shut a room or cut off something of yours. Adding or moving one of your records can
+change which cell a crew member stands on. It cannot make anything unreachable.
 
 ### The button
 
@@ -431,12 +489,27 @@ surrendered they are all calm. The `## Hostiles` a writer adds are the hold-outs
 Where any of these is false the mission is unchanged: no button, and a surrendered ship
 nobody boards is flown home as before.
 
+!!! note "A landing party that is all back aboard does not stand in the way"
+    A mission that also has ground of its own (the `away` starter) opens that visit when
+    the game starts, and nothing but the mission closes it. So when the button is
+    pressed and **nobody of that party is on the ground**, the landing is ended first
+    and the party goes aboard the ship. With somebody still down there the button
+    answers "We cannot take a party aboard while your people are elsewhere", as before,
+    and nobody is moved. Coming back, the mission's own card opens its site again.
+
 !!! note "Which hulls have a plan"
-    The engine's own `grid_data.json` holds full plans for the TSN, Ximni and Arvonian
-    hulls and several others. The Kralien, Torgoth, Skaraan, Biomech and pirate plans
-    come from LegendaryMissions' `races` addon, and it loads a race's plans only when
-    that race is in `PLAYABLE_RACES`. A mission that wants to board pirates lists
-    `Pirate` there (the library default lists every race).
+    Every hull LegendaryMissions ships has one, whatever `PLAYABLE_RACES` says. The
+    `races` addon makes a race's plans ship **interiors** only when the race is
+    playable; for every other race it keeps the same plans for reading only
+    (`grid_plan_ascii`), which is all a deck needs. So a surrendered Kralien, Torgoth,
+    Skaraan, Biomech or pirate ship can be boarded, and none of them gains an interior,
+    a hangar or anything else. Their decks are systems and hallways: only the three big
+    pirates, the Arvonians and the TSN, Ximni and civilian hulls have a brig or cabins.
+
+"Take as prize" on the comms console finishes the same story beat as the answer aboard
+her: on a ship that could be boarded (or is being boarded) it sends `boarding_deck_take`,
+so a quest that waits with `Done when: signal boarding_deck_take` completes whichever
+way the crew takes the prize.
 
 While the party is aboard, the ship wears the role `boarding_target`, is held where she
 is, and is not flown home.

@@ -1123,6 +1123,15 @@ def _parse_entries(entries, errors):
             earlier = data[label]
             data[label] = (earlier if isinstance(earlier, list) else [earlier]) + [parsed]
             continue
+        # `Then:` REPEATS too. `Then: reveal next` and, under it, `Then: learn the ledger
+        # page` are two things to do when the step is finished - and the second line
+        # replaced the first, so the reveal was lost and the story stopped. The lines are
+        # joined with the comma a single `Then:` line already separates actions with, so
+        # there is ONE reading of a `Then:` and it is `amd_quest.amd_then_actions`.
+        if label.lower() == "then" and isinstance(parsed, str) \
+                and isinstance(data.get(label), str):
+            data[label] = ", ".join(p for p in (data[label].strip().rstrip(","), parsed) if p)
+            continue
         data[label] = parsed
     return data
 

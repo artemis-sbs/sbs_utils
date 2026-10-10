@@ -551,6 +551,93 @@ def grid_get_layout(ship_key, layout=None):
 
 GRID_DATA_OPEN_KEY = "#open"
 
+# --- floor plans kept for READING -------------------------------------------------------
+#
+# A plan in the grid data is a hull's INTERIOR: an interior is built from it, a hull's
+# fighter and shuttle bays are counted from it (`grid_count_grid_data`), and
+# `grid_hull_has_role` answers from it. That is why a mission merges plans only for the
+# races a player may fly - merging a raider's plan would change what her carriers launch.
+#
+# A plan kept HERE is none of those things. It is the same text, parsed the same way, and
+# held where only a reader asks for it: a boarding party's deck (`boarding_deck_plan`). So
+# every hull can have a deck to board without any hull gaining an interior.
+#
+# {hull key: {layout name: entry}} - the entry is what `grid_ascii_parse` returns, with
+# its hallways beside it under `#open`. Per mission: `grid_reset_caches` drops it.
+_grid_plans = {}
+
+
+def grid_plan_ascii(content, mod=None, ship_key=None):
+    """Keep one ASCII floor plan (see :mod:`grid_ascii`) for READING, without making it
+    the hull's interior::
+
+        grid_plan_ascii(media_read_relative_file("kralien_cruiser.grid"), "races")
+
+    The twin of :func:`grid_merge_ascii` for a hull nobody flies. NOTHING that builds or
+    counts an interior sees it - not ``grid_get_layout``, not ``grid_get_grid_data``, not
+    ``grid_count_grid_data``, not ``grid_hull_has_role``. Only a reader that asks for a
+    plan does (:func:`grid_get_plan_layout`), and it prefers the hull's real interior
+    when there is one.
+
+    Returns the entry that was kept, or ``None`` if the text could not be read (logged,
+    not raised).
+    """
+    if not content:
+        _grid_say(f"floor plan not kept for mod {mod!r} ship_key {ship_key!r}: the "
+                  f"content was empty. If it came from media_read_relative_file, that "
+                  f"call failed and logged its own reason.")
+        return None
+    from .grid_ascii import grid_ascii_parse, GridAsciiError
+    try:
+        parsed = grid_ascii_parse(content, ship_key)
+    except GridAsciiError as e:
+        _grid_say(f"floor plan not kept (mod {mod!r}): {e}")
+        return None
+    key, layout, entry = parsed["ship"], parsed["layout"], parsed["entry"]
+    entry[GRID_DATA_OPEN_KEY] = {"w": parsed["w"], "h": parsed["h"],
+                                 "hallways": [list(c) for c in parsed.get("hallways") or ()]}
+    if mod is not None:
+        entry[GRID_DATA_MOD_KEY] = mod
+    _grid_plans.setdefault(key, {})[layout or "default"] = entry
+    return entry
+
+
+def _grid_kept_plan(ship_key, layout=None):
+    layouts = _grid_plans.get(ship_key)
+    if not layouts:
+        return None
+    return layouts.get(layout or "default") or layouts.get("default")
+
+
+def grid_get_plan_layout(ship_key, layout=None):
+    """The grid-object list of a hull's floor plan, for a READER: the hull's interior
+    (:func:`grid_get_layout`) when it has one with anything in it, else a plan kept with
+    :func:`grid_plan_ascii`, else ``None``. What a boarding party's deck is drawn from.
+    """
+    data = grid_get_grid_data()
+    items = grid_get_layout(ship_key, layout) if data else None
+    if items:
+        return items
+    kept = _grid_kept_plan(ship_key, layout)
+    return kept.get("grid_objects") if kept else None
+
+
+def grid_get_plan_open_cells(ship_key, layout=None):
+    """The hallways that go with :func:`grid_get_plan_layout`: the interior's own text
+    (:func:`grid_get_open_cells`) when the rooms came from the interior, the kept plan's
+    when they came from that. Never one's rooms with the other's hallways."""
+    data = grid_get_grid_data()
+    if data and grid_get_layout(ship_key, layout):
+        return grid_get_open_cells(ship_key, layout)
+    kept = _grid_kept_plan(ship_key, layout)
+    found = kept.get(GRID_DATA_OPEN_KEY) if kept else None
+    return found if isinstance(found, dict) else None
+
+
+def grid_plans_kept() -> int:
+    """Reset-ledger probe: how many hulls have a plan kept for reading."""
+    return len(_grid_plans)
+
 
 def grid_get_open_cells(ship_key, layout=None):
     """The size and hallway cells of a hull's floor plan AS ITS `.grid` TEXT DREW THEM:
@@ -805,6 +892,7 @@ def grid_reset_caches():
     _grid_theme = None
     _grid_theme_current = 0
     _grid_data_mods.clear()     # which mod supplied which hull, for collision reporting
+    _grid_plans.clear()         # plans kept for reading (a boarding party's deck)
 
 
 def grid_data_is_loaded() -> int:

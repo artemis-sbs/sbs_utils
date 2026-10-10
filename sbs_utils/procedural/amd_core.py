@@ -337,6 +337,43 @@ def _token_spans(fence_lines, key, tokens, owner_key, kind):
     return out
 
 
+def _then_refs(fence_lines, then, owner_key):
+    """One AmdRef per `reveal` / `signal` action of a several-action `Then:`.
+
+    The actions are the game's own reading (``amd_quest.amd_then_actions``); the span is
+    looked for on every `Then:` line in turn, with a cursor, so the second `reveal` of a
+    list - or one on a second `Then:` line - lands on its own words."""
+    from sbs_utils.procedural.amd_quest import amd_then_actions, amd_then_parts
+    lines = [(lineno, raw, _kv_value_col(raw, "Then")) for lineno, raw in fence_lines]
+    lines = [[lineno, raw, base] for lineno, raw, base in lines if base is not None]
+    out = []
+    at = 0                                           # which `Then:` line the cursor is on
+    for part, (verb, what) in zip(amd_then_parts(then), amd_then_actions(then)):
+        if verb not in ("reveal", "signal") or not what:
+            continue
+        # The words as WRITTEN (a path may have spaces round its slash; a bare key has
+        # no verb in front of it).
+        written = part.split(None, 1)[1].strip() if part.split(None, 1)[0].lower() in (
+            "reveal", "signal") and len(part.split(None, 1)) > 1 else part
+        token = written.split()[0] if (verb == "signal" or "/" not in written) and \
+            written.split() and part != written else written
+        span = None
+        for i in range(at, len(lines)):
+            lineno, raw, cursor = lines[i]
+            col = raw.find(token, cursor)
+            if col >= 0:
+                span = Span(lineno, col, lineno, col + len(token))
+                lines[i][2] = col + len(token)
+                at = i
+                break
+        if span is None and lines:
+            lineno, raw, cursor = lines[min(at, len(lines) - 1)]
+            span = Span(lineno, cursor, lineno, cursor + len(token))
+        if span is not None:
+            out.append(AmdRef(verb, what, span, owner_key))
+    return out
+
+
 def _extract_data_refs(node, fence_lines):
     """Pull reference-bearing verbs out of a node's fence block (with spans)."""
     data = node.data
@@ -361,7 +398,12 @@ def _extract_data_refs(node, fence_lines):
             node.refs.append(r)
 
     then = _di(data, "Then")
-    if then:
+    if then and "," in str(then):
+        # SEVERAL ACTIONS (a comma list, or `Then:` on more than one line, which the
+        # fence reader joins with a comma): a reference for each `reveal` and `signal`,
+        # found on whichever `Then:` line it was written on.
+        node.refs.extend(_then_refs(fence_lines, str(then), key))
+    elif then:
         toks = str(then).split()
         verb = toks[0].lower() if toks else ""
         if verb == "reveal" and len(toks) >= 2:

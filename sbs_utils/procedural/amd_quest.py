@@ -294,6 +294,53 @@ _CANONICAL_TO_LEGACY = {
 # manifest`) that survives the evening - it is filed under the campaign and saved.
 THEN_VERBS = ("reveal", "signal", "learn")
 
+
+def _then_one(value):
+    """ONE `Then:` action -> ``(verb, what)``, read exactly as a whole `Then:` line always
+    was: `reveal <key or path>`, `signal <name>`, `learn <fact, several words>` - and
+    anything else, a bare key included, is a reveal of the whole thing."""
+    # `reveal first_contact / study`: spaces round the slash are not part of the
+    # path. The split below kept `first_contact` and dropped the rest, so the
+    # arc was "revealed" (it was already running) and the step never appeared.
+    # ...Folded AFTER the verb is taken off. Folding the whole line glued
+    # `reveal /salvage/home` into one word, which then had no verb at all.
+    toks = str(value).split(None, 1)
+    if len(toks) == 2 and toks[0].lower() in THEN_VERBS:
+        rest = re.sub(r"[ \t]*/[ \t]*", "/", toks[1]).split()
+        if rest and toks[0].lower() == "reveal":
+            # `/salvage/home`: a slash in front is still that path.
+            rest[0] = rest[0].strip("/") or rest[0]
+        toks = [toks[0]] + rest
+    else:
+        toks = str(value).split()
+    if len(toks) >= 2 and toks[0].lower() == "learn":
+        # A fact may be several words, like the one after `; learn` in a choice.
+        return "learn", " ".join(toks[1:])
+    if len(toks) >= 2 and toks[0].lower() in THEN_VERBS:
+        return toks[0].lower(), toks[1]
+    # A bare value is a reveal target, which is what makes an unrecognized
+    # verb DANGEROUS rather than merely ignored: `Then: hail brief` means
+    # "reveal a quest called `hail brief`" and says nothing about it. That
+    # is what `unknown-then-verb` exists to tell the author.
+    return "reveal", value
+
+
+def amd_then_parts(value):
+    """A `Then:` value as its actions' own text, in order: split at COMMAS, the only
+    separator (a fact may have spaces, a reveal target may be a path). Empty pieces - a
+    comma at the end of the line - are dropped."""
+    return [p for p in (part.strip() for part in str(value or "").split(",")) if p]
+
+
+def amd_then_actions(value):
+    """Every action of a `Then:` value, in the order written: ``[(verb, what), ...]``.
+
+    `Then: reveal next, learn the ledger page` is two; so are two `Then:` lines (the
+    fence reader joins them with a comma). The verbs are ``THEN_VERBS``; a piece with no
+    verb is a reveal of that key. What the game runs and what the linter judges.
+    """
+    return [_then_one(part) for part in amd_then_parts(value)]
+
 _STATE_ALIASES = {"available": "idle", "offered": "idle",
                   "running": "active", "hidden": "secret", "done": "complete"}
 
@@ -387,31 +434,20 @@ def amd_quest_facts(aliases=None):
                     # shows only an objective the writer typed (`quest_objective_typed`).
                     data["objective_auto"] = data["objective"]
         elif label == "then":
-            # `reveal first_contact / study`: spaces round the slash are not part of the
-            # path. The split below kept `first_contact` and dropped the rest, so the
-            # arc was "revealed" (it was already running) and the step never appeared.
-            # ...Folded AFTER the verb is taken off. Folding the whole line glued
-            # `reveal /salvage/home` into one word, which then had no verb at all.
-            toks = str(value).split(None, 1)
-            if len(toks) == 2 and toks[0].lower() in THEN_VERBS:
-                rest = re.sub(r"[ \t]*/[ \t]*", "/", toks[1]).split()
-                if rest and toks[0].lower() == "reveal":
-                    # `/salvage/home`: a slash in front is still that path.
-                    rest[0] = rest[0].strip("/") or rest[0]
-                toks = [toks[0]] + rest
+            # ONE ACTION is stored exactly as it always was - `reveal` / `signal` /
+            # `learn` on the record - so nothing that reads a quest sees a difference.
+            # SEVERAL (a comma list, or `Then:` written on more than one line) also keep
+            # their order under `then`, which is what the driver runs when it is there.
+            earlier = data.get("then") or [[k, data[k]] for k in THEN_VERBS if k in data]
+            if "," not in str(value):
+                actions = [_then_one(value)]
             else:
-                toks = str(value).split()
-            if len(toks) >= 2 and toks[0].lower() == "learn":
-                # A fact may be several words, like the one after `; learn` in a choice.
-                data["learn"] = " ".join(toks[1:])
-            elif len(toks) >= 2 and toks[0].lower() in THEN_VERBS:
-                data[toks[0].lower()] = toks[1]
-            else:
-                # A bare value is a reveal target, which is what makes an unrecognized
-                # verb DANGEROUS rather than merely ignored: `Then: hail brief` means
-                # "reveal a quest called `hail brief`" and says nothing about it. That
-                # is what `unknown-then-verb` exists to tell the author.
-                data["reveal"] = value
+                actions = amd_then_actions(value)
+            actions = [list(a) for a in earlier] + [list(a) for a in actions]
+            for verb, what in actions:
+                data.setdefault(verb, what)         # the FIRST of each, as one line gave
+            if len(actions) > 1:
+                data["then"] = actions
         elif label == "was":
             # The key this record USED to have. A saved game files a step's progress
             # under its key, so renaming a record orphaned what the crew had done: the

@@ -297,8 +297,8 @@ def boarding_setting_text(setting):
                        "or a bulkhead."),
         SETTING_CUT: ("Opens a thing - a hatch, a weld, a lock. Lethal to a person, "
                       "because a cutting beam is."),
-        SETTING_FULL: ("Destroys what it hits, whatever that is. The only setting "
-                       "that is a weapon and nothing else."),
+        SETTING_FULL: ("Puts down whoever it hits, whatever their health. On a "
+                       "thing it does what CUT does and no more: nothing is destroyed."),
     }.get(setting, "")
 
 

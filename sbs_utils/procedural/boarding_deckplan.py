@@ -191,8 +191,11 @@ def boarding_deck_plan(ship, layout=None):
     - ``grid text``: no hull map, so the hallways its `.grid` file drew
       (``grid_get_open_cells``);
     - ``rooms only``: neither - the rooms, joined by gangways.
+
+    The rooms are the hull's interior when it has one, else a plan kept for reading
+    (``grid_plan_ascii`` - how a hull nobody flies has a deck and no interior).
     """
-    from .grid import grid_get_layout
+    from .grid import grid_get_plan_layout
     from .query import to_id, to_object
     hm = None
     key = ship
@@ -209,7 +212,7 @@ def boarding_deck_plan(ship, layout=None):
             hm = FrameContext.context.sbs.get_hull_map(so.id)
         except Exception:                                    # noqa: BLE001
             hm = None
-    items = grid_get_layout(key, layout)
+    items = grid_get_plan_layout(key, layout)
     if not items:
         return None
     cells = {}
@@ -231,8 +234,8 @@ def boarding_deck_plan(ship, layout=None):
         source = "hull map"
         w, h = max(w, hm.w), max(h, hm.h)
     else:
-        from .grid import grid_get_open_cells
-        text = grid_get_open_cells(key, layout)
+        from .grid import grid_get_plan_open_cells
+        text = grid_get_plan_open_cells(key, layout)
         if text is not None:
             source = "grid text"
             w, h = max(w, int(text.get("w") or 0)), max(h, int(text.get("h") or 0))
@@ -1027,6 +1030,37 @@ def _reach(floor, blocked, start):
     return seen
 
 
+def _keeps_the_way(floor, start, blockers, cell, blocks, base):
+    """THE RULE for standing anything on a deck: nothing seals a room, and nothing is
+    walled in. Whether ``cell`` can take something - one that blocks or one that does
+    not - given the cells that already block and ``base``, what can be walked from
+    ``start`` round them today.
+
+    - something that does not block must stand where a party can walk;
+    - something that blocks must leave every other tile walkable that was, must itself
+      have a tile beside it to be walked up to, and must not take the last such tile
+      from anything already standing.
+
+    One rule for a writer's records (``boarding_deck_settle``) and for the ship's own
+    crew (``boarding_deck_crew``), checked by walking the real floor from the entry
+    every time - so it holds whatever the hull, the kinds of room and the order of the
+    records, and an unrelated record can change WHERE something stands but never
+    WHETHER it can be reached.
+    """
+    if start is None:
+        return True
+    if not blocks:
+        return cell in base
+    after = _reach(floor, blockers | {cell}, start)
+    if len(after) != len(base) - (1 if cell in base else 0):
+        return False
+    for b in list(blockers) + [cell]:
+        near = _neighbours(b)
+        if not any(n in after for n in near) and (b == cell or any(n in base for n in near)):
+            return False
+    return True
+
+
 def boarding_deck_settle(area=DECK_AREA, place=True):
     """Stand a writer's records aboard a generated deck: every prop, person and hostile
     whose `Area:` is this deck gets a cell in a room of the KIND its `Mark:` names.
@@ -1065,19 +1099,21 @@ def boarding_deck_settle(area=DECK_AREA, place=True):
     doors = set(rec.get("doors") or ())
     near_door = doors | {n for d in doors for n in _neighbours(d)}
     free_all = set().union(*rec["kinds"].values()) if rec["kinds"] else set()
-    taken = {v["cell"] for v in settled.values() if v.get("cell")}
-    blockers = {v["cell"] for v in settled.values() if v.get("cell") and v.get("blocks")}
+    # Her own crew counts too, when a record is declared after they came aboard.
+    crew = rec.get("crew") or {}
+    standing = list(settled.values()) + list(crew.values())
+    taken = {v["cell"] for v in standing if v.get("cell")}
+    blockers = {v["cell"] for v in standing if v.get("cell") and v.get("blocks")}
     base = [None]
 
     def fits(cell, blocks):
         if cell in taken or cell not in floor or cell == start:
             return False
-        if not blocks or start is None:
+        if start is None:
             return True
         if base[0] is None:
             base[0] = _reach(floor, blockers, start)
-        after = _reach(floor, blockers | {cell}, start)
-        return len(after) == len(base[0]) - (1 if cell in base[0] else 0)
+        return _keeps_the_way(floor, start, blockers, cell, blocks, base[0])
 
     def crowded(c):
         return any((c[0] + dx, c[1] + dy) in taken
@@ -1140,7 +1176,14 @@ def boarding_deck_settle(area=DECK_AREA, place=True):
             fell.setdefault(word, []).append(r.get("name") or key)
         if cell is None:
             _deck_say("'%s' (%s) could not be stood anywhere aboard '%s': there is no "
-                      "floor left." % (r.get("name") or key, key, rec.get("ship")))
+                      "floor left where it would not shut somebody in, so it is not "
+                      "aboard this ship." % (r.get("name") or key, key, rec.get("ship")))
+            # NOT ABOARD, rather than stood by its mark's name: `brig` is a mark on
+            # this deck, and placing by it would stand the thing on that mark's first
+            # cell, on top of whatever is there. It keeps its `Mark:` for the next hull.
+            settled[key] = {"cell": None, "blocks": blocks, "was": at, "off": True}
+            r["deck_mark"] = at
+            r["at"] = None
             continue
         settled[key] = {"cell": cell, "blocks": blocks, "was": at}
         r["deck_mark"] = at
@@ -1216,7 +1259,7 @@ def boarding_deck_has_plan(ship):
     lookup - so a comms route can ask it of whatever is selected."""
     from .query import to_id, to_object
     try:
-        from .grid import grid_get_layout
+        from .grid import grid_get_plan_layout
         key, layout = ship, None
         if not isinstance(ship, str):
             so = to_object(to_id(ship))
@@ -1224,7 +1267,7 @@ def boarding_deck_has_plan(ship):
                 return False
             from .inventory import get_inventory_value
             key, layout = so.art_id, get_inventory_value(so.id, "grid_layout", None)
-        return bool(grid_get_layout(key, layout))
+        return bool(grid_get_plan_layout(key, layout))
     except Exception:                                        # noqa: BLE001
         return False
 
@@ -1316,6 +1359,15 @@ def boarding_deck_visit(ship, target, scenes=None, title=None, stories=None):
 
     ONE DECK AT A TIME. A deck left from the last ship is taken down first.
 
+    A LANDING PARTY THAT IS ALL HOME IS NO OBSTACLE. A tile-map visit somewhere else - a
+    landing a mission opened, which nothing but the mission ever closes - is ENDED first
+    when nobody of its party is on the ground (``boarding_visit_ended`` is sent for it,
+    as for any visit). It is what "the last one home ends it" means for a place that has
+    no hail to decline. With somebody still down there the answer is None, as it always
+    was, and nothing is touched: nobody is pulled off a planet by a button on the bridge.
+    Coming back, the mission opens its own site again, as it did the first time. A text
+    visit (rooms and choices) and another ship's deck are never ended for this.
+
     Args:
         ship: the ship the party leaves from.
         target: the ship being boarded.
@@ -1339,6 +1391,8 @@ def boarding_deck_visit(ship, target, scenes=None, title=None, stories=None):
     so = to_object(tid)
     if so is None or to_object(sid) is None:
         return None
+    # A landing nobody is at: over, the moment a party is wanted somewhere else.
+    _end_an_empty_landing()
     # `boarding_visit`'s own rule, asked BEFORE a deck is built for a party that cannot go.
     if boarding_visiting() is not None or boarding_invitation() is not None \
             or boarding_is_open():
@@ -1380,6 +1434,25 @@ def boarding_deck_visit(ship, target, scenes=None, title=None, stories=None):
     _BOARDED["task"] = TickDispatcher.do_interval(_boarded_tick, 1.0)
     _hold(tid)
     return invite
+
+
+def _end_an_empty_landing():
+    """End a TILE visit that is not a boarded ship's deck when nobody of its party is on
+    the ground. True when one was ended.
+
+    Not a text visit: it has no ground to be off, and it ends itself when its scene
+    closes. Not a deck: a party aboard a ship is that ship's business
+    (``boarding_deck_target``), ended by one of its three endings."""
+    from .boarding import boarding_visiting, boarding_visit_end, boarding_team
+    from .tilemap import tilemap_where
+    visit = boarding_visiting()
+    if not visit or not visit.get("tile") or _BOARDED:
+        return False
+    if any(tilemap_where(lf) is not None for lf in boarding_team()):
+        return False                                 # somebody is still down there
+    _deck_say("the landing party at '%s' is all back aboard, so that visit is over: a "
+              "party is going aboard a ship." % (visit.get("title") or visit.get("area")))
+    return bool(boarding_visit_end())
 
 
 def _hold(target):
@@ -1464,6 +1537,12 @@ def boarding_deck_crew(area, ship=None, boarders=None, hostile=None, count=None,
       calm, in the cabins and messes, who only fight back when provoked;
     - aboard any other ship everyone is a hand.
 
+    NOBODY SEALS A ROOM. They stand still and they block, so each is stood only where
+    the whole deck can still be walked from the entry and everything already aboard - a
+    writer's `Area: deck` records, the crew stood before them - can still be walked up
+    to (``_keeps_the_way``). A cell that fails is passed over for the next; on a hull
+    with nowhere left, that one of the crew is not aboard.
+
     Args:
         area: the deck (``boarding_deck_build`` / ``boarding_deck_for``).
         ship, boarders: the boarded ship and the boarders' ship; ``side_are_enemies`` of
@@ -1480,7 +1559,8 @@ def boarding_deck_crew(area, ship=None, boarders=None, hostile=None, count=None,
     import random
     import zlib
     from .boarding_combat import boarding_hostiles_declare, boarding_hostiles_place
-    from .tilemap import tilemap_is_open, tilemap_mark_cells, tilemap_actors_at
+    from .tilemap import (tilemap_is_open, tilemap_mark_cells, tilemap_actors,
+                          tilemap_actor_cells)
     area = str(area).strip().lower()
     rec = _DECKS.get(area)
     if rec is None:
@@ -1499,12 +1579,35 @@ def boarding_deck_crew(area, ship=None, boarders=None, hostile=None, count=None,
     race = boarding_deck_race(rec.get("ship"))
     looks = boarding_deck_crew_sprites(rec.get("ship"))
     taken = set(tilemap_mark_cells(area, "entry")) | set(tilemap_mark_cells(area, "door"))
+    floor = rec.get("floor") or set()
+    entry = sorted(rec.get("entry") or (), key=lambda t: (t[1], t[0]))
+    start = min(entry) if entry else None            # as `boarding_deck_settle` has it
+    crew = rec.setdefault("crew", {})
+    blockers = {v["cell"] for v in list((rec.get("settled") or {}).values())
+                + list(crew.values()) if v.get("cell") and v.get("blocks")}
+
+    def stand(pool):
+        """The next cell of ``pool`` somebody can stand on and seal nothing; None when
+        it has none. Cells passed over stay in the pool for whoever does not block."""
+        base = _reach(floor, blockers, start) if start is not None else set()
+        for i in range(len(pool) - 1, -1, -1):
+            c = pool[i]
+            if c in taken or (floor and c not in floor):
+                continue
+            if _keeps_the_way(floor, start, blockers, c, True, base):
+                del pool[i]
+                return c
+        return None
+
+    stood_on = {c for aid in tilemap_actors(area) for c in tilemap_actor_cells(aid)}
 
     def free(tiles):
         # Open, and with nothing lying on it either: a keycard a writer put in the brig
         # does not block, and nobody should be standing on it.
-        out = [t for t in sorted(tiles) if t not in taken and tilemap_is_open(area, *t)
-               and not tilemap_actors_at(area, *t)]
+        # (Asked of ONE pass over the actors: `tilemap_actors_at` scans them all for
+        # every tile, which on a starbase is most of a second.)
+        out = [t for t in sorted(tiles) if t not in taken and t not in stood_on
+               and tilemap_is_open(area, *t)]
         rng.shuffle(out)
         return out
     halls = free(tilemap_mark_cells(area, "room:hallway"))
@@ -1517,11 +1620,17 @@ def boarding_deck_crew(area, ship=None, boarders=None, hostile=None, count=None,
     title = race.capitalize() if race != "human" else "Crew"
     for i in range(n):
         role = "guard" if i < guards else "hand"
-        pool = halls if role == "guard" else (rooms or halls)
-        if not pool:
+        at = None
+        for pool in ((halls,) if role == "guard" else (rooms, halls)):
+            at = stand(pool)
+            if at is not None:
+                break
+        if at is None:
             continue
-        at = pool.pop()
         taken.add(at)
+        blockers.add(at)
+        # A hand stays where they are put, all visit; a guard walks off.
+        crew[f"{area}_crew_{i}"] = {"cell": at, "blocks": role == "hand"}
         data = dict(_CREW_ROLES[role], area=area, at="%d, %d" % at, sprite=looks[i % len(looks)])
         data["calm"] = "yes" if data["calm"] else "no"
         if role == "guard" and halls:

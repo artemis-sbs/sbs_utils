@@ -150,10 +150,13 @@ class TriggersTheGameCannotWatchTests(unittest.TestCase):
         self.assertIn("unknown-trigger",
                       _codes(_swap("Starts when: revealed", "Starts when: reveal")))
 
-    def test_then_written_twice(self):
+    def test_then_written_twice_is_two_things_to_do(self):
+        # Both lines count since 2026-10-10 (tests/test_then_actions.py), so there is
+        # nothing to warn about: the reveal is not lost any more.
         text = _swap("Then: reveal salvage/home\n",
                      "Then: reveal salvage/home\nThen: signal log_found\n")
-        self.assertIn("repeated-then", _codes(text))
+        self.assertNotIn("repeated-then", _codes(text))
+        self.assertNotIn("dangling-reveal", _codes(text))
 
     def test_every_supported_spelling_is_quiet(self):
         for value in ("signal reactor_gone", "all dead raider", "5 minutes", "90 sec",

@@ -1448,6 +1448,53 @@ def amd_lint_field_values(doc):
     return findings
 
 
+#: The number fields of something on a boarding party's ground, by kind of record:
+#: ``{label: whole}`` - ``whole`` for a count of things or cells, where a fraction is
+#: not one. What `boarding_props` / `boarding_combat` read with `boarding_field_number`.
+_GROUND_NUMBERS = {
+    "prop": {"qty": True, "reach": True},
+    "hostile": {"hp": True, "damage": True, "notice": True,
+                "stun": False, "cooldown": False, "speed": False},
+}
+
+
+def amd_lint_ground_numbers(doc):
+    """Flag a number field of a prop or a person that is not a number. WARNING.
+
+    `Qty: two`, `Reach: far`, `HP: three`: the game reads the default instead (1, 1 and
+    2) and says so once in `mast.runtime.log`. It used to raise, and no ground loaded.
+    Only the fields the ground reads as numbers, and only on a prop or a person - the
+    same label on another kind of record is that kind's business.
+    """
+    findings = []
+    for node in doc.nodes:
+        wanted = _GROUND_NUMBERS.get(str(getattr(node, "kind", "") or "").strip().lower())
+        if not wanted:
+            continue
+        for lineno, raw, label, value in _fence_fields(node):
+            name = " ".join(label.strip().lower().split())
+            if name not in wanted or not value:
+                continue
+            whole = wanted[name]
+            try:
+                n = float(value)
+                ok = (n == int(n)) if whole else True
+            except ValueError:
+                ok = False
+            if ok:
+                continue
+            prefix = raw.split(":", 1)[0] + ":"
+            after = raw[len(prefix):]
+            col = len(prefix) + (len(after) - len(after.lstrip()))
+            findings.append(AmdFinding(
+                lineno, WARNING, "not-a-number",
+                f"`{label}: {value}` is not a {'whole number' if whole else 'number'}, "
+                f"so the game reads its default instead and says so once in "
+                f"mast.runtime.log. Write it in figures: `{label}: 2`.",
+                col=col, end_line=lineno, end_col=col + len(value)))
+    return findings
+
+
 def _action_blocks(node):
     """(lineno, text) for every stage-direction line in this record's `Action:` field.
 
@@ -2999,6 +3046,7 @@ def amd_lint_dialogue_outcomes(doc):
     known = set(dialogue_outcome_verbs())
     if known <= {"signal"}:
         return []                 # nothing but the built-in is loaded: cannot judge
+    from sbs_utils.procedural.amd_dialogue import dialogue_outcome_check
     findings = []
     for node in doc.nodes:
         if str(getattr(node, "kind", "") or "").strip().lower() != "dialogue":
@@ -3019,6 +3067,17 @@ def amd_lint_dialogue_outcomes(doc):
                         "does not go up. Write `; learn <name>`."))
                     continue
                 if verb in known:
+                    # THE GAME'S OWN CHECK of the words after the verb (`give`, `take`:
+                    # an item, and at most how many). What fails it here is what the
+                    # game skips the whole answer for.
+                    problem = dialogue_outcome_check(verb, outcome[1:])
+                    if problem:
+                        findings.append(AmdFinding(
+                            lineno, WARNING,
+                            "pack-item-shape" if verb in ("give", "take")
+                            else "outcome-shape",
+                            problem + " As written, the game skips this whole answer: "
+                            "none of its outcomes happens."))
                     continue
                 findings.append(AmdFinding(
                     lineno, WARNING, "unknown-outcome-verb",
@@ -3577,7 +3636,18 @@ def _plain_fields(node):
     return out
 
 
-_LEARN_THEN = re.compile(r"^\s*then\s*:\s*learn\s+(\S.*?)\s*$", re.I)
+_THEN_LINE = re.compile(r"^\s*then\s*:\s*(\S.*?)\s*$", re.I)
+
+
+def _then_learned(raw):
+    """The facts one fence line teaches: every `learn <fact>` of a `Then:` line (it may
+    hold several actions). Lower-cased, spacing folded. Empty for any other line."""
+    m = _THEN_LINE.match(str(raw or ""))
+    if m is None:
+        return []
+    from sbs_utils.procedural.amd_quest import amd_then_actions
+    return [" ".join(str(what).split()).lower()
+            for verb, what in amd_then_actions(m.group(1)) if verb == "learn" and what]
 _LEARNED_ELSEWHERE = {}        # mission root -> {path: (mtime, size, facts)}
 
 
@@ -3599,9 +3669,7 @@ def _learn_facts_in(text):
                 if str(outcome[0]).lower() == "learn" and len(outcome) > 1:
                     facts.add(" ".join(str(t) for t in outcome[1:]).strip().lower())
             continue
-        m = _LEARN_THEN.match(line)
-        if m is not None:
-            facts.add(" ".join(m.group(1).split()).lower())
+        facts.update(_then_learned(line))
     facts.discard("")
     return facts
 
@@ -3804,9 +3872,7 @@ def amd_lint_skills(doc, file_path=None):
     # ...and what a quest step teaches: `Then: learn manifest`.
     for node in doc.nodes:
         for _ln, raw in (getattr(node, "fence_lines", None) or []):
-            m = _LEARN_THEN.match(raw)
-            if m is not None:
-                facts.add(" ".join(m.group(1).split()).lower())
+            facts.update(_then_learned(raw))
     # What the REST OF THE MISSION can teach. A fact learned in another file is known:
     # it only ever widens what `if learned <fact>` may ask for.
     elsewhere = amd_learned_elsewhere(file_path)
@@ -4022,12 +4088,8 @@ def amd_lint_quest_triggers(doc):
                     f"nothing: the story it is part of can then never be finished and "
                     f"never fails. Add `Fatal: true` so failing it fails the story, give "
                     f"the story a `Fails when:` of its own, or take `Required:` off"))
-        thens = []
         for lineno, _raw, label, value in _fence_fields(node):
             name = " ".join(label.strip().lower().split())
-            if name == "then":
-                thens.append(lineno)
-                continue
             which = _TRIGGER_LABELS.get(name)
             if which is None or not value:
                 continue
@@ -4057,11 +4119,6 @@ def amd_lint_quest_triggers(doc):
                     f"`Fails when: {value}` is never checked - nothing watches for it - "
                     f"so this quest cannot fail this way. `Fails when:` takes `signal "
                     f"<name>`, a time, or `all dead <role>`."))
-        for lineno in thens[1:]:
-            findings.append(AmdFinding(
-                lineno, WARNING, "repeated-then",
-                "`Then:` is written more than once in this record, and only the last "
-                "one counts - the earlier reveal or signal is lost."))
     return findings
 
 
@@ -4146,21 +4203,25 @@ def amd_lint_then(doc):
     lints clean, and silently means nothing - which is exactly the failure mode the AMD
     tooling exists to end. This finding is what makes keeping `Then:` a closed set safe:
     the author is told rather than left guessing.
+
+    A `Then:` may hold SEVERAL actions - a comma list, and/or more than one `Then:`
+    line. Each action is judged by itself.
     """
-    from sbs_utils.procedural.amd_quest import THEN_VERBS
+    from sbs_utils.procedural.amd_quest import THEN_VERBS, amd_then_parts
     findings = []
     for node in doc.nodes:
         for lineno, raw, label, value in _fence_fields(node):
             if label.strip().lower() != "then":
                 continue
-            toks = str(value).split()
-            if len(toks) < 2 or toks[0].lower() in THEN_VERBS:
-                continue
-            findings.append(AmdFinding(
-                lineno, WARNING, "unknown-then-verb",
-                f"`Then: {value}` - `{toks[0]}` is not a `Then:` verb, so this reads as "
-                f"`reveal {value}` and will look for a record by that whole name. "
-                f"`Then:` takes {' or '.join(THEN_VERBS)}."))
+            for part in (amd_then_parts(value) if "," in str(value) else [str(value)]):
+                toks = part.split()
+                if len(toks) < 2 or toks[0].lower() in THEN_VERBS:
+                    continue
+                findings.append(AmdFinding(
+                    lineno, WARNING, "unknown-then-verb",
+                    f"`Then: {part}` - `{toks[0]}` is not a `Then:` verb, so this reads as "
+                    f"`reveal {part}` and will look for a record by that whole name. "
+                    f"`Then:` takes {' or '.join(THEN_VERBS)}."))
     return findings
 
 
@@ -4698,6 +4759,7 @@ def amd_lint(file_path=None, content=None, mast_sources=None, cross_file=None,
         findings += amd_lint_quest_triggers(doc)
         findings += amd_lint_reveal_paths(doc)
         findings += amd_lint_dialogue_outcomes(doc)
+        findings += amd_lint_ground_numbers(doc)
         findings += amd_lint_guards(doc)
         findings += amd_lint_choices(doc, keys)
         findings += amd_lint_skills(doc, file_path)

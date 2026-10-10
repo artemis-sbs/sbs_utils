@@ -48,8 +48,11 @@ the user's pack; a ``Scene`` opens a conversation for that console (and whoever 
 with them). ``boarding_interacted`` reports what happened.
 
 ``Opens with`` terms: ``key <item>`` (someone holding it - the item is kept), ``check
-<skill> <dc>`` (the user rolls), ``cut`` (only a CUT shot opens it - see
+<skill> <dc>`` (the user rolls), ``cut`` (a CUT or FULL shot opens it - see
 ``boarding_combat``), ``signal <name>`` (only that signal opens it - a bridge action).
+
+A SHOT NEVER REMOVES A PROP. One that lists ``cut`` is opened by it; every other prop is
+immune to weapons - scorched, and still there (``boarding_combat.boarding_tile_fire``).
 
 SIGNALS ARE HEARD HERE. A door that ``Opens with: signal power_on`` opens when
 ``power_on`` is emitted, and a prop that is ``Hidden until: crate_forced`` is put on the
@@ -159,6 +162,65 @@ def _opens(value):
     return out
 
 
+def boarding_field_number(value, default, label, name, key, whole=False):
+    """A number a writer typed in a fence, or ``default`` when it is not one - said ONCE,
+    in a writer's words, in ``mast.runtime.log``. NEVER RAISES: `Qty: two` used to raise
+    inside the load, and a mission with one bad number had no ground at all.
+
+    Args:
+        value: what was written (None or empty is simply "not written").
+        default: what the game uses instead.
+        label (str): the field as the writer spells it - ``Qty``.
+        name, key: the record, for the sentence.
+        whole (bool): a count of things or cells - a fraction is not one.
+    """
+    if value is None or str(value).strip() == "":
+        return default
+    try:
+        n = float(value)
+        if whole and n != int(n):
+            raise ValueError(value)
+        return int(n) if whole else n
+    except (TypeError, ValueError):
+        pass
+    try:
+        from .boarding_ground import _say
+        _say("'%s' (%s): `%s: %s` is not a %s, so it is read as %s. Write %s: `%s: %s`."
+             % (name or key, key, label, value, "whole number" if whole else "number",
+                default, "a whole number" if whole else "a number", label, default),
+             once="number:%s:%s:%s" % (key, label, value), loud=True)
+    except Exception:                                    # noqa: BLE001
+        pass
+    return default
+
+
+def _pack_outcome_check(verb):
+    """What `; give` / `; take` must look like - ``<item>`` or ``<item> <how many>`` -
+    as a check that runs BEFORE any outcome of the answer is applied."""
+    def check(tokens):
+        tokens = [str(t) for t in tokens]
+        if not tokens:
+            return "`%s` names no item. Write `; %s <item>`." % (verb, verb)
+        if len(tokens) == 1:
+            return None
+        if len(tokens) == 2:
+            try:
+                int(tokens[1])
+                return None
+            except ValueError:
+                pass
+        joined = "_".join(tokens)
+        if len(tokens) >= 3:
+            return ("`%s %s`: `%s` takes an item and, at most, how many - so the rest is "
+                    "either part of the item's key (an item key is ONE word: `%s %s`) or "
+                    "another outcome with the comma missing in front of it (`%s %s, %s`)."
+                    % (verb, " ".join(tokens), verb, verb, joined, verb, tokens[0],
+                       " ".join(tokens[1:])))
+        return ("`%s %s`: an item key is ONE word, and `%s` is not how many of it. "
+                "Write `%s %s`." % (verb, " ".join(tokens), tokens[1], verb, joined))
+    return check
+
+
 def boarding_prop_records(section):
     """Prop records from an AMD section, as plain dicts."""
     out = []
@@ -185,8 +247,10 @@ def boarding_prop_records(section):
             "color": g("color"),
             "scene": g("scene"),
             "item": _norm(g("item")) or None,
-            "qty": int(g("qty") or 1),
-            "reach": int(g("reach") or 1),
+            "qty": boarding_field_number(g("qty"), 1, "Qty", n.get("display_text"),
+                                         _norm(n.get("key")), whole=True),
+            "reach": boarding_field_number(g("reach"), 1, "Reach", n.get("display_text"),
+                                           _norm(n.get("key")), whole=True),
             "blocks": _yes(g("blocks"), False),
             "opens": _opens(g("opens_with")),
             "hidden": g("hidden_until"),
@@ -285,6 +349,8 @@ def boarding_props_place(area=None):
         if tilemap_area(rec["area"]) is None:
             continue
         cell = _cell(rec)
+        if cell is None and rec.get("at") is None and "deck_mark" in rec:
+            continue        # not aboard THIS hull, and `boarding_deck_settle` said so
         if cell is None:
             from .execution import log
             log(f"prop '{rec['key']}' has no cell in '{rec['area']}'", "boarding", "warning")
@@ -665,8 +731,8 @@ def _party_metric(rest, agent_id):
 
 from .amd_dialogue import dialogue_register_outcome  # noqa: E402
 from .boarding import boarding_metric_word  # noqa: E402
-dialogue_register_outcome("give", _give_outcome)
-dialogue_register_outcome("take", _take_outcome)
+dialogue_register_outcome("give", _give_outcome, check=_pack_outcome_check("give"))
+dialogue_register_outcome("take", _take_outcome, check=_pack_outcome_check("take"))
 dialogue_register_outcome("open", _open_outcome)
 dialogue_register_outcome("reveal", _reveal_outcome)
 boarding_metric_word("holding", _holding_metric)

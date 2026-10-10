@@ -761,5 +761,80 @@ class ArtTests(_Base):
         self.assertEqual(TA.tilemap_art_loaded(), ["station"])
 
 
+class ALandingPartyThatCameHomeTests(_Base):
+    """A tile visit can be left. In an `away` mission the landing party's visit opens in
+    second one and nothing closes it, so "Send a boarding party" was refused until a card
+    called `boarding_visit_end()` (`agent_c3d_report.md` defect 4).
+
+    The rule: opening a deck visit while a TILE visit is open with NOBODY on the ground
+    ends that visit first. With somebody still down there it is refused, as it was."""
+
+    def setUp(self):
+        super().setUp()
+        self.load()
+
+    def land(self):
+        """The `away` starter's card: `boarding_visit(..., area="landing")`."""
+        with contextlib.redirect_stdout(io.StringIO()):
+            invite = A.boarding_visit(self.ship, BG.boarding_ground_scenes(),
+                                      title="Kesh Relay", area="landing")
+        self.assertIsNotNone(invite)
+        return invite
+
+    def on_the_ground(self):
+        return [lf for lf in A.boarding_team() if T.tilemap_where(lf) is not None]
+
+    def test_with_nobody_down_the_landing_is_ended_and_the_party_goes_aboard(self):
+        self.land()
+        self.assertEqual(A.boarding_visiting().get("area"), "landing")
+        self.assertEqual(self.on_the_ground(), [])
+        invite = self.board()
+        self.assertIsNotNone(invite, "refused, with nobody on the ground")
+        self.assertEqual(A.boarding_visiting().get("area"), "deck")
+        self.assertEqual(D.boarding_deck_target(), self.prize)
+        # The landing was ENDED, and said so, once - before the deck visit opened.
+        ended = self.named("boarding_visit_ended")
+        self.assertEqual([d.get("BOARDING_TITLE") for d in ended], ["Kesh Relay"])
+
+    def test_somebody_who_went_down_and_came_home_counts_as_nobody_down(self):
+        self.land()
+        self.down(HELM)
+        self.assertEqual(len(self.on_the_ground()), 1)
+        self.assertTrue(G.boarding_go_up(HELM))
+        self.assertEqual(self.on_the_ground(), [])
+        self.assertIsNotNone(self.board())
+        self.assertEqual(A.boarding_visiting().get("area"), "deck")
+
+    def test_with_somebody_still_on_the_ground_it_is_refused_as_before(self):
+        self.land()
+        self.down(HELM)
+        self.assertIsNone(self.board())
+        self.assertEqual(A.boarding_visiting().get("area"), "landing", "the landing stands")
+        self.assertEqual(self.named("boarding_visit_ended"), [])
+        self.assertIsNone(D.boarding_deck_target())
+        self.assertFalse(D.boarding_deck_built())
+        self.assertFalse(has_role(self.prize, D.TARGET_ROLE))
+        self.assertIsNotNone(T.tilemap_where(A.boarding_me(HELM)), "nobody was moved")
+
+    def test_a_text_visit_is_not_ended_for_it(self):
+        """Rooms and choices: there is no ground to be off, so it is left alone."""
+        scenes = {"airlock": {"key": "airlock", "display_text": "Airlock", "data": {},
+                              "description": "% Cold.\n- [Go on](airlock)\n"}}
+        with contextlib.redirect_stdout(io.StringIO()):
+            self.assertIsNotNone(A.boarding_visit(self.ship, scenes, "airlock",
+                                                  title="The Hulk"))
+        self.assertIsNone(self.board())
+        self.assertEqual(A.boarding_visiting().get("title"), "The Hulk")
+        self.assertEqual(self.named("boarding_visit_ended"), [])
+
+    def test_the_missions_own_card_reopens_the_site_afterwards(self):
+        self.land()
+        self.board()
+        A.boarding_visit_end()                           # the party leaves the prize
+        self.assertIsNone(A.boarding_visiting())
+        self.land()                                      # `relay_reached` again
+        self.assertEqual(A.boarding_visiting().get("area"), "landing")
+
+
 if __name__ == "__main__":
     unittest.main()

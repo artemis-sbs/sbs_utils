@@ -288,7 +288,9 @@ QUEST = {
                   doc="Follow-up on COMPLETION - `reveal <quest>` to unlock another, "
                       "`signal <name>`, or `learn <fact>` (the crew now knows it: "
                       "`if learned <fact>` in a later hail). Those three verbs only; "
-                      "anything else is read as a reveal target."),
+                      "anything else is read as a reveal target. Several actions: a "
+                      "comma list (`reveal next, learn the ledger page`) or a `Then:` "
+                      "line each; all run, in order."),
     # The key this record used to have. Only a mission that SAVES reads it: on Continue
     # the saved state filed under the old key moves to this record.
     "was": field(text(hint="the old key"),

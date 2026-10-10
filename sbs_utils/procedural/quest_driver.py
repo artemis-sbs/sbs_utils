@@ -409,6 +409,35 @@ def quest_mark_active(agent_id, quest_id):
                                   "DATA": data})
 
 
+def _quest_then(agent_id, quest_id, verb, what):
+    """Do ONE `Then:` action of a finished quest. Nothing for an empty one."""
+    if not what:
+        return
+    if verb == "reveal":
+        quest_reveal(agent_id, what)
+    elif verb == "learn":
+        # `Then: learn <fact>`: finishing this is how the crew comes to know it. Filed
+        # under the CAMPAIGN, not a place - a quest is the story's, wherever its last
+        # step was done - so `if learned <fact>` answers in any hail and inside any site
+        # afterwards.
+        try:
+            from sbs_utils.procedural.boarding import boarding_learn
+            boarding_learn(what, place="")
+        except Exception as e:                           # noqa: BLE001
+            _quest_driver_log(f"quest {quest_id!r}: `Then: learn` failed: {e}")
+    elif verb == "signal":
+        # On-complete actions: emit an optional custom signal (e.g. to flip
+        # diplomacy).
+        signal_emit(what, {"AGENT_ID": agent_id, "QUEST_ID": quest_id})
+        # ...and again as a quest milestone, because `Then: signal X` emitting only the
+        # raw signal meant one quest's completion could not drive another quest's
+        # `Done when: signal X` - which is what the words plainly say it does.
+        # `quest_on_signal` compares against the normalized name, so both spellings go
+        # out: the raw one keeps `//signal/X` routes matching what the author wrote.
+        signal_emit("quest_signal", {"SIGNAL_NAME": amd_signal_name(what),
+                                     "AGENT_ID": agent_id, "QUEST_ID": quest_id})
+
+
 def quest_mark_complete(agent_id, quest_id):
     """Complete a quest (idempotent): set state, grant reward, announce.
 
@@ -427,29 +456,18 @@ def quest_mark_complete(agent_id, quest_id):
         return
     quest_set_key(agent_id, quest_id, "state", QuestState.COMPLETE)
     quest_grant_reward(agent_id, data.get("reward"))
-    quest_reveal(agent_id, data.get("reveal"))
-    # `Then: learn <fact>`: finishing this is how the crew comes to know it. Filed under
-    # the CAMPAIGN, not a place - a quest is the story's, wherever its last step was
-    # done - so `if learned <fact>` answers in any hail and inside any site afterwards.
-    if data.get("learn"):
-        try:
-            from sbs_utils.procedural.boarding import boarding_learn
-            boarding_learn(data.get("learn"), place="")
-        except Exception as e:                           # noqa: BLE001
-            _quest_driver_log(f"quest {quest_id!r}: `Then: learn` failed: {e}")
-    # On-complete actions: emit an optional custom signal (e.g. to flip
-    # diplomacy), and the generic SUCCESS announcement carrying the data so addons
-    # can react (the universe applies the declarative rep: block from it).
-    sig = data.get("signal")
-    if sig:
-        signal_emit(sig, {"AGENT_ID": agent_id, "QUEST_ID": quest_id})
-        # ...and again as a quest milestone, because `Then: signal X` emitting only the
-        # raw signal meant one quest's completion could not drive another quest's
-        # `Done when: signal X` - which is what the words plainly say it does.
-        # `quest_on_signal` compares against the normalized name, so both spellings go
-        # out: the raw one keeps `//signal/X` routes matching what the author wrote.
-        signal_emit("quest_signal", {"SIGNAL_NAME": amd_signal_name(sig),
-                                     "AGENT_ID": agent_id, "QUEST_ID": quest_id})
+    # `Then:`. One action is the three keys it always was, run in the order they always
+    # ran. Several - a comma list, or `Then:` on more than one line - are under `then`,
+    # in the order the writer wrote them, and every one of them runs.
+    several = data.get("then")
+    if isinstance(several, (list, tuple)) and several:
+        for action in several:
+            if isinstance(action, (list, tuple)) and len(action) == 2:
+                _quest_then(agent_id, quest_id, action[0], action[1])
+    else:
+        _quest_then(agent_id, quest_id, "reveal", data.get("reveal"))
+        _quest_then(agent_id, quest_id, "learn", data.get("learn"))
+        _quest_then(agent_id, quest_id, "signal", data.get("signal"))
     signal_emit("quest_succeeded", {"AGENT_ID": agent_id, "QUEST_ID": quest_id, "DATA": data})
     _quest_fire_overlays(agent_id, data, "complete_overlay", "on_complete")
     name = quest_get_display_name(agent_id, quest_id) or quest_id

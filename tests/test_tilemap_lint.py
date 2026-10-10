@@ -769,6 +769,27 @@ class TestSitesOfAUniverse(unittest.TestCase):
                          [("yard.amd", "site-no-area", 5)])
         self.assertIn("area: yard", found[0][1].message)
         self.assertIn("2 thing(s)", found[0][1].message)
+        # What the GAME does with it (measured: `agent_c5d_report.md` D1): a walked
+        # site's scenes are under `(scenes)`, so there is nothing to play as text.
+        self.assertIn("this site will not exist", found[0][1].message)
+        self.assertNotIn("played as a text site", found[0][1].message)
+
+    def test_SITE_NO_AREA_with_rooms_of_its_own_it_IS_played_as_text(self):
+        os.remove(os.path.join(self.root, "ground", "yard.tiles"))
+        with open(os.path.join(self.root, "yard.amd"), encoding="utf-8") as f:
+            text = f.read()
+        self.put("yard.amd", text + """
+## [Scenes](boarding)
+
+### [The Gate](yard_gate_room)
+% A gate.
+
+- [Go back]()
+""")
+        found = self.sites()
+        self.assertEqual([f.code for _p, f in found], ["site-no-area"])
+        self.assertIn("played as a text site", found[0][1].message)
+        self.assertNotIn("will not exist", found[0][1].message)
 
     def test_an_area_with_ANOTHER_key_does_not_count(self):
         self.put("ground/yard.tiles", AREA_YARD.replace("area: yard", "area: yrad"))

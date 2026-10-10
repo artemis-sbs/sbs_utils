@@ -36,7 +36,7 @@ it is — is in [The AMD file format](amd-format.md).
 | `Done when:` | The COMPLETION trigger - what has to happen for this quest to be done. | `Goal:` |
 | `Starts when:` | When it ARMS - `at once`, `accepted` (the player takes it off the board), `revealed` (another quest reveals it). Not what completes it; that is `Done when:`. | `When:` |
 | `Fails when:` | What FAILS it - the same trigger grammar, plus `all dead <role>` and a bare time. |  |
-| `Then:` | Follow-up on COMPLETION - `reveal <quest>` to unlock another, `signal <name>`, or `learn <fact>` (the crew now knows it: `if learned <fact>` in a later hail). Those three verbs only; anything else is read as a reveal target. |  |
+| `Then:` | Follow-up on COMPLETION - `reveal <quest>` to unlock another, `signal <name>`, or `learn <fact>` (the crew now knows it: `if learned <fact>` in a later hail). Those three verbs only; anything else is read as a reveal target. Several actions: a comma list (`reveal next, learn the ledger page`) or a `Then:` line each; all run, in order. |  |
 | `Was:` | The key this record USED to have. A saved game moves what the crew had done under the old key to this record, so a rename does not start the step again. A comma list when it was renamed twice. |  |
 | `Action:` | What the world does the moment this beat STARTS - one stage direction per line, all simultaneous. `Then:` is the other end. |  |
 | `Part of:` | The quest this one belongs under, by key. | `Parent:` |
@@ -239,8 +239,26 @@ fails in total silence.
     `Then: learn manifest` records the fact `manifest` when the step completes. It is
     filed under the CAMPAIGN, not a place, so `if learned manifest` then answers in any
     hail and on any door inside any site. A fact can be several words
-    (`Then: learn the ledger page`). `Then:` takes one line: `reveal`, `signal` or
-    `learn`.
+    (`Then: learn the ledger page`).
+
+!!! note "`Then:` can do several things"
+    Write them on one line with commas, or on a `Then:` line each. Both mean the same,
+    and every action runs, in the order written:
+
+    ```
+    Then: reveal next, learn the ledger page
+    ```
+
+    ```
+    Then: reveal next
+    Then: learn the ledger page
+    ```
+
+    A comma is the only separator, so a fact may have spaces and a reveal may be a path
+    (`reveal first_contact/study`). Each action is one of `reveal`, `signal` or `learn`,
+    and `sbs lint` judges each one by itself: a `reveal` that names no record is
+    `dangling-reveal`, a first word that is not one of the three is `unknown-then-verb`.
+    A line with one action reads exactly as it always did.
 
 !!! note "`Was: <old key>` - renaming a record in a mission that saves"
     A saved game files a step's progress under its key. `Was: find_book` on the record
