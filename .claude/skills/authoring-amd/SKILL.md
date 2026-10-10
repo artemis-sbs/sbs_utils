@@ -215,10 +215,18 @@ A scene is a record with `Speaker:` (or `@Cue` lines in the body), `When: comms|
   to resolve to no kind, so every dialogue check skipped it. Sections keyed `scenes`,
   `scene` or `boarding` hold dialogue.
 - **Outcome verbs are registered per mission.** Built in: `signal`. `quest_driver`
-  registers `accepts`, `completes`, `fails`; `boarding` registers `learn`; **`costs` and
-  `earns` exist only in OpenUniverse** (`universe_dialogue.py`). An unregistered verb is
+  registers `accepts`, `completes`, `fails`; `boarding` registers `learn`; `reputation`
+  registers `earns` (the library's since 2026-10-09); **`costs` exists only in
+  OpenUniverse** (`universe_dialogue.py`). An unregistered verb is
   skipped at runtime with no message - `sbs lint` reports it as `unknown-outcome-verb`.
   A handler returning `False` refuses the whole pick.
+- **Reputation needs no MAST** (2026-10-09): `Values:` on a side, `Side:` on a character,
+  `earns <side> <trait> <n>` in a `Reward:` or after a choice's `;`, and `standing` (or a
+  trait name) as a guard. `standing` is the acting SHIP's standing with the SPEAKER's
+  side; it is the base of the guard resolver chain, so it answers with no resolver
+  installed and a mission's own resolver still wins. A `Scope: shared` quest's `earns`
+  reaches every player ship flying. Lint: `earns-unknown-side`, `earns-unknown-trait`,
+  `earns-shape`. See `mkdocs/docs/build/sides-lifeforms.md`.
 - **`; signal name` carries NO payload.** `dialogue_apply` does a bare `signal_emit(name)`
   (plus `quest_signal` with `SIGNAL_NAME`, so `Done when: signal name` matches). A
   `//signal/name` route therefore has no `MESSAGE_*` / `HAIL_*` context - reading one is a
