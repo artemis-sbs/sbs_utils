@@ -549,6 +549,35 @@ def grid_get_layout(ship_key, layout=None):
     return entry.get("grid_objects")
 
 
+GRID_DATA_OPEN_KEY = "#open"
+
+
+def grid_get_open_cells(ship_key, layout=None):
+    """The size and hallway cells of a hull's floor plan AS ITS `.grid` TEXT DREW THEM:
+    ``{"w", "h", "hallways": [[x, y], ...]}``, or None for a hull whose plan did not come
+    from text (the engine's own ``grid_data.json`` holds rooms only).
+
+    The engine knows a hull's open cells from its hull map, and that is the better
+    answer when there is one. This is the answer when there is not. Layout names resolve
+    as in :func:`grid_get_layout`.
+    """
+    data = grid_get_grid_data()
+    entry = data.get(ship_key) if data else None
+    if not isinstance(entry, dict):
+        return None
+    layouts = entry.get("layouts")
+    if isinstance(layouts, dict):
+        chosen = layouts.get(layout or "default")
+        if chosen is None and layout:
+            chosen = layouts.get("default")
+        if isinstance(chosen, dict) and isinstance(chosen.get(GRID_DATA_OPEN_KEY), dict):
+            return chosen[GRID_DATA_OPEN_KEY]
+        if chosen is not None:
+            return None
+    found = entry.get(GRID_DATA_OPEN_KEY)
+    return found if isinstance(found, dict) else None
+
+
 def grid_hull_has_role(ship_or_key, role, layout=None):
     """Does this HULL's floor plan declare a node with this role? e.g. ``"jump"``.
 
@@ -1044,6 +1073,13 @@ def grid_merge_ascii(content, mod=None, ship_key=None):
                   f"merge it into.")
         return None
     key, layout, entry = parsed["ship"], parsed["layout"], parsed["entry"]
+    # THE HALLWAYS, which are not grid data (a hallway has no object) and which the text
+    # is the only record of: kept beside the layout for a reader that wants the whole
+    # deck - a boarding map of a ship the engine has built no hull map for
+    # (`grid_get_open_cells`). A `#` key, like `#mod`: nothing that builds an interior
+    # reads it.
+    entry[GRID_DATA_OPEN_KEY] = {"w": parsed["w"], "h": parsed["h"],
+                                 "hallways": [list(c) for c in parsed.get("hallways") or ()]}
 
     if layout == "default":
         existing = grid_data.get(key)

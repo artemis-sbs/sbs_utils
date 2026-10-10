@@ -204,6 +204,98 @@ class TestPlacements(TileLintBase):
         self.assertEqual(TL.tilemap_lint_placements(WORLD, {"areas": {}}), [])
 
 
+DECK_WORLD = """## [Props](props)
+
+### [Strongbox](strongbox)
+---
+Area: deck
+Mark: brig
+---
+
+### [Drone](drone)
+---
+Area: ridge
+Mark: landing
+---
+
+## [Hostiles](hostiles)
+
+### [Hold-out](holdout)
+---
+Area: deck
+Mark: quarters
+---
+"""
+
+
+class TestAboardADeck(TileLintBase):
+    """`Area: deck` is whatever ship is boarded: no area file, and a `Mark:` that is a
+    KIND of room. A typo there is the hallway at runtime, and one line nobody reads."""
+
+    def test_a_deck_is_not_an_unknown_area(self):
+        self.assertEqual(self.placements(DECK_WORLD), [])
+
+    def test_every_kind_of_room_and_the_two_other_words_are_known(self):
+        for word in ("brig", "cargo", "quarters", "bridge", "warp", "sickbay", "bay",
+                     "entry", "hallway", "Brig", "cabin", "surgery"):
+            text = DECK_WORLD.replace("Mark: brig", "Mark: " + word)
+            self.assertEqual(self.placements(text), [], word)
+
+    def test_A_TYPO_IN_THE_KIND_IS_FLAGGED_WITH_THE_WORD_IT_MEANT(self):
+        found = self.placements(DECK_WORLD.replace("Mark: brig", "Mark: brgi"))
+        self.assertEqual(codes(found), ["tiles-deck-unknown-kind"])
+        self.assertEqual((found[0].line, found[0].col), (6, 6))
+        self.assertIn("did you mean 'brig'", found[0].message)
+        self.assertIn("strongbox", found[0].message)
+
+    def test_a_mark_from_some_area_file_is_not_a_kind_of_room(self):
+        found = self.placements(DECK_WORLD.replace("Mark: brig", "Mark: landing"))
+        self.assertEqual(codes(found), ["tiles-deck-unknown-kind"])
+
+    def test_a_room_named_outright_is_let_through(self):
+        text = DECK_WORLD.replace("Mark: brig", "Mark: room:captains-cabin")
+        self.assertEqual(self.placements(text), [])
+
+    def test_a_cell_means_nothing_on_a_deck_nobody_has_seen(self):
+        found = self.placements(DECK_WORLD.replace("Mark: brig", "At: 4, 4"))
+        self.assertEqual(codes(found), ["tiles-deck-cell"])
+        found = self.placements(DECK_WORLD.replace("Mark: quarters",
+                                                   "Mark: quarters\nPatrol: 1 1; 2 2"))
+        self.assertEqual(codes(found), ["tiles-deck-cell"])
+
+    def test_no_mark_is_the_hallway_and_it_says_so(self):
+        found = self.placements(DECK_WORLD.replace("Mark: brig\n", ""))
+        self.assertEqual(codes(found), ["tiles-deck-no-mark"])
+
+    def test_A_MISSION_WITH_NO_TILE_FILES_AT_ALL_IS_STILL_CHECKED(self):
+        """A boarding mission has no ground of its own, and so no areas."""
+        text = DECK_WORLD.replace("Mark: brig", "Mark: brgi")
+        found = TL.tilemap_lint_placements(text, {"areas": {}})
+        # The deck's typo, and nothing about `ridge` - with no areas there is nothing to
+        # check that one against, exactly as before.
+        self.assertEqual(codes(found), ["tiles-deck-unknown-kind"])
+
+    def test_a_missions_own_area_called_deck_is_an_area(self):
+        """Then `Mark:` is a mark in that file, and the old checks are the ones run."""
+        world = self.world(ridge=RIDGE.replace("area: ridge", "area: deck"))
+        found = TL.tilemap_lint_placements(DECK_WORLD, world)
+        self.assertEqual(codes(found), ["tiles-unknown-area", "tiles-unknown-mark",
+                                        "tiles-unknown-mark"])
+
+    def test_a_whole_mission_on_disk_with_no_tiles(self):
+        root = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, root)
+        text = DECK_WORLD.replace("Mark: brig", "Mark: brgi").replace(
+            "Area: ridge", "Area: deck").replace("Mark: landing", "Mark: cargo")
+        with open(os.path.join(root, "mission.amd"), "w", encoding="utf-8") as fh:
+            fh.write(text)
+        with open(os.path.join(root, "other.amd"), "w", encoding="utf-8") as fh:
+            fh.write(WORLD)                              # nothing aboard a deck: silent
+        found = TL.tilemap_lint_mission(root)
+        self.assertEqual([(rel, f.code) for rel, f in found],
+                         [("mission.amd", "tiles-deck-unknown-kind")])
+
+
 class TestAMission(unittest.TestCase):
     def test_files_on_disk(self):
         root = tempfile.mkdtemp()

@@ -27,6 +27,21 @@ same plan always gives the same map.
 
 ``boarding_deck_text`` gives the same map as a `.tiles` file, for an author who would
 rather start from the generated deck than from nothing.
+
+BOARDING A SHIP is one call, ``boarding_deck_visit(ship, target, scenes)``: the target's
+deck is built under the area key ``deck``, the things a writer put aboard are stood in
+rooms of the right kind, the ship's own crew is the crowd, and a party is opened onto
+it. A writer says where a thing goes without knowing the hull::
+
+    ### [Strongbox](strongbox)
+    ---
+    Area: deck             # whatever ship we board
+    Mark: brig             # a KIND of room: brig, cargo, quarters, bridge... or
+                           # `entry` / `hallway`
+    ---
+
+A hull with no such room stands it in the hallway and says so, once. One deck at a
+time: the next ship boarded is built in its place.
 """
 from collections import deque
 
@@ -118,8 +133,37 @@ _CHARS = {HULL: "H", WALL: "#", DOOR: "+", HALL: ",", "floor_grate": "=",
           "floor_panel": "_", "floor_lit": "~", "floor_tiles": "t", "floor_hazard": "z",
           "floor_plain": ".", "floor_metal": "-"}
 
+#: The area key a writer's `Area: deck` means: the deck of whatever ship is boarded.
+DECK_AREA = "deck"
+#: The art set that draws a generated deck.
+DECK_ART = "station"
+#: The role a ship wears while a party is aboard it.
+TARGET_ROLE = "boarding_target"
+
 _OVERRIDES = {}      # kit name -> fields a mission changed
 _DECKS = {}          # area key -> what was built (see boarding_deck_build)
+_BOARDED = {}        # the visit aboard a ship: {"area", "target", "ship", "task"} or empty
+_SAID = set()        # things already said this mission
+
+
+def _deck_say(message, once=None):
+    """Tell the author - in the engine's debug.log and on the console - without failing
+    a headless run: a hull with no brig is not a mistake in anybody's files."""
+    if once is not None:
+        if once in _SAID:
+            return
+        _SAID.add(once)
+    try:
+        from .execution import log
+        log(message, "boarding", "warning")
+    except Exception:                                    # noqa: BLE001
+        pass
+    try:
+        from ..mast.mast import DEBUG
+        DEBUG("[boarding_deck] " + message)
+    except Exception:                                    # noqa: BLE001
+        pass
+    print("boarding_deck: " + message)
 
 
 # --- plans ----------------------------------------------------------------------------
@@ -138,7 +182,16 @@ def boarding_deck_plan_ascii(text, ship_key=None):
 def boarding_deck_plan(ship, layout=None):
     """A plan for a ship: its interior layout (grid data), with the open cells of its
     hull map as hallway. ``ship`` is a live ship, or a shipData key - which has no hull
-    map, so only its rooms are open. None when the hull has no interior."""
+    map. None when the hull has no interior.
+
+    WHERE THE HALLWAYS COME FROM is ``plan["source"]``, because only the engine can say
+    whether a ship nobody flies has a hull map at all:
+
+    - ``hull map``: the engine's own open cells for this ship;
+    - ``grid text``: no hull map, so the hallways its `.grid` file drew
+      (``grid_get_open_cells``);
+    - ``rooms only``: neither - the rooms, joined by gangways.
+    """
     from .grid import grid_get_layout
     from .query import to_id, to_object
     hm = None
@@ -165,13 +218,28 @@ def boarding_deck_plan(ship, layout=None):
             cells[(int(o["x"]), int(o["y"]))] = str(o["name"])
     w = max((x for x, _ in cells), default=0) + 1
     h = max((y for _, y in cells), default=0) + 1
-    if hm is not None and getattr(hm, "w", 0) and getattr(hm, "h", 0):
+    source = "rooms only"
+    opened = set()
+    try:
+        if hm is not None and getattr(hm, "w", 0) and getattr(hm, "h", 0):
+            opened = {(x, y) for x in range(hm.w) for y in range(hm.h)
+                      if hm.is_grid_point_open(x, y)}
+    except Exception:                                        # noqa: BLE001
+        opened = set()
+    if opened:
+        # A hull map that calls nothing open is no hull map.
+        source = "hull map"
         w, h = max(w, hm.w), max(h, hm.h)
-        for x in range(hm.w):
-            for y in range(hm.h):
-                if hm.is_grid_point_open(x, y) and (x, y) not in cells:
-                    cells[(x, y)] = ""
-    return {"ship": key, "w": w, "h": h, "cells": cells}
+    else:
+        from .grid import grid_get_open_cells
+        text = grid_get_open_cells(key, layout)
+        if text is not None:
+            source = "grid text"
+            w, h = max(w, int(text.get("w") or 0)), max(h, int(text.get("h") or 0))
+            opened = {(int(c[0]), int(c[1])) for c in text.get("hallways") or ()}
+    for c in opened:
+        cells.setdefault(c, "")
+    return {"ship": key, "w": w, "h": h, "cells": cells, "source": source}
 
 
 # --- kits -----------------------------------------------------------------------------
@@ -314,7 +382,9 @@ def boarding_deck_layout(plan, scale=SCALE):
     - ``entry``: the arrival tiles; ``furniture``: ``[(sprite, x, y, system_cell)]``,
       ``system_cell`` being the plan cell a system's kit stands for (None for plain
       furniture);
-    - ``cell_tiles``: ``{plan cell: its floor tiles}``.
+    - ``cell_tiles``: ``{plan cell: its floor tiles}``;
+    - ``kinds``: ``{kind: set(tiles)}``, the floor of each KIND of room that nothing
+      stands on (``hallway`` included); ``floor``: every tile that can be walked.
     """
     s = max(3, int(scale))
     cells = dict(plan["cells"])
@@ -494,10 +564,20 @@ def boarding_deck_layout(plan, scale=SCALE):
     # A doorway in a wall that runs east-west faces the viewer; one in a north-south
     # wall is seen side-on. The door that stands in it is drawn to match.
     sides = {d: ("front" if d[1] % s == 0 else "side") for d in doors}
+    # What is left to stand something on, by KIND of room (`brig`, `cargo`, `hallway`):
+    # the floor nothing was put on. Room NAMES differ hull to hull - a pirate has a
+    # plunder-hold where a liner has cargo-bay-2 - and the kind is the word both answer
+    # to (``boarding_deck_settle``). The arrival tiles count: on a fighter the way in IS
+    # the only cabin. Whoever stands something keeps off the tile the party lands on.
+    free = {}
+    for t, rid in tile_region.items():
+        if t not in blocked:
+            free.setdefault(kinds[rid], set()).add(t)
     return {"w": TW, "h": TH, "tiles": tiles, "rooms": rooms, "doors": doors,
             "door_sides": sides,
             "entry": entry, "furniture": furniture, "cell_tiles": cell_tiles,
-            "scale": s, "ship": plan.get("ship")}
+            "scale": s, "ship": plan.get("ship"),
+            "kinds": free, "floor": (set(tile_region) - blocked) | set(doors)}
 
 
 def _entry(cells, region, names, kinds, cell_tiles, W, H):
@@ -572,7 +652,11 @@ def boarding_deck_build(plan, key, title=None, scale=SCALE, tileset="deck",
     or None when the plan has no open cell.
 
     Room marks are ``room:<name>`` (``room:hallway`` for hallways), plus ``entry`` and
-    ``door``. The prop keys are ``<area>_kit_<n>``.
+    ``door`` - and a mark per KIND of room (``brig``, ``cargo``, ``hallway``) holding
+    the floor of that kind nothing stands on. The prop keys are ``<area>_kit_<n>``.
+
+    Built under ``DECK_AREA`` it is the deck `Area: deck` records are waiting for, and
+    they are stood aboard (``boarding_deck_settle``).
     """
     from .tilemap import tilemap_load, tilemap_mark, tilemap_tileset_known
     if not plan or not plan.get("cells"):
@@ -585,13 +669,19 @@ def boarding_deck_build(plan, key, title=None, scale=SCALE, tileset="deck",
         return None
     for mark, tiles in layout["rooms"].items():
         tilemap_mark(area, mark, tiles)
+    # After the rooms, so a cell still answers `tilemap_mark_at` with its room.
+    for kind, tiles in sorted(layout["kinds"].items()):
+        tilemap_mark(area, kind, tiles)
     props = []
+    # `generated`: built for this visit, under keys that mean something else on the next
+    # hull - so a saved game never hears of them (`boarding_props._props_snapshot`).
     if furnish:
         from .boarding_props import boarding_prop_add, boarding_props_place
         for n, (sprite, x, y, cell) in enumerate(layout["furniture"]):
             pkey = f"{area}_kit_{n}"
             boarding_prop_add(pkey, area, (x, y), sprite=sprite, blocks=True,
-                              name=sprite.split(":", 1)[-1].replace("_", " "))
+                              name=sprite.split(":", 1)[-1].replace("_", " "),
+                              generated=True)
             props.append((pkey, cell))
     doors = {}
     if furnish:
@@ -599,13 +689,25 @@ def boarding_deck_build(plan, key, title=None, scale=SCALE, tileset="deck",
             side = layout["door_sides"].get(d, "front")
             dkey = f"{area}_door_{n}"
             boarding_prop_add(dkey, area, d, sprite=DOOR_SPRITES[side][0], blocks=False,
-                              name="door")
+                              name="door", generated=True)
             doors[d] = (dkey, side)
-        boarding_props_place(area)
     _DECKS[area] = {"ship": layout.get("ship"), "scale": layout["scale"],
                     "cell_tiles": layout["cell_tiles"],
                     "systems": {cell: pkey for pkey, cell in props if cell is not None},
-                    "doors": doors, "open": set(), "flicker": {}, "beat": 0}
+                    "doors": doors, "open": set(), "flicker": {}, "beat": 0,
+                    "kinds": {k: set(v) for k, v in layout["kinds"].items()},
+                    "floor": set(layout["floor"]), "entry": list(layout["entry"]),
+                    "source": plan.get("source"), "settled": {}, "fallbacks": {}}
+    if area == DECK_AREA:
+        # BEFORE anything is placed: a record's `Mark: brig` is also the name of a mark
+        # now, and placing it by that name would stand every one of them on its first
+        # cell.
+        boarding_deck_settle(area, place=False)
+    if furnish:
+        boarding_props_place(area)
+    if area == DECK_AREA:
+        from .boarding_combat import boarding_hostiles_place
+        boarding_hostiles_place(area)
     return area
 
 
@@ -749,7 +851,7 @@ def boarding_deck_sync(area, ship):
                 key = f"{area}_rubble_{cell[0]}_{cell[1]}"
                 # Rubble is walked over: a repair party must still get to the kit.
                 boarding_prop_add(key, area, free[0], sprite="prop:debris_pile",
-                                  blocks=False, name="rubble")
+                                  blocks=False, name="rubble", generated=True)
                 boarding_props_place(area)
                 rubble[cell] = key
                 changed += 1
@@ -758,7 +860,7 @@ def boarding_deck_sync(area, ship):
                 frames = SPARKS if kit else FIRE
                 key = f"{area}_{'sparks' if kit else 'fire'}_{cell[0]}_{cell[1]}"
                 boarding_prop_add(key, area, free[1], sprite=frames[0], blocks=False,
-                                  name="sparks" if kit else "fire")
+                                  name="sparks" if kit else "fire", generated=True)
                 boarding_props_place(area)
                 sparks[cell] = key
                 rec["flicker"][key] = frames
@@ -891,6 +993,460 @@ def boarding_deck_for(ship, title=None, watch=True, tileset="deck"):
     return key
 
 
+# --- a writer's things aboard: `Area: deck`, `Mark: <a kind of room>` ---------------------
+#
+# A prop's `Mark:` names a mark in an area FILE, and takes the first cell of it. Neither
+# works aboard a ship nobody drew: the room names are the hull's own (a pirate has a
+# plunder-hold where a liner has cargo-bay-2), and the first cell of a room is usually
+# under a bunk. So aboard `Area: deck` a `Mark:` is a KIND of room - the generator's own
+# word for what a room is - and each record gets a cell of its own that nothing stands on.
+
+def boarding_deck_built(area=DECK_AREA):
+    """True while a generated deck stands under this key."""
+    return str(area).strip().lower() in _DECKS
+
+
+def boarding_deck_mark_words():
+    """The words `Mark:` takes on `Area: deck`, sorted: every kind of room the generator
+    knows (and the words that mean one - ``cabin``, ``surgery``), ``entry`` and
+    ``hallway``. What the linter checks a `Mark:` against."""
+    return sorted(set(_KITS) | set(_OVERRIDES) | set(_ALIASES) | {"entry", "hallway"})
+
+
+def _reach(floor, blocked, start):
+    """The tiles of ``floor`` that can be walked to from ``start`` round ``blocked``."""
+    if start is None or start in blocked or start not in floor:
+        return set()
+    seen = {start}
+    q = deque([start])
+    while q:
+        for n in _neighbours(q.popleft()):
+            if n in floor and n not in blocked and n not in seen:
+                seen.add(n)
+                q.append(n)
+    return seen
+
+
+def boarding_deck_settle(area=DECK_AREA, place=True):
+    """Stand a writer's records aboard a generated deck: every prop, person and hostile
+    whose `Area:` is this deck gets a cell in a room of the KIND its `Mark:` names.
+
+    - a cell nothing stands on, and each record a cell of its own: two things marked
+      ``brig`` are two cells of the brig;
+    - something that blocks (`Blocks: yes`, anybody `Calm: yes`) is never stood where
+      it would cut the deck in two - a one-cell room with a way through it cannot take
+      one, and that is the hallway too - and nothing is stood beside a doorway while
+      there is anywhere else;
+    - ``entry`` is beside where the party arrives; ``hallway`` is any hallway;
+    - a hull with NO such room stands it in the hallway, and says so in ONE line for
+      that kind (``debug.log``, and the console) - not an error: the same mission
+      boards a cruiser that has a brig and a scout that has not.
+
+    `At: x, y` is left as written (a cell means nothing on a deck nobody has seen, and
+    the linter says so). What was taken, opened or put down stays so.
+
+    Safe to call again: a record already standing is left where it is, and only what
+    has been declared since is settled. ``boarding_deck_build`` calls it for
+    ``DECK_AREA``, and ``boarding_ground_load`` does when a deck is already up.
+
+    Returns:
+        dict: ``{key: (x, y)}`` for the records this call settled.
+    """
+    from . import boarding_props, boarding_combat
+    from .tilemap import tilemap_mark_cells
+    area = str(area).strip().lower()
+    rec = _DECKS.get(area)
+    if rec is None:
+        return {}
+    settled = rec["settled"]
+    floor = rec["floor"]
+    entry = sorted(rec.get("entry") or (), key=lambda t: (t[1], t[0]))
+    start = min(entry) if entry else None            # where `tilemap_entry` stands them
+    doors = set(rec.get("doors") or ())
+    near_door = doors | {n for d in doors for n in _neighbours(d)}
+    free_all = set().union(*rec["kinds"].values()) if rec["kinds"] else set()
+    taken = {v["cell"] for v in settled.values() if v.get("cell")}
+    blockers = {v["cell"] for v in settled.values() if v.get("cell") and v.get("blocks")}
+    base = [None]
+
+    def fits(cell, blocks):
+        if cell in taken or cell not in floor or cell == start:
+            return False
+        if not blocks or start is None:
+            return True
+        if base[0] is None:
+            base[0] = _reach(floor, blockers, start)
+        after = _reach(floor, blockers | {cell}, start)
+        return len(after) == len(base[0]) - (1 if cell in base[0] else 0)
+
+    def crowded(c):
+        return any((c[0] + dx, c[1] + dy) in taken
+                   for dx in (-1, 0, 1) for dy in (-1, 0, 1) if dx or dy)
+
+    arrival = set(entry)
+
+    def pick(cells, blocks, landing=False):
+        # Clear of where the party lands and of the doorways while there is anywhere
+        # else, and not shoulder to shoulder with the last thing stood.
+        for c in sorted(cells, key=lambda c: ((c in arrival) != landing, c in near_door,
+                                              crowded(c), c[1], c[0])):
+            if fits(c, blocks):
+                return c
+        return None
+
+    def pool(word):
+        """The free cells one `Mark:` word means on this hull; empty when it has none."""
+        if word == "entry":
+            return arrival
+        for kind in (word, _ALIASES.get(word, word)):
+            if rec["kinds"].get(kind):
+                return rec["kinds"][kind]
+        # A mark the deck really has - `room:captains-cabin` on a brigantine. Not a kind,
+        # so not every hull will have it; on the hull that does, it is honored.
+        for mark in (word, "room:" + word):
+            cells = set(tilemap_mark_cells(area, mark)) & free_all
+            if cells:
+                return cells
+        return set()
+
+    waiting = []
+    for table, blocks_of in ((boarding_props._PROPS, lambda r: bool(r.get("blocks"))),
+                             # Somebody calm stands where they are put, all visit.
+                             # Somebody who fights comes to the party.
+                             (boarding_combat._HOSTILES, lambda r: bool(r.get("calm")))):
+        for key in sorted(table):
+            r = table[key]
+            if r.get("area") != area or key in settled or r.get("generated") \
+                    or r.get("dropped") or r.get("id") is not None:
+                continue
+            if r.get("taken") or r.get("state") == "down":
+                continue                             # gone, and it stays gone
+            waiting.append((key, r, blocks_of(r)))
+
+    out = {}
+    fell = {}
+    for key, r, blocks in waiting:
+        at = r.get("at")
+        if at is not None and not isinstance(at, str):
+            settled[key] = {"cell": None, "blocks": blocks, "was": at}   # `At: x, y`
+            continue
+        word = str(at or "").strip().lower()
+        cell = pick(pool(word), blocks, landing=(word == "entry")) if word else None
+        if cell is None:
+            for cells in (rec["kinds"].get("hallway") or (), free_all):
+                cell = pick(cells, blocks)
+                if cell is not None:
+                    break
+            fell.setdefault(word, []).append(r.get("name") or key)
+        if cell is None:
+            _deck_say("'%s' (%s) could not be stood anywhere aboard '%s': there is no "
+                      "floor left." % (r.get("name") or key, key, rec.get("ship")))
+            continue
+        settled[key] = {"cell": cell, "blocks": blocks, "was": at}
+        r["deck_mark"] = at
+        r["at"] = cell
+        taken.add(cell)
+        if blocks:
+            blockers.add(cell)
+            base[0] = None
+        out[key] = cell
+
+    for word, names in sorted(fell.items()):
+        if word in rec["fallbacks"]:
+            continue                                 # ONE line for a kind, per hull
+        rec["fallbacks"][word] = list(names)
+        aboard = ", ".join(sorted(k for k, v in rec["kinds"].items() if v)) or "none"
+        if not word:
+            why = "%s has no `Mark:`" % ", ".join("'%s'" % n for n in names)
+        elif word in boarding_deck_mark_words():
+            why = "the deck of '%s' has no free '%s' for %s" % (
+                rec.get("ship"), word, ", ".join("'%s'" % n for n in names))
+        else:
+            why = "'%s' is not a kind of room (`Mark:` of %s)" % (
+                word, ", ".join("'%s'" % n for n in names))
+        _deck_say("%s, so the hallway it is. On `Area: deck` a `Mark:` is a kind of room; "
+                  "this hull has: %s." % (why, aboard))
+    if place:
+        boarding_props.boarding_props_place(area)
+        boarding_combat.boarding_hostiles_place(area)
+    return out
+
+
+def boarding_deck_release(area=DECK_AREA):
+    """Take a generated deck down: its furniture, doors and crew are forgotten, anything
+    dropped on it with them, and the area is unloaded. A writer's own `Area: deck`
+    records are taken off the map and KEPT - `Mark: brig` again, waiting for the next
+    ship - with whatever was opened, taken or put down still so.
+
+    Returns:
+        bool: True when there was a deck to take down.
+    """
+    from . import boarding_props, boarding_combat
+    from .tilemap import tilemap_unload
+    area = str(area).strip().lower()
+    rec = _DECKS.pop(area, None)
+    if rec is None:
+        return False
+    for name in ("watch", "animate"):
+        _stop(rec.get(name))
+    settled = rec.get("settled") or {}
+    for table, remove, forget in (
+            (boarding_props._PROPS, boarding_props.boarding_prop_remove,
+             boarding_props.boarding_prop_forget),
+            (boarding_combat._HOSTILES, boarding_combat.boarding_hostile_remove,
+             boarding_combat.boarding_hostile_forget)):
+        for key in list(table):
+            r = table[key]
+            if r.get("area") != area:
+                continue
+            if r.get("generated") or r.get("dropped"):
+                forget(key)
+                continue
+            remove(key)
+            if key in settled and "deck_mark" in r:
+                r["at"] = r.pop("deck_mark")
+    tilemap_unload(area)
+    return True
+
+
+# --- boarding a ship ----------------------------------------------------------------------
+
+def boarding_deck_has_plan(ship):
+    """True when this ship's hull has an interior plan to draw a deck from. Cheap - one
+    lookup - so a comms route can ask it of whatever is selected."""
+    from .query import to_id, to_object
+    try:
+        from .grid import grid_get_layout
+        key, layout = ship, None
+        if not isinstance(ship, str):
+            so = to_object(to_id(ship))
+            if so is None:
+                return False
+            from .inventory import get_inventory_value
+            key, layout = so.art_id, get_inventory_value(so.id, "grid_layout", None)
+        return bool(grid_get_layout(key, layout))
+    except Exception:                                        # noqa: BLE001
+        return False
+
+
+def boarding_deck_art_ready():
+    """True when the art a deck is drawn with (the ``station`` set) is installed - in
+    the mission, or in a media pack pinned in its story.json."""
+    try:
+        from .tilemap_art import tilemap_art_find
+        return tilemap_art_find(DECK_ART) is not None
+    except Exception:                                        # noqa: BLE001
+        return False
+
+
+def boarding_deck_ready(ship):
+    """Can a party be sent aboard this ship and SEE it: the hull has a plan, and the
+    deck art is installed. What the "Send a boarding party" button asks."""
+    return boarding_deck_has_plan(ship) and boarding_deck_art_ready()
+
+
+def boarding_deck_target():
+    """The ship a party is aboard (its id), or None."""
+    return _BOARDED.get("target")
+
+
+def boarding_deck_boarders():
+    """The ship the party aboard came from (its id), or None."""
+    return _BOARDED.get("ship")
+
+
+def boarding_deck_source(area=DECK_AREA):
+    """Where a built deck's hallways came from: ``hull map`` (the engine's own open
+    cells), ``grid text`` (the hull's `.grid` file - the engine gave this ship no hull
+    map) or ``rooms only``. None when no deck stands under that key. The same word the
+    "was planned from" line in debug.log ends with."""
+    rec = _DECKS.get(str(area).strip().lower())
+    return rec.get("source") if rec else None
+
+
+def _deck_art(tileset):
+    """Dress the deck's tileset from the ``station`` set. Never loads a set twice: a set
+    loaded again goes back on top of the sets loaded after it."""
+    import json
+    import os
+    from .tilemap_art import (tilemap_art_find, tilemap_art_loaded, tilemap_art_use,
+                              tilemap_art_ground)
+    try:
+        folder = tilemap_art_find(DECK_ART)
+    except Exception:                                        # noqa: BLE001
+        folder = None
+    if folder is None:
+        _deck_say("the tile art '%s' is not installed, so the deck is drawn without it - "
+                  "walls and floors with no picture on them, which on the crew console "
+                  "is a black map. It comes from the Cosmos-Tiles `station` pack: pin it "
+                  "under `shared_media` in story.json and fetch it. Walking, scenes and "
+                  "quests do not need it." % DECK_ART, once="no-art")
+        return False
+    if DECK_ART not in tilemap_art_loaded():
+        return bool(tilemap_art_use(DECK_ART, tileset=tileset))
+    try:
+        from ..fs import get_mission_dir_filename
+        with open(os.path.join(get_mission_dir_filename(folder), "manifest.json"),
+                  encoding="utf-8") as f:
+            ground = (json.load(f) or {}).get("ground") or {}
+    except Exception as e:                                   # noqa: BLE001
+        _deck_say("the tile art '%s': cannot read its manifest: %s" % (DECK_ART, e),
+                  once="art-manifest")
+        return False
+    tilemap_art_ground(tileset, ground)
+    return True
+
+
+def boarding_deck_visit(ship, target, scenes=None, title=None, stories=None):
+    """Send a boarding party from ``ship`` aboard ``target``, on a deck drawn from the
+    target's own interior plan. One call::
+
+        boarding_deck_visit(COMMS_ORIGIN_ID, COMMS_SELECTED_ID, boarding_ground_scenes())
+
+    What it does, in order: the target's plan becomes the tile area ``deck``
+    (``DECK_AREA``), dressed from the ``station`` art; every `Area: deck` record is stood
+    in a room of its kind (``boarding_deck_settle``); the target's own crew comes aboard
+    as its race (``boarding_deck_crew`` - calm unless the two ships are at war); the
+    target wears the role ``boarding_target`` and is held where it is; and a tile-map
+    visit is opened (``boarding_visit``), kept under the ship's name.
+
+    It ends as any tile visit does - ``boarding_visit_end()``, or the game ending - and
+    also when the target is gone. However it ends, the deck is taken down
+    (``boarding_deck_release``) and the role comes off.
+
+    ONE DECK AT A TIME. A deck left from the last ship is taken down first.
+
+    Args:
+        ship: the ship the party leaves from.
+        target: the ship being boarded.
+        scenes: what a prop's `Scene:` and a person's `Talk scene:` name -
+            ``boarding_ground_scenes()``.
+        title (str, optional): the name of the place; the target's name by default.
+        stories (optional): as ``boarding_visit`` - quests for one person each.
+
+    Returns:
+        dict: the invitation - or None, with nothing built and nothing opened, when the
+        target is gone or its hull has no plan, or a party is already out.
+    """
+    from ..tickdispatcher import TickDispatcher
+    from .boarding import (boarding_visit, boarding_visiting, boarding_invitation,
+                           boarding_is_open)
+    from .query import to_id, to_object
+    from .roles import add_role, remove_role
+    from .signal import signal_observe
+    from .tilemap import tilemap_area
+    sid, tid = to_id(ship), to_id(target)
+    so = to_object(tid)
+    if so is None or to_object(sid) is None:
+        return None
+    # `boarding_visit`'s own rule, asked BEFORE a deck is built for a party that cannot go.
+    if boarding_visiting() is not None or boarding_invitation() is not None \
+            or boarding_is_open():
+        return None
+    if tilemap_area(DECK_AREA) is not None and DECK_AREA not in _DECKS:
+        _deck_say("this mission has a tile area of its own called '%s', and that key is "
+                  "the deck of whatever ship is boarded. Nothing was opened: give the "
+                  "area another key." % DECK_AREA, once="own-deck")
+        return None
+    plan = boarding_deck_plan(tid)
+    if plan is None:
+        _deck_say("'%s' (%s) has no interior plan, so there is no deck to board."
+                  % (getattr(so, "name", tid), getattr(so, "art_id", "?")))
+        return None
+    _boarded_over()                                  # the last ship's, if any was left
+    boarding_deck_release(DECK_AREA)
+    boarding_deck_tileset(DECK_AREA)
+    _deck_art(DECK_AREA)
+    name = str(getattr(so, "name", None) or plan["ship"])
+    if boarding_deck_build(plan, DECK_AREA, title=title or name) is None:
+        return None
+    rec = _DECKS[DECK_AREA]
+    # WHICH PLAN, every time: only the engine can say whether a ship nobody flies has a
+    # hull map, and this is the line that says which way it went.
+    _deck_say("the deck of '%s' (%s, %d x %d cells, %d open) was planned from: %s."
+              % (name, plan["ship"], plan["w"], plan["h"], len(plan["cells"]),
+                 plan.get("source")))
+    boarding_deck_crew(DECK_AREA, ship=tid, boarders=sid)
+    add_role(tid, TARGET_ROLE)
+    invite = boarding_visit(sid, scenes or {}, None, title=title or name, area=DECK_AREA,
+                            place=name, stories=stories)
+    if invite is None:
+        remove_role(tid, TARGET_ROLE)
+        boarding_deck_release(DECK_AREA)
+        return None
+    _BOARDED.update({"area": DECK_AREA, "target": tid, "ship": sid, "name": name,
+                     "source": rec.get("source")})
+    signal_observe(_boarded_on_signal)
+    _BOARDED["task"] = TickDispatcher.do_interval(_boarded_tick, 1.0)
+    _hold(tid)
+    return invite
+
+
+def _hold(target):
+    """Keep a boarded ship where it is: no course, no target, no throttle. Asked again
+    every second, because whatever flies it may ask otherwise."""
+    try:
+        from .space_objects import clear_target
+        clear_target(target)
+    except Exception:                                        # noqa: BLE001
+        pass
+
+
+def _boarded_over():
+    """The party is off the ship: the role comes off, the deck comes down. Idempotent."""
+    from .signal import signal_unobserve
+    if not _BOARDED:
+        return False
+    was = dict(_BOARDED)
+    _BOARDED.clear()
+    _stop(was.get("task"))
+    signal_unobserve(_boarded_on_signal)
+    try:
+        from .query import to_object
+        from .roles import remove_role
+        if to_object(was.get("target")) is not None:
+            remove_role(was.get("target"), TARGET_ROLE)
+    except Exception:                                        # noqa: BLE001
+        pass
+    boarding_deck_release(was.get("area") or DECK_AREA)
+    return True
+
+
+def _boarded_on_signal(name, data):
+    """The visit ended - a choice, the mission, the game - so the deck comes down. Here
+    and not on the next tick: the results screen pauses the sim, and a paused sim ticks
+    nothing."""
+    if name == "boarding_visit_ended" and _BOARDED:
+        _boarded_over()
+
+
+def _boarded_tick(t=None):
+    """One look at the boarded ship. NEVER RAISES - a raising interval pauses the sim."""
+    try:
+        if not _BOARDED:
+            _stop(t)
+            return
+        from .boarding import boarding_visiting, boarding_visit_end
+        from .query import to_object, object_exists
+        visit = boarding_visiting()
+        if visit is None or visit.get("area") != _BOARDED.get("area"):
+            _boarded_over()                          # ended some way that sent no signal
+            return
+        target = _BOARDED.get("target")
+        if to_object(target) is None or not object_exists(target):
+            # The ship is gone - destroyed, deleted - and there is nothing to stand on.
+            boarding_visit_end()
+            _boarded_over()
+            return
+        _hold(target)
+    except Exception as e:                                   # noqa: BLE001
+        try:
+            from .execution import log
+            log("boarding_deck: the watcher stopped: %s" % (e,), "boarding", "warning")
+        finally:
+            _boarded_over()
+
+
 #: What a boarded ship's crew is, by stance: its guards fight, its hands keep out of it.
 _CREW_ROLES = {
     "guard": {"hp": 3, "damage": 1, "notice": 5, "calm": False},
@@ -924,7 +1480,7 @@ def boarding_deck_crew(area, ship=None, boarders=None, hostile=None, count=None,
     import random
     import zlib
     from .boarding_combat import boarding_hostiles_declare, boarding_hostiles_place
-    from .tilemap import tilemap_is_open, tilemap_mark_cells
+    from .tilemap import tilemap_is_open, tilemap_mark_cells, tilemap_actors_at
     area = str(area).strip().lower()
     rec = _DECKS.get(area)
     if rec is None:
@@ -945,7 +1501,10 @@ def boarding_deck_crew(area, ship=None, boarders=None, hostile=None, count=None,
     taken = set(tilemap_mark_cells(area, "entry")) | set(tilemap_mark_cells(area, "door"))
 
     def free(tiles):
-        out = [t for t in sorted(tiles) if t not in taken and tilemap_is_open(area, *t)]
+        # Open, and with nothing lying on it either: a keycard a writer put in the brig
+        # does not block, and nobody should be standing on it.
+        out = [t for t in sorted(tiles) if t not in taken and tilemap_is_open(area, *t)
+               and not tilemap_actors_at(area, *t)]
         rng.shuffle(out)
         return out
     halls = free(tilemap_mark_cells(area, "room:hallway"))
@@ -974,7 +1533,10 @@ def boarding_deck_crew(area, ship=None, boarders=None, hostile=None, count=None,
         children.append({"key": f"{area}_crew_{i}",
                          "display_text": f"{title} {'guard' if role == 'guard' else 'crew'}",
                          "description": "", "data": data})
-    keys = boarding_hostiles_declare({"children": children})
+    # GENERATED: the crowd of one hull, never a writer's people - a saved game does not
+    # keep who among them is down (`boarding_combat._hostiles_snapshot`), and the deck
+    # forgets them when the party leaves (`boarding_deck_release`).
+    keys = boarding_hostiles_declare({"children": children}, generated=True)
     boarding_hostiles_place(area)
     return keys
 
@@ -989,19 +1551,28 @@ def _marks_of(area):
     return tilemap_marks(area)
 
 
+def _stop(task):
+    if task is not None:
+        try:
+            task.stop()
+        except Exception:                                    # noqa: BLE001
+            pass                # already dropped by a reset or the end of the mission
+
+
 def boarding_deck_clear():
+    """The per-mission reset. Emits nothing and moves nobody."""
+    from .signal import signal_unobserve
     for rec in _DECKS.values():
         for name in ("watch", "animate"):
-            task = rec.get(name)
-            if task is not None:
-                try:
-                    task.stop()
-                except Exception:                            # noqa: BLE001
-                    pass
+            _stop(rec.get(name))
+    _stop(_BOARDED.get("task"))
+    signal_unobserve(_boarded_on_signal)
+    _BOARDED.clear()
+    _SAID.clear()
     _DECKS.clear()
     _OVERRIDES.clear()
 
 
 def boarding_deck_count():
     """For the reset ledger."""
-    return len(_DECKS) + len(_OVERRIDES)
+    return len(_DECKS) + len(_OVERRIDES) + len(_BOARDED) + len(_SAID)

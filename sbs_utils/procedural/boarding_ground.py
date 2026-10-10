@@ -121,6 +121,19 @@ def _sections(docs, keys):
     return out
 
 
+def _deck_only(docs):
+    """True when everything the documents put on the ground is aboard `Area: deck` - a
+    boarding mission with no ground of its own, which needs no .tiles file."""
+    from .boarding_deckplan import DECK_AREA
+    areas = set()
+    for section in _sections(docs, PROP_SECTIONS + PEOPLE_SECTIONS):
+        for n in section.get("children", []) or []:
+            area = str((n.get("data") or {}).get("area") or "").strip().lower()
+            if area:
+                areas.add(area)
+    return bool(areas) and areas <= {DECK_AREA}
+
+
 def _only_new(section, known):
     """The section's records nothing has declared yet, as a section."""
     fresh = [n for n in section.get("children", []) or []
@@ -240,7 +253,7 @@ def boarding_ground_load(doc=None, folder=None):
                  % (rec["key"], os.path.basename(path), rec["tileset"]), loud=True)
         if tilemap_load(text):
             result["areas"] += 1
-    if docs and not area_files:
+    if docs and not area_files and not _deck_only(docs):
         _say("no .tiles file was found in the mission folder, so there is no ground to "
              "stand on. An area is a text file - see `ground/landing.tiles` in the "
              "`away` template.", once="no-areas", loud=True)
@@ -271,6 +284,12 @@ def boarding_ground_load(doc=None, folder=None):
             _only_new(section, boarding_combat.boarding_hostile)))
     if docs:
         result["skills"] = sum(boarding_skills_from_amd(one) for one in docs)
+    # A boarded ship's deck that is ALREADY built: what was just declared for it gets a
+    # room of its kind before it is placed. No deck (every mission until somebody
+    # boards), no call.
+    from .boarding_deckplan import DECK_AREA, boarding_deck_built, boarding_deck_settle
+    if boarding_deck_built(DECK_AREA):
+        boarding_deck_settle(DECK_AREA, place=False)
     boarding_props.boarding_props_place()
     boarding_combat.boarding_hostiles_place()
 
@@ -293,12 +312,17 @@ def boarding_ground_unplaced():
     Not the ones that are meant to be absent: hidden until a signal, picked up, down.
     """
     from . import boarding_props, boarding_combat
+    from .boarding_deckplan import DECK_AREA
+    from .tilemap import tilemap_area
+    # `Area: deck` is whatever ship the crew boards, and until they board one there is
+    # no such place: those records are waiting, not lost.
+    waiting = DECK_AREA if tilemap_area(DECK_AREA) is None else None
     out = []
     for key, rec in boarding_props._PROPS.items():
-        if rec["id"] is None and rec["shown"] and not rec["taken"]:
+        if rec["id"] is None and rec["shown"] and not rec["taken"]                 and rec["area"] != waiting:
             out.append(key)
     for key, rec in boarding_combat._HOSTILES.items():
-        if rec["id"] is None and rec["shown"] and rec["state"] != "down":
+        if rec["id"] is None and rec["shown"] and rec["state"] != "down"                 and rec["area"] != waiting:
             out.append(key)
     return sorted(out)
 

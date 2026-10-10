@@ -700,6 +700,8 @@ def _saved_touch():
 def _saved_apply(rec):
     """Make one declared prop agree with the saved game. Silent, and only ever opens or
     takes: a save cannot shut a door the crew has opened since."""
+    if rec.get("generated"):
+        return                      # made by code for one visit: a save never names it
     key = rec.get("key")
     if key in _SAVED["taken"]:
         rec["taken"] = True
@@ -715,6 +717,11 @@ def _props_snapshot():
     opened = set(_SAVED["opened"])
     taken = set(_SAVED["taken"])
     for key, rec in _PROPS.items():
+        # GENERATED props are not a writer's: a boarded ship's furniture and doors
+        # (`boarding_deckplan`) are built for one visit under keys that mean a different
+        # thing on the next hull, so nothing about them is worth keeping.
+        if rec.get("generated"):
+            continue
         if rec.get("opens") and rec.get("open"):
             opened.add(key)
         if rec.get("taken"):

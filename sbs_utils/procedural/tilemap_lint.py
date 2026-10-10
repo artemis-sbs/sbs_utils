@@ -29,6 +29,12 @@ _MAX_BAD_CELLS = 20
 #: AMD archetypes that stand on a tile area.
 _PLACED = ("prop", "hostile")
 
+#: `Area: deck` is no area file: it is the deck of whatever ship the crew boards, built
+#: when they board it (``boarding_deckplan``). A mission may still own an area called
+#: `deck`, and then it is that.
+_DECK = "deck"
+_DECK_LINE = re.compile(r"^[ \t]*area[ \t]*:[ \t]*deck[ \t\r]*$", re.I | re.M)
+
 
 def _lines(text):
     return (text or "").replace("\r\n", "\n").replace("\r", "\n").split("\n")
@@ -355,7 +361,8 @@ def tilemap_lint_placements(content, world, doc=None):
         doc: an already parsed ``amd_core`` document of ``content``, to save a parse.
     """
     areas = (world or {}).get("areas") or {}
-    if not areas:
+    # No areas, no findings - but for what is aboard `Area: deck`, which needs none.
+    if not areas and not _DECK_LINE.search(content or ""):
         return []
     if doc is None:
         from .amd_core import parse
@@ -368,6 +375,11 @@ def tilemap_lint_placements(content, world, doc=None):
         if "area" not in f:
             continue
         n, col, area = f["area"]
+        if _norm(area) == _DECK and _DECK not in areas:
+            findings += _deck_findings(node, f)
+            continue
+        if not areas:
+            continue
         rec = areas.get(_norm(area))
         if rec is None:
             findings.append(_at(n, WARNING, "tiles-unknown-area",
@@ -413,6 +425,55 @@ def tilemap_lint_placements(content, world, doc=None):
     return findings
 
 
+def _deck_findings(node, f):
+    """A record aboard `Area: deck`. Nobody has seen the deck - it is drawn from the hull
+    of whatever is boarded - so a place on it is a KIND of room, never a cell."""
+    from .boarding_deckplan import boarding_deck_mark_words
+    words = boarding_deck_mark_words()
+    out = []
+    if "mark" in f:
+        n, col, mark = f["mark"]
+        word = _norm(mark)
+        # `room:captains-cabin` names one hull's own room outright; it cannot be checked
+        # here, and on a hull without it the thing stands in the hallway.
+        if word not in words and not word.startswith("room:"):
+            import difflib
+            near = difflib.get_close_matches(word, words, n=1)
+            hint = f" - did you mean {near[0]!r}?" if near else "."
+            out.append(_at(n, WARNING, "tiles-deck-unknown-kind",
+                           f"{node.key}: {mark!r} is not a kind of room{hint} On `Area: "
+                           f"deck` a Mark: is a kind of room ({', '.join(_deck_kinds())}), "
+                           f"`entry` or `hallway`; anything else stands in the hallway",
+                           col=col, end_col=col + len(mark)))
+    elif "at" in f:
+        n, col, at = f["at"]
+        out.append(_at(n, WARNING, "tiles-deck-cell",
+                       f"{node.key}: At: is a cell, and the deck of a ship that has not "
+                       f"been boarded yet has none to count. On `Area: deck` use Mark: "
+                       f"with a kind of room (brig, cargo, quarters...)",
+                       col=col, end_col=col + len(at)))
+    else:
+        n, col, area = f["area"]
+        out.append(_at(n, WARNING, "tiles-deck-no-mark",
+                       f"{node.key}: no Mark:, so it stands in the hallway. On `Area: "
+                       f"deck` a Mark: is a kind of room (brig, cargo, quarters...), "
+                       f"`entry` or `hallway`", col=col, end_col=col + len(area)))
+    if "patrol" in f:
+        n, col, patrol = f["patrol"]
+        out.append(_at(n, WARNING, "tiles-deck-cell",
+                       f"{node.key}: Patrol: is a list of cells, and the deck of a ship "
+                       f"that has not been boarded yet has none to count",
+                       col=col, end_col=col + len(patrol)))
+    return out
+
+
+def _deck_kinds():
+    """The kinds of room, for a message: the generator's own, without the words that
+    merely mean one."""
+    from . import boarding_deckplan as D
+    return sorted(k for k in D._KITS if k != "room")
+
+
 def _cell_findings(node, rec, world, cell, n, col, end_col, what):
     x, y = cell
     if not (0 <= x < rec["w"] and 0 <= y < rec["h"]):
@@ -448,8 +509,9 @@ def tilemap_lint_mission(root):
     tiles = sorted(glob.glob(os.path.join(root, "**", "*.tiles"), recursive=True))
     for path in tiles:
         out += [(rel(path), f) for f in tilemap_lint_area(amd_read_text(path), world)]
-    if world["areas"]:
-        for path in sorted(glob.glob(os.path.join(root, "**", "*.amd"), recursive=True)):
-            out += [(rel(path), f)
-                    for f in tilemap_lint_placements(amd_read_text(path), world)]
+    # Every .amd, areas or none: `Area: deck` needs no area file, and a file with nothing
+    # aboard a deck costs one search when the mission has no areas either.
+    for path in sorted(glob.glob(os.path.join(root, "**", "*.amd"), recursive=True)):
+        out += [(rel(path), f)
+                for f in tilemap_lint_placements(amd_read_text(path), world)]
     return out

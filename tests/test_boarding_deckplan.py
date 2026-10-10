@@ -477,5 +477,628 @@ class TestAMockShip(unittest.TestCase):
         self.assertEqual(len(P.boarding_props(deck)), props)
 
 
+# ==========================================================================================
+# `Area: deck` and `Mark: <a kind of room>`: a writer's things aboard a ship nobody drew.
+# ==========================================================================================
+
+# A brig, two cabins, a hold and a hallway - and no lab.
+DECK_PLAN = """ship: pirate_test
+size: 8x6
+legend:
+  r: brig
+  b: crew-berths / room,cabin,quarters
+  c: captains-cabin / room,cabin,vip
+  p: plunder-hold / room,bay,cargo
+  i: impulse
+---
+ rr..bb
+ rr..bb
+ ....cc
+ pp..cc
+ pp..ii
+ pp..ii
+"""
+
+DECK_WORLD = """# [Mission](mission)
+
+## [Props](props)
+
+### [Strongbox](strongbox)
+---
+Area: deck
+Mark: brig
+Sprite: prop:crate
+Scene: box
+Blocks: yes
+---
+Bolted to the deck.
+
+### [Ledger](ledger)
+---
+Area: deck
+Mark: brig
+Sprite: prop:keycard
+Item: ledger
+---
+A ledger.
+
+### [Sample case](sample_case)
+---
+Area: deck
+Mark: lab
+Item: samples
+---
+A case.
+
+### [Retort](retort)
+---
+Area: deck
+Mark: lab
+Item: retort
+---
+Glass.
+
+### [Sea chest](chest)
+---
+Area: deck
+Mark: room:captains-cabin
+Blocks: yes
+Scene: box
+---
+A chest.
+
+### [Boarding ladder](ladder)
+---
+Area: deck
+Mark: entry
+---
+A ladder.
+
+### [Lamp](lamp)
+---
+Area: landing
+Mark: lamp
+---
+A lamp ashore.
+
+## [People](people)
+
+### [The cook](cook)
+---
+Area: deck
+Mark: cargo
+Calm: yes
+Talk scene: box
+---
+Sitting on a cask.
+
+## [Hostiles](hostiles)
+
+### [Hold-out](holdout)
+---
+Area: deck
+Mark: quarters
+HP: 2
+Drops: cutlass
+---
+Will not strike his colors.
+
+### [Second hold-out](holdout_2)
+---
+Area: deck
+Mark: quarters
+HP: 1
+---
+Nor will he.
+
+## [Scenes](scenes)
+
+### [The box](box)
+% It is a box.
+
+- [Leave it]()
+"""
+
+
+def _deck_doc():
+    from sbs_utils.procedural.amd_doc import amd_document
+    from sbs_utils.procedural.amd_mission import amd_mission_data
+    return amd_document(DECK_WORLD, data_parser=amd_mission_data)
+
+
+def _lib_grid_files():
+    """LegendaryMissions' floor plans, beside this repo. Empty when it is not there."""
+    import glob
+    import os
+    here = os.path.dirname(os.path.abspath(__file__))
+    return sorted(glob.glob(os.path.join(here, "..", "..", "LegendaryMissions", "races",
+                                         "*.grid")))
+
+
+class _DeckBase(unittest.TestCase):
+    def setUp(self):
+        from sbs_utils.procedural import boarding_combat as K
+        from sbs_utils.procedural.amd_doc import amd_section
+        mock_sbs.create_new_sim()
+        FrameContext.context = Context(mock_sbs.sim, mock_sbs, FakeEvent())
+        self.addCleanup(setattr, FrameContext, "context", None)
+        for clear in (T.tilemap_clear, T.tilemap_clear_tilesets, P.boarding_props_clear,
+                      D.boarding_deck_clear, K.boarding_combat_clear):
+            clear()
+            self.addCleanup(clear)
+        self.K = K
+        self.doc = _deck_doc()
+        P.boarding_props_declare(amd_section(self.doc, "props"))
+        K.boarding_hostiles_declare(amd_section(self.doc, "people"))
+        K.boarding_hostiles_declare(amd_section(self.doc, "hostiles"))
+        P.boarding_props_place()
+        K.boarding_hostiles_place()
+
+    def build(self, plan=DECK_PLAN):
+        import contextlib
+        import io
+        self.out = io.StringIO()
+        with contextlib.redirect_stdout(self.out):
+            area = D.boarding_deck_build(D.boarding_deck_plan_ascii(plan), D.DECK_AREA,
+                                         title="Prize")
+        return area
+
+    def said(self, text):
+        return [line for line in self.out.getvalue().splitlines() if text in line]
+
+    def at(self, key):
+        rec = P.boarding_prop(key) or self.K.boarding_hostile(key)
+        where = T.tilemap_where(rec["id"]) if rec and rec["id"] is not None else None
+        return (where[1], where[2]) if where else None
+
+
+class TestKindMarks(_DeckBase):
+    """A built deck has a mark per KIND of room, holding floor nothing stands on."""
+
+    def test_every_kind_aboard_is_a_mark_of_free_floor(self):
+        area = self.build()
+        for kind in ("brig", "quarters", "cargo", "impulse", "hallway"):
+            cells = T.tilemap_mark_cells(area, kind)
+            self.assertTrue(cells, kind)
+        kit = {(T.tilemap_where(P.boarding_prop(k)["id"])[1:])
+               for k in P.boarding_props(area) if "_kit_" in k}
+        for kind in ("brig", "quarters", "cargo", "impulse"):
+            self.assertFalse(set(T.tilemap_mark_cells(area, kind)) & kit, kind)
+
+    def test_two_rooms_of_one_kind_are_one_mark(self):
+        area = self.build()
+        berths = set(T.tilemap_mark_cells(area, "room:crew-berths"))
+        cabin = set(T.tilemap_mark_cells(area, "room:captains-cabin"))
+        quarters = set(T.tilemap_mark_cells(area, "quarters"))
+        self.assertTrue(quarters & berths)
+        self.assertTrue(quarters & cabin)
+        self.assertLessEqual(quarters, berths | cabin)
+
+    def test_the_room_marks_are_as_they_were(self):
+        """Additive: a cell still answers with its room, and the entry with `entry`."""
+        area = self.build()
+        cell = T.tilemap_mark_cells(area, "brig")[0]
+        self.assertEqual(T.tilemap_mark_at(area, *cell), "room:brig")
+        self.assertEqual(T.tilemap_mark_at(area, *T.tilemap_entry(area)), "entry")
+
+    def test_a_kind_the_hull_lacks_is_no_mark(self):
+        area = self.build()
+        self.assertEqual(T.tilemap_mark_cells(area, "lab"), [])
+
+    def test_the_words_a_mark_takes(self):
+        words = D.boarding_deck_mark_words()
+        for word in ("brig", "cargo", "quarters", "bridge", "warp", "entry", "hallway"):
+            self.assertIn(word, words)
+        self.assertNotIn("brgi", words)
+
+
+class TestSettle(_DeckBase):
+    """`Area: deck` records get a room of their kind when a deck is built."""
+
+    def test_nothing_is_anywhere_until_a_ship_is_boarded(self):
+        for key in ("strongbox", "ledger", "cook", "holdout"):
+            self.assertIsNone(self.at(key), key)
+
+    def test_each_stands_in_a_room_of_its_kind(self):
+        area = self.build()
+        self.assertIn(self.at("strongbox"), T.tilemap_mark_cells(area, "room:brig"))
+        self.assertIn(self.at("ledger"), T.tilemap_mark_cells(area, "room:brig"))
+        self.assertIn(self.at("cook"), T.tilemap_mark_cells(area, "room:plunder-hold"))
+        for key in ("holdout", "holdout_2"):
+            self.assertIn(self.at(key), T.tilemap_mark_cells(area, "quarters"), key)
+
+    def test_two_of_one_kind_get_two_cells(self):
+        self.build()
+        self.assertNotEqual(self.at("strongbox"), self.at("ledger"))
+        self.assertNotEqual(self.at("holdout"), self.at("holdout_2"))
+
+    def test_NOTHING_IS_STOOD_ON_THE_FURNITURE(self):
+        area = self.build()
+        kit = {T.tilemap_where(P.boarding_prop(k)["id"])[1:]
+               for k in P.boarding_props(area) if P.boarding_prop(k).get("generated")
+               and P.boarding_prop(k)["blocks"]}
+        for key in ("strongbox", "ledger", "chest", "cook", "holdout", "holdout_2"):
+            self.assertNotIn(self.at(key), kit, key)
+
+    def test_a_room_named_outright_is_honored_on_the_hull_that_has_it(self):
+        area = self.build()
+        self.assertIn(self.at("chest"), T.tilemap_mark_cells(area, "room:captains-cabin"))
+        self.assertEqual(self.said("chest"), [])
+
+    def test_entry_is_beside_where_the_party_arrives_and_never_on_it(self):
+        area = self.build()
+        self.assertIn(self.at("ladder"), T.tilemap_mark_cells(area, "entry"))
+        self.assertNotEqual(self.at("ladder"), T.tilemap_entry(area))
+
+    def test_A_MISSING_KIND_IS_THE_HALLWAY_AND_ONE_LINE(self):
+        """No lab aboard: both lab things stand in the hallway, and it is said ONCE."""
+        area = self.build()
+        halls = T.tilemap_mark_cells(area, "room:hallway")
+        self.assertIn(self.at("sample_case"), halls)
+        self.assertIn(self.at("retort"), halls)
+        self.assertNotEqual(self.at("sample_case"), self.at("retort"))
+        lines = self.said("no free 'lab'")
+        self.assertEqual(len(lines), 1, self.out.getvalue())
+        self.assertIn("Sample case", lines[0])
+        self.assertIn("Retort", lines[0])
+        self.assertIn("brig", lines[0])                      # what this hull does have
+
+    def test_the_fallback_does_not_fail_a_headless_run(self):
+        """It is not a mistake in anybody's files, so `mast.runtime` hears nothing."""
+        import logging
+        heard = []
+
+        class Catch(logging.Handler):
+            def emit(self, record):
+                heard.append(record.getMessage())
+        handler = Catch()
+        logger = logging.getLogger("mast.runtime")
+        logger.addHandler(handler)
+        self.addCleanup(logger.removeHandler, handler)
+        self.build()
+        self.assertEqual(heard, [])
+
+    def test_the_deck_is_still_one_walk(self):
+        """Nothing that blocks was stood where it cuts a room off."""
+        area = self.build()
+        rec = D._DECKS[area]
+        blocked = {c for c in rec["floor"] if not T.tilemap_is_open(area, *c)}
+        start = T.tilemap_entry(area)
+        self.assertEqual(D._reach(rec["floor"], blocked, start), rec["floor"] - blocked)
+
+    def test_an_area_of_the_missions_own_is_untouched(self):
+        self.build()
+        self.assertEqual(P.boarding_prop("lamp")["at"], "lamp")
+        self.assertNotIn("deck_mark", P.boarding_prop("lamp"))
+
+    def test_settling_again_moves_nobody(self):
+        area = self.build()
+        before = {k: self.at(k) for k in ("strongbox", "ledger", "cook", "holdout")}
+        self.assertEqual(D.boarding_deck_settle(area), {})
+        self.assertEqual({k: self.at(k) for k in before}, before)
+
+    def test_what_is_declared_after_the_deck_is_up_is_settled_too(self):
+        area = self.build()
+        P.boarding_props_declare({"children": [{
+            "key": "late", "display_text": "Late", "description": "x",
+            "data": {"area": "deck", "mark": "brig", "blocks": "yes"}}]})
+        got = D.boarding_deck_settle(area)
+        self.assertEqual(list(got), ["late"])
+        self.assertIn(self.at("late"), T.tilemap_mark_cells(area, "room:brig"))
+        self.assertNotIn(self.at("late"), (self.at("strongbox"), self.at("ledger")))
+
+    def test_any_other_generated_deck_settles_nothing(self):
+        """`deck_<ship id>` (boarding_deck_for) is not `Area: deck`."""
+        import contextlib
+        import io
+        with contextlib.redirect_stdout(io.StringIO()):
+            D.boarding_deck_build(D.boarding_deck_plan_ascii(DECK_PLAN), "deck_77")
+        self.assertIsNone(self.at("strongbox"))
+        self.assertEqual(D._DECKS["deck_77"]["settled"], {})
+
+    def test_the_ships_own_crew_stands_on_nothing_a_writer_put_down(self):
+        area = self.build()
+        mine = {self.at(k) for k in ("strongbox", "ledger", "sample_case", "retort",
+                                     "chest", "ladder", "cook", "holdout", "holdout_2")}
+        keys = D.boarding_deck_crew(area, hostile=False, count=12)
+        self.assertTrue(keys)
+        for k in keys:
+            self.assertNotIn(self.at(k), mine, k)
+
+
+class TestRelease(_DeckBase):
+    """The party leaves: the deck goes, a writer's records wait for the next ship."""
+
+    def test_the_deck_and_everything_generated_is_gone(self):
+        area = self.build()
+        crew = D.boarding_deck_crew(area, hostile=False, count=3)
+        self.assertTrue(D.boarding_deck_release(area))
+        self.assertIsNone(T.tilemap_area(area))
+        self.assertFalse(D.boarding_deck_built(area))
+        self.assertEqual([k for k in P._PROPS if P._PROPS[k].get("generated")], [])
+        for key in crew:
+            self.assertIsNone(self.K.boarding_hostile(key))
+        self.assertFalse(D.boarding_deck_release(area))          # nothing left to take down
+
+    def test_a_writers_records_are_kept_and_wait_again(self):
+        area = self.build()
+        D.boarding_deck_release(area)
+        for key, word in (("strongbox", "brig"), ("ledger", "brig"), ("sample_case", "lab")):
+            rec = P.boarding_prop(key)
+            self.assertIsNotNone(rec, key)
+            self.assertIsNone(rec["id"])
+            self.assertEqual(rec["at"], word)
+        self.assertEqual(self.K.boarding_hostile("holdout")["at"], "quarters")
+        self.assertIsNone(self.K.boarding_hostile("holdout")["id"])
+
+    def test_the_next_ship_is_settled_afresh(self):
+        self.build()
+        D.boarding_deck_release(D.DECK_AREA)
+        # A hull with a lab and no brig.
+        area = self.build("ship: other\nsize: 6x3\nlegend:\n  l: lab / room,lab\n"
+                          "  q: crew-quarters\n"
+                          "---\nll..qq\nll..qq\n......\n")
+        self.assertIn(self.at("sample_case"), T.tilemap_mark_cells(area, "room:lab"))
+        self.assertIn(self.at("strongbox"), T.tilemap_mark_cells(area, "room:hallway"))
+        self.assertEqual(len(self.said("no free 'brig'")), 1)
+
+    def test_what_was_taken_or_put_down_stays_so(self):
+        area = self.build()
+        P.boarding_prop("ledger")["taken"] = True
+        P.boarding_prop_remove("ledger")
+        self.K._hostile_hit(self.K.boarding_hostile("holdout"), "full")
+        D.boarding_deck_release(area)
+        self.build()
+        self.assertIsNone(self.at("ledger"))
+        self.assertIsNone(self.at("holdout"))
+        self.assertIsNotNone(self.at("holdout_2"))
+
+    def test_what_a_holdout_dropped_does_not_follow_to_the_next_ship(self):
+        area = self.build()
+        self.K._hostile_hit(self.K.boarding_hostile("holdout"), "full")
+        self.assertIsNotNone(P.boarding_prop("drop_holdout_0"))
+        D.boarding_deck_release(area)
+        self.assertIsNone(P.boarding_prop("drop_holdout_0"))
+
+
+class TestGeneratedStaysOutOfSaves(_DeckBase):
+    """A boarded ship's furniture, doors and crew are nobody's to save."""
+
+    def snapshot(self):
+        import json
+        return json.dumps({"props": P._props_snapshot(),
+                           "hostiles": self.K._hostiles_snapshot()}, sort_keys=True)
+
+    def test_a_deck_and_its_crowd_add_nothing(self):
+        before = self.snapshot()
+        area = self.build()
+        crew = D.boarding_deck_crew(area, hostile=True, count=6)
+        self.assertEqual(self.snapshot(), before)
+        for key in crew:                                         # every one of them shot
+            self.K._hostile_hit(self.K.boarding_hostile(key), "full")
+        self.assertEqual(self.snapshot(), before)
+        self.assertEqual(self.snapshot(), '{"hostiles": {}, "props": {}}')
+
+    def test_a_writers_holdout_and_strongbox_are_still_kept(self):
+        area = self.build()
+        D.boarding_deck_crew(area, hostile=False, count=3)
+        self.K._hostile_hit(self.K.boarding_hostile("holdout"), "full")
+        P.boarding_prop("ledger")["taken"] = True
+        self.assertEqual(self.K._hostiles_snapshot(), {"down": ["holdout"]})
+        self.assertEqual(P._props_snapshot(), {"taken": ["ledger"]})
+
+    def test_a_save_that_names_a_generated_key_does_not_fell_the_next_crowd(self):
+        """An older save, or a hand-edited one: `deck_crew_0` down means nothing here."""
+        self.K._hostiles_restore({"down": ["deck_crew_0", "holdout"]})
+        area = self.build()
+        keys = D.boarding_deck_crew(area, hostile=False, count=3)
+        self.assertIn("deck_crew_0", keys)
+        self.assertIsNotNone(self.at("deck_crew_0"))
+        self.assertIsNone(self.at("holdout"))                    # a writer's: honored
+
+
+class TestPlanSource(unittest.TestCase):
+    """Where a live ship's hallways come from - and saying which."""
+
+    GRID = ("ship: tsn_light_cruiser\nsize: 5x3\nlegend:\n  i: impulse\n  c: cargo\n"
+            "---\ni...c\n.....\nc...i\n")
+
+    def setUp(self):
+        from tests.reset_helper import reset_mock
+        from sbs_utils.procedural.internal_damage import grid_interior_reset
+        from sbs_utils.procedural.grid import grid_merge_ascii
+        from sbs_utils.procedural.query import to_id
+        from sbs_utils.procedural.spawn import npc_spawn
+        reset_mock(mock_sbs)
+        grid_interior_reset()
+        for clear in (T.tilemap_clear, T.tilemap_clear_tilesets, P.boarding_props_clear,
+                      D.boarding_deck_clear):
+            clear()
+            self.addCleanup(clear)
+        grid_merge_ascii(self.GRID, "test")
+        self.ship = to_id(npc_spawn(0, 0, 0, "Prize", "raider", "tsn_light_cruiser",
+                                    "behav_npcship"))
+
+    def no_hull_map(self, value=None):
+        real = mock_sbs.get_hull_map
+        mock_sbs.get_hull_map = lambda *a, **k: value
+        self.addCleanup(setattr, mock_sbs, "get_hull_map", real)
+
+    def test_the_text_keeps_its_hallways(self):
+        from sbs_utils.procedural.grid import grid_get_open_cells
+        got = grid_get_open_cells("tsn_light_cruiser")
+        self.assertEqual((got["w"], got["h"]), (5, 3))
+        self.assertIn([1, 0], got["hallways"])
+        self.assertEqual(len(got["hallways"]), 11)
+        self.assertIsNone(grid_get_open_cells("no_such_hull"))
+
+    def test_a_hull_map_is_used_when_the_engine_has_one(self):
+        plan = D.boarding_deck_plan(self.ship)
+        self.assertEqual(plan["source"], "hull map")
+
+    def test_NO_HULL_MAP_IS_PLANNED_FROM_THE_GRID_TEXT(self):
+        self.no_hull_map(None)
+        plan = D.boarding_deck_plan(self.ship)
+        self.assertEqual(plan["source"], "grid text")
+        self.assertEqual(plan["cells"][(1, 0)], "")
+        self.assertEqual(plan["cells"][(0, 0)], "impulse")
+        self.assertEqual(len(plan["cells"]), 15)
+        self.assertEqual((plan["w"], plan["h"]), (5, 3))
+
+    def test_a_hull_map_with_nothing_open_is_no_hull_map(self):
+        class Shut:
+            w, h = 5, 3
+
+            def is_grid_point_open(self, x, y):
+                return False
+        self.no_hull_map(Shut())
+        self.assertEqual(D.boarding_deck_plan(self.ship)["source"], "grid text")
+
+    def test_neither_is_the_rooms_alone(self):
+        """The engine's own grid data: rooms, and no text to say where the halls ran."""
+        from sbs_utils.procedural.grid import grid_get_grid_data, GRID_DATA_OPEN_KEY
+        grid_get_grid_data()["tsn_light_cruiser"].pop(GRID_DATA_OPEN_KEY)
+        self.no_hull_map(None)
+        plan = D.boarding_deck_plan(self.ship)
+        self.assertEqual(plan["source"], "rooms only")
+        self.assertEqual(len(plan["cells"]), 4)
+        # ...and it still builds one walk, by gangway.
+        layout = D.boarding_deck_layout(plan)
+        tiles = walkable(layout)
+        self.assertEqual(reach(tiles, layout["entry"][0]), tiles)
+
+    def test_a_hull_key_has_no_hull_map_and_reads_the_text(self):
+        self.assertEqual(D.boarding_deck_plan("tsn_light_cruiser")["source"], "grid text")
+
+
+@unittest.skipUnless(_lib_grid_files(), "LegendaryMissions is not beside this repo")
+class TestEveryShippedPlan(unittest.TestCase):
+    """Every floor plan LegendaryMissions ships, built as `Area: deck` and settled."""
+
+    def setUp(self):
+        from sbs_utils.procedural import boarding_combat as K
+        mock_sbs.create_new_sim()
+        FrameContext.context = Context(mock_sbs.sim, mock_sbs, FakeEvent())
+        self.addCleanup(setattr, FrameContext, "context", None)
+        self.K = K
+        self.clears = (T.tilemap_clear, T.tilemap_clear_tilesets, P.boarding_props_clear,
+                       D.boarding_deck_clear, K.boarding_combat_clear)
+        for clear in self.clears:
+            clear()
+            self.addCleanup(clear)
+
+    def build(self, path):
+        for clear in self.clears:
+            clear()
+        with open(path, encoding="utf-8") as f:
+            plan = D.boarding_deck_plan_ascii(f.read())
+        area = D.boarding_deck_build(plan, D.DECK_AREA)
+        present = {D.boarding_deck_room_kind(name) for name in plan["cells"].values()}
+        return plan, area, sorted(present)
+
+    def stand(self, area, records, place=False):
+        """Declare props, settle them, and hand back ``({key: cell}, what was said)``."""
+        import contextlib
+        import io
+        P.boarding_props_declare({"children": [
+            {"key": key, "display_text": key, "description": "x",
+             "data": {"area": "deck", "mark": mark, "blocks": "yes" if blocks else "no"}}
+            for key, mark, blocks in records]})
+        out = io.StringIO()
+        with contextlib.redirect_stdout(out):
+            got = D.boarding_deck_settle(area, place=place)
+        return got, out.getvalue()
+
+    def lift(self, area, keys):
+        for key in keys:
+            P.boarding_prop_forget(key)
+            D._DECKS[area]["settled"].pop(key, None)
+        D._DECKS[area]["fallbacks"].clear()
+
+    def test_every_kind_aboard_has_a_free_cell_and_two_of_a_kind_get_two(self):
+        files = _lib_grid_files()
+        self.assertGreater(len(files), 60)
+        for path in files:
+            name = path.replace("\\", "/").rsplit("/", 1)[-1]
+            with self.subTest(plan=name):
+                plan, area, present = self.build(path)
+                self.assertIsNotNone(area)
+                rec = D._DECKS[area]
+                start = T.tilemap_entry(area)
+                for kind in present:
+                    free = set(T.tilemap_mark_cells(area, kind)) - {start}
+                    self.assertTrue(free, (kind, "a kind aboard with nowhere to stand"))
+                    clear = D._reach(rec["floor"], set(), start)
+                    # Two things that do not block: two cells of that kind of room.
+                    got, said = self.stand(area, [("a", kind, False), ("b", kind, False)])
+                    self.assertEqual(sorted(got), ["a", "b"], (kind, said))
+                    self.assertNotEqual(got["a"], got["b"], kind)
+                    self.assertIn(got["a"], free, kind)
+                    if len(free) > 1:
+                        self.assertIn(got["b"], free, kind)
+                        self.assertEqual(said, "", kind)
+                    else:
+                        self.assertIn("no free '%s'" % kind, said, kind)
+                    self.lift(area, ["a", "b"])
+                    # Two that BLOCK. A room with a way through it and one tile to spare
+                    # cannot take one: that one is in the hallway, it is said, and the
+                    # deck is never cut either way.
+                    got, said = self.stand(area, [("a", kind, True), ("b", kind, True)])
+                    self.assertEqual(sorted(got), ["a", "b"], (kind, said))
+                    self.assertNotEqual(got["a"], got["b"], kind)
+                    for key in ("a", "b"):
+                        if got[key] not in free:
+                            self.assertIn("no free '%s'" % kind, said, (kind, key))
+                    self.assertEqual(D._reach(rec["floor"], set(got.values()), start),
+                                     clear - set(got.values()), kind)
+                    self.lift(area, ["a", "b"])
+
+    def test_a_kind_no_hull_has_is_the_hallway_and_one_line(self):
+        for path in _lib_grid_files():
+            name = path.replace("\\", "/").rsplit("/", 1)[-1]
+            with self.subTest(plan=name):
+                plan, area, present = self.build(path)
+                got, said = self.stand(area, [("a", "orangery", True),
+                                              ("b", "orangery", False)])
+                self.assertEqual(sorted(got), ["a", "b"])
+                self.assertNotEqual(got["a"], got["b"])
+                halls = set(T.tilemap_mark_cells(area, "hallway"))
+                if halls:
+                    self.assertIn(got["a"], halls)
+                    self.assertIn(got["b"], halls)
+                else:
+                    # A fighter is one cabin with no hallway at all: any floor will do.
+                    self.assertIn(got["a"], D._DECKS[area]["floor"])
+                self.assertEqual(said.count("'orangery' is not a kind of room"), 1, said)
+                self.assertEqual(len(said.strip().splitlines()), 1, said)
+
+    def test_one_thing_in_every_room_at_once_and_the_deck_is_still_one_walk(self):
+        for path in _lib_grid_files():
+            name = path.replace("\\", "/").rsplit("/", 1)[-1]
+            with self.subTest(plan=name):
+                plan, area, present = self.build(path)
+                got, said = self.stand(area, [(f"p_{k}", k, True) for k in present],
+                                       place=True)
+                self.assertEqual(len(got), len(present), said)
+                self.assertEqual(len(set(got.values())), len(got))
+                rec = D._DECKS[area]
+                kit = {T.tilemap_where(r["id"])[1:] for r in P._PROPS.values()
+                       if r.get("generated") and r["blocks"] and r["id"] is not None}
+                for key, cell in got.items():
+                    self.assertIsNotNone(P.boarding_prop(key)["id"], key)
+                    self.assertNotIn(cell, kit, key)
+                blocked = {c for c in rec["floor"] if not T.tilemap_is_open(area, *c)}
+                start = T.tilemap_entry(area)
+                self.assertEqual(D._reach(rec["floor"], blocked, start),
+                                 rec["floor"] - blocked)
+
+    def test_the_brigantine_has_the_rooms_the_lecture_boards(self):
+        path = next(p for p in _lib_grid_files() if p.endswith("pirate_brigantine.grid"))
+        plan, area, present = self.build(path)
+        for kind in ("brig", "quarters", "cargo", "sickbay", "bay", "hallway"):
+            self.assertIn(kind, present)
+        self.assertTrue(T.tilemap_mark_cells(area, "room:captains-cabin"))
+
+
 if __name__ == "__main__":
     unittest.main()

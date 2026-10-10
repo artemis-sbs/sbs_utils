@@ -408,10 +408,9 @@ def _tile_diagnostics(uri, text, docs):
 
 def _placement_diagnostics(uri, text, docs):
     """Where an .amd puts props and people on the tile areas - nothing for a mission
-    without tile areas."""
+    without tile areas, but for what it puts aboard `Area: deck` (a boarded ship's deck
+    needs no area file; the placement lint returns at once when there is neither)."""
     _root, world = _tile_world(uri, docs)
-    if not world.get("areas"):
-        return []
     from sbs_utils.procedural.tilemap_lint import tilemap_lint_placements
     return _finding_diags(tilemap_lint_placements(text, world), text, "tiles")
 

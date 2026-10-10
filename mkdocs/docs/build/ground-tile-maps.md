@@ -358,6 +358,138 @@ The deck's looks come from an art set. Without the `station` pack (or another se
 draws the same looks) the deck still works, but nothing is drawn. A mission that boards
 ships therefore pins `artemis-sbs.Cosmos-Tiles.station.<tag>.zip`.
 
+## Boarding a ship that has surrendered
+
+A crew can go aboard an enemy ship that has struck her colors, on a deck drawn from her
+own interior plan. Nobody draws it, and nothing is written in MAST: the LegendaryMissions
+`boarding` addon adds the comms button, and what is aboard is content.
+
+### What a writer types
+
+`Area: deck` means the deck of whatever ship the crew boards. There is one deck at a
+time. On it, `Mark:` is not a mark in a file; it is a **kind of room**:
+
+```
+## [Props](props)
+
+### [Strongbox](strongbox)
+---
+Area: deck
+Mark: brig
+Sprite: prop:crate_shield
+Scene: strongbox
+Blocks: yes
+---
+Bolted to the deck of the brig.
+
+## [Hostiles](hostiles)
+
+### [Bosun Krall](holdout)
+---
+Area: deck
+Mark: bay
+HP: 2
+---
+```
+
+| `Mark:` | Where it stands |
+|---|---|
+| a kind of room | A room of that kind: `brig`, `cargo`, `quarters`, `sickbay`, `bay`, `mess`, `galley`, `lab`, `workshop`, `bridge`, `computer`, `lounge`, `recreation`, `conference`, `airlock`, or a system (`warp`, `impulse`, `beam`, `torpedo`, `shield`, `sensor`, `maneuver`, `jump`). |
+| `entry` | Beside where the party arrives. |
+| `hallway` | Any hallway. |
+
+Each record gets a cell of its own that nothing stands on, so two things marked `brig`
+are two cells of the brig. The kind is the generator's own word for a room, because room
+names differ from hull to hull: a pirate has a `plunder-hold` where a liner has
+`cargo-bay-2`, and both are `cargo`.
+
+A hull with no such room stands the thing in the **hallway** and says so in one line in
+`debug.log`, once for that kind. This is not an error. The same mission may board a
+cruiser that has a brig and a scout that has not. Something that blocks (`Blocks: yes`,
+anybody `Calm: yes`) is also put in the hallway when its room is one cell with a way
+through it, because it would cut the deck in two there.
+
+The records wait until a ship is boarded. `boarding_ground_load` reads them like any
+other prop or person, and does not report them as unplaced while there is no deck. When
+the party leaves, they wait again for the next ship, and what was taken, opened or put
+down stays so.
+
+The ship's own crew is put aboard for you, drawn as her race. Aboard a ship that has
+surrendered they are all calm. The `## Hostiles` a writer adds are the hold-outs.
+
+### The button
+
+"Send a boarding party" appears on the comms console when all of these are true:
+
+- the selected ship has the role `surrendered` (the "Surrender now" button, or
+  `side_surrender`);
+- her hull has an interior plan (`boarding_deck_has_plan`);
+- the `station` tile art is installed (`boarding_deck_art_ready`): pin
+  `artemis-sbs.Cosmos-Tiles.station.<tag>.zip` under `shared_media`;
+- the console's own ship is a player ship, and no party is already aboard a ship.
+
+Where any of these is false the mission is unchanged: no button, and a surrendered ship
+nobody boards is flown home as before.
+
+!!! note "Which hulls have a plan"
+    The engine's own `grid_data.json` holds full plans for the TSN, Ximni and Arvonian
+    hulls and several others. The Kralien, Torgoth, Skaraan, Biomech and pirate plans
+    come from LegendaryMissions' `races` addon, and it loads a race's plans only when
+    that race is in `PLAYABLE_RACES`. A mission that wants to board pirates lists
+    `Pirate` there (the library default lists every race).
+
+While the party is aboard, the ship wears the role `boarding_target`, is held where she
+is, and is not flown home.
+
+### Ending it
+
+A scene ends the visit by sending one of three signals with the ordinary `; signal`:
+
+```
+### [The Strongbox](strongbox)
+% Whoever holds this box holds the ship.
+
+- [Take her as a prize]() ; signal boarding_deck_take
+- [Open the sea cocks]() ; signal boarding_deck_scuttle
+- [Back to the ship]() ; signal boarding_deck_leave
+```
+
+| Signal | What happens |
+|---|---|
+| `boarding_deck_take` | The party comes home and the ship joins the side that boarded her, as "Take as prize" does. |
+| `boarding_deck_scuttle` | The party comes home, and then the ship is destroyed. |
+| `boarding_deck_leave` | The party comes home. She is a surrendered ship again. |
+
+The visit also ends if the ship is destroyed, and when the game ends. However it ends,
+the deck is taken down. A quest can wait on any of the three:
+`Done when: signal boarding_deck_take`.
+
+### From MAST
+
+The button calls one function, and a mission may call it itself:
+
+```
+boarding_deck_visit(player_ship, enemy_ship, boarding_ground_scenes())
+```
+
+It returns the invitation, or `None` with nothing built when the hull has no plan or a
+party is already out. `boarding_deck_target()` is the ship being boarded.
+
+`debug.log` says where the deck's hallways came from, which matters on a ship nobody
+flies: `was planned from: hull map` (the engine's own open cells), `grid text` (the
+hull's `.grid` file, when the engine has built no hull map for her) or `rooms only`.
+
+### What lint checks
+
+| Code | Meaning |
+|---|---|
+| `tiles-deck-unknown-kind` | A `Mark:` on `Area: deck` that is not a kind of room (`Mark: brgi`). It would stand in the hallway. |
+| `tiles-deck-cell` | An `At:` or a `Patrol:` on `Area: deck`. A deck nobody has seen has no cells to count. |
+| `tiles-deck-no-mark` | No `Mark:` at all, so it stands in the hallway. |
+
+A generated deck's furniture, doors and crew are never written to a saved game. A
+writer's own records aboard are kept as any prop or person is.
+
 ## A map built in code
 
 Some maps are too big, or too procedural, to write down as a file. A galaxy with no edge

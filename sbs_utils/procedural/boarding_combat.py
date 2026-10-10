@@ -259,7 +259,11 @@ def _face(spec):
     return face_resolve(str(spec).strip())
 
 
-def boarding_hostiles_declare(section):
+def boarding_hostiles_declare(section, generated=False):
+    """Remember everybody in a section. Returns the keys. Nobody is placed yet.
+
+    ``generated`` marks a crowd made by code for one visit (a boarded ship's own crew):
+    a saved game neither keeps nor restores who among them is down."""
     keys = []
     for rec in boarding_hostile_records(section):
         if rec["key"]:
@@ -267,6 +271,8 @@ def boarding_hostiles_declare(section):
                         "hp_left": rec["hp"], "stunned_until": 0.0, "next_strike": 0.0,
                         "target": None, "leg": 0, "shown": not rec["hidden"],
                         "talked": False})
+            if generated:
+                rec["generated"] = True
             _saved_apply(rec)
             _HOSTILES[rec["key"]] = rec
             if _norm(rec["hidden"]):
@@ -469,8 +475,11 @@ def _hostile_hit(rec, setting, by=None):
     if at and rec["drops"]:
         from .boarding_props import boarding_prop_add, boarding_props_place
         for i, item in enumerate(rec["drops"]):
+            # `dropped`: where it lies is a cell of THIS map as it stood - a generated
+            # deck forgets what was dropped on it when the party leaves the ship.
             boarding_prop_add(f"drop_{rec['key']}_{i}", at[0], (at[1], at[2]),
-                              name=item.replace("_", " "), item=item, sprite=_DROP["sprite"])
+                              name=item.replace("_", " "), item=item, sprite=_DROP["sprite"],
+                              dropped=True)
         boarding_props_place(at[0])
     signal_emit("boarding_hostile_down", {"BOARDING_HOSTILE": rec["key"], "BOARDING_BY": by})
     signal_emit(f"hostile_down_{rec['key']}", {"BOARDING_HOSTILE": rec["key"]})
@@ -668,6 +677,8 @@ def _saved_touch():
 
 
 def _saved_apply(rec):
+    if rec.get("generated"):
+        return                      # made by code for one visit: a save never names it
     if rec.get("key") in _SAVED["down"]:
         rec["state"] = "down"
         rec["hp_left"] = 0
@@ -675,7 +686,11 @@ def _saved_apply(rec):
 
 def _hostiles_snapshot():
     down = set(_SAVED["down"])
-    down.update(key for key, rec in _HOSTILES.items() if rec.get("state") == "down")
+    # Not the GENERATED ones: a boarded ship's own crew (`boarding_deck_crew`) are
+    # `deck_crew_3` on every hull, so one put down aboard a brigantine would be found
+    # already down aboard the next ship.
+    down.update(key for key, rec in _HOSTILES.items()
+                if rec.get("state") == "down" and not rec.get("generated"))
     return {"down": sorted(down)} if down else {}
 
 
@@ -697,6 +712,32 @@ def boarding_hostiles_saved_count():
 from .persistence import persist_provider_register as _persist_provider_register  # noqa: E402
 _persist_provider_register("boarding_hostiles", _hostiles_snapshot, _hostiles_restore,
                            library=True)
+
+
+def boarding_hostile_remove(key):
+    """Take somebody off the map and KEEP the record, so ``boarding_hostiles_place`` can
+    stand them somewhere again - the twin of ``boarding_prop_remove``. Nobody is hurt:
+    somebody up is back to how they were declared (calm or not), somebody down stays
+    down. False when they were not on a map."""
+    from .tilemap import tilemap_remove
+    rec = _HOSTILES.get(_norm(key))
+    if rec is None or rec["id"] is None:
+        return False
+    tilemap_remove(rec["id"])
+    _BY_ID.pop(rec["id"], None)
+    rec["id"] = None
+    rec["target"] = None
+    if rec["state"] != "down":
+        rec["state"] = "calm" if rec["calm"] else "idle"
+    return True
+
+
+def boarding_hostile_forget(key):
+    """Take somebody off the map AND forget them - the twin of ``boarding_prop_forget``,
+    for a crowd that was only ever there for one visit. No signal, no drop, nothing
+    saved."""
+    boarding_hostile_remove(key)
+    return _HOSTILES.pop(_norm(key), None) is not None
 
 
 def boarding_combat_clear():
