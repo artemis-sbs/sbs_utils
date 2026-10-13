@@ -8,8 +8,20 @@ cells composite on top of each other at the same box - a body, then clothes, the
 mouth, hair, a hat. Every cell is 512x512 and already drawn in position, so stacking is
 all there is to it.
 
-The atlases are registered in `data/graphics/allFaceFiles.txt`, which maps a short alias
-to an image under `data/graphics`. A mod can add its own sheets there.
+The stock atlases are registered in `data/graphics/allFaceFiles.txt`, which maps a short
+alias to an image under `data/graphics`.
+
+A mod registers its own sheets from script, with the art's path inside its media pack:
+
+```python
+face_register_sheet("tng1", 8, 8, filename=media_shared("faces_tng/TNG_Faces_1"))
+```
+
+That teaches the library the sheet's grid and hands the art to the engine
+(`sbs.add_face_bitmap_sheet`, engine 1.3.15). It returns `True` when the engine took the
+sheet. On an engine that cannot - one older than 1.3.15, or an early 1.3.15 build, which
+only re-points an alias `allFaceFiles.txt` already names - it returns `False`, says so once
+in the runtime log, and the alias still needs its line in that file.
 
 ## The face string syntax
 
