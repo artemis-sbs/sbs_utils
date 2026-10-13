@@ -16,11 +16,11 @@ MEASURED ON ENGINE 1.3.15 (a raw-sbs probe, server screen and a real client agre
 * The flags default to 1 and act ON THEIR OWN: 0 hides that terrain with no filter set.
 * A filter shows only the listed ids. Terrain in the list ALSO needs its flag on, and
   the flag on its own shows no terrain the list leaves out.
-* An empty list means "no filter". `comms_map_filter` gets back there through
-  clear_data_set_value. **The three new keys do not**: the server blob reads empty after
-  the clear, but the view goes on drawing the last list, on the server's own screen and
-  on a client alike. Until the engine fixes that, a sci/helm/weapon filter can be
-  CHANGED but not REMOVED - map_filter_clear is correct and has no visible effect there.
+* An empty list means "no filter", and clear_data_set_value is how every one of the
+  four gets back there. (On the FIRST 1.3.15 exe the three new keys did not: the blob
+  read empty but the view kept drawing the last list. Fixed in the exe of 2026-10-13
+  18:18, re-measured on all three views - if un-filtering "does nothing", check which
+  exe is installed before looking here.)
 
 Written as clear + set by index, the clear through clear_data_set_value so the clients'
 copy goes too: a bare clear_data is not replicated.
@@ -97,10 +97,7 @@ def map_filter_set(ship_id, ids, console="comms"):
 
 
 def map_filter_clear(ship_id, console="comms"):
-    """Remove one console's map filter from this ship: the map shows everything again.
-
-    On engine 1.3.15 this is only visible for "comms" - see the module docstring.
-    """
+    """Remove one console's map filter from this ship: the map shows everything again."""
     from .query import to_id, to_data_set, clear_data_set_value
     console = _console(console)
     ship_id = to_id(ship_id)
