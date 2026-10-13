@@ -1,7 +1,14 @@
 def _action_lines (value):
     """A fence value that may be a list (the nested form) or one string."""
 def _action_log (message):
-    ...
+    """Say that a stage direction could not be applied, where the author will see it.
+    
+    `log(msg, "action", "warning")` alone goes NOWHERE - a named category has no handler
+    unless the mission attached one. So a call that never came had a clean log beside it,
+    while the one sentence the author needed ("there is no dialogue scene called
+    'quill_hello' - is the document registered?") was written and thrown away. The same
+    line goes to `mast.runtime`, the log everybody reads and the one a headless test
+    fails on."""
 def _action_norm (text):
     ...
 def _action_slug (text):

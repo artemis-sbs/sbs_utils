@@ -25,6 +25,10 @@ def _singular (word):
     matching `anomaly`) and turned a SINGULAR `bus` into `bu`. Now: `-ies` -> `-y`;
     `-xes`/`-ches`/`-shes`/`-zzes` lose `es`; words that end in `s` without being plural
     (`-ss`, `-us`, `-is`) are left alone; anything else loses its `s`."""
+def _then_one (value):
+    """ONE `Then:` action -> ``(verb, what)``, read exactly as a whole `Then:` line always
+    was: `reveal <key or path>`, `signal <name>`, `learn <fact, several words>` - and
+    anything else, a bare key included, is a reveal of the whole thing."""
 def amd_console_list (value):
     """'comms, admiral' / 'comms admiral' -> ['comms', 'admiral'] (lowercased). Used by
     the Quests-tab `Accept On:` / `Engage On:` labels to restrict WHICH consoles may
@@ -45,11 +49,13 @@ def amd_duration_parts (value):
     `Fails when: after 20m` came back `(None, "minutes")` -> `{minutes: 0}` -> `secs <=
     0` -> the watcher skipped the quest and **the deadline silently never fired**. An
     unrecognized suffix still falls through to minutes, as before."""
+def amd_is_duration (value):
+    """Whether ``value`` is a length of time and nothing else."""
 def amd_norm (name):
     """Canonicalize a token: lowercase, hyphens/spaces -> underscores."""
 def amd_num (s):
     """int -> float -> the trimmed string, whichever parses first."""
-def amd_parse_facts (text, handler=None, default=<function amd_num at 0x0000026177D728E0>, archetype=None, errors=None):
+def amd_parse_facts (text, handler=None, default=<function amd_num at 0x0000022F81E7E3E0>, archetype=None, errors=None):
     """Parse one fact-sheet fence into a dict.
     
     Per label, in order: the caller's `handler` gets first refusal (returns truthy to
@@ -114,6 +120,16 @@ def amd_signal_name (value):
     matches on it at runtime and the editor's signal join matches on it statically. Two
     copies held in agreement by a comment would silently stop agreeing the first time
     the rule widened."""
+def amd_then_actions (value):
+    """Every action of a `Then:` value, in the order written: ``[(verb, what), ...]``.
+    
+    `Then: reveal next, learn the ledger page` is two; so are two `Then:` lines (the
+    fence reader joins them with a comma). The verbs are ``THEN_VERBS``; a piece with no
+    verb is a reveal of that key. What the game runs and what the linter judges."""
+def amd_then_parts (value):
+    """A `Then:` value as its actions' own text, in order: split at COMMAS, the only
+    separator (a fact may have spaces, a reveal target may be a path). Empty pieces - a
+    comma at the end of the line - are dropped."""
 def amd_trigger (value, aliases=None):
     """'destroy 4 raiders' -> ('on_kill', {role: raider, count: 4}); 'reach 6, 4' ->
     ('on_reach', {sector: [6,4]}); 'signal x' -> ('on_signal', {name: x}). Returns

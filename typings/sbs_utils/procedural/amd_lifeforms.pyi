@@ -3,7 +3,7 @@ def amd_lifeform_data (text):
     """Parse one lifeform fence into a data dict (default coercion - all fields are strings).
     Use as the ``data_parser`` for a cast-only .amd; a consolidated mission file uses
     ``amd_mission_data`` and its lifeform fences fall through to the same default coercion."""
-def amd_parse_facts (text, handler=None, default=<function amd_num at 0x0000026177D728E0>, archetype=None, errors=None):
+def amd_parse_facts (text, handler=None, default=<function amd_num at 0x0000022F81E7E3E0>, archetype=None, errors=None):
     """Parse one fact-sheet fence into a dict.
     
     Per label, in order: the caller's `handler` gets first refusal (returns truthy to
@@ -49,6 +49,11 @@ def lifeform_key_role (key, host_id=None):
     alone would make the second host silently resolve to the first host's character."""
 def lifeform_of_key (key, host_id=None):
     """The live lifeform already spawned for ``key`` on ``host_id``, or None."""
+def lifeform_side_of_key (key):
+    """The `Side:` of the cast character spawned for ``key``, or None.
+    
+    By key alone, so it reads the character cast with no host; one cast onto a host is
+    reached through the host (`lifeform_of_key(key, host_id)`)."""
 def lifeform_spawn (name, face, roles, host=None, comms_id=None, path=None, title_color='green', message_color='white'):
     """Create a new Agent and initialise it as a lifeform.
     
@@ -69,14 +74,16 @@ def lifeform_spawn (name, face, roles, host=None, comms_id=None, path=None, titl
     Returns:
         Agent: The newly created lifeform agent."""
 def lifeform_speaker (records, key, default_color='#0cf'):
-    """A dialogue voice record (key/name/color/leans) for a cast character, so a scene's
-    ``Speaker: <key>`` resolves to that character's card. ``None`` if the key is not in the cast;
-    cast NPCs carry no reputation, so leans is empty. ``records`` is ``lifeforms_from_section``'s
-    list (or the ``.values()`` of a spawned map's records)."""
+    """A dialogue voice record (key/name/color/side/leans) for a cast character, so a scene's
+    ``Speaker: <key>`` resolves to that character's card. ``None`` if the key is not in the cast.
+    A cast NPC is not regarded personally, so leans is empty; ``side`` (its ``Side:``) is whose
+    opinion ``standing`` reads. ``records`` is ``lifeforms_from_section``'s list (or the
+    ``.values()`` of a spawned map's records)."""
 def lifeform_speaker_of (agent_id, default_color='#0cf'):
-    """A dialogue speaker card (key/name/color/leans) built from a spawned lifeform Agent ITSELF -
-    for the comms-cast route, where the hailed lifeform IS the speaker (its badge was selected).
-    ``None`` if the id is not a live agent; cast NPCs carry no reputation, so leans is empty."""
+    """A dialogue speaker card (key/name/color/side/leans) built from a spawned lifeform Agent
+    ITSELF - for the comms-cast route, where the hailed lifeform IS the speaker (its badge was
+    selected). ``None`` if the id is not a live agent. A cast NPC is not regarded personally, so
+    leans is empty; ``side`` (its ``Side:``) is whose opinion ``standing`` reads."""
 def lifeforms_from_section (section):
     """Cast records (MastDataObject) from a section node's children (empty if None)."""
 def lifeforms_spawn (section, host_id=None):

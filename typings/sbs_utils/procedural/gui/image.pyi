@@ -251,6 +251,22 @@ def gui_image_keep_aspect_ratio_center (props, style=None):
     
     Example:
         gui_image_keep_aspect_ratio_center("media/crew/captain")"""
+def gui_image_mirror (key, as_key, vertical=False):
+    """Register ``as_key`` as ``key`` drawn MIRRORED - left to right, or top to bottom.
+    
+    The engine has no flip property, but it draws a picture backwards when its
+    ``sub_rect`` runs backwards (right < left, or bottom < top): measured with the
+    ``flip_probe`` mission. So one arrow can point both ways, and a figure drawn facing
+    east can also face west.
+    
+    Args:
+        key (str): an image atlas key.
+        as_key (str): the key to register the mirrored picture under.
+        vertical (bool, optional): flip top to bottom instead of left to right.
+    
+    Returns:
+        ImageAtlas: the new entry, or None when ``key`` is not registered or is a whole
+        image whose size cannot be read."""
 def gui_image_size (file):
     """Return the pixel dimensions of an image file or atlas entry.
     

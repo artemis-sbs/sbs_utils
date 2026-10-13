@@ -138,11 +138,11 @@ def random_terran (face=None, civilian=None):
     """Create a random terran face.
     
     Args:
-        face (int | None): The index of the hair 0=male,1=female,2=fluid male, 3=fluid female or None= random
-        civilian (boolean | None): The force this to be a civilian=True, For non-civilian=False or None= random
+        face (int | None): 0=masculine, 1=feminine, 2/3=fluid, None=roll one
+        civilian (bool | None): True forces no uniform, False forces one, None rolls
     
     Returns:
-        (str):   A Face string"""
+        (str): A Face string"""
 def remove_role (agents, role):
     """Remove a role from one or more agents.
     

@@ -17,6 +17,14 @@ def _hail_apply_scene_fields (record):
     where an explicit override is still allowed to win."""
 def _hail_band_drop (ship_id):
     """Take the orbit band down. Safe to call when there never was one."""
+def _hail_beat_card (rec, beat, ship_id):
+    """Who is speaking THIS beat: (name, face, color).
+    
+    A conversation has one caller, and what the offer said about them - a name, a face, a
+    color - is theirs. A beat cued to SOMEBODY ELSE (`@Vell` in Quill's scene) is that
+    other person: their own card, never the caller's. The record's name used to win for
+    every beat, so a second voice spoke under the first speaker's name - with the right
+    face, which is what made it look like a typo in the file."""
 def _hail_bump_seq (ship_id):
     ...
 def _hail_choices_from (choices):
@@ -126,7 +134,14 @@ def awaitable (func):
     ...
 def dialogue_apply (agent_id, speaker, outcomes):
     """Apply a chosen line's outcomes: built-in `signal`, plus any registered verbs. Returns
-    False if a handler refuses (e.g. a cost can't be afforded) - the pick is rejected."""
+    False if a handler refuses (e.g. a cost can't be afforded) - the pick is rejected.
+    
+    AN ANSWER WHOSE OUTCOMES CANNOT BE READ DOES NOTHING. Every verb's own check runs
+    first; if one fails (`; calm sentry, give power cell` - an item key is one word)
+    NONE of the outcomes is applied, one line in `mast.runtime.log` says which and why,
+    and the pick is still accepted so the conversation goes on. It used to raise after
+    `calm` had already been applied. A handler that raises anyway is said the same way
+    and skipped; the outcomes after it still run."""
 def dialogue_beats (scene, agent_id, speaker=None):
     """One playable beat per `@cue`, in script order.
     

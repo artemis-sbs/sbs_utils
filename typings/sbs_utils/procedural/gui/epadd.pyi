@@ -125,6 +125,8 @@ def epadd_console_allowed (console):
     """Whether the PADD belongs on this console (any name the engine or a script uses)."""
 def epadd_console_name (console):
     """The name a script would use for a console, whatever the engine calls it."""
+def epadd_console_title (console):
+    """A console's name as the bar shows it: words, never an identifier."""
 def get_inventory_value (id_or_object, key: str, default=None):
     """Get an inventory value from an agent by key.
     

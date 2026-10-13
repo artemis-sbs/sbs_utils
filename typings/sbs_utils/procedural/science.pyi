@@ -108,7 +108,7 @@ def scan (path=None, buttons=None, timeout=None, auto_side=True):
     
     Returns:
         ScanPromise: A promise to ``await``; resolves when all tabs are scanned."""
-def scan_results (message, target=None, tab=None):
+def scan_results (message, target=None, tab=None, literal=False):
     """Set the scan results for the current scan. This should be called when the scan is completed.
        This is typically called as part of a scan()
        This could also be called in response to a routed science message.
@@ -118,7 +118,12 @@ def scan_results (message, target=None, tab=None):
     Args:
         message (str): Scan text for a scan that is in progress.
         target (Any, optional): Not currently used. Default is None.
-        tab (str, optional): Scan tab for a scan that is in progress. Default is None."""
+        tab (str, optional): Scan tab for a scan that is in progress. Default is None.
+        literal (bool, optional): The message is finished text - do not read it as a
+            format string. For text an AUTHOR wrote (a scan record in an `.amd`): a
+            `{pilot}` nothing filled in is otherwise a NameError, and `{any.expression}`
+            is otherwise RUN. Default is False, so `scan_results("Hull at {hp}")` in a
+            script still fills in `hp`."""
 def science_add_scan (message, label=None, data=None, path=None):
     """Add a scan button to the current science scan promise.
     

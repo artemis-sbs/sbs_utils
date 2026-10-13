@@ -14,7 +14,7 @@ def _set (item, key, value):
     """Write a field back to a row (dict, MastDataObject, or plain object)."""
 def _widget_value (sender):
     """Read the current value from a control widget (get_value() or .value)."""
-def gui_list_box (items, style, item_template=None, title_template=None, section_style=None, title_section_style=None, select=False, multi=False, carousel=False, collapsible=False, read_only=False, reveal=False, hint=None):
+def gui_list_box (items, style, item_template=None, title_template=None, section_style=None, title_section_style=None, select=False, multi=False, carousel=False, collapsible=False, read_only=False, reveal=False, hint=None, signal=None, data=None):
     """Add a listbox to the current GUI layout.
     
     Args:
@@ -62,6 +62,10 @@ def gui_list_box (items, style, item_template=None, title_template=None, section
             ``get_selection_hint()``. A repaint builds a DIFFERENT listbox whose
             view starts at the top, so without this the row under the user's
             mouse moves. Do not inspect it; pass it along.
+        signal (str, optional): A signal to emit on each row click, with the
+            selection as ``SIGNAL_VALUE`` (see ``gui_signal``). Defaults to None.
+        data (dict, optional): Extra variables for the ``signal`` route.
+            Defaults to None.
     
     Returns:
         LayoutListbox: The layout object created.

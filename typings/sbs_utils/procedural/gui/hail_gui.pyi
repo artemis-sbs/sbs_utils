@@ -62,7 +62,11 @@ def _hail_speaker_line (ship):
     """(name, line) for the beat being spoken, or ("", "") between beats."""
 def _hail_text (value):
     """A `$text:` property with the value quoted, so a name or a line carrying `:` or
-    `;` is drawn rather than parsed as style. For TEXT widgets only."""
+    `;` is drawn rather than parsed as style. For TEXT widgets only.
+    
+    AND AS A LITERAL. `gui_text` reads its text as a format string, and these are an
+    author's words - a caller's name, an answer. `Call me {Captain}, DS 1.` as an answer
+    was a NameError when the list was drawn."""
 def _hail_view_press (event, item):
     """Every button in the feature presses through here.
     

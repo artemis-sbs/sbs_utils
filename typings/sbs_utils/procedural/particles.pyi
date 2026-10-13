@@ -44,6 +44,16 @@ def _spill (oid, spill, fields, f):
     """Throw a few arcs clear of the hull (the `arc` look's off-hull discharges)."""
 def _val (v):
     """One descriptor value, in the engine's own spelling."""
+def _with_image_cell (desc):
+    """A descriptor the ENGINE is about to receive, given an image_cell if it has none.
+    
+    image_cell is not optional to the engine, whatever the grammar suggests: a burst sent
+    without one crashed the CLIENT in Render3DObject::EmitAt (a null deref, engine-measured
+    2026-09-25) while the server carried on. Every preset sets one; a hand-built
+    descriptor gets the same defaults the presets use - 4 (the smoke puff) for smoke, 0..3
+    (the glow cells) otherwise. Applied HERE, at the send, not in particle_descriptor:
+    that also builds override fragments merged over presets, where a default would
+    replace the preset's own cell."""
 def log (message: str, name: str = None, level: str = None, use_mast_scope=False) -> None:
     """Emit a log message using Python's ``logging`` module.
     

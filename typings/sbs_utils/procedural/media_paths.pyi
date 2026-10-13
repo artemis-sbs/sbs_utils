@@ -1,3 +1,17 @@
+def _ensure_unpacked (lib_media, pack):
+    """Unpack a pinned pack that is in `__lib__` as a zip but not yet unpacked.
+    
+    `sbs.pyz` normally unpacks packs, but only ones NAMED like a media pack
+    (`<owner>.<repo>.media.<tag>.zip`) - older copies still do - and a pack released
+    from a repo that ships several (`artemis-sbs.Cosmos-Tiles.frontier.v0.1.0.zip`) is
+    not named that way. So the mission does it itself, the way `Mast.expand_resources`
+    unpacks `resources`: into a temp folder, then renamed into place, so an interrupted
+    unpack never leaves half a pack behind.
+    
+    A pack already unpacked is left alone - unless its zip is NEWER than the unpacked
+    folder. A tag can be released again (`sbs release -u`) and a pack rebuilt locally
+    under the same name, and an unpacked copy that never refreshes would go on drawing
+    the old art with nothing to say so."""
 def _find_unpacked_pack (want):
     """An unpacked pack in __lib__/media whose name contains `want`, newest last."""
 def _log_pack (message):

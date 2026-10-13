@@ -41,6 +41,14 @@ def _comms_override_pair (origin_id, selected_id, path, path_must_match):
     call covering several ships stopped at the first one without a menu open. And the
     path is resolved per pair: it used to be reassigned in place, so the first pair's
     current path became every later pair's path."""
+def _comms_promise_for (origin_id, selected_id):
+    """The open interaction for this pair, or None.
+    
+    A module-level accessor on purpose: `__comms_promises` name-mangles to
+    `_YourClass__comms_promises` if a mission reads it from inside a class body, which
+    fails as an AttributeError a long way from the cause."""
+def _comms_split_icon (color):
+    """('color', 'icon') from a button's format block. Icon is None when absent."""
 def _forget_comms_promise (origin_id, selected_id):
     """Evict a cached comms promise for an (origin, selected) pair.
     
@@ -125,6 +133,40 @@ def comms_broadcast (ids_or_obj, msg, color=None, category=None, severity=None) 
     
     Example:
         comms_broadcast(SHIP_ID, "Red alert!", color="red", severity="danger")"""
+def comms_grid_buttons (origin_id, selected_id):
+    """The buttons the grid menu is currently offering, as row dicts.
+    
+    Returns:
+        list[dict]: ``index``, ``label``, ``color`` and ``icon`` (or None), in the order
+        the menu offers them. Empty when no interaction is open for this pair.
+    
+    **`index` is the position in the UNFILTERED button list, not the row number.** A
+    button hidden by its `if` or already used (`*`) is skipped here but still consumes an
+    index - `set_buttons` enumerates before it filters, and the press path looks the
+    button up by that index. Pass `index` back to :func:`comms_grid_press` and never the
+    row's position.
+    
+    The conditions and the label are evaluated on the PROMISE's task, not the caller's:
+    `COMMS_SELECTED_ID` and the rest live there."""
+def comms_grid_press (origin_id, selected_id, index, client_id=None):
+    """Press a grid button by its `index` from :func:`comms_grid_buttons`.
+    
+    Takes the same path the engine widget's press takes - the event
+    `cosmos_event_handler` builds for `press_grid_button`, through
+    `ConsoleDispatcher.dispatch_message`. That is what keeps one-shot buttons marked
+    used and the menu redrawn afterwards; pressing the promise's button directly skips
+    both.
+    
+    Returns:
+        bool: True if a press was dispatched. False when no interaction is open or the
+        index names nothing - a stale row after the list moved, which is ordinary."""
+def comms_grid_revision (origin_id, selected_id):
+    """What an `on change` watches to know the drawn list would differ.
+    
+    Cheap - it re-runs the conditions but never the routes, so it is safe per tick. It
+    does NOT see a button that appeared because a route's structure changed; nothing in
+    comms rebuilds on a tick, so that still needs a press, a navigate, or
+    :func:`comms_refresh_open`."""
 def comms_history_add (player_id, other_id, entry):
     """Record one exchange between a player ship and a contact."""
 def comms_history_clear ():
@@ -212,11 +254,7 @@ def comms_map_filter_get (ship_id):
 def comms_map_filter_set (ship_id, ids):
     """Show only `ids` - and the ship itself - on this ship's comms map.
     
-    Only ids the engine knows are written - live space objects. A lifeform, grid object,
-    fleet or dead id is dropped. The ship's own id is always in the list, so the crew
-    never loses their own ship from the map, and a lens that matches nothing still writes
-    a non-empty list (empty would mean "no filter"). Skips the write when the list has not
-    changed since the last one, since every write goes over the network.
+    See map_filter_set, which this calls with console="comms".
     
     Args:
         ship_id (Agent | int): The player ship whose comms map is filtered.

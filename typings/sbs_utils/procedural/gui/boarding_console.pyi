@@ -1,6 +1,18 @@
 from sbs_utils.helpers import FrameContext
 def _client (client_id=None):
     ...
+def _grid_where (client_id):
+    ...
+def _mark_keeps_a_secret (area, mark):
+    """Whether a prop or a person placed by this mark is still hidden."""
+def _tile_place (tile):
+    """On a TILE world: the place mark under their feet, else the area itself.
+    
+    A MARK IS ALSO HOW A WRITER PLACES A THING, and this word is on the bar, in Crew and
+    at the head of Scan. So a mark that is the placement of something NOT YET ON THE MAP
+    (`Hidden until:` a signal that has not been sent) is not said - the area's title is,
+    as on a cell with no mark - or standing on `@cache` told the crew there was a cache.
+    Once the thing is revealed, the mark is a place like any other."""
 def boarding_app_area ():
     """The app area's absolute area - the bar's bottom edge, down to the screen's.
     
@@ -17,6 +29,11 @@ def boarding_console_revision (client_id=None):
     THE DEVICE IS PART OF THIS SCREEN. Without its revision here, opening an app changed
     the stored state and nothing ever repainted - the `on change` never moved, so the
     tick never ran and the tiles "did nothing"."""
+def boarding_has_ground (client_id):
+    """Whether this console's character is standing on something that can be drawn.
+    
+    A tile area, or a ship or station interior. A party that only TALKS its way through
+    a place - rooms written as scenes, nothing to walk - has neither."""
 def boarding_identity_area ():
     """The identity bar's absolute area."""
 def boarding_panel_width (map_width):
@@ -29,9 +46,17 @@ def boarding_panel_width (map_width):
 def gui_boarding_console (client_id=None, map_width=66, on_leave=None):
     """Build the crew console: the interior on the left, the xESS on the right.
     
+    A PARTY WITH NOWHERE TO WALK GETS THE DEVICE ALONE, across the whole screen. This
+    console used to be withheld from such a party - a map of nothing beside the device
+    would have replaced a screen that worked with a mostly empty one - so its scene had
+    no console at all, and the crew read it in their mail. The device is the boarding
+    party's surface whether or not there is a floor: ACT is the room and its choices,
+    CREW is who came and the way home.
+    
     Args:
         client_id (optional): the console. Defaults to the page's own.
         map_width (int, optional): how much of the screen the interior takes, in percent.
+            Ignored when there is no interior to draw.
         on_leave (optional): ignored, and kept so a mission that passed it still runs.
             Leaving is the CREW app's Beam up now, which calls `boarding_go_up` - there
             is no longer a button on every screen to hand a handler to.

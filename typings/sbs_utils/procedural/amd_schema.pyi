@@ -159,7 +159,7 @@ def amd_resolve_kind (own_kind=None, ancestor_kinds=(), section_key=None, field_
     name does not say it.
     
     `ancestor_kinds` / `ancestor_sections` are ordered NEAREST FIRST."""
-def amd_resolve_kind_chain (own_kind=None, ancestors=(), field_labels=(), own_section=None):
+def amd_resolve_kind_chain (own_kind=None, ancestors=(), field_labels=(), own_section=None, chapter=False):
     """Which kind of record this is, asking each ancestor IN TURN, closest first.
     
     `ancestors` is `[(kind_line, section_key), ...]` ordered **nearest first** - one pair
@@ -172,7 +172,15 @@ def amd_resolve_kind_chain (own_kind=None, ancestors=(), field_labels=(), own_se
     section NAME, so a kind line on the document root reached past every section beneath
     it and typed a whole file. Both readers (`amd_core` for the tooling, `quest.py` for
     the game) call this now, because two copies of this grammar is exactly how the
-    tooling and the game came to disagree about the same file."""
+    tooling and the game came to disagree about the same file.
+    
+    `chapter` says the record sits directly under the file's own heading. Such a record
+    whose fence names a `File:` is a TABLE-OF-CONTENTS CHAPTER (`amd_doc.amd_includes`
+    reads exactly those), and a chapter is named by its own key before its file's kind:
+    `## [Jobs](jobs)` with `File: jobs.amd` holds quests, whatever the file is. It used
+    to take the file's kind - a `Universe` file made it a map - and hand that down, so
+    a job written under the chapter, beside the ones in the other file, was read as a
+    map: five "not a field a map has" warnings on a file the game reads correctly."""
 def amd_trait_names ():
     """Every trait a record may claim in `Also:`."""
 def amd_traits_of (data):
@@ -194,13 +202,26 @@ def amd_vocabulary_snapshot ():
     
     It also stops one mission's words leaking into the next one linted in the same
     process, which is how OpenUniverse briefly inherited LegendaryMissions' fields."""
+def amd_yes (value, default=False):
+    """Read one authored yes/no. THE parser: the schema, the props and the people on a
+    boarding party's ground all read a flag through this, so `Blocks: yes` cannot mean
+    one thing to the reader and another to the map.
+    
+    A real bool passes through (the reader has already coerced a declared field); nothing
+    written is `default`; anything that is not a yes word is no - which is why a typo
+    needs the linter to say so."""
 def archetype_for_section (section_key):
     """The archetype a conventionally-named `## section` key maps to, or None.
     Case/trailing-`s` tolerant (`Items`, `items`, `Item` all -> item)."""
-def boolean ():
+def boolean (strict=False, hint=None):
     """A yes/no flag. Stays `type: enum` so the editor keeps rendering a two-value
     dropdown, but carries `bool` so `amd_coerce` returns a real bool - `Required: false`
-    used to coerce to the STRING "false", which is truthy."""
+    used to coerce to the STRING "false", which is truthy.
+    
+    `strict=True` is a flag that is ONLY ever yes or no - `Blocks:`, `Calm:` - so a value
+    that is neither (`Calm: yse`) is a typo and `sbs lint` says so. It is offered as
+    `yes` / `no`, the words a writer types, and still accepts every spelling `amd_yes`
+    reads. The older flags stay lenient: `Win:` carries its own sentence."""
 def color (hint='#rgb or #rrggbb'):
     """A hex color - the editor shows a swatch/picker (LSP already has one)."""
 def compound (verbs, hint=None):
@@ -272,6 +293,13 @@ def makeup (hint='60% Kralien, 40% Arvonian'):
     """A percentage mix, a plain list, or a single value - whichever was written."""
 def multiline (hint=None):
     """Multi-line prose (rendered as a textarea)."""
+def named_hulls (hint='Ragnarok tsn_juggernaut, XORN tsn_light_cruiser'):
+    """Named ships - `Name hull_key, Name hull_key`: a ONE-word name, then a shipData key.
+    
+    Stays `type: csv`, so it reads and edits exactly as a comma list does and an older
+    editor sees nothing new. `items` is what tells the linter each entry has a shape:
+    `Iron Duke kralien_dreadnought` is a ship named `Iron` on a hull called `Duke`, and
+    without this nothing said so."""
 def pct (hint='40%'):
     """`40%` -> 0.4 (a bare number passes through)."""
 def record_schema (field_labels, section_key=None):

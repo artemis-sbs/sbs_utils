@@ -1,6 +1,18 @@
 from sbs_utils.helpers import FrameContext
 from sbs_utils.tickdispatcher import TickDispatcher
 from sbs_utils.tickdispatcher import TickTask
+def clear_data_set_value (id_or_obj, key):
+    """Clear every index of a data-set (blob) key, on the server AND on every client.
+    
+    ``data_set.clear_data(key)`` clears only the server's copy; the engine does not
+    replicate it, so clients keep the old entries. This also calls
+    ``sbs.clear_object_data_set_value_on_clients``, which takes the host ship's id and
+    the grid object's id - 0 for a space object - so a grid object is resolved to its host.
+    Use this instead of calling ``clear_data`` directly.
+    
+    Args:
+        id_or_obj (Agent | int): A space or grid object.
+        key (str): The data-set key to clear."""
 def extra_scan_sources_run_all (tick_task: sbs_utils.tickdispatcher.TickTask):
     """Push extra scan source IDs to all scanners that have them linked.
     

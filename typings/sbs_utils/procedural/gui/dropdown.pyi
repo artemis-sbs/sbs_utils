@@ -12,7 +12,7 @@ def apply_control_styles (control_name, extra_style, layout_item, task):
             parsed dict applied after the base style.
         layout_item (LayoutItem): Layout item to receive the style.
         task (MastAsyncTask): GUI task used for string formatting."""
-def gui_drop_down (props, style=None, var=None, data=None):
+def gui_drop_down (props, style=None, var=None, data=None, signal=None):
     """Add a drop-down list to the current GUI layout.
     
     When the player selects an item, ``var`` is updated. ``var`` is written, not
@@ -31,6 +31,8 @@ def gui_drop_down (props, style=None, var=None, data=None):
             changes. Defaults to None.
         data (object, optional): Arbitrary data passed to the event handler.
             Defaults to None.
+        signal (str, optional): A signal to emit on each selection, with the
+            selected text as ``SIGNAL_VALUE`` (see ``gui_signal``). Defaults to None.
     
     Returns:
         Dropdown: The layout item created.

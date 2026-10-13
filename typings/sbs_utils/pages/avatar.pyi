@@ -14,11 +14,29 @@ def gui_text_escape (s):
     -- never on a whole authored props string, so the author's own ``:``/``;``
     styling is left untouched."""
 class AvatarEditor(Page):
-    """A interface class for creating GUI pages
+    """A minimal face builder, driven entirely by `faces.FACE_FEATURES`.
     
-        """
+    This page used to carry its OWN table of per-race controls - the fourth independent
+    copy of that data in the tree - and it had drifted badly: it listed controls for two
+    of the six races, and the Kralien entry offered "Eyes" and "Hair Tone" for a race
+    whose sheet has no hair at all. Reading the library's recipe instead means the page
+    cannot disagree with the art, and it picked up the features the 2026-09 redraw added
+    without being edited.
+    
+    The in-engine editor is LegendaryMissions' `avatar_editor` addon, which is what
+    players actually see. This one backs the library's own demo `script.py`."""
     def __init__ (self) -> None:
         """Initialize self.  See help(type(self)) for accurate signature."""
+    def _features (self):
+        ...
+    def _rebuild (self):
+        ...
+    def _reset_for_race (self):
+        """Start every control at its minimum and every optional feature switched off.
+        
+        Sized from the feature list rather than from a fixed-length buffer: the races no
+        longer have anything like the same number of controls (Arvonian has four, Terran
+        eleven), so a shared 12-slot list quietly mixed one race's values into another's."""
     def on_message (self, event):
         """on_message
         
@@ -30,5 +48,3 @@ class AvatarEditor(Page):
         """present
         
         Called to have the page create and update the gui content it is presenting"""
-    def reset_values (self):
-        ...

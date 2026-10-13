@@ -16,10 +16,27 @@ def _dlg_parse_outcomes (s):
     
     Tokens are interpreted by the mission's registered outcome handler (only
     `signal` is built in), so the grammar of costs/earns/etc. lives with the
-    mission rather than here."""
+    mission rather than here.
+    
+    A `;` separates outcomes as well as a comma. The first `;` on a choice starts the
+    outcomes; a SECOND one used to be swallowed into the outcome before it as a word, so
+    `; check engineering 9 else held ; learn lockout` - the form the library's own
+    comments show - rolled the check and then learned nothing."""
 def _dlg_split_extension (ext):
     """A cue's `(...)` -> `(surface, direction)`. A registered word is the surface;
     anything else is a direction."""
+def _outcome_say (message, once):
+    """One line in `mast.runtime.log`, once a mission for the same mistake."""
+def _stock_guards_install ():
+    """Make the stock guard words answerable from the first scene, not the first visit.
+    
+    A guard's left side is answered by ONE resolver, and in a mission that is not Open
+    Universe nothing installed one until a boarding visit began. Until then every guard
+    read 0: an answer written `if tsn`, or `if learned >= 1` after a `; learn`, was never
+    offered - lint clean, no log - and the same line started working the moment a
+    boarding party went anywhere. The stock words are the acting ship's or person's
+    roles, `learned`, and `skill <name>`; the resolver composes with whatever a mission
+    installed before it, so nothing a mission answers itself changes."""
 def amd_body_variant (line):
     """A `%` speech-variant line -> `(text, gate)`, or None when it is not one.
     
@@ -46,7 +63,12 @@ def amd_outcomes (s):
     
     Tokens are interpreted by the mission's registered outcome handler (only
     `signal` is built in), so the grammar of costs/earns/etc. lives with the
-    mission rather than here."""
+    mission rather than here.
+    
+    A `;` separates outcomes as well as a comma. The first `;` on a choice starts the
+    outcomes; a SECOND one used to be swallowed into the outcome before it as a word, so
+    `; check engineering 9 else held ; learn lockout` - the form the library's own
+    comments show - rolled the check and then learned nothing."""
 def amd_register_directions (domain, table):
     """Register delivery directions: `{name: payload}`, where payload is whatever the
     mission's renderer understands (a face mood, a style string, a delay). Mirrors
@@ -59,7 +81,24 @@ def amd_surface_names ():
     """Every registered delivery surface, for completion and lint."""
 def dialogue_apply (agent_id, speaker, outcomes):
     """Apply a chosen line's outcomes: built-in `signal`, plus any registered verbs. Returns
-    False if a handler refuses (e.g. a cost can't be afforded) - the pick is rejected."""
+    False if a handler refuses (e.g. a cost can't be afforded) - the pick is rejected.
+    
+    AN ANSWER WHOSE OUTCOMES CANNOT BE READ DOES NOTHING. Every verb's own check runs
+    first; if one fails (`; calm sentry, give power cell` - an item key is one word)
+    NONE of the outcomes is applied, one line in `mast.runtime.log` says which and why,
+    and the pick is still accepted so the conversation goes on. It used to raise after
+    `calm` had already been applied. A handler that raises anyway is said the same way
+    and skipped; the outcomes after it still run."""
+def dialogue_base_metric (name, agent_id, speaker):
+    """What a guard's left side reads when NO resolver claims it: reputation.
+    
+    `standing` and the pole names (`honest`, `fearsome`, ...) are the library's own guard
+    words, answered for the acting ship against the speaker's side
+    (`reputation.reputation_metric`); every other name is 0, as it always was.
+    
+    The BASE of the chain, not a link in it: it answers when no resolver is installed at
+    all, and it is where the away resolver hands on when nothing was installed before
+    it. A resolver a mission sets itself is asked first and its answer stands."""
 def dialogue_beats (scene, agent_id, speaker=None):
     """One playable beat per `@cue`, in script order.
     
@@ -98,6 +137,13 @@ def dialogue_get (scenes, key):
 def dialogue_guard_ok (guard, agent_id, speaker):
     """Evaluate a simple `lhs op number` guard (no guard -> True). Safe: only a resolved
     metric, a comparison operator, and an integer - never arbitrary code."""
+def dialogue_outcome_check (verb, tokens):
+    """What is wrong with one outcome's words - one sentence - or None. Read by the
+    linter too, so it warns of exactly what the game will refuse."""
+def dialogue_outcome_notes_clear ():
+    """Forget what has been said about bad outcomes - the per-mission reset."""
+def dialogue_outcome_notes_count ():
+    """For the reset ledger."""
 def dialogue_outcome_verbs ():
     """Every verb a choice's `; ...` can use right now.
     
@@ -120,9 +166,15 @@ def dialogue_parse (node):
 def dialogue_pick_line (scene, agent_id, speaker):
     """A random NPC line whose gate passes (gates reuse the metric resolver). '' if the
     scene has no eligible line."""
-def dialogue_register_outcome (verb, fn):
+def dialogue_register_outcome (verb, fn, check=None):
     """Register an outcome handler: fn(agent_id, speaker, tokens) - tokens are the words
-    after the verb. Returning False refuses the pick. (`signal` is built in.)"""
+    after the verb. Returning False refuses the pick; returning ``OUTCOME_STOP`` accepts
+    it but skips the outcomes after this one. (`signal` is built in.)
+    
+    ``check(tokens)`` may say the words after the verb cannot be read: it returns None
+    when they can, or one sentence for the writer when they cannot. Every check of an
+    answer runs BEFORE any of its outcomes is applied (``dialogue_apply``), so an answer
+    with one bad outcome does nothing at all rather than half of what it says."""
 def dialogue_register_scenes (source, domain=None):
     """Register a mission's scenes by key, and RETURN them.
     

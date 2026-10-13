@@ -49,7 +49,7 @@ def gui_blank (count=1, style=None):
         gui_blank()
         gui_icon("icons/shield")
         gui_blank()"""
-def gui_button (props, style=None, data=None, on_press=None, is_sub_task=None):
+def gui_button (props, style=None, data=None, on_press=None, is_sub_task=None, signal=None):
     """Add a button to the current GUI layout outside of an ``await gui()`` block.
     
     Unlike buttons declared with ``*`` or ``+`` inside ``await gui()``, this
@@ -88,6 +88,10 @@ def gui_button (props, style=None, data=None, on_press=None, is_sub_task=None):
             **deprecated**. Defaults to None, meaning the library decides; a
             handler that paints a screen and reaches ``await gui()`` sends the
             GUI task there either way, so you should not need this.
+        signal (str, optional): A signal to emit on each press, as
+            ``gui_signal(button, signal, data)``. The route gets ``data``'s keys
+            plus ``SIGNAL_CLIENT_ID`` and ``SIGNAL_ITEM``. Runs alongside
+            ``on_press``. Defaults to None.
     
     Valid Styles:
         area:
@@ -254,7 +258,7 @@ def gui_info_panel_send_message (client_id, message=None, message_color=None, pa
             title="New Orders",
             message="Report to DS1 immediately.",
             face="captain")"""
-def gui_list_box (items, style, item_template=None, title_template=None, section_style=None, title_section_style=None, select=False, multi=False, carousel=False, collapsible=False, read_only=False, reveal=False, hint=None):
+def gui_list_box (items, style, item_template=None, title_template=None, section_style=None, title_section_style=None, select=False, multi=False, carousel=False, collapsible=False, read_only=False, reveal=False, hint=None, signal=None, data=None):
     """Add a listbox to the current GUI layout.
     
     Args:
@@ -302,6 +306,10 @@ def gui_list_box (items, style, item_template=None, title_template=None, section
             ``get_selection_hint()``. A repaint builds a DIFFERENT listbox whose
             view starts at the top, so without this the row under the user's
             mouse moves. Do not inspect it; pass it along.
+        signal (str, optional): A signal to emit on each row click, with the
+            selection as ``SIGNAL_VALUE`` (see ``gui_signal``). Defaults to None.
+        data (dict, optional): Extra variables for the ``signal`` route.
+            Defaults to None.
     
     Returns:
         LayoutListbox: The layout object created.

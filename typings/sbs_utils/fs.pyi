@@ -4,6 +4,12 @@ def _ryaml_rejected (what, err):
     Worth saying once, with the name of the offending file: the fallback keeps
     the mission running, so nothing else will ever mention that this file is
     being parsed the slow way, or that it may be malformed."""
+def _write_then_swap (file, write):
+    """Write a file under another name beside it, then put it in place in one step.
+    
+    Returns what `write(f)` returned. Raises what it raised, with the file that was
+    there before still there. The swap is retried briefly: on Windows it is refused
+    while another process has the old file open to read it."""
 def add_to_path (dir):
     """Add a directory to the Python module search path.
     
@@ -277,6 +283,13 @@ def save_yaml_data (file, data):
     
     Attempts to dump using ryaml first for better comment handling,
     falls back to standard yaml.safe_dump if ryaml is unavailable.
+    
+    WRITTEN BESIDE THE FILE, THEN SWAPPED IN. It used to open the file itself with 'w',
+    which empties it before a byte is written. For as long as the dump took, anything
+    reading the file - a second game finishing in the same second, on a machine running
+    several - saw half a document, could not parse it, and started over from nothing:
+    a rolling record of two hundred games became the last twenty six. Now the old file
+    is whole until the new one is, and a dump that fails leaves it untouched.
     
     Args:
         file (str): Path to the YAML file to load.

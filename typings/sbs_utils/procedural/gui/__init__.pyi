@@ -8,7 +8,7 @@ def boarding_console_revision (client_id=None):
     THE DEVICE IS PART OF THIS SCREEN. Without its revision here, opening an app changed
     the stored state and nothing ever repainted - the `on change` never moved, so the
     tick never ran and the tiles "did nothing"."""
-def boarding_go_down (client_id, host=None):
+def boarding_go_down (client_id, host=None, at=None):
     """Morph this console into the character it just took, and show it where it is.
     
     The PADD stays open across it - the crew pressed a button on a screen and that
@@ -31,6 +31,8 @@ def boarding_go_down (client_id, host=None):
         client_id: the console going down.
         host (optional): the ship or station whose interior it will walk. Without one
             this is the old dialogue-only morph, which is still a valid way to play.
+        at (optional): the cell to stand on, ``(x, y)``. Defaults to the interior's
+            airlock. A console already standing somewhere else is MOVED here.
     
     Returns:
         bool: False when this console is not holding anybody."""
@@ -798,9 +800,17 @@ def gui_blank (count=1, style=None):
 def gui_boarding_console (client_id=None, map_width=66, on_leave=None):
     """Build the crew console: the interior on the left, the xESS on the right.
     
+    A PARTY WITH NOWHERE TO WALK GETS THE DEVICE ALONE, across the whole screen. This
+    console used to be withheld from such a party - a map of nothing beside the device
+    would have replaced a screen that worked with a mostly empty one - so its scene had
+    no console at all, and the crew read it in their mail. The device is the boarding
+    party's surface whether or not there is a floor: ACT is the room and its choices,
+    CREW is who came and the way home.
+    
     Args:
         client_id (optional): the console. Defaults to the page's own.
         map_width (int, optional): how much of the screen the interior takes, in percent.
+            Ignored when there is no interior to draw.
         on_leave (optional): ignored, and kept so a mission that passed it still runs.
             Leaving is the CREW app's Beam up now, which calls `boarding_go_up` - there
             is no longer a button on every screen to hand a handler to.
@@ -820,7 +830,7 @@ def gui_boarding_console_tick ():
         registered it, and this is called from one."""
 def gui_boarding_screen (title='Boarding Party'):
     """Draw the join/leave screen for this console."""
-def gui_button (props, style=None, data=None, on_press=None, is_sub_task=None):
+def gui_button (props, style=None, data=None, on_press=None, is_sub_task=None, signal=None):
     """Add a button to the current GUI layout outside of an ``await gui()`` block.
     
     Unlike buttons declared with ``*`` or ``+`` inside ``await gui()``, this
@@ -859,6 +869,10 @@ def gui_button (props, style=None, data=None, on_press=None, is_sub_task=None):
             **deprecated**. Defaults to None, meaning the library decides; a
             handler that paints a screen and reaches ``await gui()`` sends the
             GUI task there either way, so you should not need this.
+        signal (str, optional): A signal to emit on each press, as
+            ``gui_signal(button, signal, data)``. The route gets ``data``'s keys
+            plus ``SIGNAL_CLIENT_ID`` and ``SIGNAL_ITEM``. Runs alongside
+            ``on_press``. Defaults to None.
     
     Valid Styles:
         area:
@@ -902,7 +916,7 @@ def gui_change (code, label):
         gui_change("shield_level", shield_warning)
         ///shield_warning
             gui_text("Shields changed!")"""
-def gui_checkbox (msg, style=None, var=None, data=None):
+def gui_checkbox (msg, style=None, var=None, data=None, signal=None):
     """Add a checkbox to the current GUI layout.
     
     The current value of ``var`` (expected to be a bool) sets the initial
@@ -916,6 +930,8 @@ def gui_checkbox (msg, style=None, var=None, data=None):
             from and update on toggle. Defaults to None.
         data (object, optional): Arbitrary data passed to the event handler.
             Defaults to None.
+        signal (str, optional): A signal to emit on each toggle, with the new
+            state as ``SIGNAL_VALUE`` (see ``gui_signal``). Defaults to None.
     
     Returns:
         Checkbox: The layout item created.
@@ -1119,7 +1135,68 @@ def gui_content (content, style=None, var=None):
     Example:
         picker = ShipPicker(0, 0, "mast", "Your Ship")
         gui_content(picker, var="selected_ship")"""
-def gui_drop_down (props, style=None, var=None, data=None):
+def gui_cycle_button (states, value=None, style=None, data=None, on_press=None, glyph='>', is_sub_task=None, signal=None):
+    """Add a cycle button: one press shows the next state, and the last wraps.
+    
+    The control for a setting with a handful of states. A radio group or a chip rail
+    spends one touch target per option; this spends ONE whatever the state count,
+    which is what makes it fit a narrow column and a finger. Prefer a dropdown only
+    when the list is long enough that cycling to the far end is tedious.
+    
+    **Inside a sub-region (a tabbed panel tab, a listbox row, an overlay slot) this
+    control does NOT repaint itself** - it cannot. A widget re-sent into a region
+    out of band paints wrong: the engine draws the new label over the old one in the
+    same rect. The region owner has to repaint, which for a tabbed panel means
+    returning 2 (redraw) from that tab's tick. Outside a region it updates in place
+    as any other widget does.
+    
+    Args:
+        states (list[str] | str): the states in cycle order, as a list or a comma
+            string (``"icons,circles"``) so MAST can call this too.
+        value (str, optional): which state to show first. An unknown value, or None,
+            shows the first. Defaults to None.
+        style (str, optional): CSS-like overrides, as ``gui_button`` takes them
+            (``"row-height:2.2em;justify:center;"``). Defaults to None.
+        data (object, optional): passed to the handler, as ``gui_button``'s is.
+        on_press (label | callable | Promise, optional): run AFTER the state
+            advances, so a handler reading ``.state`` sees the new one. Takes the
+            same three forms ``gui_button`` accepts.
+    
+            **To READ the new state, attach with ``gui_message_callback`` instead.**
+            An ``on_press`` callable is called with nothing unless it declares a
+            REQUIRED parameter, and the house idiom - a closure with bound defaults
+            - declares none. So the obvious handler,
+            ``lambda event=None, sender=None: apply(sender.state)``, is handed
+            nothing, reads ``sender`` as None and silently does nothing::
+    
+                b = gui_cycle_button("icons,circles", value=cur)
+                gui_message_callback(b, lambda e, sender: apply(sender.state))
+    
+            ``on_press`` is still right when the handler does not need the state -
+            a label, a Promise, or a closure that already knows what it is toggling.
+        glyph (str, optional): the marker drawn after the state, saying this cycles.
+            ASCII only - it reaches an engine-rendered string. Defaults to ``">"``.
+        is_sub_task (bool, optional): how an ``on_press`` LABEL runs. As
+            ``gui_button``. Defaults to None (the library decides).
+        signal (str, optional): A signal to emit on each press, with the NEW state
+            as ``SIGNAL_VALUE`` (see ``gui_signal``) - the simplest way to read the
+            state, with no callback to write. Defaults to None.
+    
+    Returns:
+        CycleButton | None: the layout object. Read ``.state`` for the state;
+        ``.value`` is the props string, as on any Button.
+    
+    Example:
+        # Python
+        rooms = gui_cycle_button(["icons", "circles"], value=cur,
+                                 style="row-height:2.2em;",
+                                 on_press=lambda _s=ship: apply_rooms(_s))
+    
+        # MAST
+        rooms = gui_cycle_button("icons,circles", value=cur)
+        on gui_message(rooms):
+            apply_rooms(ship_id, rooms.state)"""
+def gui_drop_down (props, style=None, var=None, data=None, signal=None):
     """Add a drop-down list to the current GUI layout.
     
     When the player selects an item, ``var`` is updated. ``var`` is written, not
@@ -1138,6 +1215,8 @@ def gui_drop_down (props, style=None, var=None, data=None):
             changes. Defaults to None.
         data (object, optional): Arbitrary data passed to the event handler.
             Defaults to None.
+        signal (str, optional): A signal to emit on each selection, with the
+            selected text as ``SIGNAL_VALUE`` (see ``gui_signal``). Defaults to None.
     
     Returns:
         Dropdown: The layout item created.
@@ -1178,6 +1257,35 @@ def gui_face (face, style=None):
     
     Example:
         gui_face("crew/captain")"""
+def gui_gauge (value, max=100, label='', style=None, show=None, warn=None, crit=None, color=None, invert=False):
+    """Add a gauge - label, value and a bar colored by how full it is - to the
+    current GUI layout. The engine's status-panel look (Energy 946 over a green bar).
+    
+    For a value that changes often, hold the widget and update it; only the gauge
+    repaints. (A `[Energy](gauge://946?max=1000)` line in `gui_text_area` draws the
+    same thing, but a text area re-sends its whole document on any change.)
+    
+    Args:
+        value (float): Current value. Out-of-range values clamp the bar, and the
+            number shown is still the raw value. Above max the bar is full and
+            cyan, the engineering console's TUNED color.
+        max (float, optional): Full-scale value. Defaults to 100.
+        label (str, optional): Text on the left. Defaults to "" (bar only).
+        style (str, optional): Style overrides (e.g. ``font:gui-3;``).
+        show (str, optional): ``value``, ``frac`` ("45 / 120"), ``pct`` or ``none``.
+            Defaults to ``value`` with a label, ``none`` without.
+        warn (float, optional): Fraction below which the bar is yellow. Default 0.5.
+        crit (float, optional): Fraction below which the bar is red. Default 0.25.
+        color (str, optional): A fixed bar color, ignoring warn/crit.
+        invert (bool, optional): MORE is WORSE (wear, heat, damage): green while
+            low, yellow then red as it climbs, red past max. Defaults to False.
+    
+    Returns:
+        Gauge: The layout item. ``g.update(value=45)`` or ``g.value = 45`` repaints it.
+    
+    Example:
+        shields = gui_gauge(120, 120, "FRNT SHLD")
+        shields.value = 45"""
 def gui_get_console_type (key):
     """Get the list of consoles defined by @console decorator labels
     
@@ -1368,7 +1476,7 @@ def gui_icon_add_atlas (name, image, left=None, top=None, right=None, bottom=Non
 def gui_icon_add_atlas_grid (image, cols, rows=None, names=None, cell=None, color=None, start=0):
     """Claim a whole sheet of icon names at once - `gui_image_add_atlas_grid` in the icon
     domain. Names are laid out row-major; a `None` entry skips a cell."""
-def gui_icon_button (props, style=None, data=None, on_press=None, is_sub_task=None):
+def gui_icon_button (props, style=None, data=None, on_press=None, is_sub_task=None, signal=None):
     """Add a clickable icon button to the current GUI layout.
     
     Like ``gui_icon`` but the rendered item accepts click events. Takes
@@ -1394,6 +1502,8 @@ def gui_icon_button (props, style=None, data=None, on_press=None, is_sub_task=No
             **deprecated**. Defaults to None, meaning the library decides; a
             handler that paints a screen and reaches ``await gui()`` sends the
             GUI task there either way, so you should not need this.
+        signal (str, optional): A signal to emit on each press (see
+            ``gui_signal``). Defaults to None.
     
     Returns:
         IconButton: The layout item created.
@@ -1829,7 +1939,7 @@ def gui_input (props, style=None, var=None, data=None):
     
     Example:
         gui_input("", var="ship_name", style="col-width:50%;")"""
-def gui_int_slider (msg, style=None, var=None, data=None):
+def gui_int_slider (msg, style=None, var=None, data=None, signal=None):
     """Add an integer-only slider control to the current GUI layout.
     
     Convenience wrapper for ``gui_slider(..., is_int=True)``.
@@ -1842,6 +1952,7 @@ def gui_int_slider (msg, style=None, var=None, data=None):
             update on change. Defaults to None.
         data (object, optional): Arbitrary data passed to the event handler.
             Defaults to None.
+        signal (str, optional): As ``gui_slider``. Defaults to None.
     
     Returns:
         Slider: The layout item created.
@@ -1908,7 +2019,7 @@ def gui_list (items, style='', select=False, multi=False, title=None, read_only=
         with gui_list(ships, select=True) as ship:
             gui_text("{ship.name}")
             gui_text("{ship.hull}%")"""
-def gui_list_box (items, style, item_template=None, title_template=None, section_style=None, title_section_style=None, select=False, multi=False, carousel=False, collapsible=False, read_only=False, reveal=False, hint=None):
+def gui_list_box (items, style, item_template=None, title_template=None, section_style=None, title_section_style=None, select=False, multi=False, carousel=False, collapsible=False, read_only=False, reveal=False, hint=None, signal=None, data=None):
     """Add a listbox to the current GUI layout.
     
     Args:
@@ -1956,6 +2067,10 @@ def gui_list_box (items, style, item_template=None, title_template=None, section
             ``get_selection_hint()``. A repaint builds a DIFFERENT listbox whose
             view starts at the top, so without this the row under the user's
             mouse moves. Do not inspect it; pass it along.
+        signal (str, optional): A signal to emit on each row click, with the
+            selection as ``SIGNAL_VALUE`` (see ``gui_signal``). Defaults to None.
+        data (dict, optional): Extra variables for the ``signal`` route.
+            Defaults to None.
     
     Returns:
         LayoutListbox: The layout object created.
@@ -2265,7 +2380,7 @@ def gui_properties_set (p=None, tag=None):
     
     Example:
         gui_properties_set({"Speed": "gui_text(str(ship_speed))", "Shields": "gui_slider(shield_pct)"})"""
-def gui_property_list_box (name=None, tag=None, temp=<function _property_lb_item_template_one_line at 0x00000261778F3600>, hide_when_empty=False):
+def gui_property_list_box (name=None, tag=None, temp=<function _property_lb_item_template_one_line at 0x0000022F820DD580>, hide_when_empty=False):
     """Create a property list box with single-line label/control layout.
     
     Each property is rendered as a label on the left and its control widget
@@ -2485,6 +2600,30 @@ def gui_row (style=None):
         gui_text("Name:")
         gui_row()
         gui_input("", var="ship_name")"""
+def gui_screen_revision (client_id=None, band=100):
+    """What an `on change` watches to rebuild a console after a RESIZE.
+    
+    A console that decides anything from the screen - how many rows a box shows, how
+    wide a column is - reads it while BUILDING, so the answer is baked into the page.
+    `screen_size` updates the aspect ratio and re-presents, which recomputes
+    percentages but does not re-run the builder, so those decisions stay as they were.
+    Watching this and jumping back to the console's label rebuilds them.
+    
+    COARSE ON PURPOSE. The raw size is reported many times while a window is dragged,
+    and a console rebuild per distinct value would thrash. A band rebuilds at most
+    once per band crossed.
+    
+    Args:
+        client_id (int, optional): defaults to the current frame's client.
+        band (int, optional): band size in pixels. Defaults to
+            :data:`GUI_SCREEN_BAND_PX`.
+    
+    Returns:
+        tuple[int, int]: the banded (width, height). Compare, do not read as pixels.
+    
+    Example:
+        on change gui_screen_revision(client_id):
+            jump my_console_label"""
 def gui_screen_size (client_id):
     """Return the pixel dimensions of a client's screen.
     
@@ -2608,7 +2747,41 @@ def gui_show (layout_item):
     Example:
         gui_show(warning_row)
         gui_represent(my_section)"""
-def gui_slider (msg, style=None, var=None, data=None, is_int=False):
+def gui_signal (layout_item, name, data=None):
+    """Emit a signal whenever a control is used.
+    
+    The control does not run anything itself; the signal's routes do. That keeps
+    the widget free of handler plumbing, and lets the SAME control drive a
+    ``//shared/signal`` route (state, once on the server) and a ``//signal``
+    route (a repaint, on each console) - see SIGNAL_ROUTING.md for which is which.
+    
+    Works on any control: button, icon button, cycle button, checkbox, dropdown,
+    slider and listbox (on a row click). It is added alongside the widget's other
+    handlers (``on_press``, ``on gui_message``), never in place of them.
+    
+    The route gets these variables:
+    
+    - every key of ``data``, when it is a dict (anything else is ``SIGNAL_DATA``)
+    - ``SIGNAL_CLIENT_ID``: the console that used the control
+    - ``SIGNAL_ITEM``: the control itself
+    - ``SIGNAL_VALUE``: its value after the click - the checkbox state, the
+      dropdown text, the slider value, the listbox selection, the cycle button's
+      state; None for a plain button
+    
+    Args:
+        layout_item: the control, as returned by its ``gui_*`` function.
+        name (str): the signal to emit.
+        data (dict, optional): extra variables for the route. Defaults to None.
+    
+    Returns:
+        the layout item, so the call can wrap the builder.
+    
+    Example:
+        gui_signal(gui_checkbox("Shields", var="shields_on"), "shields_toggled")
+    
+        //shared/signal/shields_toggled
+            set_shields(SIGNAL_CLIENT_ID, SIGNAL_VALUE)"""
+def gui_slider (msg, style=None, var=None, data=None, is_int=False, signal=None):
     """Add a slider control to the current GUI layout.
     
     The current value of ``var`` is used as the initial slider position. When
@@ -2624,6 +2797,8 @@ def gui_slider (msg, style=None, var=None, data=None, is_int=False):
             Defaults to None.
         is_int (bool, optional): Restrict values to integers. Defaults to
             ``False``.
+        signal (str, optional): A signal to emit on each change, with the new
+            value as ``SIGNAL_VALUE`` (see ``gui_signal``). Defaults to None.
     
     Returns:
         Slider: The layout item created.
@@ -2903,11 +3078,28 @@ def gui_text (props, style=None):
     Example:
         gui_text("Hull: {hull_pct}%")
         gui_text("$text:WARNING;color:red;")"""
-def gui_text_area (props, style=None, markdown=True, line_styles=None):
+def gui_text_area (props, style=None, markdown=True, line_styles=None, on_link=None, link_resolver=None):
     """Add a rich text area to the current GUI layout.
     
-    Supports Markdown-style formatting and inline image references
-    (``![](image://key)``). Use for multi-line or formatted text blocks.
+    Supports Markdown-style formatting: headings (``##+``/``##-`` fold), lists,
+    pipe tables, gauges (``[Energy](gauge://946?max=1000)``), links
+    (``[Text](ref://key)``) and pictures. A picture ALONE on its line
+    (``![](image://key?scale=0.5)``, ``face://``, ``ship://``) is drawn full size;
+    followed by text it LEADS the line - a square ``size=N`` text lines tall with
+    the text beside it, and at the start of a ``-`` item it is the bullet. Use for
+    multi-line or formatted text blocks.
+    
+    **Choices.** A line that is only ``[Display](signal://name?key=value)`` is a
+    button. Lines of them next to each other are one group, drawn as flat buttons
+    that share a row while they fit and wrap when they do not. Clicking one
+    replaces the whole group with the choice made (so the document reads as the
+    story so far) and emits ``name`` with the query as variables, plus
+    ``SIGNAL_CHOICE`` (the words), ``SIGNAL_CLIENT_ID`` and ``SIGNAL_ITEM`` (this
+    area). Continue the story from the route with
+    ``gui_text_area_append(SIGNAL_ITEM, text)``. A line
+    ``[](choices://?layout=stack&fill=#234)`` above a group restyles the groups
+    after it (``fill``, ``text``, ``chosen_fill``, ``chosen_text``, ``font``,
+    ``pad_x``, ``pad_y``, ``gap``, ``layout`` = ``flow`` | ``stack``).
     
     Args:
         props (str): Text content or Markdown string. Supports ``{var}``
@@ -2924,14 +3116,41 @@ def gui_text_area (props, style=None, markdown=True, line_styles=None):
         line_styles (list, optional): One style key per line, applied in order -
             how you colorize text that is no longer being parsed. Pairs with
             ``markdown=False``. Defaults to None.
+        on_link (callable, optional): ``fn(key, widget)``, called when a
+            ``[Text](ref://key)`` link is clicked - a whole-line link or a table
+            cell. Defaults to None.
+        link_resolver (callable | dict, optional): what a link NAVIGATES to -
+            ``fn(key) -> new text`` or a ``{key: text}`` dict. The area swaps to
+            that text in place (back to the top). None, or a key it does not know,
+            leaves the text alone. Defaults to None.
     
     Returns:
         TextArea: The layout item created.
     
     Example:
         gui_text_area("## Status\nAll systems nominal.")
-        gui_text_area("![](image://logo?scale=0.5) Mission active")
+        gui_text_area("![](image://logo?scale=0.5)")
+        gui_text_area("![](icon://check.on?color=#8f8) Mission active")
         gui_text_area(source, markdown=False, line_styles=per_line_keys)"""
+def gui_text_area_append (text_area, text, sep='\n\n'):
+    """Add text to the end of a text area - how a story continues after a choice.
+    
+    The area repaints itself and, when the reader is at the bottom, stays there.
+    Use this rather than ``area.value += text``: ``value`` reads back as a list of
+    lines. The text is not ``{var}``-formatted here; format it before passing it.
+    
+    Args:
+        text_area (TextArea): the area, e.g. ``SIGNAL_ITEM`` in a choice's route.
+        text (str): markdown to add, choices included.
+        sep (str, optional): what goes between. A blank line by default, so the
+            new text starts a paragraph.
+    
+    Returns:
+        TextArea: the area.
+    
+    Example:
+        //shared/signal/lp_pick
+            gui_text_area_append(SIGNAL_ITEM, next_scene_text(pick))"""
 def gui_text_escape (s):
     """Quote a dynamic value for safe inclusion as a ``$text:`` style value.
     
@@ -2944,6 +3163,43 @@ def gui_text_escape (s):
     Use this ONLY on the dynamic value, e.g. ``f"$text:{gui_text_escape(name)};color:red;"``
     -- never on a whole authored props string, so the author's own ``:``/``;``
     styling is left untouched."""
+def gui_text_literal (text):
+    """``text`` made safe to hand to a widget that fills ``{name}`` in what it is given.
+    
+    `gui_text_area` treats its text as a template: `{ship}` is looked up and filled in.
+    That is right for a string a script wrote and wrong for a line an AUTHOR wrote - a
+    spoken line in an .amd file, a message from home. `Call me {Captain}, everyone does.`
+    is a `NameError` against the screen's own `await gui()`, and the console that was
+    drawing it stops drawing. Seen in the engine, 2026-10-03.
+    
+    Pass prose through this first. The braces come out the other side as braces."""
+def gui_tilemap (follow=None, area=None, cols=17, style=None, on_click=None, fog=True, hints=None):
+    """Add a tile map view to the current layout.
+    
+    Args:
+        follow (optional): the actor the view keeps in sight - usually this console's
+            own crew body. The view shows whichever area that actor is in.
+        area (str, optional): a fixed area to show when nobody is followed.
+        cols (int, optional): tiles across. Rows are however many square tiles fit.
+        style (str, optional): layout style, as for any widget.
+        on_click (callable, optional): ``fn(client_id, area, x, y)`` for a tile click.
+        fog (bool, optional): draw only what the party has seen. On by default - a map
+            must not show the crew what they do not know.
+        hints (callable, optional): ``fn(client_id, area) -> {(x, y): atlas key}`` -
+            badges drawn over cells worth a look (``boarding_hint_badges``). A badge
+            may be ``(atlas key, tint)``.
+    
+    The area must EXIST before the page is built - load or generate it first. The
+    engine only updates widgets that were in the build, so a view whose first paint
+    found no area can draw nothing until the page is rebuilt (it logs once).
+    
+    Returns:
+        TileView: the layout item.
+    
+    Example (MAST)::
+    
+        gui_section("area: 0, 0, 66, 100;")
+        gui_tilemap(boarding_me(client_id), on_click=boarding_tile_click)"""
 def gui_update (tag, props, shared=False, test=None):
     """Update the property string of an existing GUI element by tag.
     
@@ -3074,7 +3330,14 @@ def gui_widget_offscreen (widget, client_id=None):
         widget (str): engine widget name, e.g. ``"text_waterfall"``.
         client_id (int, optional): defaults to the current client."""
 def gui_xess (client_id=None):
-    """Build the device: the identity bar, then the app area.
+    """Build the handheld. The boarding surface of :func:`gui_xess_panel`."""
+def gui_xess_head (client_id, title, back=True, surface='boarding'):
+    """An app's title line, with the way back to the tiles.
+    
+    Every app draws this, so Back is in the same place on all of them - which is the
+    only reason a crew member can leave an app they have never seen before."""
+def gui_xess_panel (client_id=None, surface='boarding', identity_area=None, app_area=None):
+    """Build a panel: the identity bar, then the app area.
     
     The bar is a plain flow in its own section; the app area is a REGION, because it is
     the part that changes shape and a region is one of only two things in the library
@@ -3082,18 +3345,31 @@ def gui_xess (client_id=None):
     one leaves every earlier fill painted underneath, which is what three superimposed
     messages in the ePADD inbox turned out to be.
     
+    A surface whose descriptor has no `identity` gets NO bar - the panel is the app area
+    alone, and `gui_xess_tick` then has only one thing to do.
+    
+    Args:
+        client_id (int, optional): the console. PASS IT: a panel on a console riding a
+            detached camera cannot rely on the ambient page being its own.
+        surface (str, optional): which surface to build. Defaults to the handheld.
+        identity_area (str, optional): override the descriptor's bar area.
+        app_area (str, optional): override the descriptor's app area.
+    
     Returns:
         dict: the held widgets, also stored on the page for :func:`gui_xess_tick`."""
-def gui_xess_head (client_id, title, back=True):
-    """An app's title line, with the way back to the tiles.
-    
-    Every app draws this, so Back is in the same place on all of them - which is the
-    only reason a crew member can leave an app they have never seen before."""
-def gui_xess_tick ():
-    """Refresh the device in place. What an `on change` should CALL.
+def gui_xess_tick (surface='boarding'):
+    """Refresh a panel in place. What an `on change` should CALL.
     
     Never a jump back to the screen label: that re-sends every widget on the console over
     the network, and a watcher would do it forever.
+    
+    TWO CHANNELS, AND THAT IS THE POINT. The bar's three widgets are updated whenever the
+    bar's text moves; the app region is rebuilt only when the app half of the revision
+    moves. A panel whose bar carries a countdown would otherwise rebuild its app every
+    second - which, on a screen holding a selectable queue, means the row you are reaching
+    for is replaced under the cursor. It also makes the bar honest: it used to be updated
+    only when the APP's revision moved, so walking into a new room left the bar naming the
+    old one until something unrelated happened to change.
     
     Returns:
         bool: False when the screen is gone - a handler can outlive the page."""
@@ -3241,8 +3517,13 @@ def icon_resolve (name):
     would think twice about - would silently re-skin every icon meaning pointing there.
     Overriding a look has to be something you meant."""
 def offer_board_count_here ():
-    """How many offers the Offers app lists for THIS console that could be acted on -
-    the tile's gate, so the tile never opens onto an empty list.
+    """How many offers the Offers app LISTS for this console - the tile's gate, so the
+    tile never opens onto an empty list and never hides a list that is not empty.
+    
+    A POSTED job counts. It is listed so the crew can see it is there, though only
+    answering the call that offers it takes it (`At start: posting`). This used to leave
+    posted rows out, so a mission whose one job was posted had no tile at all: the job the
+    author wrote was on no screen, with lint clean.
     
     Not ``offer_count_here``: that counts every offer, including one left to its own
     app, which this app does not list."""
@@ -3427,6 +3708,17 @@ def overlay_lower_third_portrait (name, line, face=None, ship=None, icon=None, i
     without that.
     
     See ``overlay_banner`` for ``cycle`` / ``dwell`` / ``loop``."""
+def overlay_patch (slot, to=None, consoles=None, **fields):
+    """Merge ``fields`` into a live overlay's content and redraw the slot.
+    
+    The general form of ``overlay_hud_update``, for any kind: the builder runs
+    again with the patched content and the slot region is re-filled between its
+    own clear/complete. That is the ONLY safe way to change what an overlay shows
+    live - a widget inside a slot cannot repaint itself (the engine overdraws
+    re-sent text). No-op for a slot that is not showing.
+    
+    Example:
+        overlay_patch("status", energy=807, front=45)"""
 def overlay_register (kind, builder):
     """Register a content builder for an overlay ``kind``.
     
@@ -3965,31 +4257,48 @@ def xess_app_badge (app):
     
     Never raises: a provider that throws costs its own tile a badge and nothing else.
     A provider asking for its own badge is ANSWERED with None rather than re-entered."""
-def xess_app_count ():
-    """Reset-ledger probe: how many apps are registered."""
-def xess_apps (client_id=None):
+def xess_app_count (surface=None):
+    """Reset-ledger probe: how many apps are registered. Every surface when none is named,
+    so a mission's leftovers are counted too."""
+def xess_apps (client_id=None, surface='boarding'):
     """The apps this console may open, in tile order.
     
     An `available` that raises drops its own tile and nothing else - the same bargain the
     badge makes. A device that goes blank because one mission app asked an awkward
     question is worse than a device missing one tile."""
 def xess_clear ():
-    """Forget every registration. The mission reset calls this; the built-ins re-register
-    themselves immediately after, so a reset never leaves a device with no apps."""
-def xess_focus (client_id=None):
+    """Forget every registration, on EVERY surface. The mission reset calls this; the
+    built-ins re-register themselves immediately after, so a reset never leaves a device
+    with no apps.
+    
+    A mission's own surface goes away entirely - its descriptor as well as its apps -
+    because the next mission has no reason to carry it. A mission re-registers its
+    surfaces when its console opens, which is why that call has to be idempotent."""
+def xess_focus (client_id=None, surface='boarding'):
     """The row the open app is showing, for the apps that are a list and a detail."""
-def xess_open (client_id, key=None):
+def xess_ground_use (item, fn, label='Use'):
+    """Give an item a USE from the Pack: ``fn(client_id, lifeform, target)`` where
+    ``target`` is a teammate beside you (or yourself). Return text for the device."""
+def xess_open (client_id, key=None, surface='boarding'):
     """Open an app on this console, or go home with ``None``.
     
     Leaving FIRE DISARMS. Walking away from a live weapon with the gun still up is
-    exactly the accident the disarm-on-shot rule exists to prevent, one step earlier."""
-def xess_opened (client_id=None):
-    """The app this console has open, or None for the tile sheet."""
-def xess_register (key, title=None, icon=None, blurb=None, sort=100, draw=None, badge=None, available=None):
+    exactly the accident the disarm-on-shot rule exists to prevent, one step earlier.
+    That is the HANDHELD's rule, and the import that serves it lives inside the branch -
+    a panel on some other console must not drag the boarding modules in to open a tile."""
+def xess_opened (client_id=None, surface='boarding'):
+    """The app this console has open on this surface, or None for the tile sheet."""
+def xess_panel_revision (client_id=None, surface='boarding'):
+    """What a panel's `on change` watches: the bar AND the app area.
+    
+    Two channels, deliberately. :func:`gui_xess_tick` updates the bar's three widgets in
+    place and rebuilds the app region only when the app half moved, so a status line that
+    ticks every second never rebuilds a listbox somebody is halfway through clicking."""
+def xess_register (key, title=None, icon=None, blurb=None, sort=100, draw=None, badge=None, available=None, surface='boarding'):
     """Put an app on the device.
     
     Args:
-        key (str): its name, unique. Lower-cased.
+        key (str): its name, unique within its surface. Lower-cased.
         title (str, optional): what the tile says. Defaults to the key, upper-cased.
         icon (str, optional): an icon NAME, resolved by `gui_icon_name`. An unknown name
             draws nothing and says so once, which is what lets an app be registered
@@ -4002,13 +4311,14 @@ def xess_register (key, title=None, icon=None, blurb=None, sort=100, draw=None, 
             Called at build time; never allowed to raise (see :func:`xess_app_badge`).
         available (callable, optional): ``available(client_id)`` - False means no tile.
             The route's `if` is the ePADD's equivalent; this device has no routes.
+        surface (str, optional): which surface it belongs to. Defaults to the handheld.
     
     Returns:
         dict: the registration."""
-def xess_registered ():
-    """Every app key on the device. An accessor because MAST cannot see a module-level
+def xess_registered (surface='boarding'):
+    """Every app key on a surface. An accessor because MAST cannot see a module-level
     dict - only functions become MAST globals."""
-def xess_revision (client_id=None):
+def xess_revision (client_id=None, surface='boarding'):
     """What an `on change` watches. PER CONSOLE.
     
     A shared counter would mean one crew member opening an app repainting five other
@@ -4027,8 +4337,41 @@ def xess_revision (client_id=None):
     
     The running job needs nothing here - `_work_badge` already reports the countdown as
     "%ds", which changes every second and repaints on its own. Adding the seconds would
-    force a rebuild every tick for a number the badge is already carrying."""
-def xess_set_focus (client_id, value):
+    force a rebuild every tick for a number the badge is already carrying.
+    
+    What is COMMON to every surface is here; what a surface adds is its descriptor's
+    `revision`. Boarding's own half is `_boarding_revision`, so its imports are reached
+    only when boarding is the surface being asked about."""
+def xess_set_focus (client_id, value, surface='boarding'):
     ...
-def xess_unregister (key):
+def xess_surface (surface, title=None, identity=None, revision=None, auto_open=None, home_text=None, identity_area=None, app_area=None, at_style=None):
+    """Teach the device a new place to live.
+    
+    Everything a surface does differently is a callable here, so the shell itself holds no
+    knowledge of any one console - and a surface's imports are reached only through its own
+    descriptor. That is the whole point: a non-boarding panel must never drag the boarding
+    and EVA modules in behind it.
+    
+    Args:
+        surface (str): its name, used by every other function's ``surface=``.
+        title (str, optional): the word at the top of the tile sheet. Defaults to "xESS".
+        identity (callable, optional): ``identity(client_id) -> (name, job, at)``, the bar's
+            three slots. ``None`` means NO identity bar - the panel is the app area alone.
+        revision (callable, optional): ``revision(client_id) -> hashable``, folded in after
+            ``(opened, focus, badges)``. What this surface must rebuild its app area for.
+        auto_open (callable, optional): ``auto_open(client_id)`` - a surface that opens an
+            app by itself (boarding opens ACT on a new beat). ``None`` means nothing does.
+        home_text (callable, optional): ``home_text(client_id) -> str`` - prose above the
+            tiles.
+        identity_area (str | callable, optional): the bar's area, a style string or a
+            zero-arg callable returning one.
+        app_area (str | callable, optional): the app region's area, same forms.
+        at_style (callable, optional): ``at_style(client_id, at) -> style`` for the third
+            slot, when a surface needs to take it over (boarding's ARMED readout).
+    
+    Returns:
+        dict: the descriptor."""
+def xess_surfaces ():
+    """Every surface name the device knows. An accessor because MAST cannot see a dict."""
+def xess_unregister (key, surface='boarding'):
     """Take an app off the device. True when there was one."""

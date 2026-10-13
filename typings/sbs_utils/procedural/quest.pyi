@@ -36,6 +36,9 @@ def _amd_slug (text):
     """A heading display -> a key: lowercase, non-alphanumeric runs -> single '_'."""
 def _document_get_amd_file (file_path, root_display_text='', strip_comments=True, content=None, data_parser=None, allow_bare_headings=False):
     ...
+def _pane_safe (text):
+    """Authored text going into a CELL or a list item of the pane: a `|` would split
+    the table, and a newline would end the item."""
 def _quest_emit_offered (agent_id, quest_id, quest=None):
     """Announce that a job is on the board and nobody has taken it.
     
@@ -537,6 +540,31 @@ def quest_log_icon (row):
     one glyph, where before every row was the same square and the kind was invisible. The
     name resolves through the icon sheet, so a mission that ships its own art re-skins
     every quest log without touching this."""
+def quest_log_pane_show (text_area, row, empty=''):
+    """Put the selected row's detail in the Quest Log's text area. Returns the text.
+    
+    A quest gets `quest_log_pane_text`; an arc (a header row) its description and step
+    list; anything else `empty`.
+    
+    ONE CALL, SO THE SCREEN NEVER HOLDS THE TEXT IN A VARIABLE. The quest tab used to
+    write `sel_desc = quest_log_pane_text(sel)`, and a string assigned in MAST is run
+    through f-string formatting - so a description an author wrote as
+    `Find the {drifting} hulk` was a NameError against the console showing it, and any
+    `{expression}` in a description was RUN. Setting `.value` fills nothing in (only
+    `gui_text_area(...)` itself does, when the area is made), so the text goes in as it
+    is: doubling the braces here drew `{{drifting}}`."""
+def quest_log_pane_text (row):
+    """The detail pane for a selected quest, as text-area markdown.
+    
+    An ARC (a header row) is `quest_log_parent_summary` - its description and a step
+    checklist. A single quest gets the facts first, where they are read at a glance:
+    
+    * how far along, as a GAUGE, when the quest counts something (`3 / 5`);
+    * a small grid - its state (the log's own pip: shape by kind, color by state, and the
+      word), what it pays, how long is left - listing only what the quest actually has;
+    * then its description, exactly as authored.
+    
+    Returns "" for a row that is not a quest."""
 def quest_log_parent_summary (row):
     """Detail-pane text for a PARENT quest (an arc): its own description, then a
     checklist of its steps.
@@ -562,6 +590,15 @@ def quest_log_template (item):
     the in-game and end-game logs. Fix the look here and both update."""
 def quest_log_title ():
     """Shared list title for the quest log."""
+def quest_objective_typed (q):
+    """The `Objective:` line the WRITER typed for quest dict `q`, or "".
+    
+    A quest with no `Objective:` gets one made from `Done when:` (`Reach derelict 500`),
+    which is right for a board with nothing else to show and wrong above a description
+    somebody wrote. So the Quest Log asks this, not `data["objective"]`. Whichever of the
+    two lines came first in the fence, a typed one wins: the made-up one is only ever
+    put in a blank and is remembered beside it (`objective_auto`), so a typed one that
+    arrives later no longer matches it."""
 def quest_offers_title ():
     """List title for Available Quests - the same quest-log screen, listing untaken ones."""
 def quest_remove (agent, quest_id):

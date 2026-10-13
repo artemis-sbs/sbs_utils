@@ -141,6 +141,8 @@ def _vol_push_out (p, anchor, radius):
     objects."""
 def _vol_push_solid_out (prim, p, margin=0.0):
     """The nearest point at least `margin` OUTSIDE a solid - how you leave a pillar."""
+def _vol_quat_from_columns (p, q, u):
+    """The quaternion of the rotation whose columns are where local x, y, z end up."""
 def _vol_resolve (volume):
     ...
 def _vol_resolve_agents (agents):
@@ -210,6 +212,8 @@ def _vol_tractor_hold (vol, ship_id, pos, margin, scrape_band=120.0, radius=0.0)
 def _vol_tractor_release (ship_id):
     """Drop this ship's containment tractor. The engine call directly, to match the hold -
     going through `grav_tether_release` would look up a registry entry we never made."""
+def _vol_unit (v):
+    ...
 def _vol_xyz (p):
     """Coerce a position: Vec3, tuple/list, engine vec3, Agent, or agent id."""
 def volume_align_quat (direction, roll=0.0):
@@ -334,6 +338,19 @@ def volume_load (name, data, origin=None):
         solids:                            # SUBTRACTED - pillars, spires, solid hubs
             - [sphere, 4000, 0, 0, 250]
             - [box, 0, 0, 0, 100, 800, 100]"""
+def volume_look_quat (forward, up=(0.0, 1.0, 0.0), fallback_up=(0.0, 0.0, 1.0)):
+    """A quaternion `(w, x, y, z)` turning local **+Z** onto `forward` with local **+Y**
+    as close to `up` as it can get.
+    
+    The difference from `volume_align_quat` is the second axis, and it is the whole of
+    why a kit piece can be placed at all. `volume_align_quat` spins a piece about its
+    facing by whatever `_vol_frame` happens to pick, which is harmless for a square plate
+    and wrong for anything with a top: on every side wall it puts local +Y at world -Y, so
+    a wall panel with a skirting board, a door, a statue would all stand on their heads.
+    
+    `fallback_up` is used when `forward` is (nearly) parallel to `up` - a floor or a
+    ceiling, whose facing IS the up direction - and decides which way the tile's own +Y
+    runs across it. Deterministic, so a floor's tiles all line up."""
 def volume_names ():
     """Every defined volume name."""
 def volume_nearest_inside (volume, pos, margin=0.0):
@@ -518,7 +535,13 @@ class Volume(object):
     def __init__ (self, name):
         """Initialize self.  See help(type(self)) for accurate signature."""
     def _endpoint (self, e):
-        """Resolve a passage endpoint: a chamber name, or an explicit point."""
+        """Resolve a passage endpoint: a chamber or box name, or an explicit point.
+        
+        A BOX IS A ROOM TOO. A passage used to end only on a chamber, so `Passage to:`
+        written on a box - or pointing at one - raised here, and the relic it belonged to
+        was not built at all. Nothing an author can see separates the two kinds of room:
+        the plan view draws the passage, its connect gesture writes it, and lint called it
+        clean. The tunnel runs to the box's middle, exactly as it does for a chamber."""
     def add_box (self, name, x, y, z, hx, hy, hz):
         """An axis-aligned rectangular space. Half-extents, so hx is HALF the width.
         

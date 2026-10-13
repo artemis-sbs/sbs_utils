@@ -1,4 +1,8 @@
 from sbs_utils.vec import Vec3
+def _item_art (art):
+    """`Art:` may be a FALLBACK CHAIN - `ruins_tg_slate, alien_1a` - so an item drawn
+    from an art pack still spawns as something collectable in a mission without the
+    pack. The first key the ship data knows wins; a lone key is used as written."""
 def _item_spawn_pool (categories):
     """(keys, weights) eligible to spawn in space, weighted by 1/tier.
     

@@ -96,6 +96,8 @@ def mast_expr_source (code):
     fly), in which case the source IS the argument."""
 def profile_dropped_addons ():
     """Addon folder names the active profile removed from this compile."""
+def strip_bom (content):
+    """`content` without a leading byte-order mark, in either spelling."""
 class ChangeRuntimeNode(MastRuntimeNode):
     """class ChangeRuntimeNode"""
     def enter (self, mast: 'Mast', task: 'MastAsyncTask', node):

@@ -3,6 +3,13 @@ from sbs_utils.message_chain import MessageChain
 from sbs_utils.futures import Trigger
 def _handler_site (task, label, loc):
     ...
+def _signal_event_is_for (layout_item, event):
+    """Whether a GUI event is aimed at this widget.
+    
+    Layout.on_message hands on_message_cb every event delivered to the item during
+    the page's walk of the layout tree, not only its own (see the note in
+    epadd._app_tile), so the callback has to filter. A listbox filters first and
+    only calls back for a row click; its rows carry the listbox's tag prefix."""
 def dead_handler_site_count ():
     ...
 def dead_handler_sites_clear ():
@@ -73,6 +80,40 @@ def gui_message_label (layout_item, label):
     Example:
         section = gui_sub_section(style="col-width:30%;")
         gui_message_label(section, handle_section_click)"""
+def gui_signal (layout_item, name, data=None):
+    """Emit a signal whenever a control is used.
+    
+    The control does not run anything itself; the signal's routes do. That keeps
+    the widget free of handler plumbing, and lets the SAME control drive a
+    ``//shared/signal`` route (state, once on the server) and a ``//signal``
+    route (a repaint, on each console) - see SIGNAL_ROUTING.md for which is which.
+    
+    Works on any control: button, icon button, cycle button, checkbox, dropdown,
+    slider and listbox (on a row click). It is added alongside the widget's other
+    handlers (``on_press``, ``on gui_message``), never in place of them.
+    
+    The route gets these variables:
+    
+    - every key of ``data``, when it is a dict (anything else is ``SIGNAL_DATA``)
+    - ``SIGNAL_CLIENT_ID``: the console that used the control
+    - ``SIGNAL_ITEM``: the control itself
+    - ``SIGNAL_VALUE``: its value after the click - the checkbox state, the
+      dropdown text, the slider value, the listbox selection, the cycle button's
+      state; None for a plain button
+    
+    Args:
+        layout_item: the control, as returned by its ``gui_*`` function.
+        name (str): the signal to emit.
+        data (dict, optional): extra variables for the route. Defaults to None.
+    
+    Returns:
+        the layout item, so the call can wrap the builder.
+    
+    Example:
+        gui_signal(gui_checkbox("Shields", var="shields_on"), "shields_toggled")
+    
+        //shared/signal/shields_toggled
+            set_shields(SIGNAL_CLIENT_ID, SIGNAL_VALUE)"""
 def host_handler_sub_task (builder, sub_task):
     """Give a handler sub-task a LIVE ticking parent when its builder has ended.
     
@@ -94,6 +135,23 @@ def message_cb_add (layout_item, cb):
     Direct assignment (`item.on_message_cb = fn`) still means replace -- that is
     what the layout classes themselves do, and it is the only predictable
     meaning for `=`. This is the append form."""
+def signal_control_value (layout_item):
+    """What a control holds right now, as a signal payload's ``SIGNAL_VALUE``.
+    
+    The value AFTER the click: the widget's own on_message has already run (a
+    checkbox has toggled, a cycle button advanced) by the time a callback fires.
+    A plain button has no value - its ``.value`` is its props string - so None."""
+def signal_emit_from_gui (name, data, client_id, item, **extra):
+    """Emit a signal for a GUI interaction.
+    
+    The payload is the author's ``data`` (a dict is copied, anything else is
+    passed as ``SIGNAL_DATA``) plus ``SIGNAL_CLIENT_ID`` and ``SIGNAL_ITEM`` and
+    any ``extra`` keys.
+    
+    The sender task is whichever task is current when the click arrives, unless
+    it has ended, in which case there is no sender. ``Mast.signal_emit`` drops a
+    signal whose sender is finished, and a widget's builder is often finished by
+    the time anyone clicks (a ``//gui`` route body, a scheduled builder)."""
 def warn_dead_handler (task, label, loc, kind):
     """Report a click that landed on a task which has already finished.
     

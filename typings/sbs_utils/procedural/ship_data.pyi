@@ -383,10 +383,22 @@ def extra_report_untold ():
     the mission. Goes to debug.log too, the channel that survives an engine session."""
 def extra_reset ():
     """Forget the record. Called by the per-mission reset, not by missions."""
+def extra_ship_data_asked ():
+    """Whether somebody ASKED for extra ship data, rather than merely not refusing it.
+    
+    True when the feature is on AND the setting was written down for this run -
+    settings.yaml / setup.json, a profile, `COSMOS_SETTINGS`, `var.EXTRA_SHIP_DATA=` -
+    or forced on by a caller. False on the library default alone.
+    
+    What may WRITE asks this instead of `extra_ship_data_enabled`. The default is on so
+    that hulls an addon ships simply exist; that is reading. Generating
+    `extraShipData.json` in a mission folder is a different act, and a mission that
+    said nothing must never find a file (and a `.bak`) it did not put there - which is
+    what a default-on run of a mission with `ship_data_merge_mod` callers did."""
 def extra_ship_data_enabled ():
     """Whether extra ship data may be loaded at all.
     
-    Reads the `EXTRA_SHIP_DATA` setting, defaulting to False. A caller that has to
+    Reads the `EXTRA_SHIP_DATA` setting, defaulting to True. A caller that has to
     decide before settings exist - or a test - overrides it with
     `extra_ship_data_force`."""
 def extra_ship_data_force (on=True):

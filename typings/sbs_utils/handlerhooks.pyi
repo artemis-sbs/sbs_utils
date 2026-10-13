@@ -21,20 +21,44 @@ def _await_gui_sites ():
     ...
 def _boarded_back_tabs ():
     """Every installed substitution, as ``{kind: tab}``. For tools and the reset ledger."""
+def _boarding_checks_count ():
+    """Reset-ledger probe."""
+def _boarding_combat_count ():
+    """Reset-ledger probe."""
+def _boarding_deck_count ():
+    """For the reset ledger."""
+def _boarding_facts_count ():
+    """Reset-ledger probe: how many facts are held, across every place."""
 def _boarding_figure_count ():
     """Reset-ledger probe: bodies still standing on one."""
 def _boarding_fire_count ():
     """Reset-ledger probe: consoles left holding a live weapon."""
+def _boarding_ground_count ():
+    """Reset-ledger probe."""
+def _boarding_hostiles_saved_count ():
+    """Reset-ledger probe: how many people a saved game is still speaking for."""
 def _boarding_invite_count ():
     """Reset-ledger probe."""
+def _boarding_props_count ():
+    """Reset-ledger probe."""
+def _boarding_props_saved_count ():
+    """Reset-ledger probe: how many props a saved game is still speaking for."""
+def _boarding_quests_count ():
+    """Reset-ledger probe."""
+def _boarding_reader_count ():
+    """Reset-ledger probe: consoles with a transcript."""
 def _boarding_room_count ():
     """Reset-ledger probe: rooms the party is believed to be standing in."""
 def _boarding_scene_count ():
-    """Reset-ledger probe: whether a beat is being held."""
+    """Reset-ledger probe: how many channels are holding a beat."""
 def _boarding_site_count ():
     """Reset-ledger probe: interiors still marked as being boarded."""
 def _boarding_team_count ():
     """Reset-ledger probe: how many clients are bound to a character."""
+def _boarding_visit_said_count ():
+    """Reset-ledger probe: how many once-only visit notices have been used up."""
+def _boarding_zone_count ():
+    """Reset-ledger probe: zones still declared."""
 def _button_promise ():
     """Lazy import: procedural.gui imports back into this module."""
 def _cosmos_event_handler (sim, event):
@@ -63,6 +87,10 @@ def _epadd_apps_count ():
     a future move off SHARED cannot go unnoticed."""
 def _eva_camera_watching ():
     """Reset-ledger probe. Must NOT create anything by asking."""
+def _eva_places_count ():
+    """Reset-ledger probe. Must not create anything by asking."""
+def _eva_relics_count ():
+    """Reset-ledger probe: a ruin still on offer (to any ship), or a pass still ticking."""
 def _eva_route_count ():
     """Reset-ledger probe: consoles still flying a route."""
 def _eva_suit_count ():
@@ -72,6 +100,8 @@ def _eva_tools_working ():
     by asking."""
 def _face_mod_size ():
     """Reset-ledger probe: how much mod registration is currently held."""
+def _grid_plans_kept () -> int:
+    """Reset-ledger probe: how many hulls have a plan kept for reading."""
 def _log_size ():
     """Lazy import: procedural.log_panel is not needed until a reset audit runs."""
 def _mast_expr_source_count ():
@@ -87,6 +117,9 @@ def _offer_mission_providers ():
     ones, so a non-zero count here after a reset means an addon leaked into the next run."""
 def _particle_count ():
     """How many attached emitters are live. Ledger probe."""
+def _persist_providers_count ():
+    """Reset-ledger probe: what a mission left behind - restored blobs, the changed
+    flag, and providers the library did not register itself."""
 def _phase (store, name, fn, *args):
     """Time one phase of the event handler into `store` (name -> seconds).
     
@@ -107,18 +140,28 @@ def _rail_count ():
 def _relic_contents_count ():
     """How many content records are armed. The reset-ledger probe - an armed record that
     survives a mission reset would place loot in the NEXT mission."""
+def _relic_ledger_count ():
+    """Reset-ledger probe: how many things ruins are remembering."""
+def _relic_quest_signal_count ():
+    """Reset-ledger probe: quest signals relics have sent this mission."""
 def _relics_count ():
     """Number of registered relic records. The reset-ledger probe."""
 def _report_reentry (event):
     ...
 def _standby_parked_count ():
     """Reset-ledger probe: parked loose objects + parked fleets."""
+def _tilemap_art_count ():
+    """For the reset ledger."""
+def _tilemap_count ():
+    """Reset-ledger probe: areas plus actors still held."""
 def _vocab_size ():
     ...
 def _volume_anchor_count ():
     """Live tractor anchor objects. The reset-ledger probe."""
 def _volume_count ():
     """Number of defined volumes. The reset-ledger probe."""
+def _volume_kits_count ():
+    """Reset-ledger probe. Must not create anything by asking."""
 def _volume_watch_count ():
     """Number of live watchers. The reset-ledger probe."""
 def _xess_log_count (kind=None):
@@ -174,6 +217,10 @@ def cosmos_event_handler (sim, event):
     
     Nothing in the library writes to an event, so this asserts an invariant rather
     than changing behavior. A real engine event has no `freeze`, and is skipped."""
+def dialogue_outcome_notes_clear ():
+    """Forget what has been said about bad outcomes - the per-mission reset."""
+def dialogue_outcome_notes_count ():
+    """For the reset ledger."""
 def dialogue_scenes_registry_clear ():
     """Drop the registry - the per-mission reset."""
 def dialogue_slots_clear ():
@@ -279,6 +326,10 @@ def register_reset_state (name: str, probe) -> None:
     
     `probe` returns its current size (an int). Registration is idempotent by name, so
     re-importing a module does not duplicate it."""
+def reputation_sides_clear ():
+    """Forget every registered side - the per-mission reset."""
+def reputation_sides_count ():
+    """Reset-ledger probe: how many sides are registered."""
 def reset_mission_audit () -> dict:
     """Sizes of every registered container. Non-zero entries after a reset are leaks.
     

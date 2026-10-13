@@ -372,6 +372,17 @@ def overlay_lower_third_portrait (name, line, face=None, ship=None, icon=None, i
     without that.
     
     See ``overlay_banner`` for ``cycle`` / ``dwell`` / ``loop``."""
+def overlay_patch (slot, to=None, consoles=None, **fields):
+    """Merge ``fields`` into a live overlay's content and redraw the slot.
+    
+    The general form of ``overlay_hud_update``, for any kind: the builder runs
+    again with the patched content and the slot region is re-filled between its
+    own clear/complete. That is the ONLY safe way to change what an overlay shows
+    live - a widget inside a slot cannot repaint itself (the engine overdraws
+    re-sent text). No-op for a slot that is not showing.
+    
+    Example:
+        overlay_patch("status", energy=807, front=45)"""
 def overlay_register (kind, builder):
     """Register a content builder for an overlay ``kind``.
     

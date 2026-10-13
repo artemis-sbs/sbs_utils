@@ -357,6 +357,12 @@ def crew_roster_for (ship_id, hull=None):
     never answer during setup, which is precisely the tier a mod's cast rides on. A ship_id
     given as a bare string is read as a ship NAME first and a hull key second, so either fact
     may be passed in either place."""
+def crew_roster_locked (roster):
+    """Whether this roster's cast is worn rather than chosen - ``Names: locked``.
+    
+    The script's way to put ITS people on the bridge: on a ship this roster crews, a seat
+    it fills is that person, and what the player saved about themselves is not applied.
+    See :func:`crew_resolve`."""
 def crew_rosters ():
     """Every declared roster, in declaration order."""
 def crew_seat_count ():
@@ -400,6 +406,11 @@ def crew_self_pack (pick='', face='', portrait=''):
 def crew_self_unpack (text):
     """(pick, face, portrait) out of a packed value. Always a 3-tuple, so a caller can
     unpack it without testing - an empty or malformed value reads as three blanks.
+    
+    A face saved BEFORE the 2026-09 sheet redraw is translated on the way out, so a
+    returning player gets the nearest equivalent of the person they built rather than a
+    scramble of whatever now occupies those cells. Re-saving stamps it, so this happens
+    once. A record with no face is left alone - there is nothing to translate.
     
     Braces are stripped on the way OUT as well as in, because the value comes off the
     player's own disk and a hand-edited client_string_set.txt is not this file's to trust."""

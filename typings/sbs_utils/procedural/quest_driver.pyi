@@ -36,6 +36,8 @@ def _kill_is_hostile (killer_id, victim_id):
 def _obj_distance (id_a, id_b):
     """Straight-line distance between two space objects by id (Cosmos space), or a huge
     number if either is gone."""
+def _quest_action_owe (agent_id, quest_id):
+    ...
 def _quest_audience (agent_id):
     """Who should see a quest's complete/fail line. A per-ship quest is owned by a
     real space object -> tell that ship. A shared-scope quest is owned by the
@@ -72,10 +74,28 @@ def _quest_countdown_body (data, speaker, fmt, final):
     specific to what is actually failing ("LIFE SUPPORT CRITICAL")."""
 def _quest_countdown_send (aid, qid, data, mark, left):
     ...
+def _quest_credit_sides (agent_id):
+    """The side ids a quest's credits land on.
+    
+    Credits belong to a SIDE, so a ship-held quest is paid through the ship's own.
+    
+    The SHARED story agent has no side. A ``Scope: shared`` quest is the whole table's,
+    and its credit line used to be skipped in silence: every Siege boss objective carried
+    a ``Reward:`` that paid nobody, while a ship-held quest completing in the same game
+    paid as normal. It pays every side that has a player ship - ONCE each and in full,
+    however many ships fly for it. That is one side in a Siege; in a multi-side universe
+    nobody is handed a share of another side's count.
+    
+    Any other holder with no side is still paid nothing, as before."""
 def _quest_dispatch_id ():
     """The registered voice as an agent id, resolving a name if that is what was given."""
 def _quest_driver_log (message):
-    ...
+    """Say that a quest outcome could not be applied, where the author will see it.
+    
+    `log(msg, "quest", "warning")` alone goes nowhere - a named category has no handler
+    unless the mission attached one - so "nobody holds 'tag_hulkk', so `accepts tag_hulkk`
+    did nothing" was written and thrown away, the run passed, and the answer simply did
+    not start the job. The same line goes to `mast.runtime`."""
 def _quest_effective_consoles (item, key, default_spec):
     """The per-quest console override for `key` (read fresh off the quest's AMD `data`,
     where the `Accept On:` / `Engage On:` labels store it, so it need not ride the log
@@ -88,7 +108,13 @@ def _quest_grant_reputation (agent_id, block):
     """Apply a reward/penalty block's ``reputation`` map, if this holder can carry one.
     
     Deltas apply exactly as authored - a ``Penalty:`` never flips the sign for you (see
-    ``amd_reward``)."""
+    ``amd_reward``).
+    
+    A ``Scope: shared`` quest is the whole table's, and its line reaches every player
+    ship flying when it pays (``reputation_grant``) - the same spread its credits get
+    (``_quest_credit_sides``). It used to be filed on the shared story agent alone,
+    where no guard looks: a line written ``if standing >= 30`` asks the SHIP, so a
+    story beat's ``earns`` moved a number nothing could ever read."""
 def _quest_held_by (name, qid):
     """Resolve a ``Held by:`` actor to the agent id that should hold the quest.
     
@@ -199,8 +225,18 @@ def _quest_tab_taken_only (items):
     
     A header carries its quest's row in `.data` (a job with visible steps); a SECTION
     header ({"section": ...}) has no state and is kept only while a row follows it."""
+def _quest_then (agent_id, quest_id, verb, what):
+    """Do ONE `Then:` action of a finished quest. Nothing for an empty one."""
 def _quest_tree_parent (quest_id):
     """The parent path of a nested quest key (`arc/step` -> `arc`); None for a top-level key."""
+def _same_signal (want, sent):
+    """Is the signal a quest WAITS for the one the story SENT?
+    
+    The waiting side is written in a `.amd` and folded as it is read: small letters,
+    spaces to underscores (`amd_signal_name`). The sending side is a word in quotes in
+    the story and was compared as typed - so `Ghost_Ship_Found` in BOTH files never
+    matched, with lint clean and both logs empty. Fold the sent name the same way. The
+    exact comparison stays first: an `on_comms` option is matched as written."""
 def _scale_goal_counts (data, scale):
     """Return `data` with every explicit goal `count` scaled by `scale` (rounded, min 1),
     WITHOUT touching the shared doc (goal dicts are copied only when scaled). Goals with no
@@ -222,6 +258,26 @@ def amd_signal_name (value):
     matches on it at runtime and the editor's signal join matches on it statically. Two
     copies held in agreement by a comment would silently stop agreeing the first time
     the rule widened."""
+def any_role (roles: str):
+    """Return the set of agent IDs that hold at least one of the given roles.
+    
+    Args:
+        roles (str): A single role name or a comma-separated list.
+    
+    Returns:
+        set[int]: IDs of agents with any of the specified roles."""
+def clear_timer (id_or_obj, name):
+    """Clear a named timer so it is no longer set.
+    
+    After clearing, ``is_timer_set`` returns ``False`` and
+    ``is_timer_finished`` returns ``True``.
+    
+    Args:
+        id_or_obj (Agent | int): Agent ID or object.
+        name (str): Timer name.
+    
+    Example:
+        clear_timer(SHIP_ID, "cooldown")"""
 def comms_broadcast (ids_or_obj, msg, color=None, category=None, severity=None) -> None:
     """Send a text message to the text waterfall of one or more targets.
     
@@ -396,6 +452,16 @@ def overlay_kind (kind, to=None, consoles=None, slot=None, seconds=None, **field
     The escape hatch for callers that pick the kind at runtime (the quest driver's
     inline overlay directives, AMD records). Prefer the named wrappers when the
     kind is known at author time."""
+def quest_action_settle (agent_id, quest_id):
+    """This quest's `Action:` is NOT owed after all: it ran on an earlier evening.
+    
+    A quest granted already running owes its `Action:` to the first tick. A mission that
+    saves grants its story again on Continue, so every such step owed its block again -
+    the station hailed the crew a second time about a step they had finished last week.
+    A restore calls this for each step the save already knows about. True when a block
+    was owed and no longer is."""
+def quest_actions_owed ():
+    """How many granted-running quests are still waiting for their `Action:` to run."""
 def quest_add (agents, quest_id, display_text, description, state=<QuestState.IDLE: 0>, data=None):
     """Add a quest to one or more agents.
     
@@ -441,6 +507,18 @@ def quest_any_holder_state (qid, state):
     actor per urge on every pass, and it grows with the holder set - Open Universe
     makes every station with a waiting passenger a quest holder, so the scan grows
     with the number of populated systems."""
+def quest_clocks (agent_id, quest_id):
+    """The running clocks of one quest, as seconds LEFT: `{"fail": n, "done": n}`.
+    
+    What a saved game writes down. A clock is an agent timer measured against the sim's
+    own time, which starts again at zero on the next launch, so the time left is the
+    only form that means anything tomorrow. A clock that is not running, or has run
+    out, is left out."""
+def quest_clocks_restore (agent_id, quest_id, clocks):
+    """Start one quest's clocks again with the time that was LEFT (`quest_clocks`).
+    
+    Set before the driver's first tick, so the tick finds a timer already running and
+    does not start a full one. Returns how many were set."""
 def quest_credit_ids (agent_id):
     """The agent that earned something, PLUS anyone crewing it.
     
@@ -596,12 +674,15 @@ def quest_grant_penalty (agent_id, penalty):
     
     Mirrors the reward in WHO PAYS too: a client-held quest is charged through its ship
     (``quest_payee``). Without that a job taken by the person and failed cost nothing at
-    all, which would make a client-held job strictly safer than the same job on a hull."""
+    all, which would make a client-held job strictly safer than the same job on a hull.
+    A SHARED quest charges every player side once, for the same reason
+    (``_quest_credit_sides``)."""
 def quest_grant_reward (agent_id, reward):
     """Grant a quest reward: credits to the agent's side, items to the agent, and
     reputation to the agent (player/SHARED holders only - see ``_quest_rep_holder``).
     
-    A client-held quest is paid through its ship - see ``quest_payee``."""
+    A client-held quest is paid through its ship - see ``quest_payee``. A SHARED quest's
+    credits go to every player side - see ``_quest_credit_sides``."""
 def quest_holder_clear (client_id):
     """Go back to the console's ship as its quest holder."""
 def quest_holder_for_client (client_id, ship_id=None):
@@ -749,6 +830,18 @@ def quest_reeval_tree_parent (agent_id, quest_id):
     
     Author a parent as a pure CONTAINER (no own When trigger) with leaf children as the
     objectives, so its completion is driven only by the children (unambiguous)."""
+def quest_restore_started (agent_id, quest_id):
+    """A saved game says this step had already STARTED: put its real trigger in.
+    
+    A step written `Starts when: <trigger>` is granted armed with that trigger and its
+    `Done when:` set aside. A mission that saves re-grants its story on Continue, so a
+    step that started last evening came back armed again - waiting a second time for a
+    signal that had already been sent. This is the swap `quest_mark_complete` makes when
+    the start trigger fires, with none of the news: no `Action:`, no announcement, and
+    the saved progress is left for the caller to put back.
+    
+    True when the step was armed and is now started; False when there was nothing to do
+    (no such quest, or it is not waiting on a start)."""
 def quest_reveal (agent_id, reveal):
     """Activate sub-quests revealed on completion (reveal: id, or [ids]).
     
@@ -845,6 +938,14 @@ def quest_tab_state_sig (client_id, ship_id):
     Drive an `on change` off this to repaint the Quests tab when a quest's status changes
     from ANYWHERE - a kill/scan/dock completing it, a timer failing it, or another console
     accepting it - not just from this console's own buttons."""
+def quest_tick_actions ():
+    """Watcher tick: run the `Action:` of every quest that was granted already running.
+    
+    Once each. Called from `quest_tick_fail_after`, so every mission that ticks its
+    quests at all gets it without a line of its own; public for one that does not.
+    
+    Returns:
+        int: how many blocks were run this tick."""
 def quest_tick_complete_after ():
     """Watcher tick: COMPLETE ACTIVE quests whose complete_after deadline elapsed.
     Symmetric to quest_tick_fail_after - the deadline is anchored lazily (a per-quest

@@ -2,6 +2,8 @@ def _coerce_nested (value, default):
     """Apply `default` to every leaf of a nested block or list, so `Inner: 3` reads
     as 3 wherever it sits. Inner KEYS keep the author's exact spelling - mission code
     reads a Properties/Defaults block by the names it wrote."""
+def _duration_unit (word):
+    """Seconds in one of `word`, or None when it is not a unit of time."""
 def _err (errors, lineno, message):
     """Record a parse problem in a WRITER's terms.
     
@@ -27,6 +29,12 @@ def _parse_entries (entries, errors):
     it. Flow values ARE parsed here, because a bracket is syntax, not meaning."""
 def _scalar (value, lineno, errors):
     """A bare list item: flow if it opens with a bracket, else text with quotes shed."""
+def amd_ascii_text (text):
+    """`text` as the engine can draw it. Returns the SAME object when it is already ASCII.
+    
+    Typographic characters fold to their plain twins (curly quotes, dashes, the
+    one-character ellipsis). An accented letter loses its accent. Anything left over is
+    dropped: a missing character reads better than the font sheet."""
 def amd_body_synopsis (line):
     """The text of a `= ` synopsis line, or None when this is not one."""
 def amd_body_transclude (line):
@@ -63,6 +71,20 @@ def amd_choice (line):
     guard is free text and would otherwise swallow the whole tail - `if standing >
     10 ; earns kind 5` would become the guard `standing > 10 ; earns kind 5`,
     which no evaluator can answer and which loses the outcome without a word."""
+def amd_choice_label (text):
+    """Words made safe to sit in `[...]` of a choice line: no brackets, one line."""
+def amd_choices_settle (text, chosen=None, before=None):
+    """Every live choice group in `text` settled: the one choice made, or nothing.
+    
+    A group containing a choice whose words are `chosen` becomes that one choice as
+    `[words](chosen://name)`; a group without it is dropped, since nobody took it here.
+    `chosen://` lines already settled stay as they are. Returns the new text.
+    
+    `before`, when given, is a line put just above the choice made - who made it. It
+    is its own line so the choice stays a whole `chosen://` line, which is what draws
+    it as a chip. With it, the choice made is shown in EVERY group, even one that did
+    not offer it: who chose what is news to every reader, not only to one who could
+    have chosen the same."""
 def amd_coords (s, n=2):
     """'6, 4' -> [6, 4] (the first `n` signed-integer tokens)."""
 def amd_counted (s):
@@ -113,6 +135,8 @@ def amd_fact_lines (text):
     stripped. Skips blanks, `//` comments, and lines without a colon.
     
     Kept for callers that want the flat view; `amd_parse_facts` no longer uses it."""
+def amd_is_duration (value):
+    """Whether ``value`` is a length of time and nothing else."""
 def amd_is_yaml_flow (text):
     """True when a VALUE should be parsed as YAML flow - it starts with `{` or `[`.
     
@@ -145,8 +169,13 @@ def amd_outcomes (s):
     
     Tokens are interpreted by the mission's registered outcome handler (only
     `signal` is built in), so the grammar of costs/earns/etc. lives with the
-    mission rather than here."""
-def amd_parse_facts (text, handler=None, default=<function amd_num at 0x0000026177D728E0>, archetype=None, errors=None):
+    mission rather than here.
+    
+    A `;` separates outcomes as well as a comma. The first `;` on a choice starts the
+    outcomes; a SECOND one used to be swallowed into the outcome before it as a word, so
+    `; check engineering 9 else held ; learn lockout` - the form the library's own
+    comments show - rolled the check and then learned nothing."""
+def amd_parse_facts (text, handler=None, default=<function amd_num at 0x0000022F81E7E3E0>, archetype=None, errors=None):
     """Parse one fact-sheet fence into a dict.
     
     Per label, in order: the caller's `handler` gets first refusal (returns truthy to

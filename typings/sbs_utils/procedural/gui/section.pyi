@@ -1,5 +1,8 @@
 from sbs_utils.helpers import FrameContext
 from sbs_utils.pages.layout.layout import RegionType
+def _control_tags (layout):
+    """The tags of every Control (text area, listbox) in a layout's CURRENT tree - each
+    one is its own engine sub-region, `<tag>$$`."""
 def apply_control_styles (control_name, extra_style, layout_item, task):
     """Apply a named control style and optional overrides to a layout item.
     
@@ -98,13 +101,25 @@ def gui_sub_section (style=None):
             gui_text("Right column")
         gui_hide(right)     # and gui_show(right) to bring it back"""
 class PageRegion(object):
-    """class PageRegion"""
+    """A re-drawable area. REBUILDING ONE REUSES ITS TAGS.
+    
+    ENGINE-SEEN 2026-09-29 (xESS Act): a text area or listbox is its OWN engine
+    sub-region, and clearing the parent region does not take old child sub-regions with
+    it. Every rebuild made new ones under the next build-order tags, so the old ones
+    stayed on screen underneath - the transcript was drawn once per rebuild, stacked, at
+    whatever scroll each had. So after `rebuild()`, the next fill hands out tags derived
+    from this region's own (stable) tag: each rebuild reuses the same sub-regions, which
+    clear themselves before drawing. One the new fill no longer uses is blanked."""
     def __enter__ (self):
         ...
     def __exit__ (self, ex=None, value=None, tb=None):
         ...
     def __init__ (self, style) -> None:
         """Initialize self.  See help(type(self)) for accurate signature."""
+    def _stable_tags_off (self):
+        ...
+    def _stable_tags_on (self):
+        ...
     @property
     def click_tag (self):
         ...
@@ -112,7 +127,7 @@ class PageRegion(object):
     def is_hidden (self):
         ...
     def rebuild (self):
-        ...
+        """Empty the region for a fresh fill - which reuses the last fill's tags."""
     def represent (self, e):
         ...
     def show (self, _show):

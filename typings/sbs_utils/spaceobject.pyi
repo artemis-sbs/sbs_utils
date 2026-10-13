@@ -21,6 +21,8 @@ def safe_name (name):
     already clean."""
 class MSpawn(object):
     """class MSpawn"""
+    def _note_behavior (self, behave_id):
+        ...
     def spawn_common (self, obj, x, y, z, name, side, art_id):
         ...
 class MSpawnActive(MSpawn):

@@ -15,7 +15,7 @@ class Vec3(object):
             v ( Vec3): the other vector
         
         Returns:
-            (bool):  new vector """
+            (bool):  new vector"""
     def __iadd__ (self, v):
         """operator inline add (+=) mutable
         

@@ -12,7 +12,7 @@ def apply_control_styles (control_name, extra_style, layout_item, task):
             parsed dict applied after the base style.
         layout_item (LayoutItem): Layout item to receive the style.
         task (MastAsyncTask): GUI task used for string formatting."""
-def gui_checkbox (msg, style=None, var=None, data=None):
+def gui_checkbox (msg, style=None, var=None, data=None, signal=None):
     """Add a checkbox to the current GUI layout.
     
     The current value of ``var`` (expected to be a bool) sets the initial
@@ -26,6 +26,8 @@ def gui_checkbox (msg, style=None, var=None, data=None):
             from and update on toggle. Defaults to None.
         data (object, optional): Arbitrary data passed to the event handler.
             Defaults to None.
+        signal (str, optional): A signal to emit on each toggle, with the new
+            state as ``SIGNAL_VALUE`` (see ``gui_signal``). Defaults to None.
     
     Returns:
         Checkbox: The layout item created.

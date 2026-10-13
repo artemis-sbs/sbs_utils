@@ -18,19 +18,25 @@ def _esc (text):
     """Free prose in a style string. A `:` or `;` in a title or description would
     otherwise be read as style properties and silently truncate the widget - the same
     trap `gui_map_picker` documents on its cards."""
-def _give_a_body (client_id, host):
+def _give_a_body (client_id, host, at=None):
     """Put this console's character on the interior, and hand the console that body.
     
-    Idempotent: a console that already has a figure keeps it, so a second beam-down (a
-    reconnect, a move between sites) does not leave an abandoned body standing on the
-    floor for the rest of the mission."""
-def _go_word ():
+    Idempotent: a console that already has a figure ON THIS HOST keeps it, so a second
+    beam-down (a reconnect) does not leave an abandoned body standing on the floor for the
+    rest of the mission. A figure standing on a DIFFERENT host is taken off it and the
+    person is put down here instead - that is what moving between areas is. Keeping it
+    would leave the console driving a body it can no longer see."""
+def _go_word (client_id=None):
     """What the button says, and which door it opens.
     
     ONE BRANCH, in one place, because there are two kinds of place to board now. A ship's
     interior is a floor, so you beam down onto it; a relic has no floor, so you suit up
     and fly it. The party, the roster and the reservation are identical either way - only
     the body differs - so the whole difference is which door the button calls.
+    
+    THE OFFER IS THE SHIP'S. Two ships at two ruins each have their own, so the question
+    is asked for the ship THIS console belongs to - a ruin on offer to another crew does
+    not turn this crew's BEAM DOWN into an airlock.
     
     Returns:
         tuple: ``(label, going_to_phrase, door)``."""
@@ -41,6 +47,12 @@ def _going_as (client_id, lifeform):
     derived from the bridge, not cast - so asking them to choose themselves off a list
     is a step that can only be got wrong. What they need to see is the face and the
     job words the scene guards will read."""
+def _going_to (client_id):
+    """What the place this console would go to is called.
+    
+    The party's title, except that a ruin on offer to this console's own ship names
+    itself: one crew party can now hold the crews of two ships at two ruins, and the
+    second crew is not going to the first crew's ruin."""
 def _roster_template (item):
     """One character on offer. Sizes its ROW and returns None."""
 def _who_is_down ():
@@ -63,7 +75,7 @@ def boarding_client_of (lifeform):
     """Which client is playing this character, or None. The reverse of :func:`boarding_me`."""
 def boarding_clients ():
     """Every client currently controlling a character."""
-def boarding_go_down (client_id, host=None):
+def boarding_go_down (client_id, host=None, at=None):
     """Morph this console into the character it just took, and show it where it is.
     
     The PADD stays open across it - the crew pressed a button on a screen and that
@@ -86,6 +98,8 @@ def boarding_go_down (client_id, host=None):
         client_id: the console going down.
         host (optional): the ship or station whose interior it will walk. Without one
             this is the old dialogue-only morph, which is still a valid way to play.
+        at (optional): the cell to stand on, ``(x, y)``. Defaults to the interior's
+            airlock. A console already standing somewhere else is MOVED here.
     
     Returns:
         bool: False when this console is not holding anybody."""
@@ -110,7 +124,7 @@ def boarding_invite_site ():
     """The interior this party is boarding, or None for a dialogue-only party."""
 def boarding_invite_title ():
     ...
-def boarding_is_open ():
+def boarding_is_open (channel=None):
     """True while a beat is open and answerable."""
 def boarding_job_text (lifeform, default=''):
     """:func:`boarding_jobs` as one line, ready for a widget. ``default`` when there is none."""

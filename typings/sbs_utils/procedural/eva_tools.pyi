@@ -1,5 +1,13 @@
+def _barrier_verbs (clear_with):
+    """`Clear with:` as verbs. `check <skill> <dc>` is the WORK verb; nothing authored
+    means the beam, as it always did."""
 def _dist (a, b):
     ...
+def _eva_find_note (client_id, target, display):
+    """"Lt Vasquez hooked the manifest." in this console's Act transcript, with the
+    item's picture (its ITEM `Sprite:`) when the art has one. Never raises."""
+def _eva_finish (relic_key, work):
+    """What a finished job did: ``"opened"``, ``"repaired"`` or ``"no effect"``."""
 def _eva_haul (client_id, target, display):
     """Reel a find in and let the existing pickup path collect it.
     
@@ -9,10 +17,16 @@ def _eva_haul (client_id, target, display):
     cargo pod gets reeled into the pod. So the ratio is checked BEFORE the attach and a
     refusal is reported by name, rather than the crew watching a suit fly into the
     scenery with no explanation."""
+def _eva_is_repair (client_id, target):
+    """Whether a target key names a repair job in this console's relic."""
+def _eva_try (client_id, relic_key, work, now):
+    """A worked job is done: roll the check. The roll goes in the transcript either way,
+    so a failure is a number the crew can see rather than a door that did not move."""
 def _eva_unlist (client_id, target):
     """Take a hauled find off the relic's destination list. Never raises."""
-def _eva_work (client_id, target, verb, display):
-    """Start a timed job on a barrier - a cut, or a haul on the blockage itself."""
+def _eva_work (client_id, target, verb, display, seconds=12.0, kind='barrier'):
+    """Start a timed job on a barrier or a repair - a cut, a haul on the blockage itself,
+    or a try by hand."""
 def _pos (thing):
     ...
 def _report (client_id, target, verb, result, detail=None):
@@ -40,11 +54,21 @@ def eva_arm (client_id, verb='beam'):
     """Hold a verb ready. Two decisions on purpose - choose, then use."""
 def eva_armed (client_id):
     """Which verb this console is holding, or None."""
+def eva_barrier_check (relic_key, barrier):
+    """``(skill, dc)`` when a barrier - or a repair job, which is written the same way -
+    can be worked by hand, else None."""
 def eva_disarm (client_id):
     """Put it away."""
 def eva_reach (client_id=None):
     """How far this console can reach. One number, for now - a hook for a mission that
     wants a longer arm on a better suit."""
+def eva_scan_target (client_id, target):
+    """Read a find from a suit - the handheld's answer to the ship's science scan.
+    
+    Emits `eva_scanned` (EVA_CLIENT, EVA_TARGET, EVA_RELIC, EVA_ITEM) so a mission can
+    treat it exactly as it treats its ship scanning the same object - Storm's Beacon's
+    pieces are identified by a scan, and a crew standing next to one should not have to
+    ask the bridge. Files the reading to the survey log. True when there was a thing."""
 def eva_selected_target (client_id):
     """The reach target matching the console's WEAPONS selection, or None.
     
@@ -63,8 +87,9 @@ def eva_targets (client_id, reach=None):
     
     Nearest first, the same as `eva_points`, because the same hand is picking from it.
     
-    `kind` is `"barrier"` or `"haul"`. `verbs` is what may be done to it: a barrier says
-    so itself (`Clear with:`), and anything haulable takes a tether."""
+    `kind` is `"barrier"`, `"repair"` or `"haul"`. `verbs` is what may be done to it: a
+    barrier or a repair job says so itself (`Clear with:`), and anything haulable takes a
+    tether."""
 def eva_tools_clear (client_id=None):
     """Put the tools away - one console's, or every one's."""
 def eva_tools_tick (t=None):
@@ -86,6 +111,11 @@ def eva_use (client_id, target, verb=None):
 def eva_working (client_id):
     """``(target, verb, seconds_left, display)`` while a job runs, else
     ``(None, None, 0.0, None)``."""
+def eva_working_kind (client_id):
+    """``"barrier"`` or ``"repair"`` while a job runs, else None - what the Fire app
+    reads to say REPAIR rather than the name of the tool doing it.
+    
+    Separate from `eva_working`, whose four-tuple callers destructure."""
 def get_inventory_value (id_or_object, key: str, default=None):
     """Get an inventory value from an agent by key.
     

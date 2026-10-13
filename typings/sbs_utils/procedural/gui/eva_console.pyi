@@ -3,6 +3,10 @@ def _assign (client_id, ship):
     """Seat the console on the suit. Quiet when there is no engine to tell."""
 def _client (client_id=None):
     ...
+def _hint_revision (cid):
+    """What the Nav marks are drawn from: the leads, and how many finds are still lying
+    about. A haul or a quest moving changes a row's mark without moving the suit, and a
+    revision that does not carry it is a list that silently goes stale."""
 def _ride_camera (client_id):
     """Point this console's main view at the suit it is assigned to.
     

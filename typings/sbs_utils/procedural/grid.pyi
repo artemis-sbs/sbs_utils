@@ -13,6 +13,8 @@ def _grid_clear_selection_of (host_id, gid):
     repaired hallway marker, or the whole interior during a grid rebuild - left
     the widget pointing at an id that is no longer in the array. Doing it here
     rather than at each call site means every caller inherits it."""
+def _grid_kept_plan (ship_key, layout=None):
+    ...
 def _grid_say (msg, level='warning'):
     """Report a grid-data problem on a channel the ENGINE shows.
     
@@ -61,10 +63,10 @@ def get_mission_dir_filename (filename):
         str: The full path to the file in the mission directory."""
 def get_open_grid_points (id_or_obj) -> list[sbs_utils.vec.Vec3]:
     """Gets a list of open grid locations
-
+    
     Args:
         id_or_obj (agent): agent id or object to check
-
+    
     Returns:
         list: a Vec3 per open cell, with x and y set. Each cell appears once."""
 def grid_clear_detailed_status (id_or_obj):
@@ -223,6 +225,22 @@ def grid_get_layout (ship_key, layout=None):
         list | None: The grid object dicts, or ``None`` when there is no such interior."""
 def grid_get_mod (ship_key):
     """The mod that supplied a hull's interior, or ``None`` for built-in data."""
+def grid_get_open_cells (ship_key, layout=None):
+    """The size and hallway cells of a hull's floor plan AS ITS `.grid` TEXT DREW THEM:
+    ``{"w", "h", "hallways": [[x, y], ...]}``, or None for a hull whose plan did not come
+    from text (the engine's own ``grid_data.json`` holds rooms only).
+    
+    The engine knows a hull's open cells from its hull map, and that is the better
+    answer when there is one. This is the answer when there is not. Layout names resolve
+    as in :func:`grid_get_layout`."""
+def grid_get_plan_layout (ship_key, layout=None):
+    """The grid-object list of a hull's floor plan, for a READER: the hull's interior
+    (:func:`grid_get_layout`) when it has one with anything in it, else a plan kept with
+    :func:`grid_plan_ascii`, else ``None``. What a boarding party's deck is drawn from."""
+def grid_get_plan_open_cells (ship_key, layout=None):
+    """The hallways that go with :func:`grid_get_plan_layout`: the interior's own text
+    (:func:`grid_get_open_cells`) when the rooms came from the interior, the kept plan's
+    when they came from that. Never one's rooms with the other's hallways."""
 def grid_get_theme_name (ship_key, layout=None):
     """The theme a hull (or one of its layouts) asks for, or ``None`` for the current one.
     
@@ -363,6 +381,22 @@ def grid_objects_at (so_id, x, y) -> set[int]:
     
     Returns:
         set[int]: A set of agent ids"""
+def grid_plan_ascii (content, mod=None, ship_key=None):
+    """Keep one ASCII floor plan (see :mod:`grid_ascii`) for READING, without making it
+    the hull's interior::
+    
+        grid_plan_ascii(media_read_relative_file("kralien_cruiser.grid"), "races")
+    
+    The twin of :func:`grid_merge_ascii` for a hull nobody flies. NOTHING that builds or
+    counts an interior sees it - not ``grid_get_layout``, not ``grid_get_grid_data``, not
+    ``grid_count_grid_data``, not ``grid_hull_has_role``. Only a reader that asks for a
+    plan does (:func:`grid_get_plan_layout`), and it prefers the hull's real interior
+    when there is one.
+    
+    Returns the entry that was kept, or ``None`` if the text could not be read (logged,
+    not raised)."""
+def grid_plans_kept () -> int:
+    """Reset-ledger probe: how many hulls have a plan kept for reading."""
 def grid_pos_data (id):
     """Return the current position and path length of a grid object.
     

@@ -29,7 +29,7 @@ def gui (buttons=None, timeout=None):
                 jump patrol_mission
             + "Escort":
                 jump escort_mission"""
-def gui_button (props, style=None, data=None, on_press=None, is_sub_task=None):
+def gui_button (props, style=None, data=None, on_press=None, is_sub_task=None, signal=None):
     """Add a button to the current GUI layout outside of an ``await gui()`` block.
     
     Unlike buttons declared with ``*`` or ``+`` inside ``await gui()``, this
@@ -68,6 +68,10 @@ def gui_button (props, style=None, data=None, on_press=None, is_sub_task=None):
             **deprecated**. Defaults to None, meaning the library decides; a
             handler that paints a screen and reaches ``await gui()`` sends the
             GUI task there either way, so you should not need this.
+        signal (str, optional): A signal to emit on each press, as
+            ``gui_signal(button, signal, data)``. The route gets ``data``'s keys
+            plus ``SIGNAL_CLIENT_ID`` and ``SIGNAL_ITEM``. Runs alongside
+            ``on_press``. Defaults to None.
     
     Valid Styles:
         area:
@@ -94,7 +98,7 @@ def gui_button (props, style=None, data=None, on_press=None, is_sub_task=None):
     
     Returns:
         layout object: The Layout object created"""
-def gui_list_box (items, style, item_template=None, title_template=None, section_style=None, title_section_style=None, select=False, multi=False, carousel=False, collapsible=False, read_only=False, reveal=False, hint=None):
+def gui_list_box (items, style, item_template=None, title_template=None, section_style=None, title_section_style=None, select=False, multi=False, carousel=False, collapsible=False, read_only=False, reveal=False, hint=None, signal=None, data=None):
     """Add a listbox to the current GUI layout.
     
     Args:
@@ -142,6 +146,10 @@ def gui_list_box (items, style, item_template=None, title_template=None, section
             ``get_selection_hint()``. A repaint builds a DIFFERENT listbox whose
             view starts at the top, so without this the row under the user's
             mouse moves. Do not inspect it; pass it along.
+        signal (str, optional): A signal to emit on each row click, with the
+            selection as ``SIGNAL_VALUE`` (see ``gui_signal``). Defaults to None.
+        data (dict, optional): Extra variables for the ``signal`` route.
+            Defaults to None.
     
     Returns:
         LayoutListbox: The layout object created.
@@ -203,7 +211,7 @@ def gui_properties_set (p=None, tag=None):
     
     Example:
         gui_properties_set({"Speed": "gui_text(str(ship_speed))", "Shields": "gui_slider(shield_pct)"})"""
-def gui_property_list_box (name=None, tag=None, temp=<function _property_lb_item_template_one_line at 0x00000261778F3600>, hide_when_empty=False):
+def gui_property_list_box (name=None, tag=None, temp=<function _property_lb_item_template_one_line at 0x0000022F820DD580>, hide_when_empty=False):
     """Create a property list box with single-line label/control layout.
     
     Each property is rendered as a label on the left and its control widget

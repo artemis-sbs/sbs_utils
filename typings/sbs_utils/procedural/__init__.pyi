@@ -49,12 +49,12 @@ def message_load_amd (doc, to=None):
     
     Returns:
         int: how many were loaded."""
-def message_mail (text, to='*', sender=None, subject=None):
+def message_mail (text, to='*', sender=None, subject=None, face=None):
     """A message from content - a letter from family, a friend, an admiral. Exactly
     `message_send(kind="mail")`, named so a story reads as what it is."""
 def message_mark_read (mid=None, console=None):
     """Mark one message read for a console, or the whole inbox when `mid` is None."""
-def message_send (text, to='*', sender=None, subject=None, kind='crew', choices=None, scene=None):
+def message_send (text, to='*', sender=None, subject=None, kind='crew', choices=None, scene=None, face=None):
     """Put a message in an inbox.
     
     Args:
@@ -71,6 +71,10 @@ def message_send (text, to='*', sender=None, subject=None, kind='crew', choices=
         scene (str, optional): an away scene key. Marks this message as that beat, so
             the inbox asks `away.py` for the replies instead of carrying its own -
             they differ per character and away already arbitrates them.
+        face (str, optional): the sender's face string, drawn beside their name when
+            the message is read. When not given, a LIFEFORM of the sender's name is
+            looked up and its face used - kept on the message, so it still shows after
+            that character has gone.
     
     Returns:
         dict: the stored message."""

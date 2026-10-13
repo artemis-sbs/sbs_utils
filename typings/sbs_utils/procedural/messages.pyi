@@ -98,6 +98,9 @@ def _save_pending (items):
     ...
 def _seconds (value):
     """`After:` in seconds. Absent means 0 - delivered the moment the pile is drained."""
+def _sender_face (sender):
+    """The face of the lifeform called `sender`, or "" - never raises. A letter from
+    "Admiral Harkin" wears Harkin's face when a lifeform of that name exists."""
 def _split_choices (body):
     """A message body -> (prose, choices).
     
@@ -209,7 +212,7 @@ def message_load_amd (doc, to=None):
     
     Returns:
         int: how many were loaded."""
-def message_mail (text, to='*', sender=None, subject=None):
+def message_mail (text, to='*', sender=None, subject=None, face=None):
     """A message from content - a letter from family, a friend, an admiral. Exactly
     `message_send(kind="mail")`, named so a story reads as what it is."""
 def message_mark_read (mid=None, console=None):
@@ -231,7 +234,7 @@ def message_select (mid, console=None):
     reading pane would snap back to the newest message every time anything arrived."""
 def message_selected (console=None):
     """The message id this console is reading, or None."""
-def message_send (text, to='*', sender=None, subject=None, kind='crew', choices=None, scene=None):
+def message_send (text, to='*', sender=None, subject=None, kind='crew', choices=None, scene=None, face=None):
     """Put a message in an inbox.
     
     Args:
@@ -248,6 +251,10 @@ def message_send (text, to='*', sender=None, subject=None, kind='crew', choices=
         scene (str, optional): an away scene key. Marks this message as that beat, so
             the inbox asks `away.py` for the replies instead of carrying its own -
             they differ per character and away already arbitrates them.
+        face (str, optional): the sender's face string, drawn beside their name when
+            the message is read. When not given, a LIFEFORM of the sender's name is
+            looked up and its face used - kept on the message, so it still shows after
+            that character has gone.
     
     Returns:
         dict: the stored message."""

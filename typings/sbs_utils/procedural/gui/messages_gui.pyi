@@ -38,6 +38,9 @@ def _is_stale_beat (msg):
     longer the thing being asked."""
 def _live_beat (inbox):
     """The message carrying the boarding beat that is open right now, if any."""
+def _message_face (reading):
+    """The face a message carries, made safe to sit inside `face://...)`: a `)` or `?`
+    in it would end the reference or start its options."""
 def _reading_choose (inbox, lb):
     """WHICH message is being read. No drawing - the pane is already built.
     
@@ -66,6 +69,15 @@ def _reading_replies_fill (reading):
     `complete` only when it holds content; completing an empty one leaves what was
     there before on screen - which for this band is the previous message's buttons.
     The overlay system carries the same one-space placeholder for the same reason."""
+def _reply_rows_begin (count):
+    """Start a stack of ``count`` reply buttons; returns the style for each one's row.
+    
+    THE BUTTONS SIT AT THE BOTTOM OF THE BAND, against the compose line, however many
+    there are - so two replies do not float at the top of a band sized for six with a
+    gap under them. The space above them is a blank row, drawn here.
+    
+    More than the band holds: the rows get shorter so every reply stays above the
+    compose line. A button that is partly under it cannot be pressed."""
 def _reply_strip (msg):
     """The replies this message offers, or what was already chosen.
     
@@ -213,7 +225,7 @@ def message_select (mid, console=None):
     reading pane would snap back to the newest message every time anything arrived."""
 def message_selected (console=None):
     """The message id this console is reading, or None."""
-def message_send (text, to='*', sender=None, subject=None, kind='crew', choices=None, scene=None):
+def message_send (text, to='*', sender=None, subject=None, kind='crew', choices=None, scene=None, face=None):
     """Put a message in an inbox.
     
     Args:
@@ -230,6 +242,10 @@ def message_send (text, to='*', sender=None, subject=None, kind='crew', choices=
         scene (str, optional): an away scene key. Marks this message as that beat, so
             the inbox asks `away.py` for the replies instead of carrying its own -
             they differ per character and away already arbitrates them.
+        face (str, optional): the sender's face string, drawn beside their name when
+            the message is read. When not given, a LIFEFORM of the sender's name is
+            looked up and its face used - kept on the message, so it still shows after
+            that character has gone.
     
     Returns:
         dict: the stored message."""

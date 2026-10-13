@@ -44,7 +44,7 @@ def gui_hole (count=1, style=None):
     Example:
         gui_hole(2)
         gui_text("This text spans 3 columns")"""
-def gui_list_box (items, style, item_template=None, title_template=None, section_style=None, title_section_style=None, select=False, multi=False, carousel=False, collapsible=False, read_only=False, reveal=False, hint=None):
+def gui_list_box (items, style, item_template=None, title_template=None, section_style=None, title_section_style=None, select=False, multi=False, carousel=False, collapsible=False, read_only=False, reveal=False, hint=None, signal=None, data=None):
     """Add a listbox to the current GUI layout.
     
     Args:
@@ -92,6 +92,10 @@ def gui_list_box (items, style, item_template=None, title_template=None, section
             ``get_selection_hint()``. A repaint builds a DIFFERENT listbox whose
             view starts at the top, so without this the row under the user's
             mouse moves. Do not inspect it; pass it along.
+        signal (str, optional): A signal to emit on each row click, with the
+            selection as ``SIGNAL_VALUE`` (see ``gui_signal``). Defaults to None.
+        data (dict, optional): Extra variables for the ``signal`` route.
+            Defaults to None.
     
     Returns:
         LayoutListbox: The layout object created.
@@ -115,7 +119,7 @@ def gui_properties_set (p=None, tag=None):
     
     Example:
         gui_properties_set({"Speed": "gui_text(str(ship_speed))", "Shields": "gui_slider(shield_pct)"})"""
-def gui_property_list_box (name=None, tag=None, temp=<function _property_lb_item_template_one_line at 0x00000261778F3600>, hide_when_empty=False):
+def gui_property_list_box (name=None, tag=None, temp=<function _property_lb_item_template_one_line at 0x0000022F820DD580>, hide_when_empty=False):
     """Create a property list box with single-line label/control layout.
     
     Each property is rendered as a label on the left and its control widget

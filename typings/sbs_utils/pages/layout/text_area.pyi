@@ -3,6 +3,13 @@ from sbs_utils.pages.layout.column import Column
 from sbs_utils.pages.widgets.control import Control
 from sbs_utils.helpers import FrameContext
 from textwrap import TextWrapper
+def _choice_options (urn):
+    """`[](choices://?fill=#234&layout=stack)` -> the ChoiceFlowLine options it sets."""
+def _icon_send (SBS, client_id, region_tag, tag, urn, left, top, right, bottom, layer=None):
+    """Draw `icon://` art into a rect. The urn is an icon NAME (`check.on`, `wanted`)
+    or a sheet INDEX (`137`), plus `?color=`. A name is resolved the way
+    `gui_icon_name` resolves it, so a mission that re-skins a name re-skins it here too;
+    a name nobody knows draws nothing (a wrong glyph looks deliberate)."""
 def _layer_prop (layer):
     """``draw_layer:N;`` for a raised container, or ``''`` when nobody asked for one.
     
@@ -16,11 +23,19 @@ def _layer_prop (layer):
     backdrop and vanished. The cascade still must not go into the `$$` per-line
     mini-language, which is what the comment in `_apply_cascade` protects: that is a
     style string the text area parses itself, not one the engine reads."""
+def _lead_px (ns, urn, font):
+    ...
+def _lead_send (SBS, client_id, region_tag, tag, ns, urn, left, top, right, bottom, layer=None):
+    """Draw a lead picture of any kind into a square rect."""
 def _line_has_embed (line):
     """Does this line carry an `ns://urn` the rich path would turn into a widget?
     
     `RE_LINK_REF` has every group optional, so it matches almost any line - a bare `ns` is
     what says a reference is present at all, and the scheme is what says it draws something."""
+def _line_is_choice (line):
+    """A lone choice is still a button: the fast path would print its markup."""
+def _split_scheme (urn):
+    """`image://arrow` -> ("image", "arrow"); a bare `check.on` is an icon."""
 def amd_parse_url (text):
     """`key?scale=0.5&align=center` -> `{"url": "key", "scale": "0.5", ...}`.
     
@@ -39,6 +54,20 @@ def amd_table_scan (lines, i):
     A table is **2 or more** consecutive lines starting with `|`. The pair is
     required deliberately: a lone `|` line is prose (a table drawn in words, an
     ASCII diagram, a sentence about a pipe) and must stay prose."""
+def gauge_has_text (spec):
+    ...
+def gauge_height_px (spec):
+    """Natural height: one line of text (if any) plus the bar."""
+def gauge_send (SBS, client_id, region_tag, tag, left, top, right, bottom, spec, ar, layer=None, justify='left'):
+    """Draw one gauge into a rect (percent units, like every send_gui_*).
+    
+    `justify` places a label that stands ALONE (the ENGN cell is centred by its
+    column); a label with a value is always label-left, value-right, the way the
+    engine lays out "Energy ...... 946"."""
+def gauge_spec_from_url (urn, label='', font='gui-2'):
+    """`946?max=1000&show=frac&warn=0.4&invert=1` (after `gauge://`) -> spec."""
+def gauge_value_text (spec):
+    ...
 def get_client_aspect_ratio (cid):
     """Get the aspect ratio of the specified client's screen.
     Args:
@@ -128,9 +157,48 @@ def wrap_to_width (font, text, px_width):
     very narrow column is still worth confirming in a real session.
     
     Words wider than a whole line are broken MID-WORD, as the engine does."""
+class ChoiceFlowLine(object):
+    """A group of `[Display](signal://name?k=v)` lines, drawn as ONE wrapping row of
+    flat buttons - a wrap panel. Clicking one routes back to the owning TextArea,
+    which consumes the group and emits the signal.
+    
+    Flat, not `send_gui_button`: each chip is a filled image, its words, and a
+    transparent clickregion the size of the whole chip - the build the ePADD app links
+    and the tab strip use - so it looks like part of the document, not engine chrome.
+    
+    Packing happens here, in pixels, at the width the text is drawn at. A chip is as
+    wide as its label plus padding; chips go left to right and a chip that does not
+    fit starts a new row. A label wider than a whole row gets a row to itself and
+    wraps inside its chip. The line is as tall as its rows, so scrolling, `follow_tail`
+    and the rest of the area treat it as one line.
+    
+    A chip with no click tag is a CHOSEN one - `[Display](chosen://)`, what a group
+    leaves behind - drawn in the quieter chosen colors with no hit area."""
+    def __init__ (self, choices, ar, pixel_width, options=None) -> None:
+        """Initialize self.  See help(type(self)) for accurate signature."""
+    def pack (choices, pixel_width, opts):
+        """Chips as `(x, y, w, h, choice)` in pixels, packed into rows."""
+    def send_gui (self, SBS, client_id, region_tag, tag, left, top, right, bottom, layer=None):
+        ...
 class FaceLine(object):
     """class FaceLine"""
     def __init__ (self, text, ar) -> None:
+        """Initialize self.  See help(type(self)) for accurate signature."""
+    def send_gui (self, SBS, client_id, region_tag, tag, left, top, right, bottom, layer=None):
+        ...
+class FoldLine(IconLine):
+    """A collapsible heading (`##+ Title` / `##- Title`): the expand or collapse icon,
+    the title in its heading style, and a click region over the whole line that
+    routes back to the owning TextArea to open or close the section."""
+    def __init__ (self, title, style, is_open, click_tag, ar, pixel_width) -> None:
+        """Initialize self.  See help(type(self)) for accurate signature."""
+    def send_gui (self, SBS, client_id, region_tag, tag, left, top, right, bottom, layer=None):
+        ...
+class GaugeLine(object):
+    """A whole-line gauge `[Energy](gauge://946?max=1000)`: label left, value right,
+    a bar colored by fraction underneath. The drawing is `layout/gauge.py`'s, shared
+    with the `gui_gauge` widget."""
+    def __init__ (self, label, urn, ar) -> None:
         """Initialize self.  See help(type(self)) for accurate signature."""
     def send_gui (self, SBS, client_id, region_tag, tag, left, top, right, bottom, layer=None):
         ...
@@ -138,6 +206,16 @@ class HrLine(object):
     """Horizontal rule (`<hr>` / `<hr/>`) — a thin full-width divider. Uses `<hr>`
     rather than `---` so it never clashes with the table separator row."""
     def __init__ (self, ar) -> None:
+        """Initialize self.  See help(type(self)) for accurate signature."""
+    def send_gui (self, SBS, client_id, region_tag, tag, left, top, right, bottom, layer=None):
+        ...
+class IconLine(object):
+    """`![](icon://name) text` - an icon one text line tall, the text wrapped beside it.
+    
+    Starting a list item with one (`- ![](icon://check.on) Shields up`) makes the icon
+    the item's BULLET: it replaces the `-` or number, and wrapped lines stay aligned
+    under the text, not under the icon."""
+    def __init__ (self, urn, text, style, ar, pixel_width, ns='icon') -> None:
         """Initialize self.  See help(type(self)) for accurate signature."""
     def send_gui (self, SBS, client_id, region_tag, tag, left, top, right, bottom, layer=None):
         ...
@@ -168,8 +246,12 @@ class TableLine(object):
     no horizontal scroll); row height is the tallest wrapped cell. Per-column
     alignment comes from the |:--|--:| separator row. Keep tables SMALL/static:
     scrolling is line-indexed so a tall table clips at the block boundary."""
-    def __init__ (self, rows, aligns, ar, pixel_width, sbs) -> None:
+    def __init__ (self, rows, aligns, ar, pixel_width, sbs, link_map=None, link_prefix='lnk') -> None:
         """Initialize self.  See help(type(self)) for accurate signature."""
+    def _font (self, ri):
+        ...
+    def _icon_px (font):
+        ...
     def send_gui (self, SBS, client_id, region_tag, tag, left, top, right, bottom, layer=None):
         ...
 class TextArea(Control):
@@ -218,10 +300,37 @@ class TextArea(Control):
         
         Promotion is one-way until the value is re-set. Re-deciding every frame
         would oscillate: the rich form is exactly what makes the text fit."""
+    def _repaint (self, event):
+        """Redraw after a click, scroll or fold.
+        
+        On its own this area re-sends itself. Inside a REGION that is wrong: the engine
+        draws the new paint over the old one (a scroll showed both). There the region's
+        owner has to repaint, so `repaint_cb(area)` - set by whoever owns it - is asked
+        to, and this area draws nothing itself."""
+    def _scan_choice_group (lines, i):
+        """The choice group starting at `lines[i]` -> `(choices, next_index)`, else None.
+        
+        A group is consecutive `signal://` / `chosen://` lines; anything else, a
+        blank line included, ends it. Each choice is a dict with `display`, and for
+        a live one `signal` (the name) and `data` (the query, as strings)."""
+    def _scroll_to_fold (self, key):
+        """After a toggle, keep the heading that was clicked on screen."""
+    def append (self, text, sep='\n\n'):
+        """Add text to the end of the document - how a story continues after a choice.
+        
+        `value` reads back as a LIST of lines, so `value += "..."` does not do this.
+        A blank line goes between by default, so the new text starts a paragraph."""
     def calc (self, client_id):
         ...
     def calc_rich (self, client_id, _retry=True):
         ...
+    def choose (self, click_tag, client_id=None):
+        """Make the choice behind `click_tag`: consume its group, then emit its signal.
+        
+        The group is replaced by the one choice made, as `[Display](chosen://name)`,
+        so the reader is left with the story so far and a second click finds nothing
+        to press. The signal is emitted AFTER, so a route that appends the next
+        scene appends it below the choice. Returns the choice, or None."""
     def get_line_style (self, some_lines, previous):
         ...
     def get_markdown_line_style (self, some_lines, previous):
@@ -252,8 +361,20 @@ class TextArea(Control):
         ...
     def parse_style_line (self, line):
         ...
+    def represent (self, event):
+        """A dirty pass redrawing this area on its own - unless its OWNER repaints it.
+        
+        With `repaint_cb` set the area lives in a region its owner rebuilds, and a rebuild
+        reuses the same sub-region tags. So a self-redraw is not merely out of band, it
+        is stale: engine-seen, a picked choice settled the OLD area (`choose` sets its
+        value, which marks it dirty), the owner's rebuild drew the new transcript, and
+        then this pass painted the old one over it - "the pick does nothing until
+        something else changes". The owner's in-band present calls `present`, not this."""
     def split_styled_lines (self, some_lines):
         ...
+    def toggle_fold (self, key, client_id=None):
+        """Open a closed section or close an open one, by its heading key
+        (`"##" + title`). Returns the new state, or None for an unknown key."""
     def update (self, message):
         ...
     @property

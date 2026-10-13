@@ -50,6 +50,8 @@ def join_bracket_continuations (src):
     LegendaryMissions' ~1s compile, 57 of its 171 files). Output is byte-identical."""
 def profile_dropped_addons ():
     """Addon folder names the active profile removed from this compile."""
+def strip_bom (content):
+    """`content` without a leading byte-order mark, in either spelling."""
 class CompileContext(object):
     """Per-compile scratch state for block-structured nodes.
     
@@ -195,6 +197,13 @@ class Mast(object):
         ...
     def import_python_module_for_source (self, name, lib_name):
         ...
+    def lib_scope_key (lib_name):
+        """The Python namespace a mastlib's .py files share: one per REPO.
+        
+        A lib is named ``{user}.{repo}.{folder}.{version}.mastlib``, so every addon a
+        repo ships answers the same key - which is what lets `admiral` and
+        `universe_core` call each other packaged the way they do as source folders. A
+        name that is not shaped like that keeps a namespace of its own, as before."""
     def make_global (func):
         ...
     def make_global_var (name, value):

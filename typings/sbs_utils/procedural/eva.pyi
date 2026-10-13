@@ -24,6 +24,18 @@ def _eva_leg_clearance (volume, a, b, samples=7):
     MEASURED ONCE PER LEG, never per tick. The rail web exists precisely so that flying
     does no geometry, so this is called when a waypoint is reached and the answer is kept
     in inventory until the next one."""
+def _eva_offer_drop (whose):
+    """Withdraw exactly one entry - a ship's own offer, or (None) the one for every
+    ship - and leave the rest. True when there was one."""
+def _eva_offer_mark (whose, by):
+    """Say who made an offer, on the offer itself. See `eva_relics._BY_PASS`."""
+def _eva_offer_ship (ship=None, client_id=None):
+    ...
+def _eva_offers ():
+    """The stored table. Tolerates the single-offer shape an older save or a test that
+    wrote the key by hand may still hold."""
+def _eva_offers_save (table):
+    ...
 def _eva_places (key, role_name, rail_nodes, relic_rails_ensure, relic_points, relic_point_display, client_id):
     """``[(name, pos, display)]`` - the relic's destinations, from its rail web.
     
@@ -62,6 +74,12 @@ def eva_clear (relic_key=None):
     """Take the party out of its suits - one relic's, or every one.
     
     The LIFEFORMS belong to `boarding.py` and are left alone; this owns only the suits."""
+def eva_client_ship (client_id):
+    """The ship a console BELONGS to - the one whose offer it reads.
+    
+    A console out in a suit is assigned to the suit, so the engine's answer for it is the
+    suit. The ship it left is on record (`eva_my_home`), and a console still aboard asks
+    the viewscreen, which already knows about cutscene shots."""
 def eva_dest (client_id):
     """The point name this console is flying to, or None."""
 def eva_drivers ():
@@ -113,7 +131,7 @@ def eva_no_way (client_id):
     
     Cleared by the next accepted destination. The Nav app shows it, because a button that
     does nothing when pressed is indistinguishable from a broken screen."""
-def eva_offer (relic_key, volume=None, entry=None, side=None, hull=None):
+def eva_offer (relic_key, volume=None, entry=None, side=None, hull=None, ship=None, name=None):
     """Declare the relic a boarding party will suit up into.
     
     Args:
@@ -123,11 +141,38 @@ def eva_offer (relic_key, volume=None, entry=None, side=None, hull=None):
             addressed by the wrong name silently does nothing at all.
         entry (optional): where suits appear. Defaults to the relic's `entrance` point.
         side (optional): the side the suits belong to. Give it one.
-        hull (optional): the ship-data key suits are drawn as."""
-def eva_offer_clear ():
-    """Nobody is going into a relic any more."""
-def eva_offered ():
-    """The relic on offer, or None. What `eva_relevant` and the suit-up door read."""
+        hull (optional): the ship-data key suits are drawn as.
+        ship (optional): the player ship this offer is FOR. Left out, the offer is for
+            EVERY player ship - which is what this call has always meant, so a mission
+            with one ship, or one that wants every crew sent to the same ruin, changes
+            nothing. A ship's own offer wins over the one for everybody.
+        name (optional): what the place is called on the SUIT UP screen."""
+def eva_offer_clear (ship=None):
+    """Nobody is going into a relic any more.
+    
+    Args:
+        ship (optional): withdraw only THIS ship's own offer. Left out, every offer goes -
+            the one for everybody and each ship's own - which is what clearing the single
+            slot always did."""
+def eva_offered (ship=None, client_id=None):
+    """The relic on offer, or None. What `eva_relevant` and the suit-up door read.
+    
+    Args:
+        ship (optional): the offer THIS ship has - its own, else the one for every ship.
+        client_id (optional): the same, for the ship this console belongs to.
+    
+    Asked with neither, the answer is "is anything on offer at all": the offer for every
+    ship if a mission made one, else the offer of the lowest-numbered ship that has one.
+    With one player ship that is the same answer as before there was a choice."""
+def eva_offers ():
+    """Every offer standing, as ``{ship id: offer}`` - the key `None` is the offer a
+    mission made for every ship. A copy."""
+def eva_point_hint (client_id, name, leads=None, finds=None):
+    """What is worth knowing about one destination: ``"lead"`` - an open quest points at
+    it; ``"find"`` - something the relic put there is still there to take; or ``""``.
+    
+    `leads` and `finds` are for a caller marking a whole list, so the quest tree and the
+    role query are walked once rather than once per row."""
 def eva_points (client_id, role_name=None, revealed_only=False):
     """The places this console may fly to: ``[(name, display, (x, y, z)), ...]``.
     
@@ -163,9 +208,9 @@ def eva_release (client_id):
 def eva_relevant (client_id=None):
     """Whether this console has anything to suit up for.
     
-    True while a relic is on offer, or once this console is already out in one. Put it on
-    the ROUTE, the way `boarding_relevant` is used - a route's own condition is what ePADD
-    tests when it builds the app list."""
+    True while a relic is on offer TO THIS CONSOLE'S SHIP, or once this console is already
+    out in one. Put it on the ROUTE, the way `boarding_relevant` is used - a route's own
+    condition is what ePADD tests when it builds the app list."""
 def eva_route (client_id):
     """``(destination, waypoints_remaining, distance_to_go)``.
     
@@ -198,12 +243,29 @@ def eva_stop (client_id):
     """Cancel the route and hold station."""
 def eva_suit_count ():
     """Reset-ledger probe: suits still in the world."""
-def eva_suit_hull ():
-    """The ship-data key a suit is drawn as.
+def eva_suit_home (suit):
+    """The ship a suit's wearer came from, or None - who a find a suit picks up belongs
+    to. A suit is not a player ship (it has `__player__` removed on purpose), so what it
+    collects is credited to the ship that sent it out."""
+def eva_suit_hull (hull=None):
+    """The ship-data key a suit is drawn as - one that this mission actually HAS.
     
-    A FUNCTION because MAST only sees functions, and overridable because the custom suit
-    hull is registered by a mod: a mission that has not declared one still gets a flyable
-    suit, drawn as whatever this says."""
+    In order: `hull` when it is given, else what `eva_set_suit_hull` said, else the crew
+    exosuit (`lm_eva_suit`). Whichever it is, it is only used when its ship data is
+    loaded; otherwise the answer is the stock `tsn_shuttle`, and the reason is logged
+    ONCE per hull.
+    
+    THE CHECK IS NOT POLITENESS. A hull the engine was never given does not fail where
+    it is asked for: it draws the `unknown` placeholder, or the spawn dies inside the
+    engine with `bad allocation` minutes later against an unrelated line. The exosuit
+    comes from a mod file, so it is absent whenever the mission turned `EXTRA_SHIP_DATA`
+    off (it is on by default), the `boarding` addon is not loaded, or the media pack
+    holding `lm_eva_ships` is not in the mission's `shared_media`.
+    
+    A FUNCTION because MAST only sees functions."""
+def eva_suit_hull_known (hull):
+    """Whether a hull can be spawned here: the library has its ship data, and - for a
+    hull that came from an extra ship-data file - the engine was told about that file."""
 def eva_suit_of (lifeform):
     """The suit a party member is flying, or None."""
 def eva_suit_spawn (lifeform, relic_key, x, y, z, hull=None, name=None, side=None, volume=None):

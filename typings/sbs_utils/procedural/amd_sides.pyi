@@ -15,7 +15,7 @@ def _side_expand (items, all_keys, self_key, claimed):
     Scope is THIS DOCUMENT. A wildcard reaches the sides authored alongside it and no
     others - so an addon declaring its own factions cannot silently redefine a relation
     with a side some other addon declared."""
-def amd_parse_facts (text, handler=None, default=<function amd_num at 0x0000026177D728E0>, archetype=None, errors=None):
+def amd_parse_facts (text, handler=None, default=<function amd_num at 0x0000022F81E7E3E0>, archetype=None, errors=None):
     """Parse one fact-sheet fence into a dict.
     
     Per label, in order: the caller's `handler` gets first refusal (returns truthy to
@@ -45,6 +45,9 @@ def amd_sides_audience_count ():
     """Reset-ledger probe: how many token rules are held."""
 def amd_sides_clear ():
     """Drop the cross-document side registries - the per-mission reset."""
+def amd_weighted (s):
+    """'by-the-book 40, fearsome 30' -> {by_the_book: 40, fearsome: 30}
+    (trailing integer is the weight; a bare name gets weight 0)."""
 def side_civilian_sides ():
     """Every side declared `Civilian: true`, across every document loaded this mission."""
 def side_create (key, name=None, desc=None, color=None, icon_index=None, races=None, allies=None, enemies=None):

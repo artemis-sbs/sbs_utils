@@ -15,7 +15,7 @@ def apply_control_styles (control_name, extra_style, layout_item, task):
         task (MastAsyncTask): GUI task used for string formatting."""
 def call_press_handler (handler, layout_item, event):
     """Call a Python `on_press`, giving it the widget's data when it asks for it."""
-def gui_button (props, style=None, data=None, on_press=None, is_sub_task=None):
+def gui_button (props, style=None, data=None, on_press=None, is_sub_task=None, signal=None):
     """Add a button to the current GUI layout outside of an ``await gui()`` block.
     
     Unlike buttons declared with ``*`` or ``+`` inside ``await gui()``, this
@@ -54,6 +54,10 @@ def gui_button (props, style=None, data=None, on_press=None, is_sub_task=None):
             **deprecated**. Defaults to None, meaning the library decides; a
             handler that paints a screen and reaches ``await gui()`` sends the
             GUI task there either way, so you should not need this.
+        signal (str, optional): A signal to emit on each press, as
+            ``gui_signal(button, signal, data)``. The route gets ``data``'s keys
+            plus ``SIGNAL_CLIENT_ID`` and ``SIGNAL_ITEM``. Runs alongside
+            ``on_press``. Defaults to None.
     
     Valid Styles:
         area:

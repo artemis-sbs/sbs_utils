@@ -455,6 +455,24 @@ def grid_node_efficiency (id_or_obj):
     is what makes the whole idea inert until something writes wear, and why
     set_damage_coefficients produces numbers identical to the old undamaged/total
     fraction on a ship that has never worn anything."""
+def grid_node_icon_index (id_or_obj):
+    """The sheet index this node is DRAWN with on the interior view.
+    
+    A panel that names a node beside a generic cog is asking the engineer to hold two
+    pictures of one room. This is the index the node actually wears, so a header glyph
+    and the node under the cursor are the same shape.
+    
+    Written to inventory at spawn (`_grid_spawn_chunk`), which is also what the View
+    tab re-applies, so inventory is the unscaled source of truth. Falls back to asking
+    the theme for the node's roles - a node built by something other than
+    `grid_rebuild` still answers - and finally to None, which a caller draws as
+    nothing rather than as an arbitrary glyph.
+    
+    Args:
+        id_or_obj: the grid node.
+    
+    Returns:
+        int | None: the icon index, or None if neither source has one."""
 def grid_node_is_system (id_or_obj):
     """Is this node part of a ship SYSTEM - the only kind of node that wears?
     

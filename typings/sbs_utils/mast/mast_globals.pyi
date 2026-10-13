@@ -39,6 +39,20 @@ class MastGlobals(object):
         Args:
             mod_name (str): The name of the module
             prepend (str): The string to prepend to the function names"""
+    def make_py_file_namespace (scope_key):
+        """Per-file globals for a .py being exec'd into `scope_key`'s namespace."""
+    def publish_py_file_namespace (scope_key, ns):
+        """Move a file's PUBLIC names into the shared namespace; keep its privates.
+        
+        The publics are MOVED, not copied: once published they are deleted from the
+        file's own globals, so a later lookup falls through to the shared namespace.
+        That keeps PUBLIC resolution exactly as it was - shared, call-time,
+        last-definition-wins - and confines this change to underscored names, which is
+        the whole of the fix. (`sbs lint`'s `ns-duplicate-function` is what a
+        duplicated PUBLIC name is for; nothing here should quietly change which one a
+        mission gets.)
+        
+        Privates stay in the file. So do dunders and the fallback's bookkeeping."""
     def register_mission_functions (mod):
         """Register the functions DEFINED in a mission's or addon's shared namespace as
         MAST globals so .mast can call them. Functions imported from libraries keep their

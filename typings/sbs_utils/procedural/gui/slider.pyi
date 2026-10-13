@@ -12,7 +12,7 @@ def apply_control_styles (control_name, extra_style, layout_item, task):
             parsed dict applied after the base style.
         layout_item (LayoutItem): Layout item to receive the style.
         task (MastAsyncTask): GUI task used for string formatting."""
-def gui_int_slider (msg, style=None, var=None, data=None):
+def gui_int_slider (msg, style=None, var=None, data=None, signal=None):
     """Add an integer-only slider control to the current GUI layout.
     
     Convenience wrapper for ``gui_slider(..., is_int=True)``.
@@ -25,13 +25,14 @@ def gui_int_slider (msg, style=None, var=None, data=None):
             update on change. Defaults to None.
         data (object, optional): Arbitrary data passed to the event handler.
             Defaults to None.
+        signal (str, optional): As ``gui_slider``. Defaults to None.
     
     Returns:
         Slider: The layout item created.
     
     Example:
         gui_int_slider("low:1;high:5;text:int;", var="torp_count")"""
-def gui_slider (msg, style=None, var=None, data=None, is_int=False):
+def gui_slider (msg, style=None, var=None, data=None, is_int=False, signal=None):
     """Add a slider control to the current GUI layout.
     
     The current value of ``var`` is used as the initial slider position. When
@@ -47,6 +48,8 @@ def gui_slider (msg, style=None, var=None, data=None, is_int=False):
             Defaults to None.
         is_int (bool, optional): Restrict values to integers. Defaults to
             ``False``.
+        signal (str, optional): A signal to emit on each change, with the new
+            value as ``SIGNAL_VALUE`` (see ``gui_signal``). Defaults to None.
     
     Returns:
         Slider: The layout item created.

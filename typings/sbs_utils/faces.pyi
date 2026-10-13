@@ -3,7 +3,11 @@ def _build_face_features ():
 def _face_tone_table (race, kind):
     ...
 def _indices (race, layer):
-    ...
+    """The indices a RANDOM face may use for a layer.
+    
+    Honors the race's `resting` list, so a randomizer never hands somebody a closed eye
+    or a mid-word mouth as their standing portrait. The editor and face_expression reach
+    the full set through face_layer_count / face_cell; this is the resting subset only."""
 def _layer_rows (race):
     """{row: layer} for the eye and mouth rows, used to find them in a built string."""
 def _maybe (chance, pool):
@@ -21,6 +25,18 @@ def _parse_v1_terran (layers):
     """Old feature indices for a terran face, decoding the retired +3 gender columns."""
 def _pick (pool):
     ...
+def _random_tones (race):
+    """{skin, hairtone} for a random face of a race.
+    
+    Every tinted race gets skin variation, not just Terran. The five alien randomizers
+    used to leave skin alone entirely - "preserve the old behavior" - which was
+    defensible while the palettes barely worked and indefensible once the avatar editor
+    grew a Randomize button: pressing it on a Kralien changed everything about them
+    except their color.
+    
+    EVERY tinted race varies, including Arvonian, and by default every one of them draws
+    from the WHOLE palette - see RANDOM_FULL_TONE_RANGE. The greens, blues and violets are
+    real art; a randomizer that never reaches them means nobody ever sees them."""
 def _swap_one (face_string, layer, index):
     """Replace just one layer's cell, leaving every other layer and tint alone.
     
@@ -69,8 +85,10 @@ def face_blink_frame (face_string, elapsed, period=4.0, close_for=0.14):
 def face_build (race, skin=None, hairtone=None, **layers):
     """Assemble a face string from per-layer indices.
     
-    Layers are named by FACE_LAYERS[race]["cells"] - body, eyes, mouth, hair, clothes and
-    whatever else that race has. A layer that is absent or None is simply not drawn, which
+    Layers are named by the race's own `cells` table in FACE_LAYERS - body, eyes, mouth,
+    hair, clothes and whatever else it has. (Spelled that way round on purpose: written
+    as a subscript chain it reads to mkdocs-autorefs as a markdown reference link and
+    fails the strict docs build.) A layer that is absent or None is simply not drawn, which
     is how optional parts (a hat, a headset, facial hair) stay optional. `body` defaults to
     0, because a face with no body is an invisible face.
     
@@ -242,6 +260,10 @@ def face_tint (race, kind, tone):
     
     `tone` is an index into that race's palette, a raw hex string (passed straight
     through, so a caller with its own color is never second-guessed), or None."""
+def face_tone_index (race, kind, name, default=0):
+    """The palette index of a tone BY NAME, so a mission can ask for "emerald"
+    instead of counting. Unknown names answer `default` rather than raising - a face
+    built from tone 0 is still a face, and a mission should not die over a color."""
 def face_tone_indices (race, kind, natural_only=False):
     """Palette indices for a race, optionally only the ones that read as natural.
     

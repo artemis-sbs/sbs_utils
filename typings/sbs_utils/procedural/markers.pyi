@@ -1,4 +1,6 @@
 from sbs_utils.helpers import FrameContext
+def _marker_order_side_of (owner):
+    ...
 def marker_area (x, y, z, size_x, size_z=None, text='', color='#0cf4'):
     """A labelled REGION on the map, centered on (x, z) - the shape a job means by "the
     shipping lane" or "the asteroid field". Returns its navarea id.
@@ -29,6 +31,23 @@ def marker_object (x, y, z, text, roles='', color='gold'):
     
     `roles` are added on top of `map,marker` - a job marks its own with its own role so
     it can find and remove them later."""
+def marker_order_clear (owner):
+    """Remove every order marker belonging to `owner`'s side. Returns how many."""
+def marker_order_drop (owner, x, y, z, name=None):
+    """Drop an order marker for `owner`'s side at (x, y, z). Returns the marker object
+    (not SpawnData), or None if the spawn failed.
+    
+    The side is given the marker's scan at once: comms will not open on an object the
+    side has no science data for, and a marker nobody can select is no use as a target."""
+def marker_order_is (obj):
+    """Is this an order marker?"""
+def marker_order_list (owner):
+    """The order markers belonging to `owner`'s side (a ship, an id, or a side key), in
+    the order they were dropped."""
+def marker_order_next_name (owner):
+    """The first phonetic name that side is not already using."""
+def marker_order_remove (obj):
+    """Remove one order marker. Anything else is left alone. Returns True if removed."""
 def marker_point (x, y, z, text, color='#0cf'):
     """A labelled dot on the map. Returns its navpoint id."""
 def to_id (other: sbs_utils.agent.Agent | sbs_utils.agent.CloseData | int):

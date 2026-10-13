@@ -12,7 +12,11 @@ def _raw_dict ():
 def _raw_get (key, default=None):
     """One unscoped argument, matched case-insensitively."""
 def _sbs ():
-    """The sbs module for this frame, or None outside a frame (import time, tests)."""
+    """The sbs module for this frame, else the loaded `sbs` module, else None.
+    
+    The command line belongs to the PROCESS, not a frame. Answering None outside a frame
+    meant the first `settings_get_defaults()` - which runs at story compile, before any
+    event - never saw `profile=`, and cached settings without it for the whole mission."""
 def command_line_dict ():
     """The `key=value` launch arguments, parsed.
     

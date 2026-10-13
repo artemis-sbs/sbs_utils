@@ -36,7 +36,7 @@ def _urge_pool (desc):
     keep in sync with the words, and the author keeps the dial."""
 def amd_duration_seconds (value):
     """`amd_duration_parts` collapsed to seconds, or None if there's no number."""
-def amd_parse_facts (text, handler=None, default=<function amd_num at 0x0000026177D728E0>, archetype=None, errors=None):
+def amd_parse_facts (text, handler=None, default=<function amd_num at 0x0000022F81E7E3E0>, archetype=None, errors=None):
     """Parse one fact-sheet fence into a dict.
     
     Per label, in order: the caller's `handler` gets first refusal (returns truthy to
