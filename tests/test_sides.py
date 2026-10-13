@@ -85,6 +85,30 @@ class TestSides(unittest.TestCase):
             self.assertIsNone(to_side_id(hidden), hidden)
         self.assertEqual(emitted, [], "a hidden/empty side must not warn")
 
+    def test_a_wreck_has_no_side_to_misspell(self):
+        """Terrain carries a "side" only because a spawn's first role lands there.
+        Science asks whether a selected wreck is an ally; that must answer no in
+        silence - it failed OpenUniverse's test run as an undeclared side."""
+        from sbs_utils.procedural.spawn import terrain_spawn, player_spawn
+        from sbs_utils.procedural.sides import side_are_allies, side_are_enemies
+        make_side("tsn", "TSN")
+        ship = player_spawn(0, 0, 0, "Hero", "tsn", "tsn_light_cruiser")
+        wreck = terrain_spawn(500, 0, 0, "Wreck", "wreck, wreck_7", "wreck", "behav_wreck")
+        emitted = self._spy_emitted()
+        self.assertIsNone(to_side_id(wreck))
+        self.assertFalse(side_are_allies(ship, wreck))
+        self.assertFalse(side_are_enemies(ship, wreck))
+        self.assertEqual(emitted, [], "a wreck's role is not an undeclared side")
+
+    def test_a_ship_on_an_undeclared_side_still_warns(self):
+        """The same lookup on a SHIP is the typo this warning exists for."""
+        from sbs_utils.procedural.spawn import npc_spawn
+        npc = npc_spawn(500, 0, 0, "K19", "tsm", "tsn_light_cruiser", "behav_npcship")
+        emitted = self._spy_emitted()
+        self.assertIsNone(to_side_id(npc))
+        self.assertEqual(len(emitted), 1)
+        self.assertIn("tsm", emitted[0])
+
     def test_to_side_id_hash_prefixed_resolves_to_bare_side(self):
         # "#raider" is the "raider" side with its display hidden — it must resolve.
         raider = make_side("raider", "Raider")

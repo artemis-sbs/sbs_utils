@@ -190,8 +190,17 @@ def to_side_id(key_or_id_or_object, warn=True):
         obj = to_space_object(id)
         if obj is not None:
             side = obj.side
+            # TERRAIN HAS NO SIDE TO MISSPELL. A wreck, an asteroid or a pickup carries a
+            # "side" only because the first role of any spawn lands in that field
+            # (`terrain_spawn(..., "wreck, wreck_7", ...)`), so nobody declared one and
+            # nobody should have. Asking whether a wreck is an ally - which science does
+            # the moment a crew selects one - is a fair question with the answer "no",
+            # not a typo in a `Side:` line, and reporting it failed every mission whose
+            # test run happened to select a wreck.
+            if getattr(obj, "is_terrain", False):
+                warn = False
             # to_side_id() should be able to return the right side based on id or display text
-            return to_side_id(side)
+            return to_side_id(side, warn=warn)
         
     return None
 
