@@ -422,6 +422,61 @@ class TestMockguiRadarHiddenBehaviors(unittest.TestCase):
         self.assertEqual(rec.get("name"), "System 2,1")   # name_tag rides the terrain rec
         self.assertEqual(rec.get("tint"), "#ff4444")       # radar_color_override rides too
 
+    # --- the 2D views' map filters and terrain flags (engine 1.3.15) -----------
+
+    def _ship_with_a_console(self):
+        ship = mockgui.sim.create_space_object("behav_playership", "tsn_light_cruiser", 0x20)
+        mockgui.sim.space_objects[ship]._pos = mockgui.vec3(0, 0, 0)
+        mockgui.assign_client_to_ship(0x8080000000000001, ship)
+        mockgui._last_comms_filter.clear()
+        return ship
+
+    def _map_filters(self, ship):
+        found = None
+        for m in self._drain():
+            if m.get("cmd") == "radar" and m.get("ship_id") == str(ship) and "map_filters" in m:
+                found = m["map_filters"]
+        return found
+
+    def test_every_2d_view_gets_its_own_filter_and_flags(self):
+        ship = self._ship_with_a_console()
+        foe = mockgui.sim.create_space_object("behav_npcship", "", 0x10)
+        ds = mockgui.sim.space_objects[ship].data_set
+        ds.set("sci_map_filter", ship, 0)
+        ds.set("sci_map_filter", foe, 1)
+        ds.set("helm_show_asteroids", 0, 0)
+        mockgui._push_radar()
+        mf = self._map_filters(ship)
+        self.assertIsNotNone(mf, "the ship's radar message carried no map_filters")
+        self.assertEqual(mf["science_2d_view"]["ids"], [str(ship), str(foe)])
+        self.assertEqual(mf["2dview"],
+                         {"ids": [], "nebulas": True, "asteroids": False})
+        # Terrain is shown until a flag says otherwise - the engine's own default.
+        self.assertEqual(mf["weapon_2d_view"],
+                         {"ids": [], "nebulas": True, "asteroids": True})
+        self.assertEqual(mf["comms_2d_view"],
+                         {"ids": [], "nebulas": True, "asteroids": True})
+
+    def test_a_flag_change_is_streamed(self):
+        ship = self._ship_with_a_console()
+        mockgui._push_radar()
+        self.assertTrue(self._map_filters(ship)["weapon_2d_view"]["nebulas"])
+        mockgui.sim.space_objects[ship].data_set.set("weapon_show_nebulas", 0, 0)
+        mockgui._push_radar()
+        mf = self._map_filters(ship)
+        self.assertIsNotNone(mf, "the flag change was not streamed")
+        self.assertFalse(mf["weapon_2d_view"]["nebulas"])
+
+    def test_clearing_a_filter_is_streamed_as_no_filter(self):
+        ship = self._ship_with_a_console()
+        ds = mockgui.sim.space_objects[ship].data_set
+        ds.set("helm_map_filter", ship, 0)
+        mockgui._push_radar()
+        self.assertEqual(self._map_filters(ship)["2dview"]["ids"], [str(ship)])
+        ds.clear_data("helm_map_filter")
+        mockgui._push_radar()
+        self.assertEqual(self._map_filters(ship)["2dview"]["ids"], [])
+
     def test_terrain_restreams_when_a_marker_moves(self):
         # Reconcile-in-place moves a marker without changing its id; the terrain channel
         # must re-stream on the position change (not only on an id-set change), or a moved
@@ -823,8 +878,10 @@ class TestMockScienceScanQueue(unittest.TestCase):
         self.a = mockgui.sim.create_space_object("behav_npcship", "a", 0)
         self.b = mockgui.sim.create_space_object("behav_npcship", "b", 0)
         mockgui.sim.space_objects[self.ship]._pos = mockgui.vec3(0, 0, 0)
-        mockgui.sim.space_objects[self.a]._pos = mockgui.vec3(500, 0, 0)
-        mockgui.sim.space_objects[self.b]._pos = mockgui.vec3(600, 0, 0)
+        # Far enough that a scan is seconds, not one step: 5.2s each at 25,000 by the
+        # engine's rule (0.3 + 19.7 * distance / 100000).
+        mockgui.sim.space_objects[self.a]._pos = mockgui.vec3(25000, 0, 0)
+        mockgui.sim.space_objects[self.b]._pos = mockgui.vec3(-25000, 0, 0)
         while not _base_mock._pending_physics_events.empty():
             _base_mock._pending_physics_events.get_nowait()
 
@@ -858,7 +915,7 @@ class TestMockScienceScanQueue(unittest.TestCase):
     def test_completing_one_entry_starts_the_next(self):
         _base_mock.start_science_scan(self.ship, self.a, "scan")
         _base_mock.start_science_scan(self.ship, self.b, "scan")
-        self._run(6)          # long enough for the HEAD only (a scan takes ~5s in range)
+        self._run(6)          # long enough for the HEAD only (5.2s each at this range)
         done = [e for e in self._events() if e[0] == "science_scan_complete"]
         self.assertTrue(done, "the head never completed")
         self.assertEqual(done[0][3], self.a)
@@ -867,6 +924,45 @@ class TestMockScienceScanQueue(unittest.TestCase):
         self.assertTrue(q and q[0]["target"] == self.b, "the next entry did not start")
         self.assertEqual(mockgui.sim.space_objects[self.ship].data_set.get("cur_scan_ID", 0),
                          self.b)
+
+    # The engine's times, measured on 1.3.15 (data/missions/_e1315_probe case=scantime).
+    ENGINE_SECONDS = [(1250, 0.546), (2500, 0.793), (5000, 1.285), (7500, 1.778),
+                      (10000, 2.270)]
+
+    def _seconds_at(self, metres):
+        mockgui.sim.space_objects[self.a]._pos = mockgui.vec3(float(metres), 0, 0)
+        return _base_mock.science_scan_seconds(self.ship, self.a)
+
+    def test_a_scan_takes_what_the_engine_takes(self):
+        for metres, seconds in self.ENGINE_SECONDS:
+            with self.subTest(range=metres):
+                self.assertAlmostEqual(self._seconds_at(metres), seconds, places=2)
+
+    def test_point_blank_is_one_engine_step(self):
+        self.assertEqual(self._seconds_at(400), 0.5)
+
+    def test_base_scan_range_and_hull_strength_do_not_change_it(self):
+        ds = mockgui.sim.space_objects[self.ship].data_set
+        base = self._seconds_at(5000)
+        ds.set("ship_base_scan_range", 20000.0, 0)
+        ds.set("scan_strength_coeff", 2.0, 0)
+        self.assertEqual(self._seconds_at(5000), base)
+
+    def test_damaged_sensors_slow_it_and_the_engines_own_fields_win(self):
+        ds = mockgui.sim.space_objects[self.ship].data_set
+        ds.set("sensor_damage_coeff", 0.5, 0)
+        self.assertAlmostEqual(self._seconds_at(10000), 2.927, places=2)
+        ds.set("closest_scan_delay", 2.0, 0)
+        ds.set("farthest_scan_delay", 40.0, 0)
+        ds.set("sensor_damage_coeff", 1.0, 0)
+        self.assertAlmostEqual(self._seconds_at(10000), 5.8, places=2)
+
+    def test_progress_is_published_as_a_fraction(self):
+        """The engine's cur_scan_percent runs 0.0 to 1.0, not 0 to 100."""
+        _base_mock.start_science_scan(self.ship, self.a, "scan")
+        _base_mock._physics_science_scans(mockgui.sim, 2.6)       # half of 5.2s
+        pct = mockgui.sim.space_objects[self.ship].data_set.get("cur_scan_percent", 0)
+        self.assertAlmostEqual(pct, 0.5, places=2)
 
     def test_each_tab_is_its_own_entry(self):
         _base_mock.start_science_scan(self.ship, self.a, "scan")

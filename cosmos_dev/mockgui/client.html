@@ -864,8 +864,20 @@ const _radarCtx    = _radarCanvas ? _radarCanvas.getContext('2d') : null;
 // widget_name → { widget, left, top, right, bottom (0-100 %), ts: performance.now() }
 const _widgetRects = new Map();
 // The ship's comms_map_filter: a Set of the ids its comms 2D map shows, or null for
-// everything. Only the comms_2d_view honors it; other 2D views draw all.
+// everything. Kept for the wire format; every view reads _mapFilters below.
 let _commsMapFilter = null;
+// Every 2D view's filter and terrain flags (engine 1.3.15), keyed by view widget:
+// {ids: Set|null, nebulas: bool, asteroids: bool}. From the radar message's map_filters.
+let _mapFilters = {};
+const _NO_VIEW_FILTER = { ids: null, nebulas: true, asteroids: true };
+function _viewFilter(widget) { return _mapFilters[widget] || _NO_VIEW_FILTER; }
+// Measured on the engine: a flag at 0 hides that terrain with or without a filter, and
+// terrain a filter lists is drawn only while its flag is on.
+function _terrainKindHidden(meta, vf) {
+  if (meta.nebula) return !vf.nebulas;
+  if ((meta.tick_type || '').indexOf('asteroid') >= 0) return !vf.asteroids;
+  return false;
+}
 const _RECT_STALE_MS = 2000;   // hide a view after 2 s of no send_client_widget_rects calls
 
 function _syncRadarCanvasSize() {
@@ -1029,9 +1041,12 @@ function _radarSelectAt(px, py, button) {
   const proj = _radarProj(box, cx, cz, halfSpan);
   let bestId = 0, bestD = _PICK_PX_THRESHOLD;
   // A filtered comms map cannot select what it does not draw.
-  const shown = views[0].widget === 'comms_2d_view' ? _commsMapFilter : null;
+  const pickVf = _viewFilter(views[0].widget);
+  const shown = pickVf.ids;
   const consider = (id, wx, wz) => {
     if (shown && !shown.has(id)) return;
+    const tmeta = _terrainMeta.get(id);
+    if (tmeta && _terrainKindHidden(tmeta, pickVf)) return;
     const d = Math.hypot(proj.toX(wx) - px, proj.toY(wz) - py);
     if (d < bestD) { bestD = d; bestId = id; }
   };
@@ -1438,6 +1453,7 @@ function cmdWorldReset(msg) {
   // console re-establishes its 2dview when it loads.
   _widgetRects.clear();
   _commsMapFilter = null;
+  _mapFilters = {};
   // Reset our tracked ship so the next mission rediscovers it.
   _myShipId = null;
   // Drop the HUD overlays + any rect overrides so the next mission starts fresh
@@ -2769,6 +2785,17 @@ function cmdRadar(msg) {
     _commsMapFilter = msg.comms_filter.length ? new Set(msg.comms_filter) : null;
     _requestRadarRender();
   }
+  if (msg.map_filters !== undefined) {
+    _mapFilters = {};
+    for (const widget in msg.map_filters) {
+      const f = msg.map_filters[widget];
+      _mapFilters[widget] = {
+        ids: (f.ids && f.ids.length) ? new Set(f.ids) : null,
+        nebulas: f.nebulas !== false, asteroids: f.asteroids !== false,
+      };
+    }
+    _requestRadarRender();
+  }
 
   if (_dynamicPoints) {
     const removed = msg.removed || [];
@@ -3106,8 +3133,13 @@ function _drawRadarChrome(ctx, W, H, rect, cx, cz, halfSpan, isCorner, ax, az) {
 }
 
 function _drawRadarOverlay(ctx, W, H, rect, cx, cz, halfSpan, isCorner) {
-  // comms_map_filter: the comms map shows only the listed ids (null = everything).
-  const shown = rect.widget === 'comms_2d_view' ? _commsMapFilter : null;
+  // The view's map filter: only the listed ids are drawn (null = everything), and its
+  // terrain flags hide nebulas / asteroids either way.
+  const vf = _viewFilter(rect.widget);
+  const shown = vf.ids;
+  // The GPU terrain cloud is one draw for ALL terrain, so it is only used when this
+  // view shows all of it; otherwise it is dropped and the overlay draws what is left.
+  const gpuTerrainOff = !!shown || !vf.nebulas || !vf.asteroids;
   const { x0, y0, x1, y1 } = _rectPx(W, H, rect);
   const rw = x1 - x0, rh = y1 - y0;
   if (rw < 4 || rh < 4) return;
@@ -3221,8 +3253,9 @@ function _drawRadarOverlay(ctx, W, H, rect, cx, cz, halfSpan, isCorner) {
   if (!_iconSheetImg) _getIconSheet(() => _requestRadarRender());   // load once, redraw when ready
   for (const [id, meta] of _terrainMeta) {
     if (shown && !shown.has(id)) continue;
-    if (shown && !meta.tint && meta.icon_index == null) {
-      // Plain terrain the filter keeps: its GPU dot was dropped for this view.
+    if (_terrainKindHidden(meta, vf)) continue;
+    if (gpuTerrainOff && !meta.tint && meta.icon_index == null) {
+      // Plain terrain this view keeps: its GPU dot was dropped for this view.
       const ti = _terrainMap.get(id);
       if (ti === undefined || ti >= _terrainCount) continue;
       ctx.fillStyle = '#9fb3c8';
@@ -3252,6 +3285,7 @@ function _drawRadarOverlay(ctx, W, H, rect, cx, cz, halfSpan, isCorner) {
     ctx.textAlign = 'center'; ctx.textBaseline = 'bottom';
     for (const [id, meta] of _terrainMeta) {
       if (shown && !shown.has(id)) continue;
+      if (_terrainKindHidden(meta, vf)) continue;
       if (!meta.name) continue;
       const idx = _terrainMap.get(id);
       if (idx === undefined || idx >= _terrainCount) continue;
@@ -3378,8 +3412,10 @@ function _renderRadar() {
       _radarRenderer3d.setViewport(bx0, vy, bw, bh);
       _radarRenderer3d.setScissor(bx0, vy, bw, bh);
       _radarRenderer3d.setScissorTest(true);
-      // A filtered comms map drops the GPU terrain dots; the overlay draws the listed ones.
-      if (_terrainPoints) _terrainPoints.visible = !(rect.widget === 'comms_2d_view' && _commsMapFilter);
+      // A view that filters, or hides a kind of terrain, drops the GPU terrain dots;
+      // the overlay draws the ones it keeps.
+      const rvf = _viewFilter(rect.widget);
+      if (_terrainPoints) _terrainPoints.visible = !(rvf.ids || !rvf.nebulas || !rvf.asteroids);
       _radarRenderer3d.render(_radarScene3d, _radarCamera3d);
     }
     if (_terrainPoints) _terrainPoints.visible = true;

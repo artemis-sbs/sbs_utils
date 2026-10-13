@@ -2129,13 +2129,13 @@ _DATA_SET_DEFAULTS = {
     "beamHullPointX": 0.0, "beamHullPointY": 0.0, "beamHullPointZ": 0.0,
     "beamRange": 0.0, "beam_damage_coeff": 0.0, "beam_upgrade_coeff": 1.0,
     "body_1_size_coeff": 0.0, "body_2_size_coeff": 0.0,
-    "closest_scan_delay": 0.0, "coolant_damage_coeff": 0.0, "coolant_upgrade_coeff": 1.0,
+    "closest_scan_delay": 0.3, "coolant_damage_coeff": 0.0, "coolant_upgrade_coeff": 1.0,
     "density": 0.0, "detail_amplitude": 0.0, "detail_frequency": 0.0,
     "detail_lacunarity": 0.0, "display_size": 0.0, "domain_warp": 0.0,
     "drone_damage": 0.0, "drone_launch_max_range": 0.0, "drone_launch_timer": 0.0,
     "effect_size": 0.0, "emission_blue": 0.0, "emission_green": 0.0, "emission_red": 0.0,
     "energy": 0.0, "eng_control_cost_coeff": 0.0, "eng_control_value": 0.0,
-    "exciting": 0.0, "farthest_scan_delay": 0.0, "fractional_damage": 0.0,
+    "exciting": 0.0, "farthest_scan_delay": 20.0, "fractional_damage": 0.0,
     "icon_scale": 0.0, "impulse_damage_coeff": 0.0, "impulse_upgrade_coeff": 1.0,
     "jump_damage_coeff": 0.0, "jump_energy_cost": 0.0, "jump_upgrade_coeff": 1.0,
     "local_scale_coeff": 0.0, "local_scale_x_coeff": 0.0,
@@ -3484,10 +3484,46 @@ def _offense_factor(obj) -> float:
 # advanced any of that in the mock, so the science console could never finish a scan.
 _science_scans: dict = {}
 
-# A scan at or inside the ship's own sensor range takes this long; further out it slows
-# proportionally, so range is what makes a scan expensive, as in the engine.
-_SCAN_SECONDS = 5.0
-_SCAN_MIN_RATE = 0.2        # never slower than 5x the close-range time, or it reads as hung
+# HOW LONG A SCAN TAKES - the engine's rule, measured on 1.3.15 with a real client
+# pressing Start Scan on stationary targets at eight ranges from 400 to 10,000:
+#
+#     seconds = closest_scan_delay
+#               + (farthest_scan_delay - closest_scan_delay) * distance / reach
+#     reach   = min(ship_science_scan_range, 100000)
+#
+# The engine writes 0.3 and 20.0 for the two delays on a player ship, and a
+# ship_science_scan_range of 150000 x sensor_damage_coeff. ship_base_scan_range and
+# scan_strength_coeff are NOT in it (5000 vs 20000, and 1.0 vs 2.0, timed identically).
+# It advances a scan in half-second steps, so nothing lands in under 0.5s.
+#
+# This used to be a flat 5s inside sensor range, slowing beyond it - a guess, and 4-10x
+# the engine's time at ordinary ranges.
+_SCAN_CLOSEST = 0.3
+_SCAN_FARTHEST = 20.0
+_SCAN_SCIENCE_RANGE = 150000.0
+_SCAN_REACH_CAP = 100000.0
+_SCAN_STEP = 0.5
+
+
+def science_scan_seconds(ship_id: int, target_id: int):
+    """Seconds the engine takes to scan `target_id` from `ship_id`.  None if either is gone."""
+    o = sim.space_objects.get(ship_id) if sim is not None else None
+    t = sim.space_objects.get(target_id) if sim is not None else None
+    if o is None or t is None:
+        return None
+    dx, dy, dz = t._pos.x - o._pos.x, t._pos.y - o._pos.y, t._pos.z - o._pos.z
+    dist = math.sqrt(dx * dx + dy * dy + dz * dz)
+
+    def _field(key, fallback):
+        v = o.data_set.get(key, 0)
+        return float(v) if v else fallback
+
+    closest = _field("closest_scan_delay", _SCAN_CLOSEST)
+    farthest = _field("farthest_scan_delay", _SCAN_FARTHEST)
+    reach = _field("ship_science_scan_range",
+                   _SCAN_SCIENCE_RANGE * _field("sensor_damage_coeff", 1.0))
+    reach = max(1.0, min(reach, _SCAN_REACH_CAP))
+    return max(_SCAN_STEP, closest + (farthest - closest) * dist / reach)
 
 
 def start_science_scan(ship_id: int, target_id: int, tab: str = "scan") -> bool:
@@ -3541,7 +3577,9 @@ def _publish_active_scan(ship_id: int) -> None:
     head = q[0]
     o.data_set.set("cur_scan_ID", head["target"], 0)
     o.data_set.set("cur_scan_type", head["tab"], 0)
-    o.data_set.set("cur_scan_percent", int(head["pct"]), 0)
+    # A FRACTION, 0.0 to 1.0 - that is what the engine publishes (measured), whatever the
+    # documentation's "int" says. This used to write 0-100.
+    o.data_set.set("cur_scan_percent", min(1.0, head["pct"] / 100.0), 0)
 
 
 def _physics_science_scans(sim, dt: float) -> None:
@@ -3566,14 +3604,8 @@ def _physics_science_scans(sim, dt: float) -> None:
             continue
         _science_scans[ship_id] = q
         head = q[0]
-        t = sim.space_objects[head["target"]]
-        dx = t._pos.x - o._pos.x
-        dy = t._pos.y - o._pos.y
-        dz = t._pos.z - o._pos.z
-        dist = math.sqrt(dx * dx + dy * dy + dz * dz)
-        rng = float(o.data_set.get("ship_base_scan_range", 0) or 0.0) or 25000.0
-        rate = max(_SCAN_MIN_RATE, min(1.0, rng / dist if dist > 1.0 else 1.0))
-        head["pct"] += (100.0 / _SCAN_SECONDS) * rate * dt
+        seconds = science_scan_seconds(ship_id, head["target"]) or _SCAN_STEP
+        head["pct"] += (100.0 / seconds) * dt
         if head["pct"] < 100.0:
             _publish_active_scan(ship_id)
             continue

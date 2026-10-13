@@ -1466,7 +1466,8 @@ def _science_payload(o, t, tid: int):
         "tab_state": state,
         "queue_len": len(queue),
         # Progress belongs to the head of the queue, whatever the console is looking at.
-        "percent": int(o.data_set.get("cur_scan_percent", 0) or 0),
+        # cur_scan_percent is a 0-1 fraction, as the engine publishes it.
+        "percent": int(round(float(o.data_set.get("cur_scan_percent", 0) or 0.0) * 100.0)),
     }
 
 
@@ -2086,10 +2087,42 @@ _last_comms_filter: dict = {}
 
 def _comms_map_filter_of(ship_obj) -> list:
     """The ship's comms_map_filter ids as strings, in index order; [] = no filter."""
+    return _map_filter_of(ship_obj, "comms_map_filter")
+
+
+def _map_filter_of(ship_obj, key: str) -> list:
     if ship_obj is None:
         return []
-    values = ship_obj.data_set.values.get("comms_map_filter") or {}
+    values = ship_obj.data_set.values.get(key) or {}
     return [str(values[k]) for k in sorted(values)]
+
+
+# The engine's 2D views and the ship-blob prefix each one reads (engine 1.3.15): its
+# `<prefix>_map_filter` id list and its `<prefix>_show_nebulas` / `_show_asteroids`
+# flags. Comms has a filter and no flags.
+_VIEW_FILTER_PREFIX = {
+    "comms_2d_view": "comms",
+    "science_2d_view": "sci",
+    "2dview": "helm",
+    "weapon_2d_view": "weapon",
+}
+
+
+def _map_filters_of(ship_obj) -> dict:
+    """{view widget: {"ids": [...], "nebulas": bool, "asteroids": bool}} for one ship.
+
+    `ids` empty = no filter. The flags default to shown, which is what the engine does
+    on a fresh player ship; comms always answers shown."""
+    out = {}
+    for widget, prefix in _VIEW_FILTER_PREFIX.items():
+        entry = {"ids": _map_filter_of(ship_obj, f"{prefix}_map_filter"),
+                 "nebulas": True, "asteroids": True}
+        if ship_obj is not None and prefix != "comms":
+            for name in ("nebulas", "asteroids"):
+                value = ship_obj.data_set.get(f"{prefix}_show_{name}", 0)
+                entry[name] = True if value is None else bool(value)
+        out[widget] = entry
+    return out
 
 
 def _push_radar() -> None:
@@ -2341,8 +2374,11 @@ def _push_radar() -> None:
         # The ship's comms_map_filter (engine data set): the ids its comms 2D map shows,
         # [] = everything. Sent with every radar message for the ship; a change forces one.
         cfilter = _comms_map_filter_of(ship_obj)
-        filter_changed = _last_comms_filter.get(sid_str) != cfilter
-        _last_comms_filter[sid_str] = cfilter
+        # ...and the same for every 2D view: science, helm and weapons each have their
+        # own filter and terrain flags since engine 1.3.15.
+        mfilters = _map_filters_of(ship_obj)
+        filter_changed = _last_comms_filter.get(sid_str) != mfilters
+        _last_comms_filter[sid_str] = mfilters
 
         if removed or changed or navpts or navareas or client_focus or filter_changed:
             try:
@@ -2356,6 +2392,7 @@ def _push_radar() -> None:
                     "navareas":     navareas,
                     "client_focus": client_focus,
                     "comms_filter": cfilter,
+                    "map_filters":  mfilters,
                 })
             except Exception:
                 pass
