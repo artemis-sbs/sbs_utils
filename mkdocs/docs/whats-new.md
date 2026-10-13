@@ -25,6 +25,7 @@ tools, and finally the library changes. Links go to the relevant docs.
 | **[Suit up into the ruins](#suit-up)** | The crew leave the ship in pressure suits and fly the inside of a giant's ruin themselves - every room says something, every job has something to do, and the walls are finally walls. |
 | **[Grav-tether](#grav-tether)** | Reel, tow and lock — on a beam that now feels the weight, and tells you when it is struggling. |
 | **[Engineering has something to do](#engineering)** | Systems wear, and a well-run ship can be tuned above spec. Work orders, a four-tab panel rebuilt for touch, and eight efficiency numbers nobody could see before. |
+| **[Science, rebuilt](#science-console)** | Filter the map with one tap, queue scans the whole side shares, and read a contact in bars instead of a wall of numbers. |
 | **[New faces](#new-faces)** | Every portrait in the game redrawn - faces that frown, glare, blink and talk, skin in any color you like, and a Randomize button. |
 | **[The console picker](#console-picker)** | The first screen of the night now tells you who you are about to be. |
 | **[Beacons & the Fabricator](#beacons)** | Engineering builds ordnance over a timer and hands it to the tube. The coordination is the gameplay. |
@@ -1001,6 +1002,66 @@ state *is* the news.
 Quests written before kinds existed still render; they just say less. And because every
 glyph is asked for by name, a mission that ships its own icon sheet re-skins the whole
 log without touching a line of it.
+
+---
+
+#### 🔬 Science, rebuilt { #science-console }
+
+<figure markdown="span">
+  ![The science console: the map, a rail of filter chips under it, the scan queue and the contact list](media/whats-new/science-console.webp){ loading=lazy }
+  <figcaption>One rail of chips under the map decides what Science is looking at.</figcaption>
+</figure>
+
+The Science console is new from the map down, and it is the one you get.
+
+**Filter the map with one tap.** A rail of chips under the map - **All, Threats, Friends,
+Bases, Civilian, Unscanned, Terrain** - picks what the map shows. Tap **Threats** and
+everything else steps back; tap **Friends** as well and you have both. The contact list
+follows the same filter, so the list and the map never disagree. **Terrain** is its own
+switch: turn it off for a map with no rocks or nebulas on it.
+
+The counts on the chips only ever count what your side has identified. **Unscanned**
+carries no number at all - how many contacts you have *not* identified is exactly what
+scanning is for.
+
+**The chips are the ship's.** A second science officer on the same ship sees the same
+chips lit, because they are looking at the same map.
+
+**A scan queue the whole side shares.** Queue several scans and they run in order; move
+one up or cancel it. Two ships on one side see one queue, so two science officers stop
+spending sensor time on a contact the other has already read. A scan takes exactly as
+long as it always did - quick up close, slower the further away the contact is, and
+slower still on damaged sensors.
+
+**Read a contact at a glance.** Shields are bars that still say the number you read out
+loud, the enemy's four systems are a block of bars, and the weak shield frequency is
+called **WEAK** in words. The scan tabs sit over the map, next to the thing you scanned.
+
+**The contact list gets out of the way.** It is there while nothing is selected - the
+fastest way to pick - and gives its space to the read-out once you have a contact.
+
+A mission that wants the previous console back sets `SCIENCE_NEW_LAYOUT: false`
+(LegendaryMissions ships it as `profile=sciclassic`).
+
+---
+
+#### 🛰 Helm and Weapons choose what their radar shows { #radar-chips }
+
+A slim row of chips now sits under the zoom buttons on Helm and on Weapons: **All,
+Threats, Friends, Bases, Nebulas, Rocks**.
+
+- **Threats, Friends, Bases** narrow the radar to those contacts - a weapons officer in a
+  crowded fight can drop everything that is not a target. **All** brings everything back.
+- **Nebulas** and **Rocks** switch that terrain off and on. A helm threading an asteroid
+  field wants the rocks; a helm running an open lane may not.
+
+Helm and Weapons each keep their own row, and like Science's, the row belongs to the
+ship: a second helm sees the same chips lit.
+
+**Helm's steering control has moved.** The compass now sits in the bottom-right corner
+in a square of its own, which gives the bottom of the radar back. On a jump ship it
+stands on top of the jump bar, and the jump selector sits at the bar's left end beside
+Direction and Distance - all the jump controls in one place.
 
 ---
 
@@ -2174,6 +2235,32 @@ See [Making a mod](build/making-a-mod.md).
 
 Library and API changes. Nothing here needs your attention unless a mission of yours
 misbehaves in a way one of them explains.
+
+---
+
+#### 🗺 Every 2D map can be filtered { #map-filters }
+
+Engine 1.3.15 gave Science, Helm and Weapons what Comms already had: a list on the player
+ship of the ids that console's 2D map draws. One set of functions covers all four:
+
+```python
+map_filter_set(ship, ids, console="comms")     # "comms", "sci", "helm" or "weapon"
+map_filter_clear(ship, console="comms")        # back to everything
+map_filter_get(ship, console="comms")
+map_show_terrain(ship, console, nebulas=None, asteroids=None)   # sci / helm / weapon
+map_terrain_shown(ship, console)               # (nebulas, asteroids)
+```
+
+`comms_map_filter_set` / `_clear` / `_get` are unchanged and are now the comms spelling
+of these.
+
+- The filter is **the ship's**, so every console of that kind on the ship shares it.
+- The ship is always kept in its own list, and only live space objects are written.
+- The terrain flags work with or without a filter, and both default to shown. Terrain
+  named in a filter is drawn only while its flag is on.
+- The science filter also filters the engine's own contact list.
+
+Needs engine 1.3.15. On an older engine the calls write fields nothing reads.
 
 ---
 

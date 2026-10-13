@@ -437,6 +437,33 @@ A GridObject Agent's `.data_set` is not the engine blob (`curx` reads 0) - use
 - `sbs.set_music_folder` takes a bare name under `data/audio/music/` - a path segfaults or
   hangs (crash #7).
 
+- **Engine 1.3.15 (measured 2026-10-13 with `data/missions/_e1315_probe`, raw sbs):**
+  - *Map filters.* `sci_map_filter` / `helm_map_filter` / `weapon_map_filter` join
+    `comms_map_filter`: indexed id lists on the player ship (`procedural/map_filter.py`).
+    Empty = no filter. The science one also filters `science_sorted_list`; the helm one
+    also filters the `helm_movement` compass. The FIRST 1.3.15 exe did not un-filter on a
+    clear (blob empty, view unchanged); the exe of 2026-10-13 18:18 does.
+  - *Terrain flags.* `{sci,helm,weapon}_show_{nebulas,asteroids}` read **1** on a fresh
+    player ship (the release note said false). 0 hides that terrain with no filter set;
+    terrain listed in a filter draws only while its flag is 1.
+  - *Scan time.* `closest_scan_delay + (farthest_scan_delay - closest_scan_delay) *
+    distance / min(ship_science_scan_range, 100000)`, advanced in 0.5s steps. The engine
+    writes 0.3 / 20.0 / 150000 x `sensor_damage_coeff`. `ship_base_scan_range` and
+    `scan_strength_coeff` are not in it. `cur_scan_percent` is a 0-1 float. A scan can
+    only be started by a client pressing the `science_data` button - setting
+    `science_target_UID` or `cur_scan_ID` from the server does nothing.
+  - *`add_face_bitmap_sheet(tag, filename)`* re-points an EXISTING tag (and it survives
+    `create_new_sim`) but cannot ADD one: the first exe crashed in
+    `GSAddFaceBitmapSheet`, the 18:18 exe raises `ValueError: null rec from
+    faceGen.recordMap[tag]`. Stock-art repro: `data/missions/FaceSheetRepro`. A face
+    already drawn keeps its old art after a re-point.
+  - *A new widget list resets every widget to its `guiboxdata.txt` rect.* The page sends
+    the list at present, AFTER the build - so a rect sent by the build alone (not through
+    `gui_layout_widget`) is overwritten. Place it again once `Gui.widget_list_sent`
+    changes (LM `lm_sci_widget_list_revision`).
+  - *A console on the SERVER screen:* `assign_client_to_ship(0, ship)` +
+    `send_client_widget_list(0, "normal_sci", "science_2d_view")` after
+    `suppress_client_connect_dialog(0)`. Enough to screenshot a view with no client.
 ---
 
 ## 9. New engine API: read the stub diff

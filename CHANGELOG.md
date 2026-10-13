@@ -5,6 +5,22 @@
 
 ### LegendaryMissions (core addons)
 
+- **The science console is the default** (`SCIENCE_NEW_LAYOUT: true`; `profile=sciclassic`
+  is the stock engine console). Its chip rail now filters the map: the chips write the
+  ship's `sci_map_filter` (engine 1.3.15), the selection is per ship, and Terrain is a
+  switch on the engine's nebula / asteroid flags. The contact list is re-placed after the
+  console's widget list is sent, so it no longer sits on the rail.
+- Science scan timing is the engine's own rule, measured on 1.3.15 with a real client at
+  eight ranges: `closest + (farthest - closest) * distance / min(science range, 100000)`,
+  never under one half-second step. It used to divide by the base scan range, which made
+  a scan several times slower than the stock console's. Hull scan strength is not part
+  of it; damaged sensors are, through the science range.
+- Helm and Weapons get a slim row of radar chips under a narrower zoom control - All,
+  Threats, Friends, Bases, Nebulas, Rocks - on that console's own `helm_map_filter` /
+  `weapon_map_filter` and terrain flags (`consoles/terrain_chips.py`).
+- Helm: `helm_movement` moves to the bottom-right corner in a square box (on top of the
+  jump bar on a jump ship), and `quick_jump` sits at the jump bar's left end.
+
 - The console picker shows WHO YOU ARE ABOUT TO BE - the face and the name on one line,
   following the station highlighted in the list - instead of an empty "Crew person Name"
   box. A name was only ever worked out after the console was chosen, so the one screen
@@ -49,6 +65,21 @@
   `grid_restore_damcons` inline like every other item effect (LM #381).
 
 ### sbs_utils
+
+- **Map filters for every console** (engine 1.3.15). `procedural/map_filter.py`:
+  `map_filter_set/clear/get(ship, ids, console)` for `"comms"`, `"sci"`, `"helm"` and
+  `"weapon"`, and `map_show_terrain` / `map_terrain_shown` for the three consoles with
+  nebula and asteroid flags. `comms_map_filter_*` are now the comms spelling of them.
+  The flags default to shown and act with or without a filter.
+- `to_side_id` no longer reports terrain as an undeclared side. A wreck's first role lands
+  in its side field, and a science route asking whether a selected wreck is an ally
+  failed the test run of any mission where one got selected. A ship on an undeclared
+  side still warns.
+- **Mock:** scan timing follows the engine's measured rule instead of a flat 5 seconds,
+  `cur_scan_percent` is the 0-1 fraction the engine publishes, and the browser radar
+  honors each 2D view's own filter and terrain flags rather than only the comms view's.
+- Crash ledger: the client crash on a mod hull first met mid-game (`Render3D.cpp:1201`)
+  is fixed in engine 1.3.15.
 
 - **A tile map can be built in code.** `tilemap_generate(key, w, h, cell, tileset)` builds an
   area from a function and rebuilds it in place. A rebuild that comes out identical repaints

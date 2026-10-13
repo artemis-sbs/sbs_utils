@@ -438,7 +438,8 @@ obj.data_set.set("ally_list", "tsn,good_dudes", 0)
 ```
 
 The complete list of valid property names, types, and descriptions is in:
-`f:/a/Cosmos-1-3-0/data/object_data_documentation.txt`
+`E:/a/Cosmos-dev/data/object_data_documentation.txt`
+(the file lags the exe - a field the engine added recently may not be in it yet)
 
 Read that file when you need to know what `data_set` properties exist for ships, stations, terrain, or other space objects.
 
