@@ -19,6 +19,9 @@ from sbs_utils.delete_queue import DeleteQueue
 from sbs_utils.helpers import Context, FakeEvent, FrameContext
 from sbs_utils.procedural.comms import (comms_map_filter_set, comms_map_filter_clear,
                                         comms_map_filter_get)
+from sbs_utils.procedural.map_filter import (map_filter_set, map_filter_clear, map_filter_get,
+                                             map_show_terrain, map_terrain_shown,
+                                             MAP_FILTER_KEYS)
 from sbs_utils.procedural.extra_scan_sources import extra_scan_sources_run_all
 from sbs_utils.procedural.lifeform import lifeform_spawn
 from sbs_utils.procedural.links import link, unlink
@@ -89,6 +92,68 @@ class TestCommsMapFilter(Base):
         comms_map_filter_clear(self.ship)
         comms_map_filter_set(self.ship, [self.a])
         self.assertEqual(sorted([self.ship, self.a]), self.written())
+
+
+class TestEveryConsoleHasItsOwnFilter(Base):
+    """sci / helm / weapon (engine 1.3.15) are the comms filter under another key."""
+
+    def test_each_console_writes_its_own_key_and_no_other(self):
+        for console, key in MAP_FILTER_KEYS.items():
+            with self.subTest(console=console):
+                map_filter_set(self.ship, [self.a], console)
+                self.assertEqual(sorted([self.ship, self.a]), self.written(key))
+                self.assertEqual(sorted([self.ship, self.a]), map_filter_get(self.ship, console))
+                for other, other_key in MAP_FILTER_KEYS.items():
+                    if other != console:
+                        self.assertEqual([], map_filter_get(self.ship, other))
+                map_filter_clear(self.ship, console)
+                self.assertEqual([], self.written(key))
+
+    def test_a_shorter_list_leaves_no_tail_on_any_console(self):
+        for console, key in MAP_FILTER_KEYS.items():
+            with self.subTest(console=console):
+                map_filter_set(self.ship, [self.a, self.b, self.c], console)
+                map_filter_set(self.ship, [self.b], console)
+                self.assertEqual(sorted([self.ship, self.b]), self.written(key))
+
+    def test_the_clear_reaches_clients_under_the_consoles_own_key(self):
+        map_filter_set(self.ship, [self.a], "sci")
+        map_filter_clear(self.ship, "sci")
+        self.assertEqual([(self.ship, 0, "sci_map_filter")] * 2, sbs.client_data_clears)
+
+    def test_the_long_names_are_accepted(self):
+        map_filter_set(self.ship, [self.a], "science")
+        self.assertEqual(sorted([self.ship, self.a]), self.written("sci_map_filter"))
+        map_filter_set(self.ship, [self.b], "weapons")
+        self.assertEqual(sorted([self.ship, self.b]), self.written("weapon_map_filter"))
+
+    def test_an_unknown_console_is_an_error_not_a_silent_comms_write(self):
+        with self.assertRaises(ValueError):
+            map_filter_set(self.ship, [self.a], "engineering")
+        self.assertEqual([], self.written())
+
+    def test_the_comms_functions_are_the_comms_console(self):
+        comms_map_filter_set(self.ship, [self.a])
+        self.assertEqual(sorted([self.ship, self.a]), map_filter_get(self.ship, "comms"))
+
+
+class TestTerrainFlags(Base):
+
+    def test_terrain_is_shown_until_told_otherwise(self):
+        """The engine's default, measured on 1.3.15: both flags on."""
+        for console in ("sci", "helm", "weapon"):
+            self.assertEqual((True, True), map_terrain_shown(self.ship, console))
+
+    def test_each_flag_is_its_own_and_none_leaves_it_alone(self):
+        self.assertEqual((False, True), map_show_terrain(self.ship, "helm", nebulas=False))
+        self.assertEqual(0, self.ds.get("helm_show_nebulas", 0))
+        self.assertEqual(1, self.ds.get("helm_show_asteroids", 0))
+        self.assertEqual((False, False), map_show_terrain(self.ship, "helm", asteroids=False))
+        self.assertEqual((True, True), map_terrain_shown(self.ship, "sci"))
+
+    def test_comms_has_no_terrain_flags(self):
+        with self.assertRaises(ValueError):
+            map_show_terrain(self.ship, "comms", nebulas=False)
 
 
 class TestExtraScanSources(Base):

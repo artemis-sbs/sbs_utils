@@ -2151,6 +2151,11 @@ _DATA_SET_DEFAULTS = {
     "scan_strength_coeff": 0.0,
     "scattering_blue": 0.0, "scattering_green": 0.0, "scattering_red": 0.0,
     "sensor_damage_coeff": 0.0, "sensor_upgrade_coeff": 1.0,
+    # Engine 1.3.15: per-console 2D map terrain flags. The engine's own default is ON
+    # (measured on a fresh player ship), whatever the release note said.
+    "sci_show_nebulas": 1, "sci_show_asteroids": 1,
+    "helm_show_nebulas": 1, "helm_show_asteroids": 1,
+    "weapon_show_nebulas": 1, "weapon_show_asteroids": 1,
     "shield_damage_coeff": 0.0, "shield_max_val": 0.0, "shield_upgrade_coeff": 1.0,
     "shield_val": 0.0, "shield_wave_amplitude": 0.0, "shield_wave_frequency": 0.0,
     "shield_wave_offset": 0.0, "shield_wave_value": 0.0,
