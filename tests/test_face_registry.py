@@ -14,7 +14,16 @@ Two things this exists to protect:
     no longer told about. reset_mission_state() must empty it.
 """
 
+import sys
 import unittest
+
+from sbs_utils.fs import test_set_exe_dir
+test_set_exe_dir()
+
+# handlerhooks does a bare `import sbs`. Without this the ledger tests below only passed
+# when some earlier test in the same run had already put the mock there.
+from cosmos_dev.mock import sbs as _mock_sbs
+sys.modules.setdefault("sbs", _mock_sbs)
 
 from sbs_utils import faces
 
@@ -23,6 +32,101 @@ from sbs_utils.faces import (
     face_register_sheet, face_random_registered, face_registered_races,
     face_registered_sheets, face_sheet_grid, random_face,
 )
+
+
+class TestSheetGoesToTheEngine(unittest.TestCase):
+    """face_register_sheet(..., filename=) hands the art to the engine (1.3.15)."""
+
+    def setUp(self):
+        from sbs_utils.fs import test_set_exe_dir
+        test_set_exe_dir()
+        from cosmos_dev.mock import sbs
+        from sbs_utils.helpers import Context, FakeEvent, FrameContext
+        self.sbs = sbs
+        self.FrameContext = FrameContext
+        sbs.create_new_sim()
+        sbs.face_sheets.clear()
+        FrameContext.context = Context(sbs.sim, sbs, FakeEvent(0))
+        face_mod_reset()
+        import logging
+        self.said = []
+
+        class _Catch(logging.Handler):
+            def emit(_self, record):
+                self.said.append(record.getMessage())
+        self._handler = _Catch()
+        logging.getLogger("mast.runtime").addHandler(self._handler)
+
+    def tearDown(self):
+        import logging
+        logging.getLogger("mast.runtime").removeHandler(self._handler)
+        self.FrameContext.context = None
+        face_mod_reset()
+
+    def test_a_sheet_with_its_art_is_registered_with_the_engine(self):
+        told = face_register_sheet("tng1", 8, 8, filename="media/faces_tng/TNG_Faces_1")
+        self.assertTrue(told)
+        self.assertIn("tng1", self.sbs.face_sheets)
+        self.assertEqual(face_sheet_grid("tng1"), (8, 8))
+        self.assertEqual(self.said, [])
+
+    def test_the_engine_gets_a_root_relative_path_with_no_suffix(self):
+        """The shape measured to load: from the Cosmos root, and the engine adds .png."""
+        import os
+        from sbs_utils.fs import get_mission_dir, get_artemis_dir
+        face_register_sheet("tng1", filename="media/faces_tng/TNG_Faces_1.png")
+        path = self.sbs.face_sheets["tng1"]
+        self.assertFalse(path.lower().endswith(".png"))
+        self.assertNotIn("\\", path)
+        want = os.path.relpath(os.path.join(get_mission_dir(), "media", "faces_tng",
+                                            "TNG_Faces_1"), get_artemis_dir())
+        self.assertEqual(path, want.replace(os.sep, "/"))
+
+    def test_without_a_filename_nothing_is_told_to_the_engine(self):
+        """What it always did: a grid, for the library and the browser compositor."""
+        self.assertIsNone(face_register_sheet("tng1", 8, 8))
+        self.assertEqual(self.sbs.face_sheets, {})
+        self.assertNotIn("file", face_registered_sheets()["tng1"])
+
+    def test_an_engine_that_cannot_add_the_tag_is_reported_once_not_raised(self):
+        """Measured on the 1.3.15 exe of 2026-10-13: a tag the engine does not already
+        know raises ValueError. A mod must not die on that - it is told once."""
+        def _refuses(tag, filename):
+            raise ValueError("null rec from faceGen.recordMap[tag]")
+        real = self.sbs.add_face_bitmap_sheet
+        self.sbs.add_face_bitmap_sheet = _refuses
+        self.addCleanup(setattr, self.sbs, "add_face_bitmap_sheet", real)
+        self.assertFalse(face_register_sheet("tng1", filename="media/faces_tng/TNG_Faces_1"))
+        self.assertFalse(face_register_sheet("tng1", filename="media/faces_tng/TNG_Faces_1"))
+        self.assertEqual(len(self.said), 1, self.said)
+        self.assertIn("tng1", self.said[0])
+        self.assertIn("null rec", self.said[0])
+        # The grid is still registered, so the library and the browser keep working.
+        self.assertEqual(face_sheet_grid("tng1"), (8, 8))
+        self.assertIs(face_registered_sheets()["tng1"]["engine"], False)
+
+    def test_an_engine_older_than_the_call_is_reported_once(self):
+        real = self.sbs.add_face_bitmap_sheet
+        del self.sbs.add_face_bitmap_sheet
+        self.addCleanup(setattr, self.sbs, "add_face_bitmap_sheet", real)
+        self.assertFalse(face_register_sheet("tng1", filename="media/faces_tng/TNG_Faces_1"))
+        self.assertEqual(len(self.said), 1)
+        self.assertIn("1.3.15", self.said[0])
+
+    def test_with_no_engine_to_ask_it_only_records(self):
+        self.FrameContext.context = None
+        self.assertIsNone(face_register_sheet("tng1", filename="media/faces_tng/TNG_Faces_1"))
+        self.assertEqual(face_registered_sheets()["tng1"]["file"], "media/faces_tng/TNG_Faces_1")
+        self.assertEqual(self.said, [])
+
+    def test_a_mission_swap_forgets_the_mocks_sheets_but_a_new_sim_does_not(self):
+        """The engine keeps a registered sheet across create_new_sim (measured)."""
+        face_register_sheet("tng1", filename="media/faces_tng/TNG_Faces_1")
+        self.sbs.create_new_sim()
+        self.assertIn("tng1", self.sbs.face_sheets)
+        self.sbs.run_next_mission("anything")
+        self.sbs.pop_next_mission()
+        self.assertEqual(self.sbs.face_sheets, {})
 
 
 class TestFaceRegistry(unittest.TestCase):

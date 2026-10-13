@@ -553,6 +553,26 @@ def set_command_line(args) -> None:
     _command_line = ["mock-cosmos.exe"] + [str(a) for a in (args or [])]
 
 
+# tag -> filename, per add_face_bitmap_sheet call. The engine keeps a registered sheet
+# across create_new_sim (measured), so this is NOT cleared there - only when the mission
+# is swapped, which is a new process in the engine (pop_next_mission).
+face_sheets: dict = {}
+
+
+def add_face_bitmap_sheet(tag: str, filename: str) -> None:
+    """Register a face sheet under a tag a face string can name (engine 1.3.15).
+
+    `filename` is a path with NO suffix - from the Cosmos root (`data/missions/...`) or
+    relative to `data/graphics` - and the engine appends `.png`.
+
+    WHAT THE MOCK DOES NOT REPRODUCE: on the 1.3.15 exe of 2026-10-13 a tag the engine
+    does not already know raises `ValueError: null rec from faceGen.recordMap[tag]`; only
+    a tag already in allFaceFiles.txt can be re-pointed. That is an engine defect being
+    fixed, not a contract, so the mock takes any tag - which means a mod's faces can work
+    here and still be blank on that exe."""
+    face_sheets[str(tag)] = str(filename)
+
+
 def add_extra_ship_data(file: str) -> None:
     """Load another set of ships from a data file, for this mission only.
 
@@ -1329,6 +1349,9 @@ def pop_next_mission():
     global _pending_next_mission
     folder = _pending_next_mission
     _pending_next_mission = None
+    if folder is not None:
+        # A new mission is a new engine process: its face sheets start from the file.
+        face_sheets.clear()
     return folder
 
 def send_client_widget_list(clientID: int, consoleType: str, widgetList: str) -> None:

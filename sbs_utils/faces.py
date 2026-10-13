@@ -1119,19 +1119,95 @@ def face_resolve(spec):
 # unregistered container is invisible to the restart soak, and a face registry that
 # survived a reload would hand mission 2 the face strings of mission 1 pointing at an
 # atlas alias that is no longer registered.
-_MOD_SHEETS: dict = {}          # alias -> {"cols": int, "rows": int}
+_MOD_SHEETS: dict = {}          # alias -> {"cols": int, "rows": int, "file": str?, "engine": bool?}
 _MOD_RACES: dict = {}           # race  -> {"any": [...], "roles": {role: [...]}, "in_random": bool}
+_SHEET_WARNED: set = set()      # aliases already reported as not handed to the engine
 
 
-def face_register_sheet(alias, cols=8, rows=8):
-    """Declare a mod atlas alias and its cell grid.
+def face_sheet_engine_path(filename):
+    """A face sheet's path in the shape the engine opens: from the Cosmos root, no suffix.
 
-    `alias` is the short name in a face string ("tng1") and must match the name the
-    engine reads from data/graphics/allFaceFiles.txt - the library cannot write that
-    file, so registering here does NOT make the sheet loadable, it only teaches the
-    library and the browser compositor how to read cells out of it.
+    `filename` is how a mission names art - relative to the mission folder, usually the
+    answer from `media_shared("faces_tng/TNG_Faces_1")`, which already points into the
+    pinned media pack. An absolute path is accepted too. A trailing `.png` is dropped:
+    the engine appends it.
     """
-    _MOD_SHEETS[str(alias)] = {"cols": int(cols), "rows": int(rows)}
+    import os
+    from .fs import engine_file, get_mission_dir
+    text = str(filename).replace("\\", "/")
+    if text.lower().endswith(".png"):
+        text = text[:-4]
+    if not os.path.isabs(text):
+        text = os.path.normpath(os.path.join(get_mission_dir(), text))
+    return engine_file(text)
+
+
+def _sheet_tell_engine(alias, filename):
+    """Hand one sheet to the engine. True if it took it, False if it could not, None when
+    there is no engine to ask (no frame context - an import, a unit test with no sim)."""
+    from .helpers import FrameContext
+    ctx = FrameContext.context
+    sbs = getattr(ctx, "sbs", None) if ctx is not None else None
+    if sbs is None:
+        return None
+    path = face_sheet_engine_path(filename)
+
+    def _say(why):
+        if alias in _SHEET_WARNED:
+            return
+        _SHEET_WARNED.add(alias)
+        try:
+            import logging
+            logging.getLogger("mast.runtime").warning(
+                "Face sheet %r (%s) was not registered with the engine: %s. Its faces "
+                "draw only where data/graphics/allFaceFiles.txt already names that tag."
+                % (alias, path, why))
+        except Exception:                                    # noqa: BLE001
+            pass
+
+    add = getattr(sbs, "add_face_bitmap_sheet", None)
+    if add is None:
+        _say("this engine has no add_face_bitmap_sheet (it arrived in 1.3.15)")
+        return False
+    try:
+        add(str(alias), path)
+    except Exception as e:                                   # noqa: BLE001
+        # Measured on the 1.3.15 exe of 2026-10-13: a tag the engine does not already
+        # know raises `ValueError: null rec from faceGen.recordMap[tag]`, while a tag
+        # that exists is re-pointed and returns. So this is the normal answer for a mod
+        # on that exe, not a bug in the mod - say so once and carry on.
+        _say("%s: %s" % (type(e).__name__, e))
+        return False
+    return True
+
+
+def face_register_sheet(alias, cols=8, rows=8, filename=None):
+    """Declare a mod atlas alias, its cell grid, and - with `filename` - its art.
+
+    `alias` is the short name in a face string ("tng1"). The grid teaches the library and
+    the browser compositor how to read cells out of the sheet.
+
+    `filename` hands the sheet to the engine with `sbs.add_face_bitmap_sheet` (engine
+    1.3.15), so a mod's faces need no line pasted into data/graphics/allFaceFiles.txt.
+    Name it the way a mission names art - `media_shared("faces_tng/TNG_Faces_1")` - and
+    the pinned media pack's version never ends up baked into a path.
+
+    Without `filename` this is what it always was: a grid, and nothing told to the engine.
+
+    Returns:
+        bool | None: True when the engine took the sheet; False when it could not (an
+        older engine, or one that cannot add a new tag) - reported once in the runtime
+        log; None when no filename was given or there is no engine to ask.
+    """
+    alias = str(alias)
+    entry = {"cols": int(cols), "rows": int(rows)}
+    told = None
+    if filename:
+        entry["file"] = str(filename)
+        told = _sheet_tell_engine(alias, filename)
+        entry["engine"] = told
+    _MOD_SHEETS[alias] = entry
+    return told
 
 
 def face_sheet_grid(alias):
@@ -1147,7 +1223,9 @@ def face_sheet_grid(alias):
 
 
 def face_registered_sheets():
-    """{alias: {"cols","rows"}} - what the mock compositor and AMD renderer need."""
+    """{alias: {"cols","rows"[,"file","engine"]}} - what the mock compositor and AMD
+    renderer need. `file` and `engine` are present only for a sheet registered with its
+    art."""
     return dict(_MOD_SHEETS)
 
 
@@ -1213,6 +1291,7 @@ def face_mod_reset():
     """Drop every mod registration. Called by reset_mission_state()."""
     _MOD_SHEETS.clear()
     _MOD_RACES.clear()
+    _SHEET_WARNED.clear()
 
 
 def face_mod_size():
