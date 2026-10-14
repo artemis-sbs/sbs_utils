@@ -82,6 +82,7 @@ change what `station` means for your whole mission without touching a single rec
 | `pickup` | items (`item_spawn`, drops, relic contents) | a spinning `behav_pickup` object |
 | `npc/ship` | relic `Spawn:` | one ship of a side, a random hull of that side if no `Art:` |
 | `relic/setpiece`, `relic/barrier`, `relic/repair`, `relic/marker` | relic parts | the part's body, which the relic then fits to the part |
+| `relic/wall` | every piece of a relic's walls | `terrain_spawn` with the style's art - the fast path; a ruin places hundreds |
 
 Open Universe adds its own `derelict`, `station` and `worldlet`, which also bind a `Site:`.
 Legendary Missions' catalog (`npc/station/...`, `fleet/raider`, `npc/ship`,
@@ -126,8 +127,8 @@ what it does take, and refuses a key that would hide one of MAST's own names - `
 
 ## Fields that create on their own
 
-`Guards:` and `Terrain:` on a landmark, `Spawn:` and `Atmosphere:` in a relic: each takes
-a prefab, on one line or nested.
+`Guards:` and `Terrain:` on a landmark, `Spawn:` and `Atmosphere:` in a relic, and
+`Fleet:` on an Open Universe side: each takes a prefab, on one line or nested.
 
 ```amd
 Guards: fleet/raider x2
@@ -143,6 +144,22 @@ Guards:
 The older phrases still read: `Guards: torgoth 3` is `fleet/raider` with that race and
 difficulty, `Terrain: nebula blue` is LM's nebula sphere sized for cover, and relic
 `Spawn: raider x2` is two `npc/ship` on the `raider` side.
+
+A relic's `Walls:` stays a style chain on one line (`Walls: torgoth, plates`). Nested,
+it also names the prefab every wall piece is made by - the style still picks each
+piece's art, handed to the prefab as `art`:
+
+```amd
+Walls:
+  Style: torgoth, plates
+  Prefab: relic/glowing_wall
+  Data:
+    Glow: amber
+```
+
+The prefab is looked up once for the whole ruin. Leave it out and the pieces are plain
+terrain, which matters: a ruin is hundreds of pieces, and a MAST prefab runs once per
+piece.
 
 A theater can say which prefab builds each race's fleets, and `theater_fleet_prefab(race)`
 answers for it:

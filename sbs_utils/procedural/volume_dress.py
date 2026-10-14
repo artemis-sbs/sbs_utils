@@ -143,10 +143,62 @@ def volume_style_remove_kits(names):
             STYLES.pop(name, None)
 
 
+# What makes each piece while a `volume_dress` call is running: None is
+# `terrain_spawn`, the fast path every ruin takes unless its `Walls:` names a prefab -
+# a ruin can place hundreds of pieces, so the default must cost nothing extra.
+_PIECE = [None]     # (PrefabRef, args) for the call in progress
+
+
+def _piece_spawn(x, y, z, name, roles_csv, art, behavior):
+    """One wall/prop piece: `terrain_spawn`, or the relic's wall prefab when it names one.
+    Same arguments and the same object handle back, so every caller fits it the same."""
+    piece = _PIECE[0]
+    if piece is None:
+        return terrain_spawn(x, y, z, name, roles_csv, art, behavior)
+    ref, args = piece
+    roles = roles_csv[2:] if roles_csv.startswith("#,") else (
+        "" if roles_csv == "#" else roles_csv)
+    data = {"START_X": x, "START_Y": y, "START_Z": z, "START_EXACT": True,
+            "NAME": name, "name": name, "roles_value": roles, "art": art,
+            "behavior": behavior}
+    data.update(args)
+    if ref.is_default:
+        return ref.fn(data)
+    from .prefab import prefab_create, prefab_first
+    return prefab_first(prefab_create(ref, data, where="relic wall piece"))
+
+
 def volume_dress(volume, n=600, seed=7, style=DEFAULT_STYLE, art=None, roles="",
                  part_styles=None, part_art=None, out=1.06, solids=True,
                  wall_depth=0.0, debris=0, debris_art=None, plate=0.0, gaps=0.0,
-                 solid_skip=()):
+                 solid_skip=(), prefab=None):
+    """`_volume_dress`, with ``prefab`` making every piece: a prefab name, or a spec
+    from ``amd_prefab_spec`` (Prefab / Data). Resolved ONCE for the whole build. None,
+    or the library's own `relic/wall`, is plain `terrain_spawn`. See `_volume_dress`."""
+    piece = None
+    if prefab:
+        from .prefab import prefab_resolve, prefab_data, amd_prefab_spec
+        spec = prefab if hasattr(prefab, "get") and prefab.get("prefab") else \
+            amd_prefab_spec(prefab)
+        ref = prefab_resolve(spec["prefab"]) if spec else None
+        if ref is not None and not (ref.is_default and ref.type == "relic/wall"):
+            piece = (ref, prefab_data(spec.get("args"), where="relic walls"))
+    was = _PIECE[0]
+    _PIECE[0] = piece
+    try:
+        return _volume_dress(volume, n=n, seed=seed, style=style, art=art, roles=roles,
+                             part_styles=part_styles, part_art=part_art, out=out,
+                             solids=solids, wall_depth=wall_depth, debris=debris,
+                             debris_art=debris_art, plate=plate, gaps=gaps,
+                             solid_skip=solid_skip)
+    finally:
+        _PIECE[0] = was
+
+
+def _volume_dress(volume, n=600, seed=7, style=DEFAULT_STYLE, art=None, roles="",
+                  part_styles=None, part_art=None, out=1.06, solids=True,
+                  wall_depth=0.0, debris=0, debris_art=None, plate=0.0, gaps=0.0,
+                  solid_skip=()):
     """Build the props for a volume. Returns how many were made.
 
     `style` names one of `STYLES`; `part_styles` overrides it per named part, which is
@@ -276,7 +328,7 @@ def volume_dress(volume, n=600, seed=7, style=DEFAULT_STYLE, art=None, roles="",
         for (x, y, z) in volume_inside_points(vol, int(debris), seed=seed, margin=200.0,
                                              tries=200):
             size = rng.uniform(40.0, 140.0)
-            p = terrain_spawn(x, y, z, "", ("#," + roles) if roles else "#",
+            p = _piece_spawn(x, y, z, "", ("#," + roles) if roles else "#",
                               keys[rng.randrange(len(keys))], "behav_asteroid")
             if p is None:
                 continue
@@ -350,7 +402,7 @@ def _dress_box_faces(rng, spec, art_keys, prim, roles, depth, vol=None,
                     # stays deterministic in the seed.
                     if gaps > 0.0 and rng.random() < gaps:
                         continue
-                    p = terrain_spawn(pos[0], pos[1], pos[2], "",
+                    p = _piece_spawn(pos[0], pos[1], pos[2], "",
                                       ("#," + roles) if roles else "#", art,
                                       "behav_asteroid")
                     if p is None:
@@ -412,7 +464,7 @@ def _dress_solid(rng, spec, art_keys, prim, roles):
 def _dress_solid_at(roles, art, centre, half, axis):
     """Spawn one primitive at `centre`, scaled to `half` extents, its local +Z on `axis`."""
     mesh = _mesh_size(art, (100.0, 100.0, 100.0))
-    p = terrain_spawn(centre[0], centre[1], centre[2], "",
+    p = _piece_spawn(centre[0], centre[1], centre[2], "",
                       ("#," + roles) if roles else "#", art, "behav_asteroid")
     if p is None:
         return 0
@@ -448,7 +500,7 @@ def _dress_bars(rng, spec, prim, roles, normal, centre, u, v, wide, tall, thick,
         # through, and a frame hanging in it is the same bug at a smaller scale.
         if vol is not None and vol.depth(tuple(pos)) < -_VOL_BURIED:
             continue
-        p = terrain_spawn(pos[0], pos[1], pos[2], "",
+        p = _piece_spawn(pos[0], pos[1], pos[2], "",
                           ("#," + roles) if roles else "#", art, "behav_asteroid")
         if p is None:
             continue
@@ -610,7 +662,7 @@ def _dress_prop(rng, spec, art_keys, point, roles, flip=False, depth_min=0.0):
         push = through * 0.5 * (-1.0 if flip else 1.0)
         x, y, z = x + nx * push, y + ny * push, z + nz * push
 
-    p = terrain_spawn(x, y, z, "", ("#," + roles) if roles else "#", art, "behav_asteroid")
+    p = _piece_spawn(x, y, z, "", ("#," + roles) if roles else "#", art, "behav_asteroid")
     if p is None:
         return None
 
@@ -882,7 +934,7 @@ def _dress_kit_tile(rng, kit, point, roles, flip=False, depth_min=0.0):
 
 def _kit_spawn(art, pos, facing, up, scale, roles):
     """Spawn one kit piece: upright, facing `facing`, scaled per axis. None on failure."""
-    p = terrain_spawn(pos[0], pos[1], pos[2], "", ("#," + roles) if roles else "#", art,
+    p = _piece_spawn(pos[0], pos[1], pos[2], "", ("#," + roles) if roles else "#", art,
                       "behav_asteroid")
     if p is None:
         return None

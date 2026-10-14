@@ -971,6 +971,9 @@ PREFAB_DEFAULTS = {
     "relic/repair": {"args": dict(_SPAWN_ARGS, art="generic-sphere",
                                   behavior="behav_selection"), "needs_art": False,
                      "doc": "A relic repair point's body - a sphere unless dressed."},
+    "relic/wall": {"args": dict(_SPAWN_ARGS, behavior="behav_asteroid"), "needs_art": True,
+                   "doc": "One piece of a relic's walls. `Walls:` nests `Prefab:` to change "
+                          "it; the style still picks each piece's art."},
     "relic/marker": {"args": dict(_SPAWN_ARGS, art="generic-sphere",
                                   behavior="behav_selection"), "needs_art": False,
                      "doc": "An invisible relic marker a quest or a reveal measures to."},

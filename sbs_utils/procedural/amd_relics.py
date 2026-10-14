@@ -1581,15 +1581,23 @@ def relic_walls(relic_key, n=RELIC_PROPS, roles="", wall_depth=RELIC_WALL_DEPTH,
             return cast(value) if value not in (None, "") else default
         except (TypeError, ValueError):
             return default
+    # `Walls:` is a style chain on one line, or - nested - a `Style:` plus the
+    # `Prefab:` / `Data:` every wall piece is made by.
+    walls = rec.get("walls")
+    wall_prefab = None
+    if hasattr(walls, "items"):
+        from .prefab import amd_prefab_spec, prefab_norm_arg
+        wall_prefab = amd_prefab_spec(walls)
+        walls = {prefab_norm_arg(k): v for k, v in walls.items()}.get("style")
     made += volume_dress(
         vol, n=int(n), seed=int(seed if seed is not None else num("seed", 7, int)),
         roles=roles, wall_depth=float(wall_depth),
         plate=relic_plate_size(num("plate", 0.0)),
         gaps=min(max(num("gaps", RELIC_GAPS), 0.0), 1.0),
         debris=max(num("debris", RELIC_DEBRIS, int), 0),
-        style=rec.get("walls") or DEFAULT_STYLE, art=rec.get("art"),
+        style=walls or DEFAULT_STYLE, art=rec.get("art"),
         part_styles=rec.get("part_walls"), part_art=rec.get("part_art"),
-        solid_skip=skip)
+        solid_skip=skip, prefab=wall_prefab)
     return made
 
 

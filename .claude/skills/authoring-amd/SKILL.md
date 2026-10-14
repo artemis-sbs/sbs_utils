@@ -151,6 +151,11 @@ OU landmark `Guards:` / `Terrain:`, theater `Fleets:`. Reference page:
   prefab's metadata + `default` lines, following one `jump`), `prefab-reserved-arg`,
   `data-without-prefab`, `prefab-wrong-record` (a landmark default on a side/cast/crew
   record = wrong `##` heading; sides then ignore it and declare a plain side).
+- **Relic walls and OU side fleets too:** nested `Walls:` (Style / Prefab / Data) makes
+  every wall piece through one prefab, resolved ONCE per build (`volume_dress(prefab=)`;
+  default `relic/wall` is plain terrain_spawn, the fast path). OU side `Fleet:` picks the
+  prefab its fleets are built by (`universe_side_fleet_spawn`; `ship_roles` in `Data:` is
+  ADDED to, the watchers need the caller's).
 - **The other `Kind:`s were renamed too (2026-10-14)**, old spelling still read: region
   `Space:` (lint `field-renamed`), overlay `Card:`, control gallery `Shows:`.
 - **New field values on an existing prefab: extend it, never rename** - LM's stations got

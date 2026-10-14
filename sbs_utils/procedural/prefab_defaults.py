@@ -144,5 +144,7 @@ prefab_register("relic/barrier", _relic_piece("generic-sphere", "behav_selection
                 args=_args("relic/barrier"), display_text="Relic barrier")
 prefab_register("relic/repair", _relic_piece("generic-sphere", "behav_selection"),
                 args=_args("relic/repair"), display_text="Relic repair point")
+prefab_register("relic/wall", _relic_piece(None, "behav_asteroid"),
+                args=_args("relic/wall"), display_text="Relic wall piece")
 prefab_register("relic/marker", _relic_piece("generic-sphere", "behav_selection"),
                 args=_args("relic/marker"), display_text="Relic marker")

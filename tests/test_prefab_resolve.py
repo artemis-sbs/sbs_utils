@@ -258,6 +258,22 @@ class PrefabResolveTests(unittest.TestCase):
         self.assertNotIn("card", recs["a"]["fields"])
         overlay_amd_clear()
 
+    def test_wall_pieces_come_from_the_walls_prefab(self):
+        from unittest import mock
+        from sbs_utils.procedural import volume_dress as VD
+        made = []
+
+        def one_piece(volume, **kw):
+            made.append(VD._piece_spawn(5, 0, 5, "", "#,relic_wall", "wreck", "behav_asteroid"))
+            return 1
+        with mock.patch.object(VD, "_volume_dress", one_piece):
+            VD.volume_dress(None, prefab={"prefab": "test/box", "count": 1,
+                                          "args": {"Color": "blue"}})
+            VD.volume_dress(None)                       # no prefab: plain terrain_spawn
+        self.assertEqual(get_inventory_value(to_id(made[0]), "color"), "blue")
+        self.assertIsNone(get_inventory_value(to_id(made[1]), "color", None))
+        self.assertIsNone(VD._PIECE[0])                 # put back after the build
+
     def test_cast_record_names_its_prefab(self):
         from sbs_utils.procedural.amd_lifeforms import lifeform_from_record
         from sbs_utils.mast.mast_node import MastDataObject
