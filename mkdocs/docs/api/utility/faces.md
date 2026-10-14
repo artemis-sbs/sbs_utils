@@ -19,9 +19,13 @@ face_register_sheet("tng1", 8, 8, filename=media_shared("faces_tng/TNG_Faces_1")
 
 That teaches the library the sheet's grid and hands the art to the engine
 (`sbs.add_face_bitmap_sheet`, engine 1.3.15). It returns `True` when the engine took the
-sheet. On an engine that cannot - one older than 1.3.15, or an early 1.3.15 build, which
-only re-points an alias `allFaceFiles.txt` already names - it returns `False`, says so once
-in the runtime log, and the alias still needs its line in that file.
+sheet, and then nothing needs adding to `allFaceFiles.txt`. On an engine that cannot - one
+older than 1.3.15, or an early 1.3.15 build, which only re-points an alias that file already
+names - it returns `False`, says so once in the runtime log, and the alias still needs its
+line in that file.
+
+Register a sheet before anything draws a face from it: a face already on screen keeps the
+art it was drawn with.
 
 ## The face string syntax
 

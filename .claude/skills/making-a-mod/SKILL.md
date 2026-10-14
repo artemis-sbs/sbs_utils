@@ -332,14 +332,15 @@ for tng_plan in tng_interiors_enabled(tng_manifest):
   `face_register_sheet(alias, cols, rows, filename=media_shared("faces_x/Sheet_1"))` teaches
   the library, mock and AMD renderer the grid AND hands the art to the engine
   (`sbs.add_face_bitmap_sheet`, engine 1.3.15) out of the pinned pack, so no pack version is
-  baked into a path. **As of the 1.3.15 exe of 2026-10-13 the engine only RE-POINTS a tag
-  `data/graphics/allFaceFiles.txt` already names** - a new tag raises `ValueError: null rec
-  from faceGen.recordMap[tag]`, which the library reports once and survives. So a first
-  install still needs the lines pasted by hand (TNG `_tools/facesheets.py` prints them);
-  re-test with `data/missions/FaceSheetRepro` on each new exe. A face string names
-  sheet/column/row, so **never repack a shipped sheet** - add new sheets instead. A face
-  string whose tag the engine does not know draws nothing (it crashed the drawer before
-  that exe).
+  baked into a path. **Engine-verified 2026-10-14** (exe of 12:55): all nine TNG sheets drew
+  with a STOCK `data/graphics/allFaceFiles.txt`, from the packaged mastlib and pinned pack -
+  nothing pasted. Earlier 1.3.15 exes could only re-point a tag that file already named (a
+  new one raised `ValueError: null rec from faceGen.recordMap[tag]`, which the library
+  reports once and survives); on those, and before 1.3.15, the lines are still pasted by
+  hand (TNG `_tools/facesheets.py` prints them). `data/missions/FaceSheetRepro` re-tests a
+  new exe. A face string names sheet/column/row, so **never repack a shipped sheet** - add
+  new sheets instead. Register BEFORE the first face using the tag is drawn: a face already
+  on screen keeps the art it was drawn with.
 - **Music:** `@media/music/<Bank> "Name"` declares a bank; `settings_set_mod_default` makes it a
   default that loses to the mission. Since the 2026-09-20 engine build a pack bank plays
   straight from the pack (`MUSIC_ENGINE_ACCEPTS_PATHS` defaults True); on 1.3.6 and older a
@@ -347,8 +348,7 @@ for tng_plan in tng_interiors_enabled(tng_manifest):
   with no restriction.
 - **Taunts** have no mod registry; TNG updates LM's `taunt_data` shared variable via
   `get_shared_variable` (read it that way - a bare name is a NameError without LM).
-- Still engine-owned and undeclarable from a mod: SFX/font names (`preferences.json`), logo,
-  and - until the engine can add a face tag, see above - a NEW face sheet.
+- Still engine-owned and undeclarable from a mod: SFX/font names (`preferences.json`), logo.
 
 ---
 

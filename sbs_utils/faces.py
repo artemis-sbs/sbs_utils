@@ -1172,10 +1172,11 @@ def _sheet_tell_engine(alias, filename):
     try:
         add(str(alias), path)
     except Exception as e:                                   # noqa: BLE001
-        # Measured on the 1.3.15 exe of 2026-10-13: a tag the engine does not already
-        # know raises `ValueError: null rec from faceGen.recordMap[tag]`, while a tag
-        # that exists is re-pointed and returns. So this is the normal answer for a mod
-        # on that exe, not a bug in the mod - say so once and carry on.
+        # Measured on the 1.3.15 exe of 2026-10-13: a tag the engine did not already
+        # know raised `ValueError: null rec from faceGen.recordMap[tag]`, while a tag
+        # that existed was re-pointed. The exe of 2026-10-14 adds new tags. On an exe
+        # like the first this is the normal answer for a mod, not a bug in the mod - say
+        # so once and carry on.
         _say("%s: %s" % (type(e).__name__, e))
         return False
     return True

@@ -565,11 +565,9 @@ def add_face_bitmap_sheet(tag: str, filename: str) -> None:
     `filename` is a path with NO suffix - from the Cosmos root (`data/missions/...`) or
     relative to `data/graphics` - and the engine appends `.png`.
 
-    WHAT THE MOCK DOES NOT REPRODUCE: on the 1.3.15 exe of 2026-10-13 a tag the engine
-    does not already know raises `ValueError: null rec from faceGen.recordMap[tag]`; only
-    a tag already in allFaceFiles.txt can be re-pointed. That is an engine defect being
-    fixed, not a contract, so the mock takes any tag - which means a mod's faces can work
-    here and still be blank on that exe."""
+    Takes any tag, as the engine does from the exe of 2026-10-14. (The 2026-10-13 exe
+    raised `ValueError: null rec from faceGen.recordMap[tag]` for a tag allFaceFiles.txt
+    did not already name - an engine defect, since fixed, so the mock does not copy it.)"""
     face_sheets[str(tag)] = str(filename)
 
 
