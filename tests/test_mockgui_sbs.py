@@ -938,6 +938,11 @@ class TestMockScienceScanQueue(unittest.TestCase):
             with self.subTest(range=metres):
                 self.assertAlmostEqual(self._seconds_at(metres), seconds, places=2)
 
+    def test_a_far_off_contact_takes_no_longer_than_the_farthest_delay(self):
+        """Measured: 100,000 and 140,000 both took 19.8s."""
+        self.assertAlmostEqual(self._seconds_at(100000), 20.0, places=2)
+        self.assertAlmostEqual(self._seconds_at(140000), 20.0, places=2)
+
     def test_point_blank_is_one_engine_step(self):
         self.assertEqual(self._seconds_at(400), 0.5)
 

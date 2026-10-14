@@ -3506,11 +3506,13 @@ def _offense_factor(obj) -> float:
 _science_scans: dict = {}
 
 # HOW LONG A SCAN TAKES - the engine's rule, measured on 1.3.15 with a real client
-# pressing Start Scan on stationary targets at eight ranges from 400 to 10,000:
+# pressing Start Scan on stationary targets at thirteen ranges from 400 to 140,000:
 #
 #     seconds = closest_scan_delay
-#               + (farthest_scan_delay - closest_scan_delay) * distance / reach
+#               + (farthest_scan_delay - closest_scan_delay) * min(distance, reach) / reach
 #     reach   = min(ship_science_scan_range, 100000)
+#
+# so no scan takes longer than farthest_scan_delay (100,000 and 140,000 both took 19.8s).
 #
 # The engine writes 0.3 and 20.0 for the two delays on a player ship, and a
 # ship_science_scan_range of 150000 x sensor_damage_coeff. ship_base_scan_range and
@@ -3541,10 +3543,25 @@ def science_scan_seconds(ship_id: int, target_id: int):
 
     closest = _field("closest_scan_delay", _SCAN_CLOSEST)
     farthest = _field("farthest_scan_delay", _SCAN_FARTHEST)
+    # The science range, built the way the engine was measured to build it (2026-10-14):
+    # 150000 x (1 + the SENSORS power slider) / 2 x sensor_upgrade_coeff x
+    # sensor_damage_coeff. Slider 0.5 -> 112500, 3.0 -> 300000; upgrade or damage 0.5 ->
+    # 75000. The engine publishes ship_science_scan_range only while its own scan runs.
+    slider = 1.0
+    for i in range(16):
+        label = o.data_set.get("eng_control_label", i)
+        if not label:
+            break
+        if "sens" in str(label).lower():
+            v = o.data_set.get("eng_control_value", i)
+            slider = 1.0 if v is None else max(0.0, float(v))
+            break
     reach = _field("ship_science_scan_range",
-                   _SCAN_SCIENCE_RANGE * _field("sensor_damage_coeff", 1.0))
+                   _SCAN_SCIENCE_RANGE * (1.0 + slider) / 2.0
+                   * _field("sensor_upgrade_coeff", 1.0)
+                   * _field("sensor_damage_coeff", 1.0))
     reach = max(1.0, min(reach, _SCAN_REACH_CAP))
-    return max(_SCAN_STEP, closest + (farthest - closest) * dist / reach)
+    return max(_SCAN_STEP, closest + (farthest - closest) * min(dist, reach) / reach)
 
 
 def start_science_scan(ship_id: int, target_id: int, tab: str = "scan") -> bool:

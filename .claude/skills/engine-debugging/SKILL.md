@@ -447,7 +447,15 @@ A GridObject Agent's `.data_set` is not the engine blob (`curx` reads 0) - use
     player ship (the release note said false). 0 hides that terrain with no filter set;
     terrain listed in a filter draws only while its flag is 1.
   - *Scan time.* `closest_scan_delay + (farthest_scan_delay - closest_scan_delay) *
-    distance / min(ship_science_scan_range, 100000)`, advanced in 0.5s steps. The engine
+    min(distance, reach) / reach`, `reach = min(ship_science_scan_range, 100000)`, advanced
+    in 0.5s steps - so never longer than `farthest_scan_delay` (100,000 and 140,000 both
+    19.8s; measured 400 to 140,000). `ship_science_scan_range` = 150000 x (1 + SENSORS
+    slider `eng_control_value`) / 2 x `sensor_upgrade_coeff` x `sensor_damage_coeff`, each
+    factor measured alone - and the engine publishes it only WHILE ITS OWN SCAN RUNS
+    (None before), so a script-owned scan has to build it. The slider does NOT move
+    `sensor_damage_coeff`. Scanning itself costs NO energy (idle and scanning drain
+    identically); the slider costs energy all the time (~0.028/s per slider unit) and heats
+    the sensor system above 1.0. The engine
     writes 0.3 / 20.0 / 150000 x `sensor_damage_coeff`. `ship_base_scan_range` and
     `scan_strength_coeff` are not in it. `cur_scan_percent` is a 0-1 float. A scan can
     only be started by a client pressing the `science_data` button - setting
