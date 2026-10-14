@@ -16,7 +16,7 @@
   a scan several times slower than the stock console's. Hull scan strength is not part
   of it; damaged sensors are, through the science range.
 - Helm and Weapons get a slim row of radar chips under a narrower zoom control - All,
-  Threats, Friends, Bases, Nebulas, Rocks - on that console's own `helm_map_filter` /
+  Threats, Friends, Bases, Nebulas, Asteroids - on that console's own `helm_map_filter` /
   `weapon_map_filter` and terrain flags (`consoles/terrain_chips.py`).
 - Helm: `helm_movement` moves to the bottom-right corner in a square box (on top of the
   jump bar on a jump ship), and `quick_jump` sits at the jump bar's left end.

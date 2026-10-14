@@ -871,8 +871,9 @@ let _commsMapFilter = null;
 let _mapFilters = {};
 const _NO_VIEW_FILTER = { ids: null, nebulas: true, asteroids: true };
 function _viewFilter(widget) { return _mapFilters[widget] || _NO_VIEW_FILTER; }
-// Measured on the engine: a flag at 0 hides that terrain with or without a filter, and
-// terrain a filter lists is drawn only while its flag is on.
+// Terrain follows its flag alone; the map filter is for contacts. That is the INTENDED
+// rule. (Engine exes up to 2026-10-14 still hide all terrain while a filter is set - an
+// engine fix, reported; the mock draws what the engine is meant to do.)
 function _terrainKindHidden(meta, vf) {
   if (meta.nebula) return !vf.nebulas;
   if ((meta.tick_type || '').indexOf('asteroid') >= 0) return !vf.asteroids;
@@ -1044,9 +1045,9 @@ function _radarSelectAt(px, py, button) {
   const pickVf = _viewFilter(views[0].widget);
   const shown = pickVf.ids;
   const consider = (id, wx, wz) => {
-    if (shown && !shown.has(id)) return;
     const tmeta = _terrainMeta.get(id);
-    if (tmeta && _terrainKindHidden(tmeta, pickVf)) return;
+    if (tmeta) { if (_terrainKindHidden(tmeta, pickVf)) return; }
+    else if (shown && !shown.has(id)) return;
     const d = Math.hypot(proj.toX(wx) - px, proj.toY(wz) - py);
     if (d < bestD) { bestD = d; bestId = id; }
   };
@@ -3139,7 +3140,8 @@ function _drawRadarOverlay(ctx, W, H, rect, cx, cz, halfSpan, isCorner) {
   const shown = vf.ids;
   // The GPU terrain cloud is one draw for ALL terrain, so it is only used when this
   // view shows all of it; otherwise it is dropped and the overlay draws what is left.
-  const gpuTerrainOff = !!shown || !vf.nebulas || !vf.asteroids;
+  // The filter does not enter into it - terrain follows its flags alone.
+  const gpuTerrainOff = !vf.nebulas || !vf.asteroids;
   const { x0, y0, x1, y1 } = _rectPx(W, H, rect);
   const rw = x1 - x0, rh = y1 - y0;
   if (rw < 4 || rh < 4) return;
@@ -3252,7 +3254,6 @@ function _drawRadarOverlay(ctx, W, H, rect, cx, cz, halfSpan, isCorner) {
   const _iconSheetImg = _iconSheet.img;              // synchronous once loaded
   if (!_iconSheetImg) _getIconSheet(() => _requestRadarRender());   // load once, redraw when ready
   for (const [id, meta] of _terrainMeta) {
-    if (shown && !shown.has(id)) continue;
     if (_terrainKindHidden(meta, vf)) continue;
     if (gpuTerrainOff && !meta.tint && meta.icon_index == null) {
       // Plain terrain this view keeps: its GPU dot was dropped for this view.
@@ -3284,7 +3285,6 @@ function _drawRadarOverlay(ctx, W, H, rect, cx, cz, halfSpan, isCorner) {
     ctx.font = `${Math.max(8, fontSize)}px monospace`;
     ctx.textAlign = 'center'; ctx.textBaseline = 'bottom';
     for (const [id, meta] of _terrainMeta) {
-      if (shown && !shown.has(id)) continue;
       if (_terrainKindHidden(meta, vf)) continue;
       if (!meta.name) continue;
       const idx = _terrainMap.get(id);
@@ -3415,7 +3415,7 @@ function _renderRadar() {
       // A view that filters, or hides a kind of terrain, drops the GPU terrain dots;
       // the overlay draws the ones it keeps.
       const rvf = _viewFilter(rect.widget);
-      if (_terrainPoints) _terrainPoints.visible = !(rvf.ids || !rvf.nebulas || !rvf.asteroids);
+      if (_terrainPoints) _terrainPoints.visible = !(!rvf.nebulas || !rvf.asteroids);
       _radarRenderer3d.render(_radarScene3d, _radarCamera3d);
     }
     if (_terrainPoints) _terrainPoints.visible = true;

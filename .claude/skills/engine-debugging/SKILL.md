@@ -444,8 +444,11 @@ A GridObject Agent's `.data_set` is not the engine blob (`curx` reads 0) - use
     also filters the `helm_movement` compass. The FIRST 1.3.15 exe did not un-filter on a
     clear (blob empty, view unchanged); the exe of 2026-10-13 18:18 does.
   - *Terrain flags.* `{sci,helm,weapon}_show_{nebulas,asteroids}` read **1** on a fresh
-    player ship (the release note said false). 0 hides that terrain with no filter set;
-    terrain listed in a filter draws only while its flag is 1.
+    player ship (the release note said false). 0 hides that terrain with no filter set.
+    INTENDED: terrain follows its flag whatever the filter lists. Measured on the exe of
+    2026-10-14 12:55: while any filter is set, terrain the list leaves out is hidden even
+    with the flag at 1 (reported; repro `_e1315_probe case=radar`). The scripts do NOT list
+    terrain to work around it, and the mock's browser radar draws the intended rule.
   - *Scan time.* `closest_scan_delay + (farthest_scan_delay - closest_scan_delay) *
     min(distance, reach) / reach`, `reach = min(ship_science_scan_range, 100000)`, advanced
     in 0.5s steps - so never longer than `farthest_scan_delay` (100,000 and 140,000 both

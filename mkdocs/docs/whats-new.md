@@ -1048,11 +1048,11 @@ A mission that wants the previous console back sets `SCIENCE_NEW_LAYOUT: false`
 #### 🛰 Helm and Weapons choose what their radar shows { #radar-chips }
 
 A slim row of chips now sits under the zoom buttons on Helm and on Weapons: **All,
-Threats, Friends, Bases, Nebulas, Rocks**.
+Threats, Friends, Bases, Nebulas, Asteroids**.
 
 - **Threats, Friends, Bases** narrow the radar to those contacts - a weapons officer in a
   crowded fight can drop everything that is not a target. **All** brings everything back.
-- **Nebulas** and **Rocks** switch that terrain off and on. A helm threading an asteroid
+- **Nebulas** and **Asteroids** switch that terrain off and on. A helm threading an asteroid
   field wants the rocks; a helm running an open lane may not.
 
 Helm and Weapons each keep their own row, and like Science's, the row belongs to the

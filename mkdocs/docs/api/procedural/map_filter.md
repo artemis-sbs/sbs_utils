@@ -26,8 +26,9 @@ map_show_terrain(ship_id, "helm", asteroids=False)
 
 - The ship is always kept in its own list, and only live space objects are written.
 - A list that matches nothing shows the ship alone. An empty list would mean "no filter".
-- The terrain flags default to shown and work with or without a filter. Terrain named in
-  a filter is drawn only while its flag is on.
+- The terrain flags default to shown and decide whether nebulas and asteroids are drawn.
+  Terrain does not go in the filter, which is for contacts. (Engine builds up to
+  2026-10-14 still hide terrain while any filter is set; that is being fixed in the engine.)
 - An unchanged list is not re-sent.
 
 ## API

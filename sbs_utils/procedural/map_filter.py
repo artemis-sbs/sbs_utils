@@ -14,8 +14,11 @@ shows - so every console of that kind on the ship shares it:
 MEASURED ON ENGINE 1.3.15 (a raw-sbs probe, server screen and a real client agreeing):
 
 * The flags default to 1 and act ON THEIR OWN: 0 hides that terrain with no filter set.
-* A filter shows only the listed ids. Terrain in the list ALSO needs its flag on, and
-  the flag on its own shows no terrain the list leaves out.
+* A filter shows only the listed ids. TERRAIN IS NOT MEANT TO BE IN IT: the filter is
+  for contacts, and the two flags alone decide whether nebulas and asteroids are drawn.
+  As of the 1.3.15 exe of 2026-10-14 the engine does not do that yet - while a filter is
+  set it hides all terrain the list leaves out, flags on or not (reported). So do not
+  list terrain to work around it; it is fixed in the engine or nowhere.
 * An empty list means "no filter", and clear_data_set_value is how every one of the
   four gets back there. (On the FIRST 1.3.15 exe the three new keys did not: the blob
   read empty but the view kept drawing the last list. Fixed in the exe of 2026-10-13
