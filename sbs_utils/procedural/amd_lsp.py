@@ -98,6 +98,7 @@ _DESCRIPTOR_FNS = (
     "text", "multiline", "integer", "boolean", "enum", "ref", "coord2", "color", "face",
     "signal", "csv", "compound", "duration", "pct", "weighted", "makeup", "counted",
     "kv", "reward", "trigger", "field", "named_hulls", "lines",
+    "prefab", "prefab_args", "prefab_spec",
 )
 
 
@@ -1068,10 +1069,17 @@ def _mission_map(index):
             cell = _coord2(at) if at is not None else None
             if cell:
                 at_ref = next((r for r in n.refs if r.kind == "at"), None)
-                kind_ref = next((r for r in n.refs if r.kind == "kind"), None)
+                # `kind` / `kindRange` keep their wire names (the extension reads
+                # them) but carry the PREFAB now - what a landmark is. A file still on
+                # the retired `Kind:` falls back to it, so the map still draws it.
+                kind_ref = (next((r for r in n.refs if r.kind == "prefab"), None)
+                            or next((r for r in n.refs if r.kind == "kind"), None))
+                prefab = _dget(n.data, "Prefab")
+                if hasattr(prefab, "items"):
+                    prefab = None
                 landmarks.append({"key": n.key, "display": n.display or n.key,
                                   "i": cell[0], "j": cell[1],
-                                  "kind": str(_dget(n.data, "Kind") or ""),
+                                  "kind": str(prefab or _dget(n.data, "Kind") or ""),
                                   "uri": u, "line": line, "addLine": add_line,
                                   "atRange": _span_range(at_ref.span) if at_ref else None,
                                   "kindRange": _span_range(kind_ref.span) if kind_ref else None,
@@ -1091,7 +1099,20 @@ def _mission_map(index):
                                 "uri": u, "line": line,
                                 "centerRange": _span_range(center_ref.span) if center_ref else None,
                                 "radiusRange": _span_range(radius_ref.span) if radius_ref else None})
-    return {"landmarks": landmarks, "regions": regions}
+    return {"landmarks": landmarks, "regions": regions,
+            "prefabs": _prefab_choices(index)}
+
+
+def _prefab_choices(index):
+    """Every prefab a record may name: the mission's own `type: prefab/...` labels,
+    then the library defaults - the choices the map view offers to retype a landmark."""
+    from sbs_utils.procedural.amd_lint import mast_prefab_table
+    from sbs_utils.procedural.amd_schema import PREFAB_DEFAULTS
+    try:
+        mission = sorted(mast_prefab_table(index.get("mast"))["types"])
+    except Exception:                                  # noqa: BLE001
+        mission = []
+    return mission + [t for t in PREFAB_DEFAULTS if t not in mission]
 
 
 def _section_of(node):

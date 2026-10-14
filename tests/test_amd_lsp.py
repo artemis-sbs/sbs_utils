@@ -424,7 +424,7 @@ class TestWorkspace(unittest.TestCase):
                         "## [Regions](regions)\n### [Marches](marches)\n"
                         "---\nCenter: 0, -1\nRadius: 8\nColor: #86c\n---\nb\n"
                         "## [Landmarks](landmarks)\n### [Ruin](ruin)\n"
-                        "---\nAt: 2, -1\nKind: derelict\n---\nb\n")
+                        "---\nAt: 2, -1\nPrefab: derelict\n---\nb\n")
             uri = Path(os.path.join(root, "map.amd")).as_uri()
             out = self._drive([
                 {"jsonrpc": "2.0", "id": 1, "method": "initialize", "params": {}},
@@ -449,7 +449,7 @@ class TestWorkspace(unittest.TestCase):
             ar = lm["atRange"]
             self.assertEqual(ar["start"]["line"], 12)   # `At: 2, -1` source line 13 -> LSP 12
             self.assertGreater(ar["end"]["character"], ar["start"]["character"])
-            # plus a Kind range (source line 14 -> LSP 13) and a delete point (EOF)
+            # plus a Prefab range (source line 14 -> LSP 13) and a delete point (EOF)
             self.assertEqual(lm["kindRange"]["start"]["line"], 13)
             self.assertGreaterEqual(lm["addLine"], 13)
 

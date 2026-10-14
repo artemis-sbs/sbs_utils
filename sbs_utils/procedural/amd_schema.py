@@ -133,6 +133,23 @@ def named_hulls(hint="Ragnarok tsn_juggernaut, XORN tsn_light_cruiser"):
     without this nothing said so."""
     return _d("csv", hint=hint, items="named_hull")
 
+def prefab(hint="station / derelict / npc/station/industry / fleet/raider"):
+    """The prefab a record creates through: a prefab TYPE (the label's `type: prefab/...`
+    without the prefix) or an exact label name. Completed from the mission's prefab
+    labels plus the library defaults (`prefab_catalog`)."""
+    return _d("ref", ref="prefab", hint=hint)
+
+def prefab_args(hint="nested lines: the prefab's own arguments"):
+    """`Data:` - an EMPTY label whose indented lines nest under it, each one an argument
+    handed to the record's prefab under its normalized name. Checked against what that
+    prefab declares (its metadata, or a library default's argument table)."""
+    return _d("prefab_args", hint=hint)
+
+def prefab_spec(hint="fleet/raider  |  nested Prefab: / Count: / Data:"):
+    """A field that creates something on its own (`Guards:`, `Spawn:`, `Terrain:`): a
+    one-line prefab name, or an empty label nesting `Prefab:`, `Count:` and `Data:`."""
+    return _d("prefab_spec", hint=hint)
+
 def compound(verbs, hint=None):
     """A verb-led field whose operand type depends on the verb: `When: reach i,j`
     vs `When: signal X`. `verbs` maps verb -> operand descriptor. The editor may
@@ -577,9 +594,14 @@ SCAN = {
 }
 
 LANDMARK = {
-    # Open: real missions use derelict/station/worldlet plus npc/antimatter and
-    # mission-specific prefab kinds - suggest, don't reject.
-    "kind": enum("derelict", "station", "worldlet", "npc", "antimatter", open=True),
+    # WHAT the landmark is. Replaced `Kind:` (2026-10-14): a kind could only pick between
+    # npc_spawn and terrain_spawn; a prefab is whatever the mission makes it, and the
+    # library's defaults (station, npc, derelict, nebula, point...) keep the old table.
+    "prefab": field(prefab(), doc="What this landmark is: a prefab type or label name. "
+                    "The library provides station, npc, ship, terrain, asteroid, derelict, "
+                    "wreck, nebula and point; a mission prefab of the same type wins."),
+    "data": field(prefab_args(), doc="The prefab's own arguments, one indented line each."),
+    "size": text(hint="6000  |  6000, 2000"),
     "side": ref("side"),
     "roles": csv(),
     "art": text(),
@@ -744,8 +766,9 @@ EFFECT = {
 # Coordinates are RELATIVE to the relic's `Loc:`, which is what lets one authored layout
 # be dropped at two places in a system.
 #
-# NOTE there is deliberately no `Kind:` here: the bare label `kind` infers LANDMARK (see
-# ("kind","landmark") below), the trap that already cost the cutscene design a redesign.
+# NOTE there is deliberately no `Kind:` here. It used to infer LANDMARK (the
+# ("kind","landmark") discriminator, retired 2026-10-14 when `Prefab:` replaced it) - the
+# trap that cost the cutscene design a redesign.
 RELIC = {
     # -- the relic itself
     "loc": coord2(),
@@ -880,6 +903,101 @@ HOSTILE = {
     "hidden until": text(hint="a signal"),
     "scan": text(hint="what the xESS Scan app says about it"),
 }
+
+# --- library DEFAULT prefabs ------------------------------------------------
+# What a record's `Prefab:` resolves to when the mission has no MAST label of that type.
+# DECLARED here (stdlib-only, so lint and the editor read the same table the game does);
+# the module that owns each concept registers the spawner with `prefab_register`, reading
+# its args from this table. A mission's own `type: prefab/<t>` label always wins.
+#
+# `args` are the prefab variables a `Data:` block may set, with their defaults (None =
+# "the record or the prefab decides"). `needs_art` means a record using it must say
+# `Art:` - a default never guesses an art key, since a bad one crashes the engine.
+_SPAWN_ARGS = {"art": None, "side_value": None, "roles_value": None, "behavior": None}
+
+PREFAB_DEFAULTS = {
+    "station":  {"args": dict(_SPAWN_ARGS, behavior="behav_station"), "needs_art": True,
+                 "doc": "A station: npc_spawn with behav_station."},
+    "npc":      {"args": dict(_SPAWN_ARGS, behavior="behav_npcship"), "needs_art": True,
+                 "doc": "An NPC ship: npc_spawn with behav_npcship."},
+    "ship":     {"args": dict(_SPAWN_ARGS, behavior="behav_npcship"), "needs_art": True,
+                 "doc": "An NPC ship: npc_spawn with behav_npcship."},
+    "terrain":  {"args": dict(_SPAWN_ARGS, behavior="behav_asteroid"), "needs_art": True,
+                 "doc": "A terrain object: terrain_spawn with behav_asteroid."},
+    "asteroid": {"args": dict(_SPAWN_ARGS, behavior="behav_asteroid"), "needs_art": True,
+                 "doc": "An asteroid: terrain_spawn with behav_asteroid."},
+    "derelict": {"args": dict(_SPAWN_ARGS, behavior="behav_wreck"), "needs_art": True,
+                 "doc": "A derelict: terrain_spawn with behav_wreck."},
+    "wreck":    {"args": dict(_SPAWN_ARGS, behavior="behav_wreck"), "needs_art": True,
+                 "doc": "A wreck: terrain_spawn with behav_wreck."},
+    "nebula":   {"args": dict(_SPAWN_ARGS, behavior="behav_nebula"), "needs_art": True,
+                 "doc": "One nebula object: terrain_spawn with behav_nebula."},
+    "point":    {"args": {}, "needs_art": False,
+                 "doc": "A named place - a zone or a speaker the document must know. "
+                        "Creates nothing."},
+    # --- what the other AMD readers create (registered by prefab_defaults.py) ---------
+    "amd/side": {"args": {"key": None, "name": None, "desc": None, "color": None,
+                          "icon_index": None, "races": None}, "needs_art": False,
+                 "doc": "A side record's side: side_create. The default for `## Sides`; "
+                        "`Prefab: side` is LM's prefab_side_generic instead."},
+    "amd/lifeform": {"args": {"name": None, "face": None, "roles_value": "",
+                              "host_id": None, "path": None, "title_color": "green"},
+                     "needs_art": False,
+                     "doc": "A cast character: lifeform_spawn. The default for a cast record."},
+    "amd/crew": {"args": {"name": None, "face": "", "roles_value": ""}, "needs_art": False,
+                 "doc": "A crew post as a body on the ground: an unhosted lifeform."},
+    "boarding/host": {"args": {"art": "starbase_civil", "behavior": "behav_station",
+                               "roles_value": ""}, "needs_art": False,
+                      "doc": "The hidden ship a boarding zone's interior is cut from."},
+    "grid/boarding_figure": {"args": {"site_id": None, "name": None, "icon_index": 100,
+                                      "color": "#4cf", "roles_value": "boarding_figure"},
+                             "needs_art": False,
+                             "doc": "A character's body on an interior: one grid object."},
+    "pickup": {"args": {"item_key": None, "art": None, "name": None, "blink": None,
+                        "yaw": None}, "needs_art": False,
+               "doc": "An item lying in space: a spinning terrain object, behav_pickup."},
+    "npc/ship": {"args": dict(_SPAWN_ARGS, behavior="behav_npcship"), "needs_art": False,
+                 "doc": "One ship of a side; a random hull of that side when no Art:. LM's "
+                        "prefab_single_ship overrides it with its brain and fleet."},
+    "relic/setpiece": {"args": dict(_SPAWN_ARGS, behavior="behav_asteroid"),
+                       "needs_art": True, "doc": "A relic part's dressing piece."},
+    "relic/barrier": {"args": dict(_SPAWN_ARGS, art="generic-sphere",
+                                   behavior="behav_selection"), "needs_art": False,
+                      "doc": "A relic barrier's body - a sphere unless dressed."},
+    "relic/repair": {"args": dict(_SPAWN_ARGS, art="generic-sphere",
+                                  behavior="behav_selection"), "needs_art": False,
+                     "doc": "A relic repair point's body - a sphere unless dressed."},
+    "relic/marker": {"args": dict(_SPAWN_ARGS, art="generic-sphere",
+                                  behavior="behav_selection"), "needs_art": False,
+                     "doc": "An invisible relic marker a quest or a reveal measures to."},
+}
+
+# The variables every creating record hands its prefab whether or not the prefab
+# declares them - a `Data:` key by one of these names is a deliberate override.
+PREFAB_STANDARD_ARGS = frozenset({
+    "name", "display_text", "start_x", "start_y", "start_z", "start_exact", "size_x", "size_z",
+    "side_value", "roles_value", "art", "behavior", "amd_record", "amd_key"})
+
+
+# Every record that CREATES something says what with `Prefab:` and hands it `Data:` -
+# a landmark's object, a side, a cast member's body, a crew post's body, a relic part's
+# body. Each has a library default (PREFAB_DEFAULTS) when `Prefab:` is not written.
+_PREFAB_FIELDS = {
+    "prefab": field(prefab(), doc="What creates this: a prefab type or label name. "
+                    "Unwritten, the library's default for this kind of record."),
+    "data": field(prefab_args(), doc="The prefab's own arguments, one indented line each."),
+}
+for _table in (SIDE, LIFEFORM, CREW, RELIC):
+    for _k, _v in _PREFAB_FIELDS.items():
+        _table.setdefault(_k, _v)
+ITEM.setdefault("pickup", field(prefab(hint="pickup / pickup/crate / a label name"),
+                                doc="What this item looks like lying in space: the prefab "
+                                    "item_spawn makes its body with. Unwritten, `pickup`."))
+RELIC["spawn"] = field(prefab_spec(hint="raider x2, npc/ship x2  |  nested Prefab / Count / Data"),
+                       doc="What wakes up here: prefabs (`npc/ship x2`), the older race "
+                           "phrase (`raider x2` - an npc/ship on that side), or one nested "
+                           "Prefab / Count / Data block.")
+
 
 ARCHETYPES = {
     "prop": PROP, "hostile": HOSTILE,
@@ -1026,7 +1144,7 @@ _SECTION_ALIASES = {
     "scenes": "dialogue", "scene": "dialogue", "boarding": "dialogue",
     "urges": "urge", "urge": "urge",
     # A LOOK. The kind line is the bare noun `Effect`, resolving here - NOT
-    # `Kind: effect`, which would infer landmark (see ("kind","landmark") below).
+    # `Kind: effect`, which is not a kind line at all.
     "effects": "effect", "effect": "effect", "looks": "effect", "fx": "effect",
     "drops": "drop", "drop": "drop", "loot": "drop", "drop tables": "drop",
     # A RELIC and its chambers share one section and one archetype (see RELIC above).
@@ -1130,10 +1248,13 @@ _DISCRIMINATORS = (
     ("face", "lifeform"), ("scene", "lifeform"),
     ("drops", "drop"),
     ("speaker", "dialogue"),
-    # Relic parts before the landmark rules: a chamber record carries no `Kind:`, but
-    # being explicit here keeps a flat file (no section heading) classifiable.
+    # Relic parts before the landmark rules: being explicit here keeps a flat file (no
+    # section heading) classifiable.
     ("chamber", "relic"), ("passage to", "relic"), ("passage_to", "relic"),
-    ("at", "landmark"), ("kind", "landmark"),
+    # `Prefab:` LAST among the creating archetypes: a cast, crew, side or relic part may
+    # name a prefab too, and its own field above is what says which it is. `Kind:` is no
+    # longer here - it was a landmark domain field that typed whatever carried it.
+    ("at", "landmark"), ("prefab", "landmark"),
     ("state", "quest"), ("when", "quest"), ("then", "quest"),
     ("parent", "quest"), ("fail on signal", "quest"),
 )
@@ -1423,7 +1544,7 @@ STARTERS = {
     "item": ("display", "mode", "price"),
     "side": ("display", "color", "enemies"),
     "scan": ("scan of", "tab"),
-    "landmark": ("at", "art", "roles"),
+    "landmark": ("prefab", "at", "roles"),
     "region": ("at", "color"),
     "map": ("display", "mode"),
     "dialogue": ("speaker",),

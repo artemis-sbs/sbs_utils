@@ -61,8 +61,7 @@ in a fetched copy. There is no second image mechanism to learn.
 
 .. note::
    The kind noun is a BARE WORD on the fence's first line - ``crew``, not ``Kind: crew``.
-   The label ``kind`` infers *landmark*, which would type the whole roster wrong and take
-   every member with it.
+   ``Kind:`` is not a kind line; it is just an unknown field.
 
 TWO READERS, ONE RECORD BUILDER. :func:`crew_from_section` is the game and
 :func:`crew_from_core` is the linter; they share :func:`crew_member_record` so a fact
@@ -150,6 +149,13 @@ def crew_member_record(section, data, key, name=None, roster_key=None):
         "portrait": data.get("portrait") or "",
         "at": _pair(data.get("at")),
         "roster": roster_key,
+        # WHAT makes their body on the ground: a prefab, the member's own or the
+        # roster's (section-level, like Race:). None is the library's `amd/crew`.
+        "prefab": (str(data.get("prefab") or section.get("prefab")).strip().lower()
+                   if (data.get("prefab") or section.get("prefab")) else None),
+        "args": (data.get("data") if hasattr(data.get("data"), "items")
+                 else section.get("data") if hasattr(section.get("data"), "items")
+                 else {}),
         "data": data,
     })
 

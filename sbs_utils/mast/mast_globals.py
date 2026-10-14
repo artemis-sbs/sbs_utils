@@ -24,6 +24,15 @@ def debug_print(*args, **kwargs):
         mast_print(*args, **kwargs)
 
 class MastGlobals:
+    # The names in the table below that a task VARIABLE can shadow and break: a metadata
+    # key, a gui `var=` binding or a prefab argument named `range` hides range() for the
+    # whole label body. Deliberately the base table, not every procedural global - the
+    # 1279 of those collide harmlessly with ordinary names (`color`, `face`, `duration`).
+    # Read by namespace_lint and by the prefab argument filter.
+    EXPRESSION_BUILTINS = frozenset("""
+math json faces scatter random print dir itertools next len reversed int str hex
+min max abs sim map filter list set dict tuple zip enumerate iter sorted range isinstance
+""".split())
     _imported_mods = set()
     globals = {
         "math": math,

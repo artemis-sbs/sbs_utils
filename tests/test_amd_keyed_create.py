@@ -32,7 +32,7 @@ from sbs_utils.mast.mast_node import MastDataObject
 
 def _landmark(key="relay", name="Relay Station"):
     return MastDataObject({
-        "key": key, "name": name, "kind": "station", "art": "starbase_1",
+        "key": key, "name": name, "prefab": "station", "art": "starbase_1",
         "side": "tsn", "roles": "relay", "loc": (1000, 0, 2000),
     })
 

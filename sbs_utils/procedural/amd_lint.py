@@ -708,6 +708,8 @@ def amd_lint_unknown_fields(doc):
                 continue
             if amd_is_declared(label, node.kind, traits):
                 continue
+            if node.kind == "landmark" and label.strip().lower() == "kind":
+                continue            # landmark-kind-retired (amd_lint_prefabs) says what to write
             # `File:` ON A CHAPTER is the table of contents (`amd_doc.amd_includes`
             # reads it off any record directly under the file's heading), whatever kind
             # of record the chapter holds.
@@ -3937,8 +3939,8 @@ def amd_lint_mission_reads(doc, file_path=None, mast_sources=None, source_index=
     used:
 
     * `## [Places](places)` where the story asks for `landmarks`      section-not-loaded
-    * a landmark with no `Art:` (not placed), no `Loc:` (placed at the origin, inside
-      whatever stands there), no `Kind:` (made as a station, and wearing that role)
+    * a landmark on a library default prefab with no `Art:` (not placed), or with no
+      `Loc:` (placed at the origin, inside whatever stands there)
     * `Done when: reach lifeboat 500` / `Scan of: lifeboat` where `lifeboat` is the
       landmark's KEY and it has no `Roles: lifeboat` - quests and scans look for a
       ROLE, so the step never finishes and the scan text never shows     role-is-a-key
@@ -4041,14 +4043,16 @@ def amd_lint_mission_reads(doc, file_path=None, mast_sources=None, source_index=
                 f"it is not placed. Give this heading {parent.level} hashes, the same "
                 f"as the landmark above it"))
             continue
-        if any(v.strip().lower() == "point" for _l, v in fields.get("kind", [])):
+        prefab_word = (fields.get("prefab") or [(0, "")])[0][1].strip().lower()
+        if prefab_word == "point":
             continue                 # a ZONE: a position the mission reads, not an object
         where = node.display_span or node.span
-        if "art" not in fields:
+        from sbs_utils.procedural.amd_schema import PREFAB_DEFAULTS
+        if (PREFAB_DEFAULTS.get(prefab_word) or {}).get("needs_art") and "art" not in fields:
             findings.append(AmdFinding.at(
                 where, WARNING, "landmark-no-art",
-                f"`{node.display}` has no `Art:` line, so it is not placed in the game "
-                f"at all"))
+                f"`{node.display}` has no `Art:` line, and the library's `{prefab_word}` "
+                f"prefab never guesses one, so it is not placed in the game at all"))
         if "loc" in fields:
             ln, value = fields["loc"][0]
             got = len(_relic_nums(value))
@@ -4062,12 +4066,6 @@ def amd_lint_mission_reads(doc, file_path=None, mast_sources=None, source_index=
                 where, WARNING, "landmark-no-loc",
                 f"`{node.display}` has no `Loc:` line, so it is placed at 0, 0, 0 - "
                 f"inside whatever stands there"))
-        if "kind" not in fields:
-            findings.append(AmdFinding.at(
-                where, WARNING, "landmark-no-kind",
-                f"`{node.display}` has no `Kind:` line, so it is made as a station and "
-                f"wears the role `station` - a step that says `reach station` finishes "
-                f"at it. Say what it is: `Kind: wreck`, `Kind: station`, `Kind: ship`"))
 
     # --- a key where the game wants a role ---------------------------------------------
     def points_at(lineno, word, what):
@@ -4205,8 +4203,8 @@ def amd_lint_kind_lines(doc):
 
         ### [The Lifeboat](lifeboat)
         ---
-        wreck                  meant `Kind: wreck`. Read as a kind line; the landmark
-        Art: wreck             has no Kind, and is made as a station.
+        wreck                  meant `Prefab: wreck`. Read as a kind line; the landmark
+        Art: wreck             names no prefab, and nothing is created.
         ---
     """
     from sbs_utils.procedural.amd_schema import _kind_to_archetype, amd_known_kinds
@@ -4224,7 +4222,7 @@ def amd_lint_kind_lines(doc):
                     lineno, WARNING, "unknown-kind-line",
                     f"`{line}` alone on the first line of a fence says what KIND of "
                     f"record this is, and it is not a kind the game knows. If it is a "
-                    f"value, give it its label (`Kind: {line}`); a kind is a word like "
+                    f"value, give it its label (on a landmark, `Prefab: {line}`); a kind is a word like "
                     f"{near}..."))
             break
     return findings
@@ -5476,6 +5474,203 @@ def mast_labels(mast_sources):
     return labels
 
 
+# --- prefabs ------------------------------------------------------------------------
+# A creating record names WHAT it creates with `Prefab:` - a prefab type or a label name -
+# and hands it arguments in a nested `Data:` block. The prefab catalog is the mission's
+# MAST labels typed `prefab/...` plus the library defaults (amd_schema.PREFAB_DEFAULTS).
+
+_MAST_LABEL = re.compile(r"^={2,}\s*(?P<name>[A-Za-z_]\w*)\s*=*\s*$")
+_MAST_META = re.compile(r"^metadata:\s*`{3}[^\n]*\n(?P<body>.*?)^`{3}", re.S | re.M)
+_MAST_META_KEY = re.compile(r"^(?P<name>[A-Za-z_]\w*)\s*:\s*(?P<value>.*)$", re.M)
+_MAST_DEFAULT = re.compile(r"^\s*default\s+(?:shared\s+)?(?P<name>[A-Za-z_]\w*)\s*=", re.M)
+_MAST_JUMP = re.compile(r"^\s*(?:jump|->)\s*(?P<name>[A-Za-z_]\w*)\s*$", re.M)
+
+
+def mast_prefab_table(mast_sources):
+    """{"types": {type: {"label", "args"}}, "names": {label: type}} for every MAST label
+    whose metadata says `type: prefab/...`.
+
+    A prefab's ARGUMENTS are its metadata keys plus every `default x = ...` in its body -
+    and in the body it `jump`s to, one level deep, which is how LM's station variants
+    share `common_station_create`. The type is stored without its `prefab/` prefix."""
+    blocks = {}
+    for src in mast_sources or []:
+        cur, buf = None, []
+        for line in str(src).splitlines():
+            m = _MAST_LABEL.match(line)
+            if m:
+                if cur:
+                    blocks[cur] = "\n".join(buf)
+                cur, buf = m.group("name"), []
+                continue
+            if cur:
+                buf.append(line)
+        if cur:
+            blocks[cur] = "\n".join(buf)
+
+    def defaults_of(body):
+        return {d.group("name").lower() for d in _MAST_DEFAULT.finditer(body)}
+
+    types, names = {}, {}
+    for name, body in blocks.items():
+        meta = _MAST_META.search(body)
+        if meta is None:
+            continue
+        keys = {k.group("name").lower(): k.group("value").strip()
+                for k in _MAST_META_KEY.finditer(meta.group("body"))}
+        t = keys.pop("type", "")
+        if not t.lower().startswith("prefab/"):
+            continue
+        t = t[len("prefab/"):].strip().strip("/").lower()
+        args = set(keys) | defaults_of(body)
+        for j in _MAST_JUMP.finditer(body):
+            if j.group("name") in blocks:
+                args |= defaults_of(blocks[j.group("name")])
+        types.setdefault(t, {"label": name, "args": args})
+        names[name] = t
+    return {"types": types, "names": names}
+
+
+def _prefab_lookup(spec, table):
+    """(type, args, how) for a Prefab: value, or (None, None, reason). `how` is
+    "mast"/"default"; a reason is "unknown" or "ambiguous: a, b"."""
+    from sbs_utils.procedural.amd_schema import PREFAB_DEFAULTS
+    raw = str(spec or "").strip()
+    t = raw.lower().strip("/")
+    if t.startswith("prefab/"):
+        t = t[len("prefab/"):]
+    names, types = table.get("names", {}), table.get("types", {})
+    if raw in names:
+        mt = names[raw]
+        return mt, types.get(mt, {}).get("args", set()), "mast"
+    if t in types:
+        return t, types[t]["args"], "mast"
+    if t in PREFAB_DEFAULTS:            # exact beats prefix, as prefab_resolve does
+        return t, set(PREFAB_DEFAULTS[t]["args"]), "default"
+    under = sorted(mt for mt in types if mt.startswith(t + "/"))
+    if len(under) == 1:
+        return under[0], types[under[0]]["args"], "mast"
+    if len(under) > 1:
+        return None, None, "ambiguous: " + ", ".join(under)
+    return None, None, "unknown"
+
+
+def _fence_tree(node):
+    """A node's fence as an indentation tree: [{"line", "indent", "label", "value",
+    "children"}]. Comments, list items and label-less lines are skipped."""
+    root = {"indent": -1, "children": []}
+    stack = [root]
+    for lineno, raw in (getattr(node, "fence_lines", None) or []):
+        stripped = raw.strip()
+        if ":" not in raw or stripped.startswith("//") or stripped.startswith("-"):
+            continue
+        indent = len(raw) - len(raw.lstrip(" \t"))
+        label, value = raw.split(":", 1)
+        item = {"line": lineno, "indent": indent, "label": label.strip(),
+                "value": value.strip(), "children": []}
+        while stack[-1]["indent"] >= indent:
+            stack.pop()
+        stack[-1]["children"].append(item)
+        stack.append(item)
+    return root["children"]
+
+
+def amd_lint_prefabs(doc, mast_sources=None):
+    """What a creating record creates, checked against the prefab catalog. WARNING.
+
+    * a landmark with no `Prefab:` creates nothing                    landmark-no-prefab
+    * a landmark still saying `Kind:` (replaced by `Prefab:`)        landmark-kind-retired
+    * a `Prefab:` no MAST label or library default answers           unknown-prefab
+    * one that could be several (`npc/station` with five stations)   ambiguous-prefab
+    * a `Data:` argument the prefab does not declare                 unknown-prefab-arg
+    * a `Data:` argument named after a MAST builtin (`range`)        prefab-reserved-arg
+    * `Data:` with no `Prefab:` beside it                            data-without-prefab
+
+    `Prefab:` is checked wherever it is written - a record's own fence, or nested under a
+    field that creates on its own (`Guards:` / `Spawn:` / `Terrain:`). An unknown prefab
+    is only reported when the mission's prefab catalog was readable at all (some
+    `type: prefab/` label was seen), so an unbuilt mastlib is silence, not noise.
+    """
+    from sbs_utils.procedural.amd_schema import PREFAB_DEFAULTS, PREFAB_STANDARD_ARGS
+    from sbs_utils.mast.mast_globals import MastGlobals
+    findings = []
+    table = mast_prefab_table(mast_sources)
+    catalog_seen = bool(table["types"])
+
+    def check(scope, owner):
+        """One fence level: its Prefab:, its Data: children, then nested creators."""
+        by = {}
+        for item in scope:
+            by.setdefault(item["label"].lower(), []).append(item)
+        pre = (by.get("prefab") or [None])[0]
+        data = (by.get("data") or [None])[0]
+        args = None
+        if pre is not None and pre["value"]:
+            t, args, how = _prefab_lookup(pre["value"], table)
+            if t is None and how.startswith("ambiguous"):
+                findings.append(AmdFinding(
+                    pre["line"], WARNING, "ambiguous-prefab",
+                    f"`Prefab: {pre['value']}` could be any of {how[len('ambiguous: '):]}, "
+                    f"so nothing is created. Name one of them"))
+            elif t is None and catalog_seen:
+                near = sorted(set(table["types"]) | set(PREFAB_DEFAULTS))
+                findings.append(AmdFinding(
+                    pre["line"], WARNING, "unknown-prefab",
+                    f"no prefab is called `{pre['value']}` - no label of that name, none "
+                    f"typed `prefab/{pre['value']}`, and no library default - so "
+                    f"{owner} creates nothing. Known: {', '.join(near[:8])}"
+                    f"{'...' if len(near) > 8 else ''}"))
+        if data is not None:
+            if pre is None:
+                findings.append(AmdFinding(
+                    data["line"], WARNING, "data-without-prefab",
+                    f"`Data:` holds a prefab's arguments, and {owner} names no `Prefab:` "
+                    f"to hand them to, so nothing reads them"))
+            for arg in data["children"]:
+                name = re.sub(r"[\s\-]+", "_", arg["label"].strip()).lower()
+                if name in MastGlobals.EXPRESSION_BUILTINS or name in ("self", "prefab"):
+                    findings.append(AmdFinding(
+                        arg["line"], WARNING, "prefab-reserved-arg",
+                        f"`{arg['label']}` would hide MAST's own `{name}` inside the "
+                        f"prefab, so it is dropped. Rename the argument"))
+                    continue
+                if args is not None and name not in args and name not in PREFAB_STANDARD_ARGS:
+                    known = ", ".join(sorted(args)) or "nothing beyond the standard ones"
+                    findings.append(AmdFinding(
+                        arg["line"], WARNING, "unknown-prefab-arg",
+                        f"`{pre['value']}` takes no argument `{name}`, so this line does "
+                        f"nothing. It takes: {known}"))
+        # A field that creates on its own nests its own Prefab: / Data:.
+        for item in scope:
+            if item["label"].lower() in ("prefab", "data") or not item["children"]:
+                continue
+            if any(c["label"].lower() == "prefab" for c in item["children"]):
+                check(item["children"], f"`{item['label']}:`")
+
+    for node in doc.nodes:
+        if not node.fence_lines:
+            continue
+        tree = _fence_tree(node)
+        if str(getattr(node, "kind", "") or "").lower() == "landmark":
+            labels = {i["label"].lower(): i for i in tree}
+            if "kind" in labels:
+                kind = labels["kind"]
+                word = kind["value"] or "station"
+                findings.append(AmdFinding(
+                    kind["line"], WARNING, "landmark-kind-retired",
+                    f"`Kind:` was replaced by `Prefab:` - write `Prefab: {word}`. What a "
+                    f"landmark is is now the prefab it names; the old kinds (station, npc, "
+                    f"derelict, nebula, point...) are library default prefabs"))
+            elif "prefab" not in labels:
+                findings.append(AmdFinding.at(
+                    node.display_span or node.span, WARNING, "landmark-no-prefab",
+                    f"`{node.display}` names no `Prefab:`, so nothing is created for it. "
+                    f"Say what it is - `Prefab: station`, `derelict`, `npc`, a mission "
+                    f"prefab - or `Prefab: point` for a place that is only a position"))
+        check(tree, f"`{node.display}`")
+    return findings
+
+
 def mast_item_keys(mast_sources):
     """Every ITEM key the given MAST sources declare.
 
@@ -5592,6 +5787,7 @@ def amd_lint(file_path=None, content=None, mast_sources=None, cross_file=None,
         findings += amd_lint_personal_quests(doc, file_path, mast_sources)
         findings += amd_lint_kind_lines(doc)
         findings += amd_lint_mission_reads(doc, file_path, mast_sources, source_index)
+        findings += amd_lint_prefabs(doc, mast_sources)
         findings += amd_lint_callouts(doc)
         findings += amd_lint_images(doc, file_path)
         findings += amd_lint_named_hulls(doc)

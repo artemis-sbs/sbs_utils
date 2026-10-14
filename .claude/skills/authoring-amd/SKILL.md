@@ -35,6 +35,7 @@ Already covered elsewhere - do not repeat, read them:
 | Quest vocabulary + trigger grammar | `procedural/amd_quest.py` (driver: `quest_driver.py`) |
 | Dialogue scenes, guards, outcomes | `procedural/amd_dialogue.py` (surfaces: `hail.py`, `messages.py`) |
 | Stage directions (`Action:` verbs) | `procedural/amd_action.py` |
+| Creating anything (the prefab resolver) | `procedural/prefab.py` `prefab_create` / `prefab_resolve`; defaults in `prefab_defaults.py`, declared in `amd_schema.PREFAB_DEFAULTS` |
 | Domain readers | `amd_sides`, `amd_landmarks`, `amd_lifeforms`, `amd_crew`, `amd_items`, `amd_drops`, `amd_theater`, `amd_relics`, `amd_science`, `amd_cutscene`, `amd_images`, `amd_urge`, `amd_effects`, `amd_chatter`, ... |
 | Consolidated mission parser (quest + landmark) | `procedural/amd_mission.py` `amd_mission_data` |
 | Lint / formatter / LSP / site emitter | `amd_lint.py`, `amd_fmt.py`, `amd_lsp.py`, `amd_markdown.py` |
@@ -97,15 +98,18 @@ Resolution order (`amd_schema.amd_resolve_kind` / `amd_resolve_kind_chain`), clo
 4. the section name (`Jobs`, `Characters`, `Landmarks`, `Scans`, `Dialogue`, `Relics`,
    ... singular or plural; a mission can add its own with `amd_register_section_names`)
 5. the first **discriminating field** (`_DISCRIMINATORS`: `Done when:` -> quest,
-   `Scan of:` -> scan, `Enemies:` -> side, `At:`/`Kind:` -> landmark, `Speaker:` ->
+   `Scan of:` -> scan, `Enemies:` -> side, `At:`/`Prefab:` -> landmark, `Speaker:` ->
    dialogue, ...)
 
 Traps:
 
-- **`Kind: Arc` is NOT a kind line.** `Kind:` is a landmark DOMAIN field (`Kind: derelict`,
-  `station`). With no kind line or section name above it, it hits the
-  `("kind", "landmark")` discriminator and types the record - and every descendant - as a
-  landmark. Write the bare word: first fence line `Arc`.
+- **`Kind: Arc` is NOT a kind line.** Write the bare word: first fence line `Arc`.
+  `Kind:` used to be the landmark field and typed whatever carried it as a landmark; since
+  2026-10-14 `Prefab:` replaced it, so `Kind:` is just a field nothing reads (on a
+  landmark, `landmark-kind-retired`). The trap MOVED: `Prefab:` is now the landmark
+  discriminator, so `Prefab:` on a record with no kind line or section name above it types
+  it - and every descendant - as a landmark. It sits LAST among the creating archetypes'
+  discriminators, so a cast/crew/side/relic record carrying its own field is unaffected.
 - A kind line must be ONE word with no colon. `Colour red` (forgotten colon) is not
   swallowed as a kind; it is a fence error.
 - **The kind changes VALUES, not just warnings.** A mistyped record reads fields through
@@ -119,6 +123,36 @@ Traps:
   each record's own word.
 
 ---
+
+## Prefabs: how AMD creates things
+
+Every AMD path that creates something goes through `procedural/prefab.py`'s
+`prefab_create(spec, data, family=, key=)` - landmarks, sides, cast, crew bodies, boarding
+hosts and figures, pickups (`item_spawn`), relic parts / `Spawn:` / nested `Atmosphere:`,
+OU landmark `Guards:` / `Terrain:`, theater `Fleets:`. Reference page:
+`mkdocs/docs/build/prefabs-from-amd.md`.
+
+- **A record says what with `Prefab:`** (a prefab TYPE without `prefab/`, or a label name)
+  and passes arguments in a nested **`Data:`** block (keys normalized: `Race value:` ->
+  `race_value`). No `Prefab:` = the library default for that record kind.
+- **Resolution order:** exact label name, exact MAST type, exact library default, then a
+  UNIQUE MAST prefix. Exact beats prefix - `npc` is the library's even with LM's dozen
+  `npc/...`. Ambiguous or unknown = nothing created, logged once, never a guess.
+- **Library defaults** are declared in `amd_schema.PREFAB_DEFAULTS` (stdlib-only, so
+  lint/LSP read the same table) and registered by `amd_landmarks` (landmark kinds) and
+  `prefab_defaults.py` (everything else). A mission's MAST label of the same type wins.
+- **Sides default to `amd/side`, NOT `side`** - LM's `prefab_side_generic` is typed
+  `prefab/side` with TSN defaults, and loading LM must not change an AMD side.
+- **A prefab used from AMD must `yield result <id|ids>`** and create before it awaits; a
+  pending task is held per key (reset ledger `prefabs pending`) so a re-run never doubles.
+- **Lint** (`amd_lint_prefabs`): `landmark-no-prefab`, `landmark-kind-retired`,
+  `unknown-prefab` (only when a `type: prefab/` catalog was readable - `sbs lint` now
+  scans mastlib prefab labels too), `ambiguous-prefab`, `unknown-prefab-arg` (against the
+  prefab's metadata + `default` lines, following one `jump`), `prefab-reserved-arg`,
+  `data-without-prefab`.
+- **New field values on an existing prefab: extend it, never rename** - LM's stations got
+  `art` / `behavior` / `START_EXACT`, terrain prefabs `density` / `height` / `selectable`,
+  each defaulting to the old behavior.
 
 ## Quests
 

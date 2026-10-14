@@ -107,6 +107,7 @@ nav:
     - Boarding parties: build/boarding-parties.md
     - Objectives: mast/objectives.md
     - The AMD file format: build/amd-format.md
+    - Creating things from AMD (prefabs): build/prefabs-from-amd.md
     - Quests: build/quests.md
     - Items & Upgrades: build/items-upgrades.md
     - Turrets: build/turrets.md

@@ -106,15 +106,19 @@ def item_spawn(key, x, y, z, name=None, blink=None, yaw=None, qty=None):
     art = _item_art(item_meta(key, "art", key))
     if name is None:
         name = item_meta(key, "display_text", key)
-    if blink is None:
-        blink = random.randint(1, 2)
-    if yaw is None:
-        yaw = random.uniform(0.03, 0.08)
-    # Roles: "item" (generic collection) + "upgrade" and the key (legacy role
-    # checks, e.g. science scans, still match).
-    obj = terrain_spawn(x, y, z, name, f"#,item,upgrade,{key}", art, "behav_pickup")
-    obj.engine_object.steer_yaw = yaw
-    obj.engine_object.blink_state = int(blink)
+    # The BODY is a prefab: the item's own `Pickup:` (metadata `pickup`), else the
+    # library's `pickup` - the spinning, blinking behav_pickup object this always was,
+    # with roles "item" (generic collection) + "upgrade" and the key (legacy role checks,
+    # e.g. science scans, still match). The key and quantity are stamped on below, so a
+    # mission's own pickup prefab is collected exactly like the default one.
+    from .prefab import prefab_create, prefab_first
+    spec = item_meta(key, "pickup", None) or "pickup"
+    obj = prefab_first(prefab_create(spec, {
+        "START_X": x, "START_Y": y, "START_Z": z, "START_EXACT": True,
+        "NAME": name, "name": name, "item_key": key, "art": art,
+        "blink": blink, "yaw": yaw}, where=f"pickup {key}"))
+    if obj is None:
+        return None
     set_inventory_value(obj.id, "item_key", key)
     # Only stamped when asked for: absent means 1, which is what every caller before this
     # meant and what the collection route falls back to.

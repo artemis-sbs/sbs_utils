@@ -25,9 +25,9 @@ class FakeEvent:
 
 class LandmarkParseTests(unittest.TestCase):
     def test_fence_fields(self):
-        d = L.amd_landmark_data("Kind: station\nSide: tsn\nRoles: relay\n"
+        d = L.amd_landmark_data("Prefab: station\nSide: tsn\nRoles: relay\n"
                                 "Art: starbase_science\nLoc: 12000, 0, -8000\n")
-        self.assertEqual(d["kind"], "station")
+        self.assertEqual(d["prefab"], "station")
         self.assertEqual(d["side"], "tsn")
         self.assertEqual(d["loc"], [12000.0, 0.0, -8000.0])
 
@@ -68,7 +68,7 @@ class LandmarkSpawnTests(unittest.TestCase):
 
     def test_spawn_station_at_loc(self):
         sec = self._section(
-            "### [Relay](relay)\n---\nKind: station\nSide: tsn\nRoles: relay\n"
+            "### [Relay](relay)\n---\nPrefab: station\nSide: tsn\nRoles: relay\n"
             "Art: starbase_science\nLoc: 12000, 0, -8000\n---\n")
         objs = L.landmarks_spawn(sec)
         self.assertEqual(len(objs), 1)
@@ -77,7 +77,7 @@ class LandmarkSpawnTests(unittest.TestCase):
         self.assertAlmostEqual(o.pos.z, -8000, delta=1)
 
     def test_artless_skipped(self):
-        sec = self._section("### [NoArt](noart)\n---\nKind: station\nLoc: 0,0,0\n---\n")
+        sec = self._section("### [NoArt](noart)\n---\nPrefab: station\nLoc: 0,0,0\n---\n")
         self.assertEqual(L.landmarks_spawn(sec), [])
 
 

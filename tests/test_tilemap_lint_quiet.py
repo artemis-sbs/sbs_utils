@@ -186,7 +186,7 @@ UNIVERSE = """# [The Kestrel Verge](kestrel_verge)
 ### [Customs House](customs_station)
 ---
 At: 0, 0
-Kind: station
+Prefab: station
 Site: customs
 ---
 A customs post.

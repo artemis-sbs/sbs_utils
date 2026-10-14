@@ -258,7 +258,7 @@ def amd_cutscenes(section):
         if not key:
             continue
         # A BED is structural: the record that carries neither grouping field. It
-        # is NOT flagged with `Kind: cutscene` - `Kind:` infers the landmark
+        # is NOT flagged with `Kind: cutscene` - `Kind:` used to infer the landmark
         # archetype, so that spelling typed the bed as a landmark and lint called
         # every bed field unknown.
         if not data.get("cutscene") and not data.get("rundown"):

@@ -148,12 +148,19 @@ def boarding_figure_spawn(target, lifeform, x, y, icon_index=100, color="#4cf"):
     Returns:
         The grid object, or None if the site or the person does not exist.
     """
-    from .spawn import grid_spawn
+    from .prefab import prefab_create, prefab_first
+    from .inventory import get_inventory_value
     site = to_object(target)
     who = to_object(lifeform)
     if site is None or who is None:
         return None
-    fig = grid_spawn(site.id, who.name, "boarding", x, y, icon_index, color, FIGURE_ROLE)
+    # A prefab like every other body: `grid/boarding_figure` (one grid object), unless
+    # the site names another - inventory `PREFAB_BOARDING_FIGURE`, the PREFAB_DAMCONS way.
+    spec = get_inventory_value(site.id, "PREFAB_BOARDING_FIGURE", None) or "grid/boarding_figure"
+    fig = prefab_first(prefab_create(spec, {
+        "site_id": site.id, "NAME": who.name, "name": who.name, "START_X": x, "START_Y": y,
+        "icon_index": icon_index, "color": color, "roles_value": FIGURE_ROLE,
+        "lifeform_id": who.id}, where=f"figure {who.name}"))
     if fig is None:
         return None
     # Both ways, so either half answers for the other. A screen holds the lifeform and

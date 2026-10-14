@@ -314,14 +314,16 @@ class TestParticles(unittest.TestCase):
     # --- the AMD layer ---------------------------------------------------------
 
     def test_amd_effect_types_as_effect_not_landmark(self):
-        """`Kind:` infers landmark - the trap the bare `Effect` noun exists to dodge."""
+        """The bare `Effect` noun types a look; `Kind:` no longer types anything."""
         from sbs_utils.procedural.amd_schema import archetype_for_section, infer_archetype
         self.assertEqual(archetype_for_section("Effects"), "effect")
         self.assertEqual(archetype_for_section("Looks"), "effect")
         # A flat record with no section to name it is typed by carrying `Look:`.
         self.assertEqual(infer_archetype(["look"]), "effect")
-        # And the trap itself is still live, which is WHY the bare noun is used.
-        self.assertEqual(infer_archetype(["kind"]), "landmark")
+        # The old trap is retired: `Kind:` stopped typing records landmark when `Prefab:`
+        # replaced it, and `Prefab:` is what does now.
+        self.assertIsNone(infer_archetype(["kind"]))
+        self.assertEqual(infer_archetype(["prefab"]), "landmark")
 
     def test_amd_ramp_is_pure_arithmetic(self):
         n = E.amd_effects(amd_section(amd_document(EFFECT_DOC), "effects"))

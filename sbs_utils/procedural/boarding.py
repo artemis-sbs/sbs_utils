@@ -1711,7 +1711,9 @@ def _body_for(post, client_id):
         roles = get_inventory_value(client_id, "CONSOLE_TYPE", "") or ""
     full = boarding_full_name(name, rank)
     words = [CREW_ROLE] + [w.strip() for w in str(roles).split(",")]
-    body = lifeform_spawn(full, face, ", ".join([w for w in words if w]))
+    body = _crew_body_create(post, full, face, ", ".join([w for w in words if w]))
+    if body is None:
+        return None
     # WHAT THEY WERE CAST AS, recorded at spawn. See `boarding_jobs`: roles added
     # later are things that HAPPENED to this person, not what they are for.
     set_inventory_value(body, JOBS_KEY,
@@ -1725,6 +1727,42 @@ def _body_for(post, client_id):
         from .boarding_checks import boarding_skills_set
         boarding_skills_set(body, skills)
     return body
+
+
+def _crew_body_create(post, full, face, roles):
+    """The body a crew post walks around in, made through a prefab: the roster
+    member's `Prefab:` (or the roster's), else `amd/crew` - the unhosted lifeform this
+    always was. Jobs and skills are stamped on afterwards, whatever made the body."""
+    from .prefab import prefab_create, prefab_data, prefab_first
+    from .query import to_object
+    member = _post_member(post) or {}
+    spec = member.get("prefab") if hasattr(member, "get") else None
+    args = member.get("args") if hasattr(member, "get") else None
+    data = {"NAME": full, "name": full, "display_text": full, "face": face,
+            "roles_value": roles, "role_values": roles,
+            "AMD_RECORD": member or None, "AMD_KEY": getattr(post, "key", None)}
+    data.update(prefab_data(args, where=f"crew {getattr(post, 'key', '')}"))
+    handle = prefab_first(prefab_create(spec or "amd/crew", data,
+                                        where=f"crew {getattr(post, 'key', '')}"))
+    if handle is None:
+        return None
+    return getattr(handle, "py_object", None) or to_object(handle)
+
+
+def _post_member(post):
+    """The roster member record a post was cast from, or None (a post from no roster)."""
+    try:
+        from .crew import crew_roster
+        roster = crew_roster(getattr(post, "roster", "") or "")
+        key = str(getattr(post, "key", "") or "")
+        if roster is None or not key:
+            return None
+        for member in roster.get("members") or ():
+            if str(member.get("key")) == key:
+                return member
+    except Exception:                                   # noqa: BLE001
+        pass
+    return None
 
 
 def _post_skills(post):

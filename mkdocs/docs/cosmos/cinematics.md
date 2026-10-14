@@ -210,7 +210,7 @@ rundown_amd("patrol")        # loads declared shots into the live rundown
   `Subject:` already names; `Lens:` is where you look **from**.
 - **`Cutscene:`, not `Scene:`.** `Scene:` is a lifeform's dialogue scene, and the schema
   infers the lifeform archetype from it — a shot carrying it is typed as a character.
-- **No `Kind:` on a bed.** `Kind:` infers the *landmark* archetype.
+- **No `Prefab:` on a bed.** `Prefab:` infers the *landmark* archetype.
 - **Release before you delete.** A deleted dolly drops the view to the engine default.
 - **A cutscene and a rundown fight over one console.** Starting either stops the other;
   that is deliberate, and it is why there is one tally.

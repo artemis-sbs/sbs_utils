@@ -44,8 +44,8 @@ class AmdMissionDataTests(unittest.TestCase):
         self.assertEqual(d.get("tab"), "mat")
 
     def test_landmark_fence_loc_is_list(self):
-        d = amd_mission_data("Kind: station\nArt: base\nLoc: 100, 0, -50")
-        self.assertEqual(d["kind"], "station")
+        d = amd_mission_data("Prefab: station\nArt: base\nLoc: 100, 0, -50")
+        self.assertEqual(d["prefab"], "station")
         self.assertEqual(d["loc"], [100.0, 0.0, -50.0])   # landmark handler parsed the coords
 
 

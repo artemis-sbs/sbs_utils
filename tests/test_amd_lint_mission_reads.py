@@ -7,7 +7,7 @@ put nothing in the game:
     ## [Places](places)                  the story asks for `landmarks`
     a landmark with no `Art:`            not placed
     a landmark with no `Loc:`            placed at 0, 0, 0, inside the station
-    a landmark with no `Kind:`           made as a station, wearing that role
+    a landmark with no `Prefab:`         nothing created for it
     Done when: reach lifeboat 500        `lifeboat` is the landmark's KEY; reach wants a ROLE
     wreck                                (alone on the fence's first line) a kind nobody knows
 
@@ -50,7 +50,7 @@ Go and look.
 
 ### [The Lifeboat](lifeboat)
 ---
-Kind: wreck
+Prefab: wreck
 Roles: lifeboat
 Art: wreck
 Loc: 6000, 0, 6000
@@ -79,7 +79,7 @@ Console: engineering
 """
 
 CODES = ("landmark-record-level", "section-not-loaded", "landmark-no-art", "landmark-no-loc", "landmark-bad-loc",
-         "landmark-no-kind", "role-is-a-key", "unknown-kind-line")
+         "landmark-no-prefab", "role-is-a-key", "unknown-kind-line")
 
 
 def _found(text, story=STORY, name="mission.amd"):
@@ -142,18 +142,25 @@ class ALandmarkTheSpawnerWillNotPlaceTests(unittest.TestCase):
         self.assertIn("landmark-bad-loc",
                       _codes(_swap("Loc: 6000, 0, 6000", "Loc: 6000, 6000")))
 
-    def test_no_kind(self):
-        self.assertIn("landmark-no-kind", _codes(_swap("Kind: wreck\n", "")))
+    def test_no_prefab(self):
+        self.assertIn("landmark-no-prefab", _codes(_swap("Prefab: wreck\n", "")))
+
+    def test_retired_kind_says_what_to_write(self):
+        found = [f for f in amd_lint(file_path="mission.amd", content=_swap("Prefab: wreck", "Kind: wreck"),
+                                     mast_sources=[STORY], cross_file=False)
+                 if f.code == "landmark-kind-retired"]
+        self.assertEqual(len(found), 1)
+        self.assertIn("Prefab: wreck", found[0].message)
 
     def test_a_landmark_nested_under_another(self):
-        second = ("\n#### [Buoy 7](buoy)\n---\nKind: wreck\nRoles: buoy\nArt: wreck\n"
+        second = ("\n#### [Buoy 7](buoy)\n---\nPrefab: wreck\nRoles: buoy\nArt: wreck\n"
                   "Loc: 1000, 0, 1000\n---\nA buoy.\n")
         text = MISSION.replace("Adrift.\n", "Adrift.\n" + second)
         self.assertIn("landmark-record-level", _codes(text))
 
     def test_a_zone_needs_neither(self):
-        text = _swap("Kind: wreck\nRoles: lifeboat\nArt: wreck\nLoc: 6000, 0, 6000",
-                     "Kind: point\nRoles: lifeboat")
+        text = _swap("Prefab: wreck\nRoles: lifeboat\nArt: wreck\nLoc: 6000, 0, 6000",
+                     "Prefab: point\nRoles: lifeboat")
         self.assertEqual(_codes(text), [])
 
     def test_a_mission_that_places_its_own_is_left_alone(self):
@@ -252,10 +259,10 @@ class ARoleNothingWearsTests(unittest.TestCase):
 
 class ABareWordThatIsNotAKindTests(unittest.TestCase):
     def test_kind_written_without_its_label(self):
-        found = _found(_swap("Kind: wreck\n", "wreck\n"))
+        found = _found(_swap("Prefab: wreck\n", "wreck\n"))
         mine = [f for f in found if f.code == "unknown-kind-line"]
         self.assertEqual(len(mine), 1)
-        self.assertIn("Kind: wreck", mine[0].message)
+        self.assertIn("Prefab: wreck", mine[0].message)
 
     def test_real_kind_words_are_quiet(self):
         for word in ("crew", "Arc", "Beat", "Job", "Quest", "Characters"):

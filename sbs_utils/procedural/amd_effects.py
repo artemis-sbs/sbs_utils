@@ -28,9 +28,9 @@ author varies it, so the two layers never duplicate each other.
 a new grammar to learn. A comma pair (``Color: #8cf, white``) is the descriptor
 grammar's own "random between", which is a different thing and stays that way.
 
-THE KIND LINE IS THE BARE NOUN ``Effect``. Not ``Kind: effect`` - ``Kind:`` infers
-the LANDMARK archetype (``("kind", "landmark")`` in the schema's discriminators),
-which is the trap that cost the cutscene design a redesign. In a flat file with no
+THE KIND LINE IS THE BARE NOUN ``Effect``. Not ``Kind: effect`` - ``Kind:`` is not a
+kind line (it used to infer the LANDMARK archetype, the trap that cost the cutscene
+design a redesign, until ``Prefab:`` replaced it on landmarks). In a flat file with no
 section to name it, carrying ``Look:`` is what types the record.
 
 Resolution order everywhere a look is named by key: **an AMD record first, a Python

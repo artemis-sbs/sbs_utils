@@ -379,7 +379,7 @@ Universe
 ### [Tally Yard](tally_station)
 ---
 At: 0, 0
-Kind: station
+Prefab: station
 Site: tally_yard
 ---
 A counting yard.

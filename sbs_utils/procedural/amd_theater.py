@@ -146,6 +146,7 @@ _KNOWN_FIELDS = frozenset((
     "player_side_color", "player_color",
     "player_side_icon", "player_icon",
     "player_side_key",
+    "fleets", "fleet",
 ))
 
 
@@ -179,6 +180,14 @@ def amd_theater_facts():
             data["art"] = _pairs(value)
         elif label in ("faces", "face"):
             data["faces"] = _pairs(value)
+        elif label in ("fleets", "fleet"):
+            # Which PREFAB a race's fleets are built by - `kralien=fleet/raider` - or a
+            # nested block, one `race: prefab` line each. `*` is every other race.
+            if hasattr(value, "items"):
+                data["fleets"] = {str(k).strip().lower(): str(v).strip().lower()
+                                  for k, v in value.items() if v}
+            else:
+                data["fleets"] = _pairs(value)
         elif label in ("music", "music_select"):
             data["music"] = str(value).strip()
         elif label in ("player_faction", "players_faction", "crew_faction"):
@@ -240,6 +249,7 @@ def theaters_from_section(node):
                 "weights_add": bool(data.get("weights_add")),
                 "art": data.get("art") or {},
                 "faces": data.get("faces") or {},
+                "fleets": data.get("fleets") or {},
                 "music": data.get("music"),
                 "player_faction": data.get("player_faction"),
                 "players": data.get("players") or [],
@@ -455,6 +465,27 @@ def theater_faces(key=None):
     """The active theater's faction -> face-race map ({} when unset)."""
     rec = theater_get(key)
     return dict(rec.get("faces") or {}) if rec is not None else {}
+
+
+def theater_fleet_prefab(race=None, key=None, default="prefab_fleet_raider"):
+    """The prefab a race's fleets are built by in the active theater: its `Fleets:` entry
+    for ``race``, else its `*` entry, else ``default`` (LM's prefab_fleet_raider).
+
+    Returned as the LABEL, ready for ``prefab_spawn`` - a theater names a prefab by type
+    (`fleet/raider`) or label name, and prefab_spawn only takes a label. None when nothing
+    resolves (logged), so a caller can say what it will do instead.
+    """
+    from sbs_utils.procedural.prefab import prefab_resolve
+    rec = theater_get(key)
+    fleets = dict(rec.get("fleets") or {}) if rec is not None else {}
+    want = fleets.get(str(race or "").strip().lower()) or fleets.get("*")
+    for spec in (want, default):
+        if not spec:
+            continue
+        ref = prefab_resolve(spec)
+        if ref is not None and ref.label is not None:
+            return ref.label
+    return None
 
 
 def theater_music(key=None):

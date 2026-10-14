@@ -615,9 +615,9 @@ def messages_count():
 #     ---
 #     The socks are in the post. They have been in the post for eight months.
 #
-# `Kind:` is deliberately NOT one of the fields - it is a reserved landmark domain
-# field in AMD, and using it here would type every record `landmark` and quietly pass
-# that down the whole tree.
+# `Kind:` is deliberately NOT one of the fields. It used to be the landmark domain field
+# and type every record carrying it `landmark`; `Prefab:` replaced it (2026-10-14), but a
+# message has no use for either.
 
 def _msg_nodes(node):
     for n in (node.get("children") or []):

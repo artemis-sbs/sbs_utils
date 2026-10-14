@@ -100,7 +100,8 @@ def _exit_spec(value):
 
 
 def boarding_zone_build(key, grid_text=None, host=None, title=None, entry=None,
-                        exits=None, beam=True, known=True, hidden=True, pos=None):
+                        exits=None, beam=True, known=True, hidden=True, pos=None,
+                        prefab=None, prefab_args=None):
     """Make one area of the world. Returns its host object, or None.
 
     Args:
@@ -118,6 +119,9 @@ def boarding_zone_build(key, grid_text=None, host=None, title=None, entry=None,
         known (bool): whether the party knows the zone exists yet.
         hidden (bool): for a spawned host, whether to draw it as nothing.
         pos (optional): where to park a spawned host.
+        prefab (str, optional): what makes a spawned host - a prefab type or label
+            name; `boarding/host` (a hidden station) by default.
+        prefab_args (dict, optional): that prefab's arguments (an AMD `Data:` block).
     """
     from .boarding_site import boarding_site_build
     from .grid import grid_merge_ascii
@@ -137,7 +141,7 @@ def boarding_zone_build(key, grid_text=None, host=None, title=None, entry=None,
         grid_merge_ascii(grid_text)
     so = to_object(host) if host is not None else None
     if so is None:
-        so = _spawn_hidden_host(key, title, ship_key, pos, hidden)
+        so = _spawn_hidden_host(key, title, ship_key, pos, hidden, prefab, prefab_args)
     if so is None:
         return None
     set_inventory_value(so.id, ZONE_KEY, key)
@@ -158,8 +162,8 @@ def boarding_zone_build(key, grid_text=None, host=None, title=None, entry=None,
     return so
 
 
-def _spawn_hidden_host(key, title, ship_key, pos, hidden):
-    from .spawn import npc_spawn
+def _spawn_hidden_host(key, title, ship_key, pos, hidden, prefab=None, prefab_args=None):
+    from .prefab import prefab_create, prefab_data, prefab_first
     if pos is None:
         n = len(_zones())
         ox, oy, oz = HIDDEN_ORIGIN
@@ -169,9 +173,12 @@ def _spawn_hidden_host(key, title, ship_key, pos, hidden):
     # engine reads the silhouette's alpha; the mock looks the hull up by the art key),
     # so swapping the art for "invisible" would take the floor away with it. A host
     # parked far below the play plane is never near anything the bridge does.
-    so = to_object(npc_spawn(x, y, z, title or key, "#," + ZONE_ROLE, ship_key,
-                             "behav_station"))
-    return so
+    data = {"START_X": x, "START_Y": y, "START_Z": z, "START_EXACT": True,
+            "NAME": title or key, "name": title or key, "display_text": title or key,
+            "art": ship_key, "roles_value": ZONE_ROLE, "AMD_KEY": key}
+    data.update(prefab_data(prefab_args, where=f"zone {key}"))
+    return to_object(prefab_first(prefab_create(prefab or "boarding/host", data,
+                                                where=f"zone {key}")))
 
 
 def _scan_world_cells(host_id):
@@ -227,7 +234,8 @@ def boarding_zones_build(section, load=None):
             host = _find_host(rec["host"])
         so = boarding_zone_build(rec["key"], text, host=host, title=rec.get("title"),
                                  entry=rec.get("entry"), exits=rec.get("exits"),
-                                 beam=rec.get("beam", True), known=rec.get("known", True))
+                                 beam=rec.get("beam", True), known=rec.get("known", True),
+                                 prefab=rec.get("prefab"), prefab_args=rec.get("args"))
         if so is not None:
             out[rec["key"]] = so
     return out
@@ -279,6 +287,9 @@ def boarding_zone_records(section):
             "beam": _yes(data.get("beam"), True),
             "known": _yes(data.get("known"), True),
             "desc": (n.get("description") or "").strip(),
+            "prefab": (str(data.get("prefab")).strip().lower()
+                       if data.get("prefab") else None),
+            "args": data.get("data") if hasattr(data.get("data"), "items") else {},
         })
     return out
 

@@ -178,6 +178,18 @@ def item_declare(record):
     name = item_effect_label_name(key)
     label = labels.get(name)
     if label is None:
+        # A label that already DECLARES this key under another name - LM's trade goods are
+        # `prefab_trade_ore` with `key: ore`. Declaring `ore` must stamp THAT label, not
+        # make a second `prefab_item_ore` beside it for item_get to pick between.
+        for other in list(labels.values()):
+            getter = getattr(other, "get_inventory_value", None)
+            if getter is None:
+                continue
+            t = getter("type")
+            if isinstance(t, str) and t.startswith("item/") and getter("key") == key:
+                label = other
+                break
+    if label is None:
         # Data-only item: no MAST effect body was authored. Register a bare label so the registry
         # (spawn / market / GUI) can still resolve its art/name/economy fields.
         from sbs_utils.mast.core_nodes.label import Label

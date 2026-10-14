@@ -102,6 +102,27 @@ It's checked against the live game rather than a "have I loaded this?" flag, so 
 does the right thing when you *mean* to load again: if the station was destroyed or the
 cast was cleared, loading the section re-creates it.
 
+### What a record creates: `Prefab:`
+
+A record that puts something into the world - a landmark, a side, a cast member, a crew
+member's body, a pickup, a relic part - says **what** with `Prefab:`, and hands it
+arguments in a nested `Data:` block:
+
+```amd
+### [Kessel Deep](kessel)
+---
+Prefab: npc/station/industry
+Loc: 12000, 0, -8000
+Data:
+  Race value: kralien
+---
+```
+
+`Prefab:` names a prefab label by its type or its name; leave it out and the library's
+default for that kind of record is used. On a landmark it replaced `Kind:`. The whole
+story - the defaults, the arguments, the fields that create on their own (`Guards:`,
+`Spawn:`) - is in [Creating things from AMD](prefabs-from-amd.md).
+
 Characters are keyed by their record **and their host**, so casting the same crew onto two
 different stations gives each station its own people.
 

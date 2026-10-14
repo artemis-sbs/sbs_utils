@@ -55,6 +55,11 @@ def lifeforms_from_section(section):
                 # `Side: guild` - the side this person speaks for. It is whose opinion
                 # `standing` reads when they are the speaker.
                 "side": data.get("side"),
+                # WHAT makes the body: `amd/lifeform` unless the record names a prefab
+                # (`Prefab: lifeform` is LM's prefab_lifeform_generic).
+                "prefab": (str(data.get("prefab")).strip().lower()
+                           if data.get("prefab") else None),
+                "args": data.get("data") if hasattr(data.get("data"), "items") else {},
                 "data": data,   # carry the raw fence for mission-specific extras
             }))
     return out
@@ -99,9 +104,9 @@ def lifeform_from_record(record, host_id=None):
     existing = lifeform_of_key(key, host_id)
     if existing is not None:
         return existing
-    agent = lifeform_spawn(record.get("name"), face_resolve(record.get("face")),
-                           record.get("roles") or "", host_id,
-                           path=record.get("path"), title_color=record.get("color") or "green")
+    agent = lifeform_create(record, host_id)
+    if agent is None:
+        return None
     if record.get("scene") is not None:
         set_inventory_value(agent, "scene", record.get("scene"))
     set_inventory_value(agent, "lf_key", record.get("key"))
@@ -114,6 +119,30 @@ def lifeform_from_record(record, host_id=None):
         from sbs_utils.procedural.roles import add_role
         add_role(agent, lifeform_key_role(key, host_id))
     return agent
+
+
+def lifeform_create(record, host_id=None):
+    """Make a cast record's body through its prefab (`amd/lifeform` by default), and
+    return the lifeform Agent, or None. The prefab gets the usual lifeform arguments -
+    name, the RESOLVED face, roles (as `roles_value` and LM's `role_values`), host, comms
+    path, card color - then the record's `Data:` block."""
+    from sbs_utils.procedural.prefab import prefab_create, prefab_data, prefab_first
+    name = record.get("name")
+    roles = record.get("roles") or ""
+    data = {"NAME": name, "name": name, "display_text": name,
+            "face": face_resolve(record.get("face")),
+            "roles_value": roles, "role_values": roles, "host_id": host_id,
+            "path": record.get("path"), "title_color": record.get("color") or "green",
+            "AMD_RECORD": record, "AMD_KEY": record.get("key")}
+    if record.get("path") is None:
+        data.pop("path")             # let a prefab's own default comms path stand
+    data.update(prefab_data(record.get("args"), where=f"cast {record.get('key')}"))
+    made = prefab_create(record.get("prefab") or "amd/lifeform", data,
+                         where=f"cast {record.get('key')}")
+    handle = prefab_first(made)
+    if handle is None:
+        return None
+    return getattr(handle, "py_object", None) or to_object(handle)
 
 
 def lifeform_side_of_key(key):

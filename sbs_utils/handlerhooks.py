@@ -355,6 +355,9 @@ def reset_mission_state():
                            # mission would answer for slots whose ships are gone, and the
                            # bindings would re-assign clients to freed ids.
     landmarks_registry_clear()  # declared landmark records an `Action:` line places by name
+    from .procedural.prefab import prefab_reset
+    prefab_reset()              # prefab tasks still creating, keyed by what they create - a
+                                # pending one from run 1 would answer for run 2's landmark
     dialogue_scenes_registry_clear()  # declared dialogue scenes an `Action: X hails Y` opens
     dialogue_slots_clear()      # `{name}` resolvers a mission registered for its scenes
     dialogue_outcome_notes_clear()  # bad `; outcome` lines already said this mission
@@ -712,6 +715,8 @@ register_reset_state("player roster",     player_roster_count_records)
 register_reset_state("crew hull warnings", player_roster_crew_warn_count)
 from .procedural.amd_landmarks import _RECORDS as _AMD_LANDMARKS, landmarks_registry_clear
 register_reset_state("amd landmarks",     lambda: len(_AMD_LANDMARKS))
+from .procedural.prefab import prefab_pending_count
+register_reset_state("prefabs pending",   prefab_pending_count)
 from .procedural.amd_dialogue import (_SCENES as _AMD_SCENES, _SLOTS as _AMD_SLOTS,
                                       dialogue_scenes_registry_clear,
                                       dialogue_slots_clear,

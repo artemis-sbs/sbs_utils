@@ -54,8 +54,9 @@ Portrait: data
 ```
 
 !!! warning "The kind is a bare noun"
-    `crew` on its own line, **not** `Kind: crew`. The label `kind` infers *landmark*,
-    which types the whole roster wrong and takes every member with it.
+    `crew` on its own line, **not** `Kind: crew`. `Kind:` is not a kind line - it is
+    just a field nothing reads. (A member's body on the ground can name a prefab with
+    `Prefab:`; see [Creating things from AMD](prefabs-from-amd.md).)
 
 ### The fields
 

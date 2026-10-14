@@ -90,10 +90,8 @@ _METADATA_KEY = re.compile(r"^(?P<name>[A-Za-z_]\w*)\s*:", re.M)
 # metadata keys collide with the 1279 procedural globals in 3 places (`color`, `duration`,
 # `face`), none of which call the function they hide - so widening buys ~10 warnings
 # nobody can act on, which is how a rule stops being read.
-_MAST_BUILTINS = frozenset("""
-math json faces scatter random print dir itertools next len reversed int str hex
-min max abs sim map filter list set dict tuple zip enumerate iter sorted range isinstance
-""".split())
+from ..mast.mast_globals import MastGlobals as _MastGlobals
+_MAST_BUILTINS = _MastGlobals.EXPRESSION_BUILTINS
 
 
 def _allowed(line, code):

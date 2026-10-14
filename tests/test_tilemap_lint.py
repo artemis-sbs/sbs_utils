@@ -670,7 +670,7 @@ SITE_UNIVERSE = """# [Verge](verge)
 ### [Tally Yard](tally_station)
 ---
 At: 0, 0
-Kind: station
+Prefab: station
 Site: yard
 ---
 A counting yard.
@@ -678,7 +678,7 @@ A counting yard.
 ### [Customs House](customs_station)
 ---
 At: 0, 0
-Kind: station
+Prefab: station
 Site: customs
 Site file: places/customs_house.amd
 ---
@@ -841,7 +841,7 @@ Calm: yes
 ### [Yard Annex](annex)
 ---
 At: 1, 0
-Kind: station
+Prefab: station
 Site: yard
 ---
 The same yard, reached from next door.

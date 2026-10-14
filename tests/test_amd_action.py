@@ -226,7 +226,7 @@ class TestArrives(unittest.TestCase):
         landmarks_registry_clear()
         FrameContext.context = Context(sbs.sim, sbs, FakeEvent())
         amd_landmarks._RECORDS["kessel_station"] = {
-            "key": "kessel_station", "name": "Kessel Station", "kind": "station",
+            "key": "kessel_station", "name": "Kessel Station", "prefab": "station",
             "art": "starbase", "side": "tsn", "roles": "station", "loc": [100, 0, 200],
         }
 

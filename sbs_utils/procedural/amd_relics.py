@@ -115,9 +115,16 @@ def amd_relic_facts():
     default coercion - the same contract ``amd_landmark_facts`` follows.
     """
     def handler(data, label, value):
-        if label in ("relic", "atmosphere", "containment", "art", "speed limit",
-                     "speed_limit"):
+        if label == "atmosphere" and hasattr(value, "items"):
+            # The nested form - Prefab / Data - names what fills the ruin.
+            data["atmosphere"] = dict(value)
+        elif label in ("relic", "atmosphere", "containment", "art", "speed limit",
+                       "speed_limit"):
             data[label.replace(" ", "_")] = str(value).strip()
+        elif label == "prefab":
+            # What makes this PART's body (a set piece, barrier, repair or marker): a
+            # prefab type or label name. The relic code still fits it to the part.
+            data["prefab"] = str(value).strip().lower()
         elif label == "loc":
             nums = _amd_relic_numbers(value)
             data["loc"] = nums[:3] if len(nums) >= 3 else None
@@ -152,7 +159,12 @@ def amd_relic_facts():
             nums = _amd_relic_numbers(value)
             data["qty"] = int(nums[0]) if nums else 1
         elif label == "spawn":
-            data["spawn"] = [w.strip() for w in str(value).split(",") if w.strip()]
+            # `raider x2, skaraan` (each a prefab, or the older race phrase), or the
+            # nested Prefab / Count / Data block for one prefab with arguments.
+            if hasattr(value, "items"):
+                data["spawn"] = [dict(value)]
+            else:
+                data["spawn"] = [w.strip() for w in str(value).split(",") if w.strip()]
         elif label in ("starts when", "starts_when", "when"):
             # Stored RAW. Parsing is amd_quest.amd_trigger's job, and it is imported at
             # arm time rather than here so a relic file still reads without the quest
@@ -296,9 +308,11 @@ def relics_from_section(section, source=None, section_key=None):
                          else "barrier" if data.get("barrier")
                          else "repair" if data.get("repair") else None),
                 "display": node.get("display_text") or name}
-        for k in ("scene", "scan", "dress", "facing"):
+        for k in ("scene", "scan", "dress", "facing", "prefab"):
             if data.get(k):
                 info[k] = data.get(k)
+        if hasattr(data.get("data"), "items"):
+            info["args"] = dict(data.get("data"))
         if data.get("solid"):
             # Which entry of `solids` this part is, so a set piece can stand in for the
             # generic primitive that would otherwise dress it.
@@ -552,6 +566,8 @@ def relic_atmosphere(relic_key, roles=None, default=None, name=None):
     vol = volume_get(relic_volume_name(rec, name))
     if vol is None:
         return 0
+    if hasattr(rec.get("atmosphere"), "items"):
+        return _relic_atmosphere_prefab(relic_key, rec, vol, roles)
     # LOWER-CASED, AND CHECKED. The word was handed over as written, and the nebula
     # spawner picks a RANDOM color for one it does not know - so `Atmosphere: Purple`, with
     # a capital, was green on one run and white on the next, and a misspelled color was
@@ -594,6 +610,35 @@ def relic_atmosphere(relic_key, roles=None, default=None, name=None):
             agent.add_role(r)
         made += 1
     return made
+
+
+def _relic_atmosphere_prefab(relic_key, rec, vol, roles):
+    """`Atmosphere:` as a nested Prefab / Data block: that prefab fills the ruin, centred
+    on it with SIZE_X its radius, and everything it makes wears the atmosphere role, so
+    the identity check above still finds it."""
+    from .prefab import amd_prefab_spec, prefab_create, prefab_data, _result_ids
+    from .roles import role, add_role
+    atmos = relic_atmos_role(relic_key)
+    have = len(role(atmos))
+    if have:
+        return have
+    spec = amd_prefab_spec(rec.get("atmosphere"))
+    if spec is None:
+        return 0
+    (cx, cy, cz), radius = vol.bound()
+    data = {"START_X": cx, "START_Y": cy, "START_Z": cz, "START_EXACT": True,
+            "SIZE_X": int(radius), "SIZE_Z": int(radius), "radius": int(radius),
+            "AMD_KEY": relic_key}
+    data.update(prefab_data(spec["args"], where=f"relic {relic_key} atmosphere"))
+    made = prefab_create(spec["prefab"], data, where=f"relic {relic_key} atmosphere")
+    extra = [r.strip() for r in str(roles or "").split(",") if r.strip()]
+    n = 0
+    for i in _result_ids(made):
+        add_role(i, atmos)
+        for r in extra:
+            add_role(i, r)
+        n += 1
+    return n
 
 
 def relic_atmosphere_colors():
@@ -1107,9 +1152,9 @@ def relic_barriers_spawn(relic_key, name=None):
         # piece, fitted to its radius. Otherwise the plain sphere it always was.
         art, mult = _relic_dress_pick(relic_part_info(relic_key, bkey).get("dress"))
         try:
-            obj = terrain_spawn(pos[0], pos[1], pos[2], str(label),
-                                "#," + RELIC_BARRIER_ROLE,
-                                art or "generic-sphere", "behav_selection")
+            obj = _relic_body(relic_key, bkey, "relic/barrier", pos, str(label),
+                              RELIC_BARRIER_ROLE, art or "generic-sphere",
+                              "behav_selection")
             if art:
                 from .volume_dress import _mesh_size
                 size = _mesh_size(art, (200.0, 200.0, 200.0))
@@ -1307,9 +1352,9 @@ def relic_repairs_spawn(relic_key, name=None):
         try:
             if was_done and not art:
                 raise _RelicNothingToPlace()
-            obj = terrain_spawn(pos[0], pos[1], pos[2], str(label),
-                                "#," + (RELIC_REPAIRED_ROLE if was_done else RELIC_REPAIR_ROLE),
-                                art or "generic-sphere", "behav_selection")
+            obj = _relic_body(relic_key, rkey, "relic/repair", pos, str(label),
+                              RELIC_REPAIRED_ROLE if was_done else RELIC_REPAIR_ROLE,
+                              art or "generic-sphere", "behav_selection")
             if art:
                 from .volume_dress import _mesh_size
                 size = _mesh_size(art, (200.0, 200.0, 200.0))
@@ -1714,8 +1759,8 @@ def relic_setpieces_place(relic_key, roles="", name=None):
         if pos is None or scale is None:
             continue
         try:
-            p = terrain_spawn(pos[0], pos[1], pos[2], "", ("#," + roles) if roles else "#",
-                              art, "behav_asteroid")
+            p = _relic_body(relic_key, sp.get("part"), "relic/setpiece", pos, "",
+                            roles, art, "behav_asteroid")
             if p is None:
                 continue
             try:
@@ -2207,9 +2252,9 @@ def _relic_place_role_markers(rec, relic_key, reveal=None):
         try:
             # Named at SPAWN: an invisible object's name costs nothing, and it is the
             # label the marker wears the moment it is revealed.
-            obj = terrain_spawn(pos[0], pos[1], pos[2], str(label),
-                                "#," + ",".join(["relic_marker"] + list(roles)),
-                                "generic-sphere", "behav_selection")
+            obj = _relic_body(relic_key, name, "relic/marker", pos, str(label),
+                              ",".join(["relic_marker"] + list(roles)),
+                              "generic-sphere", "behav_selection")
             obj.data_set.set("elite_main_scn_invis", 1, 0)
             obj.data_set.set("unselectable", 1, 0)
             # A prop with a radius pushes ships around; a measuring post must not.
@@ -2304,33 +2349,65 @@ def _relic_mark_placed(obj, c):
             "part": c.get("part"), "item": c.get("item"), "taken": False}
 
 
+def _relic_body(relic_key, part, default, pos, label, roles, art, behavior):
+    """One relic part's body, made through a prefab - the part's `Prefab:`, else the
+    library default for that kind of part (a terrain object, as these always were).
+    Returns an object handle the caller goes on to fit (scale, turn, hide), or None."""
+    from .prefab import prefab_create, prefab_data, prefab_first
+    info = relic_part_info(relic_key, part) if part else {}
+    data = {"START_X": pos[0], "START_Y": pos[1], "START_Z": pos[2], "START_EXACT": True,
+            "NAME": label, "name": label, "display_text": label,
+            "roles_value": roles or "", "art": art, "behavior": behavior,
+            "AMD_KEY": part, "RELIC_KEY": relic_key}
+    data.update(prefab_data(info.get("args"), where=f"relic {relic_key} part {part}"))
+    return prefab_first(prefab_create(info.get("prefab") or default, data,
+                                      where=f"relic {relic_key} part {part}"))
+
+
+def _relic_spawn_spec(phrase):
+    """One `Spawn:` entry as a prefab spec. A prefab (`npc/ship x2`, or the nested
+    Prefab / Count / Data block) is used as written; the older phrase - `raider x2`,
+    `skaraan 4`, `raider` - is `npc/ship` on that SIDE, the count a bare number or xN."""
+    from .prefab import amd_prefab_spec, prefab_resolve
+    spec = amd_prefab_spec(phrase)
+    if spec is None:
+        return None
+    if hasattr(phrase, "items") or prefab_resolve(spec["prefab"], warn=False) is not None:
+        return spec
+    count = spec["count"]
+    for w in spec["words"]:
+        if w.isdigit():
+            count = int(w)
+    return {"prefab": "npc/ship", "count": max(1, count),
+            "args": {"side_value": spec["prefab"]}, "words": []}
+
+
 def _relic_spawn_phrase(phrase, pos, c):
-    """`raider x2`, `skaraan 4`, `raider` - the `Guards:` grammar, one entry.
+    """One `Spawn:` entry, made where the content sits.
 
     Scattered rather than stacked: several NPCs on one point would spawn inside each
     other. The spread is small on purpose - they should read as being IN the room the
-    author put them in, not near it.
+    author put them in, not near it. Seeded from the part and the phrase with a STABLE
+    hash, so a ruin lays out the same way every visit and on every machine.
     """
     import random
-    words = [w for w in str(phrase).replace("x", " ").split() if w]
-    count, race = 1, None
-    for w in words:
-        if w.isdigit():
-            count = int(w)
-        elif race is None:
-            race = w
-    if not race:
+    import zlib
+    from .prefab import prefab_create, prefab_data
+    spec = _relic_spawn_spec(phrase)
+    if spec is None:
         return
-    try:
-        from .spawn import npc_spawn
-    except Exception:
-        return
-    rnd = random.Random(hash((c.get("part"), race)) & 0xFFFF)
-    for i in range(max(1, count)):
+    seed = zlib.crc32(f"{c.get('part')}|{spec['prefab']}".encode("utf-8")) & 0xFFFF
+    rnd = random.Random(seed)
+    for i in range(spec["count"]):
         j = (pos[0] + rnd.uniform(-120, 120), pos[1] + rnd.uniform(-60, 60),
              pos[2] + rnd.uniform(-120, 120))
+        data = {"START_X": j[0], "START_Y": j[1], "START_Z": j[2], "START_EXACT": True,
+                "AMD_KEY": c.get("part"), "RELIC_KEY": c.get("relic")}
+        data.update(prefab_data(spec["args"], where=f"relic contents at {c.get('part')}"))
         try:
-            npc_spawn(j[0], j[1], j[2], "", race, "", "behav_npcship")
+            if prefab_create(spec["prefab"], data,
+                             where=f"relic contents at {c.get('part')}") is None:
+                return
         except Exception as e:
             log(f"relic contents: spawn '{phrase}' at '{c.get('part')}' failed: {e}",
                 "relics", "warning")

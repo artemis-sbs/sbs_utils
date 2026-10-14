@@ -505,6 +505,13 @@ def _extract_data_refs(node, fence_lines):
         r = _token_span(fence_lines, "Kind", str(kind).strip(), key, "kind")
         if r:
             node.refs.append(r)
+    # WHAT a landmark (or any creating record) is - the prefab it names. Its own ref
+    # kind, so the map view can retype a landmark by editing just this value.
+    prefab = _di(data, "Prefab")
+    if prefab and not hasattr(prefab, "items"):
+        r = _token_span(fence_lines, "Prefab", str(prefab).strip(), key, "prefab")
+        if r:
+            node.refs.append(r)
 
     # WHO speaks for this record. Dialogue has always had its speaker checked, but only
     # through its cue LINES; the field itself named nobody, so a quest's `Speaker:` - the

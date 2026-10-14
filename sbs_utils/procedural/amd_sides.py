@@ -83,6 +83,11 @@ def sides_from_section(node):
                 # `{pole: weight}`. It arrives as text under a side or mission parser
                 # and already a dict under the schema's own coercion; both read here.
                 "leans": amd_weighted(data.get("leans") or data.get("values") or ""),
+                # WHAT creates it: `amd/side` (side_create) unless the record names
+                # another prefab - `Prefab: side` is LM's prefab_side_generic.
+                "prefab": (str(data.get("prefab")).strip().lower()
+                           if data.get("prefab") else None),
+                "args": data.get("data") if hasattr(data.get("data"), "items") else {},
             }))
     return out
 
@@ -204,11 +209,25 @@ def sides_declare(records):
     A wildcard also stays correct when a faction is ADDED, which a hand-listed matrix does
     not - the new side is hostile to the others without editing seven other fences.
     """
+    from sbs_utils.procedural.prefab import prefab_create, prefab_data, _result_ids
     ids = {}
     for r in records:
-        ids[r.get("key")] = side_create(
-            r.get("key"), r.get("name"), r.get("desc"), r.get("color"),
-            r.get("icon_index"), r.get("races"))   # relations applied in pass 2
+        # Created through a prefab like everything AMD makes: `amd/side` by default (the
+        # side_create this always was), or whatever `Prefab:` names. It must not await -
+        # `create_sides` has to finish in-frame - so a pending prefab is an error here.
+        data = {"key": r.get("key"), "name": r.get("name"), "desc": r.get("desc"),
+                "color": r.get("color"), "icon_index": r.get("icon_index"),
+                "races": r.get("races"), "AMD_RECORD": r, "AMD_KEY": r.get("key")}
+        data.update(prefab_data(r.get("args"), where=f"side {r.get('key')}"))
+        made = prefab_create(r.get("prefab") or "amd/side", data,
+                             where=f"side {r.get('key')}")   # relations applied in pass 2
+        if made is not None and hasattr(made, "done") and not made.done():
+            from sbs_utils.procedural.execution import log
+            log(f"side '{r.get('key')}': prefab '{r.get('prefab')}' waits before it "
+                f"creates the side - a side prefab must not await", "sides", "error")
+            made = None
+        got = _result_ids(made)
+        ids[r.get("key")] = got[0] if got else made
         # Registered BEFORE pass 2 so a `civilians` token in this same document already
         # sees them, and kept across documents so another addon's raiders do too.
         if r.get("civilian"):
