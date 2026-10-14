@@ -737,6 +737,15 @@ def _unknown_field_message(label, node, fields):
     from sbs_utils.procedural.amd_schema import ARCHETYPES
     kind = node.kind
     low = label.strip().lower()
+    # `Prefab:` belongs to the records that put something in the world. Written on a
+    # quest it is almost always the retired `Kind: Arc` habit moved one word over.
+    if low == "prefab":
+        return (f"`Prefab:` says what a record creates in the world - a landmark's "
+                f"station or wreck - and this record is read as a {kind}, which creates "
+                f"nothing, so nothing reads this line. If it is a landmark, its `##` "
+                f"heading (under `{_section_key(node)}`) is missing or misspelled. To say "
+                f"what a record is, write the bare word (`Arc`, `Beat`, `Job`) alone on "
+                f"the first line of the fence")
     # A field of ANOTHER kind, spelled right: the record is being read as the wrong
     # thing, and the usual cause is the `##` heading above it - missing, or with the
     # wrong key. Asked BEFORE the spelling guess: an exact name beats a near one.
@@ -5575,6 +5584,34 @@ def _fence_tree(node):
     return root["children"]
 
 
+# Fields given a new name that the old one still reads as. (archetype, old) -> new.
+# Deliberately a short explicit table, not every `aka`: most older spellings are kept on
+# purpose and nagging about them would teach writers to ignore lint.
+_RENAMED_FIELDS = {
+    ("region", "kind"): "Space",
+}
+
+
+def amd_lint_renamed_fields(doc):
+    """A field written under a name it has outgrown. WARNING, `field-renamed`.
+
+    `Kind:` meant four things across AMD, so each use got its own word (2026-10-14).
+    The old spelling still reads; this says what to write instead."""
+    findings = []
+    for node in doc.nodes:
+        arch = str(getattr(node, "kind", "") or "").lower()
+        for lineno, raw, label, value in _fence_fields(node):
+            if raw[:1] in (" ", "\t"):
+                continue
+            new = _RENAMED_FIELDS.get((arch, label.strip().lower()))
+            if new:
+                findings.append(AmdFinding(
+                    lineno, WARNING, "field-renamed",
+                    f"`{label}:` on a {arch} is now `{new}:` - write `{new}: {value}`. "
+                    f"The old word still works"))
+    return findings
+
+
 def amd_lint_prefabs(doc, mast_sources=None):
     """What a creating record creates, checked against the prefab catalog. WARNING.
 
@@ -5591,10 +5628,12 @@ def amd_lint_prefabs(doc, mast_sources=None):
     is only reported when the mission's prefab catalog was readable at all (some
     `type: prefab/` label was seen), so an unbuilt mastlib is silence, not noise.
     """
-    from sbs_utils.procedural.amd_schema import PREFAB_DEFAULTS, PREFAB_STANDARD_ARGS
+    from sbs_utils.procedural.amd_schema import (PREFAB_DEFAULTS, PREFAB_STANDARD_ARGS,
+                                                 prefab_default_for)
     from sbs_utils.mast.mast_globals import MastGlobals
     findings = []
     table = mast_prefab_table(mast_sources)
+    record_kind, top = None, None
     catalog_seen = bool(table["types"])
 
     def check(scope, owner):
@@ -5607,19 +5646,34 @@ def amd_lint_prefabs(doc, mast_sources=None):
         args = None
         if pre is not None and pre["value"]:
             t, args, how = _prefab_lookup(pre["value"], table)
+            made_for = prefab_default_for(t) if how == "default" else None
+            if (record_kind and made_for and made_for != record_kind
+                    and scope is top):
+                findings.append(AmdFinding(
+                    pre["line"], WARNING, "prefab-wrong-record",
+                    f"`Prefab: {pre['value']}` is a {made_for}'s prefab, and {owner} is "
+                    f"read as a {record_kind} because of where it sits. Is it under the "
+                    f"wrong `##` heading?"))
             if t is None and how.startswith("ambiguous"):
                 findings.append(AmdFinding(
                     pre["line"], WARNING, "ambiguous-prefab",
                     f"`Prefab: {pre['value']}` could be any of {how[len('ambiguous: '):]}, "
                     f"so nothing is created. Name one of them"))
             elif t is None and catalog_seen:
-                near = sorted(set(table["types"]) | set(PREFAB_DEFAULTS))
+                import difflib
+                every = sorted(set(table["types"]) | set(PREFAB_DEFAULTS))
+                # The library's own plumbing (amd/side, relic/barrier...) is never what a
+                # writer meant to type, so it is not offered unless they started there.
+                word = pre["value"].strip().lower()
+                inner = ("amd/", "boarding/", "grid/", "relic/")
+                offer = [x for x in every if not x.startswith(inner) or word.startswith(inner)]
+                close = difflib.get_close_matches(word, offer, n=1, cutoff=0.6)
+                hint = (f"Did you mean `{close[0]}`?" if close else
+                        f"Known: {', '.join(offer[:8])}{'...' if len(offer) > 8 else ''}")
                 findings.append(AmdFinding(
                     pre["line"], WARNING, "unknown-prefab",
-                    f"no prefab is called `{pre['value']}` - no label of that name, none "
-                    f"typed `prefab/{pre['value']}`, and no library default - so "
-                    f"{owner} creates nothing. Known: {', '.join(near[:8])}"
-                    f"{'...' if len(near) > 8 else ''}"))
+                    f"no prefab is called `{pre['value']}`, so {owner} creates nothing. "
+                    + hint))
         if data is not None:
             if pre is None:
                 findings.append(AmdFinding(
@@ -5651,6 +5705,7 @@ def amd_lint_prefabs(doc, mast_sources=None):
         if not node.fence_lines:
             continue
         tree = _fence_tree(node)
+        record_kind, top = str(getattr(node, "kind", "") or "").lower() or None, tree
         if str(getattr(node, "kind", "") or "").lower() == "landmark":
             labels = {i["label"].lower(): i for i in tree}
             if "kind" in labels:
@@ -5788,6 +5843,7 @@ def amd_lint(file_path=None, content=None, mast_sources=None, cross_file=None,
         findings += amd_lint_kind_lines(doc)
         findings += amd_lint_mission_reads(doc, file_path, mast_sources, source_index)
         findings += amd_lint_prefabs(doc, mast_sources)
+        findings += amd_lint_renamed_fields(doc)
         findings += amd_lint_callouts(doc)
         findings += amd_lint_images(doc, file_path)
         findings += amd_lint_named_hulls(doc)

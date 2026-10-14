@@ -229,7 +229,7 @@ content; the body is the kind's main text; `Seconds` auto-dismisses.
 ```
 ## [Chapter Two](ch2)
 ---
-Kind: hero
+Card: hero
 Subtitle: The Long Dark
 Seconds: 4
 ---

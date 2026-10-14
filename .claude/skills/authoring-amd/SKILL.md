@@ -149,7 +149,10 @@ OU landmark `Guards:` / `Terrain:`, theater `Fleets:`. Reference page:
   `unknown-prefab` (only when a `type: prefab/` catalog was readable - `sbs lint` now
   scans mastlib prefab labels too), `ambiguous-prefab`, `unknown-prefab-arg` (against the
   prefab's metadata + `default` lines, following one `jump`), `prefab-reserved-arg`,
-  `data-without-prefab`.
+  `data-without-prefab`, `prefab-wrong-record` (a landmark default on a side/cast/crew
+  record = wrong `##` heading; sides then ignore it and declare a plain side).
+- **The other `Kind:`s were renamed too (2026-10-14)**, old spelling still read: region
+  `Space:` (lint `field-renamed`), overlay `Card:`, control gallery `Shows:`.
 - **New field values on an existing prefab: extend it, never rename** - LM's stations got
   `art` / `behavior` / `START_EXACT`, terrain prefabs `density` / `height` / `selectable`,
   each defaulting to the old behavior.

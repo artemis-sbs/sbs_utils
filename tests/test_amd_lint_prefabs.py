@@ -104,6 +104,20 @@ class PrefabLintTests(unittest.TestCase):
                        "  Count: 2\n  Data:\n    Race: torgoth\n    Speed: 3\n---\n")
         self.assertEqual(codes, ["unknown-prefab-arg"])
 
+    def test_unknown_prefab_offers_the_close_word(self):
+        found = [f for f in amd_lint(file_path="m.amd", content="# [Root](root)\n## [Landmarks](landmarks)\n"
+                 "### [K](k)\n---\nPrefab: wrekc\nArt: wreck\n---\n", mast_sources=[MAST],
+                 cross_file=False) if f.code == "unknown-prefab"]
+        self.assertEqual(len(found), 1)
+        self.assertIn("Did you mean `wreck`?", found[0].message)
+
+    def test_a_landmark_prefab_under_sides_is_the_wrong_heading(self):
+        text = ("# [Root](root)\n## [Sides](sides)\n### [Breaker Cutter](cutter)\n---\n"
+                "Prefab: ship\nArt: pirate_strongbow\n---\n")
+        codes = [f.code for f in amd_lint(file_path="m.amd", content=text, mast_sources=[MAST],
+                                          cross_file=False)]
+        self.assertIn("prefab-wrong-record", codes)
+
     def test_data_without_prefab(self):
         self.assertIn("data-without-prefab",
                       _codes("### [K](k)\n---\nPrefab: point\nGuards:\n  Count: 2\n"

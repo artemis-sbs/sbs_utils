@@ -219,7 +219,18 @@ def sides_declare(records):
                 "color": r.get("color"), "icon_index": r.get("icon_index"),
                 "races": r.get("races"), "AMD_RECORD": r, "AMD_KEY": r.get("key")}
         data.update(prefab_data(r.get("args"), where=f"side {r.get('key')}"))
-        made = prefab_create(r.get("prefab") or "amd/side", data,
+        spec = r.get("prefab") or "amd/side"
+        from sbs_utils.procedural.amd_schema import prefab_default_for
+        if prefab_default_for(spec) not in (None, "side"):
+            # `Prefab: ship` here is a LANDMARK typed under the Sides heading. Declaring
+            # the side as it always was keeps the mistake visible (an extra side) instead
+            # of trading it for a failed spawn and no side at all.
+            from sbs_utils.procedural.execution import log
+            log(f"side '{r.get('key')}' names `Prefab: {spec}`, a landmark's prefab - is "
+                f"this record under the wrong heading? Declared as a plain side.",
+                "sides", "warning")
+            spec = "amd/side"
+        made = prefab_create(spec, data,
                              where=f"side {r.get('key')}")   # relations applied in pass 2
         if made is not None and hasattr(made, "done") and not made.done():
             from sbs_utils.procedural.execution import log

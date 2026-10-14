@@ -37,11 +37,17 @@ class TestFieldValues(unittest.TestCase):
                    f"State: {good}\n---\nbody\n")
             self.assertEqual(_by_code(amd_lint(content=doc), "unknown-enum-value"), [])
 
-    def test_open_kind_enum_does_not_warn(self):
-        # Kind is an open enum: npc/antimatter are legitimate, must not warn.
-        doc = ("## [Landmarks](landmarks)\n### [X](x)\n---\n"
-               "Kind: antimatter\nAt: 3, 4\n---\nbody\n")
-        self.assertEqual(_by_code(amd_lint(content=doc), "unknown-enum-value"), [])
+    def test_region_space_is_quiet_and_old_kind_is_renamed(self):
+        doc = ("## [Regions](regions)\n### [Veil](veil)\n---\n"
+               "Center: 3, 4\nRadius: 1\nSpace: antimatter\n---\nbody\n")
+        found = amd_lint(content=doc)
+        self.assertEqual(_by_code(found, "unknown-field"), [])
+        self.assertEqual(_by_code(found, "field-renamed"), [])
+        old = amd_lint(content=doc.replace("Space: antimatter", "Kind: antimatter"))
+        self.assertEqual(_by_code(old, "unknown-field"), [])     # still reads
+        renamed = _by_code(old, "field-renamed")
+        self.assertEqual(len(renamed), 1)
+        self.assertIn("Space: antimatter", renamed[0].message)
 
     def test_bad_scan_tab_warns(self):
         doc = ("## [Science](science)\n### [Hull](hull)\n---\n"

@@ -189,6 +189,7 @@ docking: friendly
 | `unknown-prefab-arg` | a `Data:` key the prefab does not take |
 | `prefab-reserved-arg` | a `Data:` key that would hide a MAST name |
 | `data-without-prefab` | `Data:` with no `Prefab:` beside it |
+| `prefab-wrong-record` | a landmark's prefab on a record read as something else - usually a landmark under the wrong `##` heading. A side keeps being declared as a side |
 
 `unknown-prefab` is only reported when lint could read the mission's prefab catalog -
 its own labels and those in the mastlibs it loads. With an unbuilt mastlib it stays quiet

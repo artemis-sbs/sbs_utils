@@ -5,7 +5,7 @@ A section authors one heading per overlay (fields between ``---`` fences, then b
 
     ## [Chapter Two](ch2)
     ---
-    Kind: hero
+    Card: hero
     Subtitle: The Long Dark
     Seconds: 4
     ---
@@ -14,8 +14,8 @@ A section authors one heading per overlay (fields between ``---`` fences, then b
 The ``---`` fence fields become the builder's content; the body is the kind's PRIMARY
 text (``title`` for hero/credits/choice, ``text`` for toast/banner, ``line`` for
 lower_third), and the ``[Display]`` is the fallback primary when there's no body.
-``Kind`` picks the builder (default ``hero``); ``Slot`` is optional (a per-kind default
-is used). A projection of ``amd_records`` - overlays live in the same ``.amd`` as
+``Card`` picks the builder (default ``hero``); ``Slot`` is optional (a per-kind default
+is used). ``Card`` was ``Kind`` until 2026-10-14; ``Kind`` still reads. A projection of ``amd_records`` - overlays live in the same ``.amd`` as
 quests / scans / landmarks. ``overlay_amd("ch2", to=role("mainscreen"))`` fires it;
 a ``Seconds`` field auto-dismisses.
 """
@@ -49,9 +49,10 @@ def amd_overlays(section):
         if not key:
             continue
         data = rec.get("data") or {}
-        kind = str(data.get("kind") or "hero").strip().lower()
+        # `Card:` - which card is drawn. `Kind:` is its older spelling and still reads.
+        kind = str(data.get("card") or data.get("kind") or "hero").strip().lower()
         slot = data.get("slot") or _DEFAULT_SLOT.get(kind, "center_hero")
-        fields = {k: v for k, v in data.items() if k not in ("kind", "slot")}
+        fields = {k: v for k, v in data.items() if k not in ("card", "kind", "slot")}
         if "seconds" in fields:
             fields["seconds"] = _num(fields["seconds"])
         prim = _PRIMARY.get(kind, "title")

@@ -240,6 +240,24 @@ class PrefabResolveTests(unittest.TestCase):
         # no entry for the race, and no LM prefab_fleet_raider in this story
         self.assertIsNone(T.theater_fleet_prefab("arvonian", key="t"))
 
+    def test_a_side_naming_a_landmark_prefab_is_still_a_side(self):
+        from sbs_utils.procedural.amd_sides import sides_declare
+        from sbs_utils.mast.mast_node import MastDataObject
+        rec = MastDataObject({"key": "cutter", "name": "Breaker Cutter", "prefab": "ship",
+                              "args": {}, "leans": {}})
+        ids = sides_declare([rec])
+        self.assertTrue(ids.get("cutter"))          # declared as amd/side, not spawned
+
+    def test_overlay_card_and_old_kind(self):
+        from sbs_utils.procedural.amd_overlay import amd_overlays, overlay_amd_clear
+        overlay_amd_clear()
+        recs = amd_overlays({"children": [
+            {"key": "a", "display_text": "A", "data": {"card": "toast"}, "description": "x"},
+            {"key": "b", "display_text": "B", "data": {"kind": "lower_third"}, "description": "y"}]})
+        self.assertEqual((recs["a"]["kind"], recs["b"]["kind"]), ("toast", "lower_third"))
+        self.assertNotIn("card", recs["a"]["fields"])
+        overlay_amd_clear()
+
     def test_cast_record_names_its_prefab(self):
         from sbs_utils.procedural.amd_lifeforms import lifeform_from_record
         from sbs_utils.mast.mast_node import MastDataObject

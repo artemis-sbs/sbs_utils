@@ -87,7 +87,7 @@ assigns a ship and calls `gui_console(name)`.
 Two things, joined by a key:
 
 1. **A record in `gallery.amd`** — `## [Display](key)`, a `---` fence with `Category:`
-   (and `Kind: trap` or `Kind: page`), then a body whose **first line is the blurb** and
+   (and `Shows: trap` or `Shows: page`), then a body whose **first line is the blurb** and
    whose remainder becomes the notes panel. File order is nav order, and consecutive
    records sharing a `Category` collapse under one header — so the shape of that file is
    the shape of the menu.

@@ -615,7 +615,11 @@ REGION = {
     "center": coord2(),
     "radius": integer(),
     "color": color(),
-    "kind": text(),
+    # WHAT this space is - `Space: antimatter`. Was `Kind:` until 2026-10-14; that still
+    # reads (aka), and lint suggests the new word (`field-renamed`).
+    "space": field(text(hint="antimatter"), aka=["kind"],
+                   doc="What this space is, when it is more than a place on the map - "
+                       "`antimatter` makes a veil that is survivable only briefly."),
 }
 
 MAP = {
@@ -971,6 +975,24 @@ PREFAB_DEFAULTS = {
                                   behavior="behav_selection"), "needs_art": False,
                      "doc": "An invisible relic marker a quest or a reveal measures to."},
 }
+
+# Which kind of record each library default is FOR. A landmark default named on a side
+# (`Prefab: ship` on a record that sits under `## Sides`) is a record under the wrong
+# heading, not a request - see prefab_default_for and lint's `prefab-wrong-record`.
+for _t in ("station", "npc", "ship", "terrain", "asteroid", "derelict", "wreck", "nebula",
+           "point"):
+    PREFAB_DEFAULTS[_t]["for"] = "landmark"
+PREFAB_DEFAULTS["amd/side"]["for"] = "side"
+PREFAB_DEFAULTS["amd/lifeform"]["for"] = "lifeform"
+PREFAB_DEFAULTS["amd/crew"]["for"] = "crew"
+
+
+def prefab_default_for(prefab_type):
+    """The record kind a library default prefab is made for ("landmark", "side"...), or
+    None for one any record may use, or a type that is not a library default."""
+    entry = PREFAB_DEFAULTS.get(str(prefab_type or "").strip().lower())
+    return entry.get("for") if entry else None
+
 
 # The variables every creating record hands its prefab whether or not the prefab
 # declares them - a `Data:` key by one of these names is a deliberate override.
