@@ -766,7 +766,9 @@ def hail_panel_history(cid, left=0, top=0, width=0, height=0):
                               data={"hail_client": cid})
             gui_message_callback(back, _hail_replay_back)
             gui_row("row-height: 1fr;")
-            gui_text_area(gui_text_literal(hail_transcript_text(entry)))
+            # ONE LINE PER THING SAID: a transcript built in code, so markdown
+            # paragraph rules would run two speakers' lines together.
+            gui_text_area(gui_text_literal(hail_transcript_text(entry)), paragraphs=False)
             return
 
     entries = hail_log(ship)

@@ -146,8 +146,20 @@ class TestHeadingEndsAtItsLine(_Base):
         self.assertEqual([ln for ln in ta.lines if isinstance(ln, IconLine)][0].font, "gui-2")
 
     def test_other_styles_still_carry(self):
+        # Markdown paragraphs (2026-10-14): the plain line under a `$p1` line now JOINS
+        # it, so it carries the style by being part of the same paragraph. Its font is
+        # p1's, not the default's - which is what "carry" always meant.
         f = dict(self._fonts("$p1 First paragraph line\nsecond line"))
-        self.assertEqual(f["second line"], f["First paragraph line"])
+        self.assertEqual(f["First paragraph line second line"], "gui-2")
+        self.assertEqual(TextArea.styles["p1"]["style"],
+                         self._calc("$p1 First paragraph line\nsecond line").lines[0].style["style"])
+
+    def test_other_styles_still_carry_one_line_per_line(self):
+        ta = TextArea("t", "$p1 First paragraph line\nsecond line", paragraphs=False)
+        ta.bounds = Bounds(0, 0, 40, 80)
+        ta.calc_rich(0)
+        first, second = ta.lines
+        self.assertIs(first.style, second.style)
 
 
 class TestTooling(unittest.TestCase):

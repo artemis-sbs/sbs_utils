@@ -76,6 +76,10 @@ class AppendTextRuntimeNode(MastRuntimeNode):
         if value:
             msg = task.format_string(node.message)
             text = TextRuntimeNode.current
-            if text is not None:
-                text.layout_text.message += '\n'
-                text.layout_text.message += msg
+            # TextArea.append, not `.message +=`: a TextArea never had a `message`, so
+            # every `^^^ ... ^^^` block raised AttributeError. One newline between, as the
+            # old code meant - under markdown paragraph rules that continues the text
+            # above when both are plain prose.
+            area = getattr(text, "layout_text", None) if text is not None else None
+            if area is not None:
+                area.append(msg, "\n")

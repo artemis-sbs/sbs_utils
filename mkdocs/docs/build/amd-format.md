@@ -34,22 +34,39 @@ headings nest — a `##` sits inside the `#` above it, a `###` inside that.
 `#` is only a heading when it has the `[Display](key)` shape. A plain `# Heading` in a
 body is text, not structure.
 
-**How much markdown a body may hold depends on the screen that draws it.** Measured on
-the two a first mission reaches:
+**A quest's description is a page.** The Quest Log draws it in a text area, so a body
+can hold far more than sentences. Paragraphs follow the markdown rules:
 
-| Typed in the body | In a quest's description (the Quest Log) | In a scan reading (Science) |
-|---|---|---|
-| `# Orders`, `## Orders` | A heading, larger and gray | As typed |
-| `- Find her.` (hyphen, space) | A bullet, indented | As typed, and a reading of its own |
-| `1. Find her.` (number, full stop, space) | A numbered item | As typed |
-| `**bold**`, `*italic*`, `<b>`, `> quote` | As typed, marks and all | As typed |
-| `[words](https://...)` | As typed | As typed |
-| A blank line, or Enter in a paragraph | A new line, with no gap | Each line is a separate reading |
+- Lines one under another are **one paragraph**. Pressing Enter inside a paragraph
+  does not start a new line on screen - the words run on and wrap to fit the pane.
+- A **blank line** ends the paragraph and leaves a small gap (half a line) before the
+  next thing.
+- `^` at the end of a line, or a line of `<br>`, **breaks the line** without ending the
+  paragraph.
 
-So the safe habit is plain sentences, with a heading or a short list in a quest's
-description when it helps. A line that merely STARTS with a number, a hyphen, `$` or a
-word in square brackets (`40 years ago...`, `[Static] Is anyone aboard?`) is drawn as
-typed.
+| Typed in a quest's description | Drawn in the Quest Log |
+|---|---|
+| Two lines of prose, one under the other | One paragraph, wrapped to the pane |
+| A blank line | The paragraph ends, then a half-line gap |
+| `Line one.^` or a `<br>` line | A line break inside the paragraph |
+| `# Orders`, `## Orders`, `### Orders` | A heading, larger and gray, on its own line |
+| `- Find her.` (hyphen, space) | A bullet, indented. A prose line straight under it continues the same item |
+| `1. Find her.` (number, full stop, space) | A numbered item |
+| `\| Who \| Where \|` rows with a `\|---\|---\|` row | A table, columns sized to fit |
+| `<hr>` | A thin rule across the pane |
+| `![](face://...) Admiral Harkin` | A portrait with the words beside it |
+| `![](image://key)` alone on its line | A picture, full size |
+| `[](ship://tsn_light_cruiser)` alone on its line | The ship, in 3D |
+| `![](icon://check.on) Shields up` | An icon one line tall, the words beside it |
+| `**bold**`, `*italic*`, `<b>`, `> quote` | As typed, marks and all |
+| `[words](https://...)` | As typed |
+
+A line that merely STARTS with a number, a hyphen, `$` or a word in square brackets
+(`40 years ago...`, `[Static] Is anyone aboard?`) is drawn as typed, and joins the
+paragraph it is in.
+
+**A scan reading is different.** Science shows each line of a reading on its own, as
+typed - no headings, no lists, no joining. Keep a reading to one line.
 
 ### The exact shape
 

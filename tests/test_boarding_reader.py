@@ -190,12 +190,17 @@ class RegionTests(ReaderTests.__bases__[0]):
             # overflow. The end is on screen when the LAST line makes it in. (This test
             # used to compare scroll_line with the "tail" value - which is the TOP; the
             # engine showed it.)
+            # Gaps count too: since markdown paragraphs (2026-10-14) a blank line in the
+            # transcript leaves half a line after the line above it, which _present adds
+            # AFTER drawing that line - so this walks the same way.
             first = max(0, ta.last_line - ta.scroll_line)
             y = 0
             for i in range(first, len(ta.lines)):
                 y += ta.lines[i].height
                 if y > ta.bounds.height:
                     return False
+                if ta.lines[i].is_sec_end:
+                    y += getattr(ta.lines[i], "sec_gap", 0) or 0
             return True
 
         ta = build()

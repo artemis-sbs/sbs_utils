@@ -168,8 +168,28 @@ small markdown-like language and **auto-scrolls** when its content overflows.
     ```
 
 - `$t` a title; `#`/`##`/`###` headings (plain, like markdown; `$nh1`..`$nh3` are
-  the auto-numbered forms); `-` bullets; `1.` ordered lists; a blank line resets;
-  `^` is a newline; `{var}` interpolates.
+  the auto-numbered forms); `-` bullets; `1.` ordered lists; `{var}` interpolates.
+- **Paragraphs follow markdown** (since v1.4.0). Plain lines one under another are
+  ONE paragraph - a single newline joins them with a space, and the paragraph wraps
+  as a whole. A **blank line** ends the paragraph, leaves a half-line gap, resets the
+  style and restarts list numbering. `^` is a **hard break**: it ends the line, even
+  inside a paragraph, with no gap. A line of `<br>` is a one-line-high break.
+  Headings, list items, tables, `<hr>`, gauges, choices, links, pictures and
+  `$`/`$$`/`=` style lines each start their own line; a plain line straight under a
+  `- ` item continues that item, as in markdown.
+
+    | Text | Drawn |
+    |---|---|
+    | `The hull is cold.\nNobody answers.` | `The hull is cold. Nobody answers.` |
+    | `The hull is cold.\n\nNobody answers.` | two paragraphs, a half-line gap between |
+    | `Deck one^Deck two` | two lines, no gap |
+    | `- Find the beacon\nbefore the raiders do.` | one bullet: `- Find the beacon before the raiders do.` |
+
+    A list of lines built in code that must stay **one per line** - a transcript, a
+    readout - passes `gui_text_area(text, paragraphs=False)`, or joins its lines with
+    `^`. `markdown=False` and `line_styles=` always draw one line per line. A MAST
+    `"""..."""` block cannot take the flag: separate its lines with `^` or a blank
+    line.
 - Inline objects by namespace: `![](image://key?scale=0.5)`, `[](ship://hull?...)`,
   `[](face://...)`, `[](style://font:gui-4;color:#8cf)`.
 - **Pipe tables** — `| Ship | Hull |` rows with a `|:--|--:|` alignment row — render

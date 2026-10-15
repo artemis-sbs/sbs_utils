@@ -1352,7 +1352,8 @@ def _scan_ground(client_id):
     if len(lines) == 2:
         lines.append("Nothing in sight worth a reading.")
     gui_row("row-height: 1fr;")
-    gui_text_area("\n".join(lines))
+    # One reading per line: a list built in code, so not joined into a paragraph.
+    gui_text_area("\n".join(lines), paragraphs=False)
 
 
 def _scan_suit(client_id):

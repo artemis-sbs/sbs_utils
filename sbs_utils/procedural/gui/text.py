@@ -49,8 +49,16 @@ def text_sanitize(text):
     return text
 
 def gui_text_area(props, style=None, markdown=True, line_styles=None, on_link=None,
-                  link_resolver=None):
+                  link_resolver=None, paragraphs=True):
     """Add a rich text area to the current GUI layout.
+
+    **Paragraphs follow markdown.** Consecutive plain lines are ONE paragraph: a
+    single newline joins them with a space, and the paragraph wraps as a whole. A
+    blank line ends it and leaves a gap of half a line. ``^`` is a hard break - it
+    still breaks inside a paragraph - and a line of ``<br>`` is a one-line break.
+    Headings, list items, tables, ``<hr>``, gauges, choices, links, pictures and
+    ``$``/``$$`` style lines each start their own line; a plain line straight under a
+    ``- `` item continues that item.
 
     Supports Markdown-style formatting: headings (``##+``/``##-`` fold), lists,
     pipe tables, gauges (``[Energy](gauge://946?max=1000)``), links
@@ -94,6 +102,10 @@ def gui_text_area(props, style=None, markdown=True, line_styles=None, on_link=No
             ``fn(key) -> new text`` or a ``{key: text}`` dict. The area swaps to
             that text in place (back to the top). None, or a key it does not know,
             leaves the text alone. Defaults to None.
+        paragraphs (bool, optional): Markdown paragraph rules, above. Pass ``False``
+            for a list of lines built in code that must stay one per line (a
+            transcript, a readout). Always off with ``markdown=False`` or
+            ``line_styles``. Defaults to True.
 
     Returns:
         TextArea: The layout item created.
@@ -119,7 +131,8 @@ def gui_text_area(props, style=None, markdown=True, line_styles=None, on_link=No
         style = task.compile_and_format_string(style)
 
     layout_item = TextArea(page.get_tag(), text_sanitize(props),
-                           markdown=markdown, line_styles=line_styles)
+                           markdown=markdown, line_styles=line_styles,
+                           paragraphs=paragraphs)
     apply_control_styles(".textarea", style, layout_item, task)
     if on_link is not None:
         layout_item.on_link_cb = on_link

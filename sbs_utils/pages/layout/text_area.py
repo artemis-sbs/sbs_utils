@@ -54,6 +54,25 @@ class TextLine:
         self.width = width
         self.is_sec_end = is_sec_end
 
+
+def _sec_gap(line):
+    """The space left after a line that ends a section (a paragraph before a blank line).
+
+    `sec_gap` is set by calc_rich - half a BODY text line, whatever the line is, so the
+    gap after a table or a picture is not half the table. A line marked `is_sec_end` by
+    anything else falls back to half its own height, which is what the draw and the
+    scroll back-track always did with the flag.
+    """
+    gap = getattr(line, "sec_gap", None)
+    return line.height * 0.5 if gap is None else gap
+
+
+#: `^` is a HARD break. With paragraphs on, the value setter keeps it as a sentinel at
+#: the END of the content line it closes (`a^b` -> `a^`, `b`), so a hard break is still
+#: a break inside a paragraph and survives `"\n".join(content)` round trips (`append`,
+#: `choose`). A newline right after a `^` is the same break, not a second one.
+_RE_HARD_BREAK = re.compile(r"\^\n?")
+
 parse_url = amd_parse_url      # one owner: procedural.amd
 
 def to_float(text, defa):
@@ -732,10 +751,19 @@ class TextArea(Control):
     rule_link_ref = RE_LINK_REF
     
     
-    def __init__(self, tag, message, markdown=True, line_styles=None) -> None:
+    def __init__(self, tag, message, markdown=True, line_styles=None, paragraphs=True) -> None:
         super().__init__(0,0,0,0)
-        
+
         self.content = []
+        # MARKDOWN PARAGRAPHS (2026-10-14, default on). Consecutive plain lines are one
+        # paragraph - a single newline joins them with a space - and a blank line ends
+        # it with a half-line gap. `^` and `<br>` stay hard breaks. False keeps the old
+        # one-line-per-line rendering, for a list of lines built in code (a transcript,
+        # a readout). Forced off by markdown=False and by line_styles - see
+        # `paragraphs_on`. Must be set before self.value, which the setter reads.
+        self.paragraphs = paragraphs
+        # Total height of the content, gaps included, as of the last calc_rich (percent).
+        self.content_height = 0
         # markdown=False: do not INTERPRET the markup -- no headings, bullets,
         # lists, style defs, links, images or tables. The text is still styled,
         # wrapped and indented, so this is a parse mode, not a "literal" one
@@ -794,6 +822,14 @@ class TextArea(Control):
         self.region = None
         self.recalc = True
 
+    @property
+    def paragraphs_on(self):
+        """Do markdown paragraph rules apply? Only to parsed markdown: `markdown=False`
+        renders lines verbatim and `line_styles` styles each content line by INDEX, and
+        joining lines would break both promises."""
+        return (bool(getattr(self, "paragraphs", False)) and bool(getattr(self, "markdown", True))
+                and not getattr(self, "line_styles", None))
+
                 
     def get_style(self, key):
         if  isinstance(key, dict):
@@ -843,8 +879,15 @@ class TextArea(Control):
         measured_with_scroll = self.need_v_scroll
 
         content_lines = self.content.copy()
-        
-        
+        # Hard breaks (`^`) ride at the end of the line they close - see _RE_HARD_BREAK.
+        # Stripped from this COPY only, so every index into the content (choice groups,
+        # tables, line_styles) still means what it meant; `self.content` is never touched.
+        hard_breaks = set()
+        for k, cl in enumerate(content_lines):
+            if cl.endswith("^"):
+                content_lines[k] = cl[:-1]
+                hard_breaks.add(k)
+        para_on = self.paragraphs_on
 
         self.lines = []
         self._link_map = {}
@@ -940,9 +983,90 @@ class TextArea(Control):
         if self.need_v_scroll:
             pixel_width -= self.V_SCROLL_PX
         alpha = "_ABCDEFGHIJKLMNOPQRSTUVWXYZ01234567890"
-        roman = ["_", "i", "ii", "iii", "iv", "v", "vi", "vii", "viii", "ix", "x", 
+        roman = ["_", "i", "ii", "iii", "iv", "v", "vi", "vii", "viii", "ix", "x",
                 "xi", "xii", "xiii", "xiv", "xv", "xvi", "xvii", "xviii", "xix", "xx"]
-        
+
+        #
+        # MARKDOWN PARAGRAPHS. Prose lines are gathered into `para` and drawn when the
+        # paragraph ends: at a blank line, a hard break (`^`), any block line (heading,
+        # list item, table, rule, gauge, choice, link, picture, style line) or the end.
+        # A blank line also leaves a gap of half a body line before whatever comes next
+        # - added lazily, by the next line pushed, so trailing blank lines cost nothing.
+        #
+        para = None                 # [text, style, font] - the paragraph so far
+        pending_gap = False
+        gap_pct = ((measure_line_height("gui-2", "M") or 24) / 2.0 / ar.y) * 100
+
+        def push(obj):
+            """Append one drawn line, after any gap a blank line asked for."""
+            nonlocal calc_height, pending_gap
+            if pending_gap and self.lines:
+                prev = self.lines[-1]
+                if not prev.is_sec_end:
+                    prev.is_sec_end = True
+                    prev.sec_gap = gap_pct
+                    calc_height += gap_pct
+            pending_gap = False
+            self.lines.append(obj)
+            calc_height += obj.height
+
+        def emit_text(text, tstyle, tfont):
+            """Wrap prose at the width it is drawn at and push one TextLine per line."""
+            # Break lines on MEASURED word widths, not on a character count.
+            #
+            # This used to estimate "how many characters fit" from the line's
+            # average glyph width and hand that to TextWrapper. An average is
+            # wrong in both directions -- it breaks early on a run of narrow
+            # glyphs and late on wide ones -- so lines ended short of the edge
+            # for no visible reason ("...walks into / a bar" taking three lines
+            # where two fit). Measuring the words removes the estimate.
+            # C: the send rect is shifted right by indent*space_width, so wrap
+            # against what is LEFT. Measuring at the full width and drawing
+            # narrower makes the engine wrap a line we did not count, and since
+            # it does not clip, that line lands on top of its neighbour -- the
+            # same failure as the scrollbar width above. Invisible at ul/ol's
+            # indent of 2; at code indents it runs off the panel.
+            # A line is sent as `$text:` + backtick + text + backtick + `;style`,
+            # and the backtick is the props delimiter with NO escape in
+            # split_props -- so a backtick in the CONTENT closes the quote early
+            # and everything after it is parsed as style properties. Wrapping
+            # makes it far more likely, because a fragment can carry an
+            # unbalanced one: at 1024x768 a line wraps and breaks, at 1920 the
+            # same line does not. Prose is affected as much as code -- any AMD
+            # note using `code spans` hits it.
+            #
+            # Dropping them is what gui_text_escape already does for the same
+            # reason. It also reads correctly either way: prose loses only the
+            # emphasis marks, and MAST's own `$text:`x`;` degrades to the valid
+            # unquoted `$text:x;` rather than to something malformed.
+            text = text.replace("`", "")
+
+            line_indent = 0
+            if isinstance(tstyle, dict):
+                line_indent = tstyle.get("indent", 0) or 0
+            indent_px = line_indent * (measure_line_width("gui-2", "X") or 0)
+            wrap_width = max(1, pixel_width - indent_px)
+            for sub_line in wrap_to_width(tfont, text, wrap_width):
+                ll = sub_line.strip().lower()
+                pixel_height = measure_block_height(tfont, sub_line, int(wrap_width))
+                percent_height = (pixel_height/ ar.y) * 100
+                if ll =="<br>" or ll =="<br/>":
+                    sub_line = "^"
+                push(TextLine(sub_line, tstyle, self.bounds.width, percent_height, False))
+
+        def flush():
+            """Draw the paragraph gathered so far, if there is one."""
+            nonlocal para
+            if para is not None:
+                text, pstyle, pfont = para
+                para = None
+                emit_text(text, pstyle, pfont)
+
+        def add_block(obj):
+            """A block line: it ends any paragraph, then takes its own line."""
+            flush()
+            push(obj)
+
         table_skip = 0
         for i, line in enumerate(content_lines):
             if i < table_skip:                 # lines consumed by a table block
@@ -961,6 +1085,7 @@ class TextArea(Control):
                     fold_level = None
                 m_fold = RE_FOLD_HEADING.match(stripped)
                 if m_fold is not None:
+                    flush()                 # before the tag: it counts lines
                     hashes, title = m_fold.group("hashes"), m_fold.group("title")
                     key = f"{hashes}{title}"
                     is_open = self._folds.setdefault(key, m_fold.group("mark") == "-")
@@ -969,8 +1094,7 @@ class TextArea(Control):
                     fl = FoldLine(title, self.get_style(f"h{len(hashes)}"), is_open,
                                   ctag, ar, pixel_width)
                     fl.fold_key = key
-                    self.lines.append(fl)
-                    calc_height += fl.height
+                    push(fl)
                     if not is_open:
                         fold_level = len(hashes)
                     style = None            # a heading ends whatever came before it
@@ -978,6 +1102,7 @@ class TextArea(Control):
                     continue
                 m_bullet = RE_BULLET.match(stripped)
                 if m_bullet is not None:
+                    flush()
                     urn = m_bullet.group("urn").strip()
                     list_icon = None if urn.lower().startswith("none") else urn
                     continue
@@ -997,13 +1122,16 @@ class TextArea(Control):
                 prepend = None
                 is_a_list = None
                 if line_len == 0:
+                    # A blank line ends the paragraph; with paragraphs on it also
+                    # leaves a gap before the next block (see push).
+                    flush()
+                    if para_on and self.lines:
+                        pending_gap = True
                     continue
 
             # Horizontal rule: <hr> / <hr/> (not '---', which is a table separator)
             if line.strip().lower() in ("<hr>", "<hr/>"):
-                hr = HrLine(ar)
-                self.lines.append(hr)
-                calc_height += hr.height
+                add_block(HrLine(ar))
                 continue
 
             # Line break: <br> / <br/>. Handled HERE, with the block-level markup,
@@ -1020,16 +1148,13 @@ class TextArea(Control):
                 br_font = split_props(br_style.get("style", "font:gui-3;"), "font").get("font", "gui-3")
                 br_height = (measure_block_height(br_font, "^", int(pixel_width)) / ar.y) * 100
                 # `^` is what the engine reads as a newline.
-                self.lines.append(TextLine("^", br_style, self.bounds.width, br_height, False))
-                calc_height += br_height
+                add_block(TextLine("^", br_style, self.bounds.width, br_height, False))
                 continue
 
             # Whole-line gauge: [Label](gauge://value?max=..) -> GaugeLine.
             m_gauge = RE_GAUGE.match(line.strip()) if self.markdown else None
             if m_gauge is not None:
-                gl = GaugeLine(m_gauge.group("label").strip(), m_gauge.group("urn"), ar)
-                self.lines.append(gl)
-                calc_height += gl.height
+                add_block(GaugeLine(m_gauge.group("label").strip(), m_gauge.group("urn"), ar))
                 continue
 
             # A choice group: consecutive `[Display](signal://name?k=v)` lines (and the
@@ -1038,10 +1163,12 @@ class TextArea(Control):
             if self.markdown:
                 m_cstyle = RE_CHOICES_STYLE.match(line.strip())
                 if m_cstyle is not None:
+                    flush()
                     choice_opts = dict(choice_opts, **_choice_options(m_cstyle.group("urn")))
                     continue
                 group = self._scan_choice_group(content_lines, i)
                 if group is not None:
+                    flush()
                     choices, end = group
                     for k, ch in enumerate(choices):
                         if ch.get("signal") is None:
@@ -1049,9 +1176,7 @@ class TextArea(Control):
                         ctag = f"{self.tag}:ch{i}_{k}"
                         ch["click_tag"] = ctag
                         self._choice_map[ctag] = dict(ch, start=i, end=end)
-                    cl = ChoiceFlowLine(choices, ar, pixel_width, choice_opts)
-                    self.lines.append(cl)
-                    calc_height += cl.height
+                    push(ChoiceFlowLine(choices, ar, pixel_width, choice_opts))
                     table_skip = end
                     style = None
                     continue
@@ -1060,12 +1185,11 @@ class TextArea(Control):
             # navigates within the document via the TextArea's link_resolver.
             m_link = TextArea._whole_link_re.match(line.strip())
             if m_link is not None:
+                flush()                     # before the tag: it counts lines
                 ctag = f"{self.tag}:lnk{len(self.lines)}"
                 self._link_map[ctag] = m_link.group("key").strip()
-                ln = LinkLine(m_link.group("disp").strip(), ctag, ar,
-                              FrameContext.context.sbs)
-                self.lines.append(ln)
-                calc_height += ln.height
+                push(LinkLine(m_link.group("disp").strip(), ctag, ar,
+                              FrameContext.context.sbs))
                 continue
 
             # GFM pipe table -> a TableLine block. Which lines ARE a table is
@@ -1073,14 +1197,19 @@ class TextArea(Control):
             # prose); how tall the block is, is this widget's.
             scan = amd_table_scan(content_lines, i) if self.markdown else None
             if scan is not None:
+                flush()                     # before the table: its link tags count lines
                 traw, table_skip = scan
                 tbl = self._build_table(traw, ar, pixel_width)
                 if tbl is not None and tbl.height > 0:
-                    self.lines.append(tbl)
-                    calc_height += tbl.height
+                    push(tbl)
                 continue
 
             per_line = self.line_style_for(i)
+            # Is this a PLAIN prose line - one that continues the paragraph above it? Only
+            # a line with no marker of its own: see the classification after the sniff.
+            plain = False
+            raw_line = line
+            style_before = style
             if not self.markdown:
                 # No markdown sniffing. A caller-supplied style wins; otherwise
                 # the widget's default.
@@ -1100,7 +1229,20 @@ class TextArea(Control):
                 style_key = per_line
             else:
                 style_key, line = self.get_line_style(line, style)
-            
+                if isinstance(style_key, dict):
+                    # The style the line above used, carried on: no marker of its own.
+                    # (A `$$...` line returns a NEW dict, so it is a start.)
+                    plain = style_key is style_before
+                elif style_key == "_":
+                    # Under a heading, or after a callout closed - unless it was an
+                    # explicit `$_ words`.
+                    plain = not raw_line.lstrip().startswith("$")
+                else:
+                    # A callout's body line continues the callout; its title, a heading,
+                    # a list item and a `$name` line each START a paragraph.
+                    plain = (style_key is not None
+                             and style_key == getattr(self, "_callout_key", None))
+
             if isinstance(style_key, str):
                 style = self.get_style(style_key)
                 prepend = get_prepend(style_key)
@@ -1132,9 +1274,7 @@ class TextArea(Control):
                 icon_ns, icon_urn = _split_scheme(list_icon)
                 icon_text = line
             if icon_urn is not None:
-                il = IconLine(icon_urn, icon_text, style, ar, pixel_width, ns=icon_ns)
-                self.lines.append(il)
-                calc_height += il.height
+                add_block(IconLine(icon_urn, icon_text, style, ar, pixel_width, ns=icon_ns))
                 continue
 
             # If this is a list each line is numbered
@@ -1165,9 +1305,10 @@ class TextArea(Control):
                 g = m.groupdict()
                 style_name = g.get("style_name")
                 remainder = g.get("remainder")
-                data  = self.parse_style_line(remainder) 
+                data  = self.parse_style_line(remainder)
                 if data is not None:
                     self.styles[style_name] = data
+                flush()
                 continue
             # elif m := TextArea.rule_style_ref.match(line):
             #     """
@@ -1183,6 +1324,7 @@ class TextArea(Control):
                 urn = g.get("urn")
                 
                 links[link_name] = {"ns": ns, "urn": urn}
+                flush()
                 continue
 
                 
@@ -1209,6 +1351,7 @@ class TextArea(Control):
                         props = split_props(st1, "font")
                         font = props.get("font", "gui-3")
                         style = test_style
+                        plain = False       # `[name] words` switches style: a start
                     else:
                         g = links.get(link_name)
                         if g is None:
@@ -1222,21 +1365,16 @@ class TextArea(Control):
                 # The rest is handle below
             # Image line
             if ns == "image":
-                last_line = ImageLine(urn, ar)
-                self.lines.append(last_line)
-                calc_height += last_line.height
+                add_block(ImageLine(urn, ar))
                 continue
             elif ns == "ship":
-                last_line = ShipLine(urn, ar)
-                self.lines.append(last_line)
-                calc_height += last_line.height
+                add_block(ShipLine(urn, ar))
                 continue
             elif ns == "face":
-                last_line = FaceLine(urn, ar)
-                self.lines.append(last_line)
-                calc_height += last_line.height
+                add_block(FaceLine(urn, ar))
                 continue
             elif ns == "style":
+                plain = False               # an inline style switch starts a paragraph
                 style = dict(self.get_style("_"))
                 
                 props = split_props(urn, "font")
@@ -1246,63 +1384,28 @@ class TextArea(Control):
                 style["style"] = merge_props(props)
                 # Let this fall through if there is a line
                 if line is None or len(line.strip()) == 0:
+                    flush()
                     continue
-                
+
             if line is None:
+                flush()
                 continue
-            
 
-            # Break lines on MEASURED word widths, not on a character count.
-            #
-            # This used to estimate "how many characters fit" from the line's
-            # average glyph width and hand that to TextWrapper. An average is
-            # wrong in both directions -- it breaks early on a run of narrow
-            # glyphs and late on wide ones -- so lines ended short of the edge
-            # for no visible reason ("...walks into / a bar" taking three lines
-            # where two fit). Measuring the words removes the estimate.
-            # C: the send rect is shifted right by indent*space_width, so wrap
-            # against what is LEFT. Measuring at the full width and drawing
-            # narrower makes the engine wrap a line we did not count, and since
-            # it does not clip, that line lands on top of its neighbour -- the
-            # same failure as the scrollbar width above. Invisible at ul/ol's
-            # indent of 2; at code indents it runs off the panel.
-            # A line is sent as `$text:` + backtick + text + backtick + `;style`,
-            # and the backtick is the props delimiter with NO escape in
-            # split_props -- so a backtick in the CONTENT closes the quote early
-            # and everything after it is parsed as style properties. Wrapping
-            # makes it far more likely, because a fragment can carry an
-            # unbalanced one: at 1024x768 a line wraps and breaks, at 1920 the
-            # same line does not. Prose is affected as much as code -- any AMD
-            # note using `code spans` hits it.
-            #
-            # Dropping them is what gui_text_escape already does for the same
-            # reason. It also reads correctly either way: prose loses only the
-            # emphasis marks, and MAST's own `$text:`x`;` degrades to the valid
-            # unquoted `$text:x;` rather than to something malformed.
-            line = line.replace("`", "")
+            if not para_on:
+                # One content line, one drawn line (or several, wrapped) - as always.
+                emit_text(line, style, font)
+            else:
+                if plain and para is not None and para[1] is style:
+                    # Same paragraph: a single newline is a space.
+                    para[0] = para[0].rstrip() + " " + line.strip()
+                else:
+                    flush()
+                    para = [line, style, font]
+                if i in hard_breaks:
+                    flush()                 # `^`: the line ends here, the paragraph does not
 
-            line_indent = 0
-            if isinstance(style, dict):
-                line_indent = style.get("indent", 0) or 0
-            indent_px = line_indent * (measure_line_width("gui-2", "X") or 0)
-            wrap_width = max(1, pixel_width - indent_px)
-            sub_lines = wrap_to_width(font, line, wrap_width)
-
-            for sub_line in sub_lines:
-                ll = sub_line.strip().lower()
-
-                pixel_height = measure_block_height(font, sub_line, int(wrap_width))
-            
-                #buffer = 0.1
-                #percent_height = ((pixel_height + buffer*pixel_line_height) / ar.y) * 100
-                percent_height = (pixel_height/ ar.y) * 100
-                
-                if ll =="<br>" or ll =="<br/>":
-                    sub_line = "^"
-                last_line = TextLine(sub_line,style, self.bounds.width, percent_height, False)
-                
-                self.lines.append(last_line)
-                calc_height += percent_height
+        flush()
+        self.content_height = calc_height
 
         #
         # Calculate the right size for the scrollbar
@@ -1341,7 +1444,7 @@ class TextArea(Control):
             height = self.lines[self.last_line].height
 
             if self.lines[self.last_line].is_sec_end:
-                calc_height += 0.5*height
+                calc_height += _sec_gap(self.lines[self.last_line])
             calc_height += height
         
         self.last_line = min(self.last_line+1, len(self.lines))
@@ -1699,7 +1802,7 @@ class TextArea(Control):
 
 
             if text_line.is_sec_end:
-                bounds.top += text_line.height/2
+                bounds.top += _sec_gap(text_line)
 
             #    bounds.top = 1000
 
@@ -1727,7 +1830,11 @@ class TextArea(Control):
     @value.setter
     def value(self, message):
         message = message.strip()
-        message = message.replace("^", "\n")
+        if self.paragraphs_on:
+            # A hard break stays visible to calc_rich - see _RE_HARD_BREAK.
+            message = _RE_HARD_BREAK.sub("^\n", message)
+        else:
+            message = message.replace("^", "\n")
         # Split into sections
         message_list = message.split("\n")
 

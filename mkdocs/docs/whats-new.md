@@ -1005,6 +1005,24 @@ log without touching a line of it.
 
 ---
 
+#### 📖 Descriptions read like a page
+
+A quest's description in the Quest Log, a codex entry in the Library, a message, an
+item - anything written as prose - now reads the way it was written. The words of a
+paragraph run on and wrap to fit the pane, instead of breaking wherever the writer
+happened to press Enter. A blank line between paragraphs leaves a little space, so a
+briefing in three paragraphs looks like three paragraphs.
+
+Headings, lists, tables, portraits, pictures and rules each still take a line of their
+own, so a quest can open with who is giving the order - a face - lay out what is known
+in a small table, and finish with what is at stake.
+
+For writers: the rules are markdown's. Lines one under another are one paragraph; a
+blank line ends it; `^` or a `<br>` line breaks a line without ending the paragraph.
+See [what a description can hold](build/amd-format.md#headings).
+
+---
+
 #### 🔬 Science, rebuilt { #science-console }
 
 <figure markdown="span">

@@ -233,9 +233,18 @@ Authoritative parser + built-in styles: `pages/layout/text_area.py`.
 
 - **Line syntax (leading token):** `#`/`##`/`###` → h1/h2/h3 headings (NOT numbered, like
   markdown; `$nh1`..`$nh3` are the auto-numbered variants);
-  `-` → bullet; `1.`/digit-led → ordered list (auto-numbered); **blank line** resets
-  style + restarts list numbering; `^` → newline (the setter maps `^`→`\n`), a line of
-  `<br>`/`<br/>` also breaks; `{var}` interpolation works.
+  `-` → bullet; `1. ` → ordered list (auto-numbered); `{var}` interpolation works.
+- **PARAGRAPHS follow markdown (default ON since 2026-10-14).** Consecutive plain lines
+  are ONE paragraph - a single `\n` JOINS them with a space and the whole paragraph wraps.
+  A **blank line** ends it, leaves a half-line gap, resets style and restarts list
+  numbering. `^` is a HARD break (still breaks inside a paragraph, no gap); a line of
+  `<br>` is a one-line-high break. Every block kind (heading, list item, table, `<hr>`,
+  gauge, choice, link, picture/icon line, `$`/`$$`/`=` line) starts its own line; a plain
+  line straight under a `- ` item CONTINUES that item (lazy continuation).
+  **A code-built list of lines that must stay one per line** (a transcript, a readout)
+  passes `paragraphs=False`, separates with `^`, or uses `markdown=False` / `line_styles`
+  (both force paragraphs off). A MAST `"""..."""` block cannot take the flag - use `^`
+  or a blank line between its lines.
 - **Inline objects** via namespaced markdown link-refs (with a `?query`):
   `![](image://KEY?scale=0.5&color=#f00&fill=fit|center)`,
   `[](ship://HULL_TAG?height=50&align=center|right)`,
@@ -287,10 +296,11 @@ Five transformations that bite hardest when the content is code (all in
 | `->END`, `-5`, `--` | a bullet, first token consumed | leading `-` is a list marker |
 | `item['key']`, `lines[0]` | a link reference; **the line is replaced by the remainder** | any `[...]` at all |
 | `` `code span` `` | ends the `$text:` quoting on the send path | a backtick anywhere in the content |
-| `^`, and a line starting with a digit | a newline; an ordered-list item | `^` is the newline escape |
+| `^`, and a line starting with `1. ` | a newline; an ordered-list item | `^` is the newline escape |
+| two plain lines | ONE joined paragraph | markdown paragraph rules |
 
-Plus: a line with **no** marker inherits the previous line's style, so one stray `#`
-restyles everything after it.
+Plus: a line with **no** marker inherits the previous line's style. A heading ends at
+its own line, but a stray `$p1` or list item carries onto the plain lines after it.
 
 ## Listboxes = the repeating-list pattern
 
