@@ -1016,7 +1016,12 @@ def quest_credit_ids(agent_id):
     return (agent_id,) + tuple(sorted(crew))
 
 
-def quest_on_kill(killer_id, destroyed_id):
+def _kill_by_player(*ids):
+    """True when any of these (the killer, its parent) is a player ship."""
+    return any(i and has_role(i, "__player__") for i in ids)
+
+
+def quest_on_kill(killer_id, destroyed_id, by_player=None):
     """Advance the killer's on_kill quests when an object is destroyed.
 
     The on_kill match is general — all keys optional and AND-combined:
@@ -1026,9 +1031,15 @@ def quest_on_kill(killer_id, destroyed_id):
                 killer, or of the players for a SHARED quest). This is the general,
                 faction-agnostic, ceasefire-safe way to score "destroy N enemies" -
                 prefer it over a hardcoded raider role.
+      by_players : (`destroy X by players`) only a kill by a player ship or its craft.
+                For a quest held by a ship it is that ship's own kill anyway; for a
+                SHARED quest ``by_player`` says who made the kill (None = not known,
+                which counts, as before).
     Omitting all three counts any destruction (unchanged legacy behavior)."""
     if killer_id is None:
         return
+    if by_player is None and killer_id != Agent.SHARED_ID:
+        by_player = _kill_by_player(killer_id)
     for aid in quest_credit_ids(killer_id):
         for qid, data in _active_quests(aid):
             trig = data.get("on_kill")
@@ -1043,14 +1054,21 @@ def quest_on_kill(killer_id, destroyed_id):
             # Hostility is the KILLER's question - a console has no diplomacy of its own.
             if trig.get("hostile") and not _kill_is_hostile(killer_id, destroyed_id):
                 continue
+            if trig.get("by_players") and by_player is False:
+                continue
             _advance_count(aid, qid, data, trig.get("count", 1))
 
 
-def quest_on_kill_shared(destroyed_id):
+def quest_on_kill_shared(destroyed_id, killer_id=None, parent_id=None):
     """Advance game-level (SHARED) on_kill quests for any kill. Called once per
     kill (separate from per-killer credit) so SHARED counts aren't doubled by the
-    source+parent calls."""
-    quest_on_kill(Agent.SHARED_ID, destroyed_id)
+    source+parent calls. Pass the killer and its parent so a `by players` goal can
+    tell a crew's kill from anyone else's; a caller that passes neither is not
+    asked (every kill counts, as before)."""
+    by_player = None
+    if killer_id or parent_id:
+        by_player = _kill_by_player(killer_id, parent_id)
+    quest_on_kill(Agent.SHARED_ID, destroyed_id, by_player=by_player)
 
 
 def quest_on_scan(scanner_id, scanned_id):

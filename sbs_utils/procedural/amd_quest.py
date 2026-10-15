@@ -153,6 +153,16 @@ def amd_trigger(value, aliases=None):
         if count is not None:
             data["count"] = count
     else:  # role
+        # `destroy the Badb by players`: only a kill by a player ship (or a craft it
+        # launched) counts. Without it a game-level kill goal counts ANY kill - a boss
+        # sunk by a third party used to complete the crew's quest.
+        if trig == "on_kill":
+            low_target = target.lower()
+            for tail in (" by the players", " by players"):
+                if low_target.endswith(tail):
+                    target = target[:-len(tail)].strip()
+                    data["by_players"] = True
+                    break
         # A kill goal worded against "enemies"/"hostiles" scores by DIPLOMACY rather
         # than a specific faction role: general, faction-agnostic, and ceasefire-safe
         # (a neutral/ceasefired ship does not count). "destroy 4 raiders" still binds

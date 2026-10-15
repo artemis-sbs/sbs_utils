@@ -122,7 +122,7 @@ listens for:
 
 | Verb(s) | Fires on | Argument |
 |---|---|---|
-| `destroy`, `kill` | a kill | role (+ count, e.g. `destroy 6 raiders`) |
+| `destroy`, `kill` | a kill | role (+ count, e.g. `destroy 6 raiders`). A game-level goal counts ANY kill, whoever made it; end it with `by players` (`destroy badb by players`) to count only a kill by a player ship or a craft it launched |
 | `collect`, `recover`, `gather` | picking up an item | item key. The mission must load LegendaryMissions' `items` addon (its `story.json`): without it a ship sits on the item and takes nothing |
 | `scan`, `survey` | a science scan | role |
 | `dock` | docking | role |
