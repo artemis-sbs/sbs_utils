@@ -1348,6 +1348,9 @@ def boarding_reader(text_area, client_id, agent=None, in_region=False):
     state["area"] = text_area
     state["in_region"] = bool(in_region)
     if text_area is not None:
+        # A writer's prose: `**strong**` is drawn as emphasis, not as asterisks. Set
+        # before the value, which decides whether the area is one plain label.
+        text_area.emphasis = True
         text_area.value = text
         # A transcript grows at the end, so that is the end it follows.
         text_area.anchor = "bottom"

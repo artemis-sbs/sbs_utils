@@ -473,6 +473,10 @@ _TER_EYES_ANY = [1, 7, 9, 10, 11, 12]
 _TER_MOUTH_MASC = [0, 1, 7, 9, 12]
 _TER_MOUTH_FEM = [5, 6]
 _TER_MOUTH_ANY = [2, 3, 4, 8, 10, 11, 13]
+# Hairstyles that read as a woman's, sorted by eye from a render of every style
+# (_tools/face_render.py). The rest - bowl cuts, crops, the mohawk - made a "female"
+# face read as a young man (Orla, author course c2-11). Masculine faces draw from all.
+_TER_HAIR_FEM = [4, 5, 6, 7, 8, 10, 11, 12, 15, 16, 17, 21]
 
 #: Terran clothes, grouped so "civilian" keeps meaning something. Everything not listed
 #: as civilian or utility is a uniform.
@@ -1028,8 +1032,10 @@ def random_terran(face=None, civilian=None):
     mouths = [m for m in _TER_MOUTH_ANY + (_TER_MOUTH_FEM if feminine else _TER_MOUTH_MASC)
               if m in rest_mouths]
 
-    hair = _maybe(0.95 if feminine else 0.8, _indices("terran", "hair"))
-    facial = _maybe(0.05 if feminine else 0.6, _indices("terran", "facial"))
+    all_hair = _indices("terran", "hair")
+    hair_pool = [h for h in _TER_HAIR_FEM if h in all_hair] if feminine else all_hair
+    hair = _maybe(0.95 if feminine else 0.8, hair_pool or all_hair)
+    facial = None if feminine else _maybe(0.6, _indices("terran", "facial"))
     eyewear = _maybe(0.2, _indices("terran", "eyewear"))
     headset = _maybe(0.12, _indices("terran", "headset"))
 

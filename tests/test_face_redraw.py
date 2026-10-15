@@ -315,6 +315,30 @@ class TestUniform(unittest.TestCase):
         self.assertFalse(faces.face_in_uniform("tng1 #fff 0 0;"))
 
 
+class TestFeminineFaces(unittest.TestCase):
+    """`Face: terran_female` drew a bowl cut, a crop or a moustache often enough that
+    First Mate Orla (author course c2-11) read as a young man on Comms."""
+
+    def _parts(self, face):
+        out = {}
+        for lay in faces._parse_face_layers(face):
+            hit = faces._owner_of("terran", lay["col"], lay["row"])
+            if hit:
+                out[hit[0]] = hit[1]
+        return out
+
+    def test_a_female_face_has_a_feminine_hairstyle_and_no_facial_hair(self):
+        for _ in range(300):
+            parts = self._parts(faces.random_terran_female())
+            self.assertNotIn("facial", parts)
+            if "hair" in parts:
+                self.assertIn(parts["hair"], faces._TER_HAIR_FEM)
+
+    def test_a_male_face_still_draws_from_every_style(self):
+        seen = {self._parts(faces.random_terran_male()).get("hair") for _ in range(600)}
+        self.assertTrue(seen - set(faces._TER_HAIR_FEM) - {None})
+
+
 class TestTints(unittest.TestCase):
     def test_index_zero_is_always_no_tint(self):
         """"No tint" has to keep meaning the face exactly as drawn, or the art as the

@@ -583,7 +583,12 @@ def eva_scan_target(client_id, target):
     try:
         from .items import item_meta
         from .survey_log import xess_log
-        desc = (item_meta(item, "description", None) or "") if item else ""
+        # `desc` IS THE KEY AN ITEM CARRIES - `amd_items` stamps the body there and LM's
+        # `item_defs.mast` metadata writes `desc:`. This read `description`, which nothing
+        # writes, so every reading a suit filed had no text. `description` is still read
+        # second, for a mission label that spelled it out.
+        desc = ((item_meta(item, "desc", None) or item_meta(item, "description", None) or "")
+                if item else "")
         xess_log("scan", getattr(obj, "name", None) or str(item or oid), desc,
                  by=client_id)
     except Exception:                                    # noqa: BLE001

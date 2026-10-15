@@ -152,6 +152,14 @@ class TestNebulaMarkerMerge(unittest.TestCase):
         self.assertEqual(0, len(role("nebula_marker")))
         self.assertEqual([], self.spawned)
 
+    def test_marker_side_is_not_map(self):
+        """The first role is the side: "map,..." made a side `map` that nobody declares,
+        logged as `Side not found: [map]` on every Siege start. The marker keeps both roles."""
+        marker = self._real_spawn(0, 0, 0, "neb", "red")
+        self.assertNotEqual("map", marker.side)
+        self.assertTrue(marker.has_role("map"))
+        self.assertTrue(marker.has_role("nebula_marker"))
+
 
 if __name__ == "__main__":
     unittest.main()

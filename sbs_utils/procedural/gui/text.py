@@ -49,7 +49,7 @@ def text_sanitize(text):
     return text
 
 def gui_text_area(props, style=None, markdown=True, line_styles=None, on_link=None,
-                  link_resolver=None, paragraphs=True):
+                  link_resolver=None, paragraphs=True, emphasis=False):
     """Add a rich text area to the current GUI layout.
 
     **Paragraphs follow markdown.** Consecutive plain lines are ONE paragraph: a
@@ -106,6 +106,10 @@ def gui_text_area(props, style=None, markdown=True, line_styles=None, on_link=No
             for a list of lines built in code that must stay one per line (a
             transcript, a readout). Always off with ``markdown=False`` or
             ``line_styles``. Defaults to True.
+        emphasis (bool, optional): Draw ``**strong**`` as emphasis (the words struck
+            twice, so they read bold) and ``*em*`` without its marks, instead of as
+            typed. For a writer's prose - the xESS and hail screens turn it on. Off
+            with ``markdown=False``. Defaults to False, which draws the marks.
 
     Returns:
         TextArea: The layout item created.
@@ -132,7 +136,7 @@ def gui_text_area(props, style=None, markdown=True, line_styles=None, on_link=No
 
     layout_item = TextArea(page.get_tag(), text_sanitize(props),
                            markdown=markdown, line_styles=line_styles,
-                           paragraphs=paragraphs)
+                           paragraphs=paragraphs, emphasis=emphasis)
     apply_control_styles(".textarea", style, layout_item, task)
     if on_link is not None:
         layout_item.on_link_cb = on_link

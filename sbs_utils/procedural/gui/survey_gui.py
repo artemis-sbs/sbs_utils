@@ -144,7 +144,7 @@ def _pane_build():
     gui_row("row-height: 1fr; padding: 0, 0, 0, 12px;")
     # A Control: it clears and scrolls its own region, so assigning to it cannot leave
     # the previous reading painted underneath.
-    body = gui_text_area(" ")
+    body = gui_text_area(" ", emphasis=True)
     return {"heading": heading, "byline": byline, "body": body}
 
 

@@ -787,7 +787,7 @@ def _home(client_id, surface=SURFACE_BOARDING):
         # `1fr` it took every pixel the tiles were not using and pushed them to the foot
         # of the column.
         gui_row("row-height: %dpx;" % BEAT_PX)
-        gui_text_area(gui_text_literal(line))      # an author's line, not a template
+        gui_text_area(gui_text_literal(line), emphasis=True)   # an author's line, not a template
 
     for app in xess_apps(client_id, surface):
         _tile(client_id, app, surface)
@@ -910,7 +910,7 @@ def _act_app(client_id):
         # choices were a 15px sliver at the bottom - reported as "the ACT buttons are at
         # the bottom and less than 20 pixels", which is exactly what 2% is.
         gui_row("row-height: %dpx;" % BEAT_PX)
-        gui_text_area(gui_text_literal(line))      # an author's line, not a template
+        gui_text_area(gui_text_literal(line), emphasis=True)   # an author's line, not a template
 
     try:
         choices = list(boarding_choices(client_id) or [])
@@ -1155,7 +1155,7 @@ def _caller_detail(client_id, item):
     # what they last said. It was a colored text line, a room word squeezed beside it,
     # and the message below - three widgets, no face.
     gui_row("row-height: 1fr; padding: 8px, 8px, 0, 8px;")
-    gui_text_area(gui_text_literal(_caller_detail_text(item, last)))
+    gui_text_area(gui_text_literal(_caller_detail_text(item, last)), emphasis=True)
 
     more = _older_count(item)
     if more:
@@ -1282,7 +1282,7 @@ def _scan_app(client_id):
     drift apart.
     """
     from .row import gui_row
-    from .text import gui_text_area
+    from .text import gui_text_area, gui_text_literal
     from ..boarding_site import (boarding_where, boarding_my_host, boarding_room_at,
                                  boarding_room_name, boarding_room_roles)
 
@@ -1308,7 +1308,9 @@ def _scan_app(client_id):
     else:
         lines = ["## A corridor", "Nothing here but the way through."]
     gui_row("row-height: 1fr;")
-    gui_text_area("\n".join(lines))
+    # LITERAL and EMPHASIZED: the reading is a writer's prose (a `{` in it is a
+    # brace), and the names in it are `**bold**`.
+    gui_text_area(gui_text_literal("\n".join(lines)), emphasis=True)
     _file(client_id, room)
 
 
@@ -1319,7 +1321,7 @@ def _scan_ground(client_id):
     device leaking the map. Each reading is filed to the survey log once.
     """
     from .row import gui_row
-    from .text import gui_text_area
+    from .text import gui_text_area, gui_text_literal
     from .boarding_console import where_text
     from ..boarding import boarding_me
     from ..tilemap import tilemap_where, tilemap_visible, tilemap_actors, tilemap_actor
@@ -1353,7 +1355,7 @@ def _scan_ground(client_id):
         lines.append("Nothing in sight worth a reading.")
     gui_row("row-height: 1fr;")
     # One reading per line: a list built in code, so not joined into a paragraph.
-    gui_text_area("\n".join(lines), paragraphs=False)
+    gui_text_area(gui_text_literal("\n".join(lines)), paragraphs=False, emphasis=True)
 
 
 def _scan_suit(client_id):
@@ -1364,7 +1366,7 @@ def _scan_suit(client_id):
     ITEM `Sprite:`) and can be READ, which is a scan the mission hears as `eva_scanned`.
     """
     from .row import gui_row
-    from .text import gui_text_area
+    from .text import gui_text_area, gui_text_literal
     from .button import gui_button
     from ..eva import eva_my_relic, eva_my_suit
     from ..eva_tools import eva_targets, eva_scan_target, _pos as _tool_pos, _dist
@@ -1400,7 +1402,7 @@ def _scan_suit(client_id):
     if len(lines) == 2:
         lines.append("Nothing here worth a reading.")
     gui_row("row-height: 1fr;")
-    gui_text_area("\n".join(lines))
+    gui_text_area(gui_text_literal("\n".join(lines)), emphasis=True)
     for key, label in finds[:3]:
         gui_row("row-height: 2.0em; font:gui-2;")
         # ZERO-ARG CLOSURE, bound by default args - `on_press` calls with no arguments.
@@ -1497,7 +1499,7 @@ def _fire_app(client_id):
                              _pick_setting(_cid, _v)))
 
     gui_row("row-height: 1fr; padding: 6px, 6px, 6px, 6px;")
-    gui_text_area(boarding_setting_text(setting))
+    gui_text_area(gui_text_literal(boarding_setting_text(setting)), emphasis=True)
 
     gui_row("row-height: 1.4em; font:gui-1;")
     if armed:

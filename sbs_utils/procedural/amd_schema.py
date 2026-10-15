@@ -45,7 +45,7 @@ def multiline(hint=None):
 def integer(hint=None):
     return _d("int", hint=hint)
 
-def boolean(strict=False, hint=None):
+def boolean(strict=False, hint=None, prose=False):
     """A yes/no flag. Stays `type: enum` so the editor keeps rendering a two-value
     dropdown, but carries `bool` so `amd_coerce` returns a real bool - `Required: false`
     used to coerce to the STRING "false", which is truthy.
@@ -53,11 +53,20 @@ def boolean(strict=False, hint=None):
     `strict=True` is a flag that is ONLY ever yes or no - `Blocks:`, `Calm:` - so a value
     that is neither (`Calm: yse`) is a typo and `sbs lint` says so. It is offered as
     `yes` / `no`, the words a writer types, and still accepts every spelling `amd_yes`
-    reads. The older flags stay lenient: `Win:` carries its own sentence."""
+    reads. The older flags stay lenient: `Win:` carries its own sentence.
+
+    `prose=True` is a flag that may BE a sentence (`Win: The station is saved.`): a
+    yes/no word reads as the flag, anything else is kept as the text it is - which is
+    truthy, so the flag is still on. Without it the sentence coerced to `False`, and
+    every tool that read the parsed record (`sbs docs`) printed `Win False` and lost
+    the line the writer wrote. The game's quest reader sees the raw text first and was
+    never affected."""
     if strict:
         return _d("enum", values=["yes", "no"], bool=True, strict=True, hint=hint,
                   value_aka={w: ("yes" if w in _YES_WORDS else "no")
                              for w in _YES_WORDS + _NO_WORDS if w not in ("yes", "no")})
+    if prose:
+        return _d("enum", values=["true", "false"], bool=True, prose=True, hint=hint)
     return _d("enum", values=["true", "false"], bool=True)
 
 
@@ -397,8 +406,10 @@ QUEST = {
     "fatal": field(boolean(), key="critical", aka=("critical",),
                    doc="Failing this FAILS the quest it is `Part of:`. That loses the "
                        "game only if the parent says `Lose:`."),
-    "win": field(boolean(), doc="Completing this WINS the mission."),
-    "lose": field(boolean(), doc="FAILING this loses the game. Completing it does not."),
+    # `prose=True`: a sentence is the value (the end-screen line), not a failed yes/no.
+    "win": field(boolean(prose=True), doc="Completing this WINS the mission."),
+    "lose": field(boolean(prose=True),
+                  doc="FAILING this loses the game. Completing it does not."),
     # `Win:` / `Lose:` carry their own prose; these are what that prose is STORED as.
     "win text": field(text(hint="the end-screen line"), internal=True),
     "lose text": field(text(hint="the end-screen line"), internal=True),
@@ -1799,6 +1810,10 @@ def amd_coerce(descriptor, value):
     if d.get("bool"):
         # A lenient flag written with no value is ON (`Win:` alone); a strict one is a
         # field left blank, which decides nothing.
+        if d.get("prose") and isinstance(raw, str):
+            s = raw.strip()
+            if s and s.lower() not in _YES_WORDS + _NO_WORDS:
+                return s                 # the sentence IS the value - and it is truthy
         return amd_yes(raw, default=not d.get("strict"))
     if kind == "enum":
         # match case-insensitively but STORE the declared spelling

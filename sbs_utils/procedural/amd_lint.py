@@ -5094,6 +5094,308 @@ def amd_lint_images(doc, file_path=None):
     return findings
 
 
+# --- pictures named inside a body ---------------------------------------------
+#
+# A body (a description, a scene's line, a briefing) can draw a face, an image, a 3D ship
+# or an icon: `![](face://...) Name`, `![](image://key)`, `[](ship://hull)`,
+# `![](icon://check.on) Done`, `[](bullet://...)`, `[name]: image://key`. Every way one
+# of those goes wrong is SILENT in the game - an unreadable face, an image nobody
+# registered, a hull the ship data does not have and an icon name nobody knows all draw
+# NOTHING, and a picture whose brackets are off is drawn as text, marks and all.
+
+#: The schemes that draw something (`text_area.EMBED_SCHEMES` plus the list-wide form).
+_EMBED_SCHEMES = ("image", "face", "ship", "icon", "bullet")
+#: A line that MEANT to be a picture: brackets, then a scheme, however mangled between.
+_RE_EMBED_ATTEMPT = re.compile(r"^!?\[[^\]]*\][ \t]*\(?[ \t]*(?P<ns>image|face|ship|icon|bullet)"
+                               r"[ \t]*:", re.I)
+#: The prefixes a body line can carry before its picture: a list marker, a `%` variant
+#: (with an optional `{gate}`), a numbered item.
+_RE_EMBED_PREFIX = re.compile(r"^(?:[-*][ \t]+|\d+[.)][ \t]+|%(?:\{[^}]*\})?[ \t]*)")
+#: The atlases the engine registers for the six stock races (allFaceFiles.txt).
+_STOCK_FACE_ALIASES = ("ter", "tor", "ska", "kra", "zim", "arv")
+_RE_HEX_COLOR = re.compile(r"^#?(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$")
+_RE_INT = re.compile(r"^-?\d+$")
+_EMBED_VOCAB = {}            # mission root -> (words, ship keys or None)
+
+
+def _embed_face_problem(face, known):
+    """Why a face string will not draw, or None when it reads.
+
+    The shape the engine and `faces._parse_face_layers` read: `;`-separated layers, each
+    `alias color col row [ox oy]`. A layer that is not that shape is skipped, so a face
+    cut short draws a face with a piece missing - or nothing at all."""
+    face = (face or "").strip()
+    if not face:
+        return "names no face - write the face string after `face://`"
+    layers = [seg.strip() for seg in face.split(";") if seg.strip()]
+    for i, seg in enumerate(layers, 1):
+        parts = seg.split()
+        if len(parts) < 4:
+            return (f"layer {i} (`{seg}`) is not `alias color column row` - it is skipped, "
+                    f"so that part of the face is not drawn")
+        alias, color, col, row = parts[:4]
+        if not _RE_HEX_COLOR.match(color):
+            return f"layer {i}: `{color}` is not a color (`#fff`, `#e4cb8e`)"
+        if not (_RE_INT.match(col) and _RE_INT.match(row)) \
+                or any(not _RE_INT.match(p) for p in parts[4:6]):
+            return f"layer {i}: `{' '.join(parts[2:])}` - a cell is two whole numbers"
+        if len(parts) > 6:
+            return f"layer {i} (`{seg}`) has words after its cell - is a `;` missing?"
+        if alias.lower() not in _STOCK_FACE_ALIASES and alias not in known:
+            return (f"layer {i}: `{alias}` is not a face sheet (the stock ones are "
+                    f"{', '.join(_STOCK_FACE_ALIASES)}) and nothing in this mission "
+                    f"registers it")
+    return None
+
+
+def _embed_vocabulary(file_path):
+    """`(words, ship_keys)` for the mission `file_path` is in, read once per mission.
+
+    `words` is every string literal in the mission's code and every record key in its
+    `.amd` files, the addons' included - what registers an image, an icon sheet or a face
+    sheet by name, so a name the MISSION supplies is never reported. `ship_keys` is the
+    install's ship data plus any `key:` in the mission's own data, or None when the ship
+    data cannot be found (then nothing is said about hulls)."""
+    root = _mission_root_of(file_path) if file_path else None
+    if root is None or not any(os.path.isfile(os.path.join(root, n))
+                               for n in ("story.json", "story.mast", "script.py")):
+        return set(), None             # a loose file: no mission to read names from
+    if root in _EMBED_VOCAB:
+        return _EMBED_VOCAB[root]
+    words, ships = set(), set()
+    rx_lit = re.compile(r"""["']([\w.:/\\-]{1,120})["']""")
+    rx_key = re.compile(r"\]\(([\w./-]{1,120})\)")
+    rx_ship = re.compile(r"""["']?key["']?[ \t]*:[ \t]*["']?([\w.-]+)""")
+    for _name, text in _mission_code(file_path):
+        words.update(rx_lit.findall(text or ""))
+    texts = []
+    try:
+        import zipfile
+        from sbs_utils.procedural.amd_vocab import declared_addon_paths
+        for top in [root] + list(declared_addon_paths(root)):
+            if os.path.isfile(top) and zipfile.is_zipfile(top):
+                with zipfile.ZipFile(top) as z:
+                    for n in z.namelist():
+                        if n.lower().endswith((".amd", ".yaml", ".yml", ".json")):
+                            texts.append((n, z.read(n).decode("utf-8", "replace")))
+                continue
+            for folder, dirs, names in os.walk(top):
+                dirs[:] = [d for d in dirs if not d.startswith((".", "__"))]
+                for n in names:
+                    if n.lower().endswith((".amd", ".yaml", ".yml", ".json")):
+                        try:
+                            with open(os.path.join(folder, n), encoding="utf-8",
+                                      errors="replace") as f:
+                                texts.append((n, f.read()))
+                        except OSError:
+                            pass
+    except Exception:                                   # noqa: BLE001
+        pass
+    for name, text in texts:
+        if name.lower().endswith(".amd"):
+            words.update(rx_key.findall(text))
+        else:
+            ships.update(rx_ship.findall(text))
+    data = os.path.dirname(os.path.dirname(root))      # <install>/data/missions/<m>
+    found = False
+    for ext in (".yaml", ".yml", ".json"):
+        path = os.path.join(data, "shipData" + ext)
+        if os.path.isfile(path):
+            try:
+                with open(path, encoding="utf-8", errors="replace") as f:
+                    ships.update(rx_ship.findall(f.read()))
+                found = True
+            except OSError:
+                pass
+    out = (words, (ships | words) if found and ships else None)
+    _EMBED_VOCAB[root] = out
+    return out
+
+
+def _embed_icon_names():
+    try:
+        from sbs_utils.procedural.gui.icon_sheet import ICON_INDEX, ICON_ALIAS
+        return set(ICON_INDEX) | set(ICON_ALIAS)
+    except Exception:                                   # noqa: BLE001
+        return None
+
+
+def _embed_pieces(raw):
+    """`[(col, ns, urn)]` for every picture this body line would draw, and the column of
+    a line that MEANT to draw one and will not (None when it is fine)."""
+    from sbs_utils.procedural.amd import RE_LEAD, RE_BULLET, RE_LINK_DEF, RE_LINK_REF
+    lead = len(raw) - len(raw.lstrip())
+    text = raw.strip()
+    m = _RE_EMBED_PREFIX.match(text)
+    if m is not None and not text.startswith(("![", "[")):
+        lead += m.end()
+        text = text[m.end():]
+    cells = [(lead, text)]
+    if text.startswith("|"):
+        cells, pos = [], lead
+        for cell in text.split("|"):
+            cells.append((pos + len(cell) - len(cell.lstrip()), cell.strip()))
+            pos += len(cell) + 1
+    pieces, broken = [], None
+    for col, cell in cells:
+        if not cell:
+            continue
+        mb = RE_BULLET.match(cell)
+        if mb is not None:
+            pieces.append((col, "bullet", mb.group("urn")))
+            continue
+        md = RE_LINK_DEF.match(cell)
+        if md is not None and (md.group("ns") or "").lower() in _EMBED_SCHEMES:
+            pieces.append((col, md.group("ns").lower(), md.group("urn")))
+            continue
+        ml = RE_LEAD.match(cell)
+        if ml is not None:
+            pieces.append((col, ml.group("ns"), ml.group("urn")))
+            continue
+        # The older whole-line form, `![](image:key?scale=0.5)` with no `//` - the text
+        # area still draws it (RE_LINK_REF makes the slashes optional).
+        mr = RE_LINK_REF.match(cell)
+        if mr is not None and (mr.group("ns") or "").lower() in _EMBED_SCHEMES:
+            pieces.append((col, mr.group("ns").lower(), mr.group("urn")))
+            continue
+        if _RE_EMBED_ATTEMPT.match(cell) and broken is None:
+            broken = col
+    return pieces, broken
+
+
+def amd_lint_embeds(doc, file_path=None):
+    """Flag a picture named in a BODY that will not draw. WARNING.
+
+    `embed-broken` - the line meant a picture (`![] (face://..)`, a missing `)`) and is
+    drawn as text instead, marks and all. `embed-face-unreadable` - a face string that
+    does not read as `alias color column row` layers, or names a sheet nothing registers.
+    `embed-unknown-image` - an `image://` key that is neither a file in the mission (or a
+    shared pack, or the game's graphics) nor a name the mission registers.
+    `embed-unknown-ship` - a `ship://` hull the ship data does not have (only when the
+    ship data can be found). `embed-unknown-icon` - an `icon://` name the icon sheet
+    does not have and the mission does not register.
+
+    A name the mission's own code or records mention is never reported: an image or a
+    face sheet is often registered from MAST, and lint cannot run that."""
+    findings = []
+    # Read LAZILY: most files name no picture, and the vocabulary walks the mission.
+    words = ships = known = resolve = graphics = icons = None
+    check_files = False
+
+    def vocabulary():
+        nonlocal words, ships, known, resolve, check_files, graphics
+        if known is not None:
+            return
+        words, ships = _embed_vocabulary(file_path)
+        known = words | {str(k) for k in getattr(doc, "keys", ()) or ()}
+        resolve, check_files = _sheet_resolver(file_path)
+        if file_path:
+            root = _mission_root_of(file_path)
+            graphics = os.path.join(os.path.dirname(os.path.dirname(root)), "graphics")
+            if not os.path.isdir(graphics):
+                graphics = None
+
+    def image_found(key):
+        if key in known:
+            return True
+        if resolve is not None:
+            for name in (key, key[:-4] if key.lower().endswith(".png") else None):
+                if name and resolve(name)[0]:
+                    return True
+        if graphics is not None:
+            base = os.path.join(graphics, key.replace("/", os.sep))
+            if os.path.exists(base) or os.path.exists(base + ".png"):
+                return True
+        return False
+
+    def check(lineno, col, ns, urn):
+        nonlocal icons
+        vocabulary()
+        if ns == "bullet":
+            head, sep, rest = (urn or "").partition("://")
+            if sep and head.lower() in ("icon", "image", "face", "ship"):
+                return check(lineno, col, head.lower(), rest)
+            if (urn or "").strip().lower().startswith("none"):
+                return None
+            return check(lineno, col, "icon", urn)
+        key = (urn or "").partition("?")[0].strip()
+        if ns == "face":
+            why = _embed_face_problem(key, known)
+            if why:
+                return ("embed-face-unreadable", f"this face will not draw: {why}")
+            return None
+        if not key:
+            return ("embed-broken", f"`{ns}://` names nothing, so nothing is drawn")
+        if ns == "image":
+            if check_files and not image_found(key):
+                return ("embed-unknown-image",
+                        f"`image://{key}` is not an image in this mission, a shared "
+                        f"pack or the game's graphics, and nothing registers it - "
+                        f"nothing is drawn")
+        elif ns == "ship":
+            if ships and key not in ships and key.lower() not in ships:
+                return ("embed-unknown-ship",
+                        f"`ship://{key}` is not a hull in the ship data - nothing is drawn")
+        elif ns == "icon":
+            if key.isdigit():
+                return None
+            if icons is None:
+                icons = _embed_icon_names() or set()
+            if icons and key not in icons and key not in known:
+                return ("embed-unknown-icon",
+                        f"`icon://{key}` is not an icon name (see the icon gallery), and "
+                        f"nothing in this mission registers it - nothing is drawn")
+        return None
+
+    from sbs_utils.procedural.amd import amd_body_transclude, amd_norm
+    transcludable = None
+    for node in doc.nodes:
+        in_code = False
+        for lineno, raw in (node.body_lines or ()):
+            stripped = (raw or "").strip()
+            if stripped.startswith("```"):
+                in_code = not in_code
+                continue
+            if in_code or not stripped or stripped.startswith("//"):
+                continue
+            target = amd_body_transclude(stripped)
+            if target is not None:
+                # `![[key]]` pulls in another record's body - and a key nothing defines
+                # is shown to the crew as `[missing: key]`. Not a note to self, as a
+                # `[[link]]` to an unwritten record is: this one is drawn.
+                if transcludable is None:
+                    transcludable = {str(k) for k in getattr(doc, "keys", ()) or ()}
+                    transcludable |= {str(k) for k in _mission_union(file_path, "keys")}
+                    transcludable |= {amd_norm(k) for k in transcludable}
+                last = target.split("/")[-1]
+                if not ({target, amd_norm(target), last, amd_norm(last)} & transcludable):
+                    col = len(raw) - len(raw.lstrip())
+                    findings.append(AmdFinding(
+                        lineno, WARNING, "transclude-missing",
+                        f"`![[{target}]]` names no record, so the crew read "
+                        f"`[missing: {target}]` here",
+                        col=col, end_line=lineno, end_col=len(raw.rstrip())))
+                continue
+            if "://" not in stripped and not _RE_EMBED_ATTEMPT.search(stripped):
+                continue
+            pieces, broken = _embed_pieces(raw)
+            for col, ns, urn in pieces:
+                got = check(lineno, col, ns, urn)
+                if got:
+                    code, message = got
+                    findings.append(AmdFinding(lineno, WARNING, code, message, col=col,
+                                               end_line=lineno,
+                                               end_col=len(raw.rstrip())))
+            if broken is not None:
+                findings.append(AmdFinding(
+                    lineno, WARNING, "embed-broken",
+                    "this looks like a picture but is not one, so it is drawn as text, "
+                    "marks and all. The shape is `![](face://...)` - no space between "
+                    "`]` and `(`, and a `)` to close it",
+                    col=broken, end_line=lineno, end_col=len(raw.rstrip())))
+    return findings
+
+
 def amd_lint_named_hulls(doc):
     """Flag a `Name hull_key` entry that will not make the ship the author meant.
 
@@ -5846,6 +6148,7 @@ def amd_lint(file_path=None, content=None, mast_sources=None, cross_file=None,
         findings += amd_lint_renamed_fields(doc)
         findings += amd_lint_callouts(doc)
         findings += amd_lint_images(doc, file_path)
+        findings += amd_lint_embeds(doc, file_path)
         findings += amd_lint_named_hulls(doc)
         findings += amd_lint_boss_names(doc, file_path)
         findings += amd_lint_trigger_roles(doc, source_index)

@@ -58,7 +58,7 @@ can hold far more than sentences. Paragraphs follow the markdown rules:
 | `![](image://key)` alone on its line | A picture, full size |
 | `[](ship://tsn_light_cruiser)` alone on its line | The ship, in 3D |
 | `![](icon://check.on) Shields up` | An icon one line tall, the words beside it |
-| `**bold**`, `*italic*`, `<b>`, `> quote` | As typed, marks and all |
+| `**bold**`, `*italic*`, `<b>`, `> quote` | As typed, marks and all (the xESS and hail screens draw `**bold**` bold and drop the `*` of `*italic*`) |
 | `[words](https://...)` | As typed |
 
 A line that merely STARTS with a number, a hyphen, `$` or a word in square brackets

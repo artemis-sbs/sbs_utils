@@ -658,7 +658,8 @@ def _nebula_marker_spawn(x, y, z, name, color):
     Extracted from ``terrain_spawn_nebula_common`` so the cluster merge can place
     markers itself, once it knows which ones survive.
     """
-    marker_obj = terrain_spawn(x, y, z, str(name), "map,nebula_marker", "generic-sphere", "behav_selection")
+    # "#" first: the first role becomes the side, and "map" is no side ("Side not found: [map]").
+    marker_obj = terrain_spawn(x, y, z, str(name), "#,map,nebula_marker", "generic-sphere", "behav_selection")
     marker_obj.data_set.set("elite_main_scn_invis", 1, 0)
     marker_obj.data_set.set("radar_color_override", "gold", 0)
     marker_obj.py_object.set_inventory_value("cluster_color", color)

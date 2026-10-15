@@ -531,12 +531,12 @@ def hail_view(ship, client_id=None, face_style=None):
     # comment used to say the line "goes STRAIGHT into the widget", and it does - into a
     # widget that then fills `{name}` in it, so `Call me {Captain}` raised against the
     # screen's own `await gui()` and the console stopped drawing.
-    gui_text_area(gui_text_literal(line))
+    gui_text_area(gui_text_literal(line), emphasis=True)
 
     readout = [] if _hail_may_answer_here(client_id) else _hail_choice_readout(ship)
     if readout:
         gui_row("row-height: content;")
-        gui_text_area(gui_text_literal(chr(10).join(readout)))
+        gui_text_area(gui_text_literal(chr(10).join(readout)), emphasis=True)
     return form
 
 
@@ -553,10 +553,11 @@ def _hail_band_builder(client_id, content):
     gui_row(f"row-height: 1.6em; background: {BAND_BACKGROUND};layer: {BAND_LAYER};")
     gui_text(_hail_text(name) + "font:gui-3;padding:4px;")
     gui_row(f"row-height: 1fr; background: {BAND_BACKGROUND};layer: {BAND_LAYER};")
-    gui_text_area(gui_text_literal(line), "padding: 8px;")
+    gui_text_area(gui_text_literal(line), "padding: 8px;", emphasis=True)
     if choices:
         gui_row(f"row-height: content; background: {BAND_BACKGROUND};layer: {BAND_LAYER};")
-        gui_text_area(gui_text_literal(chr(10).join(choices)), "padding: 8px;")
+        gui_text_area(gui_text_literal(chr(10).join(choices)), "padding: 8px;",
+                      emphasis=True)
 
 
 overlay_register(HAIL_BAND_SLOT, _hail_band_builder)
@@ -635,10 +636,11 @@ def _hail_screen_builder(client_id, content):
     gui_row(f"row-height: 1.8em; background: {SCREEN_BACKGROUND};layer: {SCREEN_LAYER};")
     gui_text(_hail_text(name) + "font:gui-3;padding:6px;")
     gui_row(f"row-height: 1fr; background: {SCREEN_BACKGROUND};layer: {SCREEN_LAYER};")
-    gui_text_area(gui_text_literal(line), "padding: 10px;")
+    gui_text_area(gui_text_literal(line), "padding: 10px;", emphasis=True)
     if choices:
         gui_row(f"row-height: content; background: {SCREEN_BACKGROUND};layer: {SCREEN_LAYER};")
-        gui_text_area(gui_text_literal(chr(10).join(choices)), "padding: 10px;")
+        gui_text_area(gui_text_literal(chr(10).join(choices)), "padding: 10px;",
+                      emphasis=True)
 
 
 overlay_register("hail_screen", _hail_screen_builder)
@@ -768,7 +770,8 @@ def hail_panel_history(cid, left=0, top=0, width=0, height=0):
             gui_row("row-height: 1fr;")
             # ONE LINE PER THING SAID: a transcript built in code, so markdown
             # paragraph rules would run two speakers' lines together.
-            gui_text_area(gui_text_literal(hail_transcript_text(entry)), paragraphs=False)
+            gui_text_area(gui_text_literal(hail_transcript_text(entry)), paragraphs=False,
+                          emphasis=True)
             return
 
     entries = hail_log(ship)

@@ -55,7 +55,7 @@ def _near(client_id):
 
 def _look_app(client_id):
     from .row import gui_row
-    from .text import gui_text, gui_text_area
+    from .text import gui_text, gui_text_area, gui_text_literal
     from .button import gui_button
     from ..boarding_props import boarding_last_note
     gui_xess_head(client_id, "Look")
@@ -90,7 +90,7 @@ def _look_app(client_id):
     note = boarding_last_note(client_id)
     if note:
         gui_row("row-height: 1fr; padding: 6px, 6px, 6px, 6px;")
-        gui_text_area(note)
+        gui_text_area(gui_text_literal(note), emphasis=True)
 
 
 #: How a list marks a hint kind; the map badges say the same thing.

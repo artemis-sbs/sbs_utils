@@ -1723,6 +1723,65 @@ def quest_log_build_items(sources):
     return items
 
 
+def quest_log_row_key(item):
+    """A quest-log row's IDENTITY - what it IS, which survives a rebuild. Its index does
+    not.
+
+    The log repaints whenever any listed quest changes state, from anywhere: a kill, a
+    timer, another console. Each repaint builds new rows, re-sorted (active, then
+    complete, then failed) and with whatever was added since. The selection used to be
+    carried across by INDEX, so a quest completing above the selected one, or a new one
+    appearing, left the same index on a DIFFERENT quest - the selection moved by itself,
+    with nobody touching the console.
+
+    Rows: `("quest", agent_id, key, group)`. A parent quest is listed as a header, and
+    becomes one when its first step appears, so a header with a quest `key` has the same
+    identity as the plain row it was. A source group header (Game / You / Ship) is
+    `("section", label)`. Returns None for None.
+    """
+    if item is None:
+        return None
+    data = item
+    if gui_list_box_is_header(item):
+        data = getattr(item, "data", None)
+        get = getattr(data, "get", None)
+        if get is None or get("key") is None:
+            section = get("section") if get is not None else None
+            return ("section", str(section if section is not None else item.label))
+    get = getattr(data, "get", None)
+    if get is None:
+        return ("value", str(item))
+    return ("quest", str(get("agent_id")), str(get("key")), str(get("group")))
+
+
+def quest_log_index_of(items, row_key):
+    """Where the row with this identity is in `items` NOW (see quest_log_row_key), or
+    None when it is no longer listed - abandoned, or moved to the other list. The index
+    is in the space `set_selected_index` takes: the list as built, headers included."""
+    if row_key is None:
+        return None
+    for i, item in enumerate(items or ()):
+        if quest_log_row_key(item) == row_key:
+            return i
+    return None
+
+
+def quest_log_hint_rekey(hint, index):
+    """A listbox selection hint with its selection replaced by `index` (None: no
+    selection).
+
+    The hint restores the VIEW and, when nothing else is selected, falls back to the
+    selection it recorded - by index. So when the selected quest has left the list, the
+    old hint would select whichever row now sits at that index: the same jump, through
+    the back door. Re-keyed, the hint keeps the scroll and selects the right row or none.
+    """
+    if not isinstance(hint, dict):
+        return hint
+    out = dict(hint)
+    out["selected_index"] = index
+    return out
+
+
 def quest_log_title():
     """Shared list title for the quest log."""
     from sbs_utils.procedural.gui import gui_row, gui_text

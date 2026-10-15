@@ -47,12 +47,139 @@ def _layer_prop(layer):
 
 
 class TextLine:
-    def __init__(self, text, style, width, height, is_sec_end) -> None:
+    def __init__(self, text, style, width, height, is_sec_end, runs=None) -> None:
         self.text = text.strip()
         self.style = style
         self.height = height
         self.width = width
         self.is_sec_end = is_sec_end
+        # [(text, kind)] when the line carries emphasis (see emphasis_runs); None for a
+        # line drawn as one piece, which is every line of an area without `emphasis`.
+        self.runs = runs
+
+
+# --- Emphasis: `**strong**` and `*em*` (opt-in, `emphasis=True`) ----------------------
+#
+# The engine draws a text widget in ONE font and ONE color, so a bold word inside a
+# sentence cannot be a property of the line. It is drawn as its own piece, placed at the
+# x the words before it end at - measured by the engine's own metrics, so the pieces
+# meet where one string would have put them.
+#
+# STRONG is the same font struck twice, a pixel apart. There is no bold face at body
+# size (`gui-3`, the first bold one, is 28px against the body's 24), and a different
+# size in the middle of a line would not sit on its baseline. EM has no italic to use,
+# so it keeps the line's look and loses only its marks. Both are styles (`strong`,
+# `em`), so `=$strong color:#fc6` or `[strong]: style://color:#fc6` restyles them.
+#
+# OFF unless asked for: the Quest Log, the library and every other area show the marks
+# as typed, which is what the AMD format page documents. The xESS and the hail screens
+# turn it on, because what they draw is a writer's prose and the asterisks read as noise.
+_RE_EMPHASIS = re.compile(r"\*\*(?=\S)(?P<strong>.+?)(?<=\S)\*\*"
+                          r"|(?<![*\w])\*(?=[^\s*])(?P<em>.+?)(?<=[^\s*])\*(?![*\w])")
+
+
+def emphasis_runs(text):
+    """`[(text, kind)]` for a line of prose: kind is None, `"strong"` or `"em"`, and the
+    marks are gone. A line with no emphasis is one plain run."""
+    text = text or ""
+    out, pos = [], 0
+    for m in _RE_EMPHASIS.finditer(text):
+        if m.start() > pos:
+            out.append((text[pos:m.start()], None))
+        if m.group("strong") is not None:
+            out.append((m.group("strong"), "strong"))
+        else:
+            out.append((m.group("em"), "em"))
+        pos = m.end()
+    if pos < len(text) or not out:
+        out.append((text[pos:], None))
+    return out
+
+
+def emphasis_plain(text):
+    """The text with its emphasis marks taken out - what the reader sees."""
+    return "".join(t for t, _k in emphasis_runs(text))
+
+
+def _has_emphasis(text):
+    return bool(text) and "*" in text and _RE_EMPHASIS.search(text) is not None
+
+
+def _runs_slice(kinds, plain, start, length):
+    """The runs covering `plain[start:start+length]`, from a per-character kind list."""
+    out = []
+    for i in range(start, min(start + length, len(plain))):
+        k = kinds[i]
+        if out and out[-1][1] == k:
+            out[-1][0].append(plain[i])
+        else:
+            out.append(([plain[i]], k))
+    return [("".join(chars), k) for chars, k in out]
+
+
+def _wrap_runs(font, text, width_px):
+    """Wrap emphasized prose: `[(sub_line, runs)]`, the sub-lines being what
+    `wrap_to_width` makes of the PLAIN text (so they break exactly where the same words
+    without marks would). `runs` is None for a sub-line holding no emphasis."""
+    segs = emphasis_runs(text)
+    plain = "".join(t for t, _k in segs)
+    kinds = [k for t, k in segs for _c in t]
+    out, cursor = [], 0
+    for sub in wrap_to_width(font, plain, width_px):
+        body = sub.strip()
+        at = plain.find(body, cursor) if body else -1
+        if at < 0:
+            out.append((sub, None))            # could not place it: draw it plain
+            continue
+        cursor = at + len(body)
+        runs = _runs_slice(kinds, plain, at, len(body))
+        out.append((sub, runs if any(k for _t, k in runs) else None))
+    return out
+
+
+def _advance_px(font, text):
+    """How far `text` moves the pen, trailing spaces included - which a bare width of
+    the text may not count, so it is measured as `text + X` less `X`."""
+    if not text:
+        return 0.0
+    x = measure_line_width(font, "X") or 0
+    return max(0.0, float((measure_line_width(font, text + "X") or 0) - x))
+
+
+def _send_runs(SBS, client_id, region_tag, tag, runs, style, kind_style, left, top,
+               right, bottom, ar, layer=None):
+    """Draw one line of emphasized prose as pieces laid end to end.
+
+    `style` is the line's own props string; `kind_style(kind)` gives a run's style dict
+    (`strong`, `em`). A run's props go AFTER the line's, so they win where they say
+    anything and inherit the rest."""
+    base_font = split_props(style or "", "font").get("font", "gui-2")
+    x = left
+    lay = _layer_prop(layer)
+    for k, (text, kind) in enumerate(runs):
+        sdict = kind_style(kind) if kind else None
+        extra = (sdict.get("style") or "") if isinstance(sdict, dict) else ""
+        props = (style or "") + extra
+        font = split_props(props, "font").get("font", base_font)
+        lead = len(text) - len(text.lstrip())
+        if lead:
+            x += (_advance_px(font, text[:lead]) / ar.x) * 100
+        body = text[lead:]
+        if body:
+            # Drawn without its trailing spaces; the pen still moves past them.
+            word = body.rstrip()
+            piece = tag if k == 0 else f"{tag}:r{k}"
+            if word:
+                SBS.send_gui_text(client_id, region_tag, piece,
+                                  f"$text:{gui_text_escape(word)};{props}" + lay,
+                                  x, top, right, bottom)
+            strikes = int((sdict or {}).get("overstrike", 0) or 0) if sdict else 0
+            for s in range(1, strikes + 1 if word else 1):
+                # The second strike, a pixel to the right: what makes it read as bold.
+                SBS.send_gui_text(client_id, region_tag, f"{piece}:b{s}",
+                                  f"$text:{gui_text_escape(word)};{props}" + lay,
+                                  x + (s / ar.x) * 100, top, right, bottom)
+            x += (_advance_px(font, body) / ar.x) * 100
 
 
 def _sec_gap(line):
@@ -480,7 +607,7 @@ class IconLine:
     Starting a list item with one (`- ![](icon://check.on) Shields up`) makes the icon
     the item's BULLET: it replaces the `-` or number, and wrapped lines stay aligned
     under the text, not under the icon."""
-    def __init__(self, urn, text, style, ar, pixel_width, ns="icon") -> None:
+    def __init__(self, urn, text, style, ar, pixel_width, ns="icon", emphasis=None) -> None:
         self.ns = ns
         self.urn = urn
         self.text = (text or "").replace("`", "").strip()
@@ -493,8 +620,20 @@ class IconLine:
         self.indent_px = self.indent * (measure_line_width("gui-2", "X") or 0)
         self.icon_px = _lead_px(ns, urn, self.font)
         text_w = max(1, pixel_width - self.indent_px - self.icon_px - ICON_GAP_PX)
+        # The words beside a face are a speaker's line as often as a name, so they can
+        # carry emphasis too. `emphasis` is the owning area's style lookup when it asked
+        # for it; the text is then wrapped HERE, a line at a time, because pieces of a
+        # line cannot be left to the engine to wrap.
+        self.wrapped = None
+        self.kind_style = emphasis
+        if emphasis is not None and _has_emphasis(self.text):
+            self.wrapped = _wrap_runs(self.font, self.text, int(text_w))
+            self.text = emphasis_plain(self.text)
         text_h = (measure_block_height(self.font, self.text, int(text_w))
                   if self.text else 0)
+        if self.wrapped:
+            text_h = sum(measure_line_height(self.font, sub.strip() or "M") or 0
+                         for sub, _runs in self.wrapped)
         self.height = (max(self.icon_px, text_h) / ar.y) * 100
 
     def send_gui(self, SBS, client_id, region_tag, tag, left, top, right, bottom, layer=None):
@@ -504,7 +643,22 @@ class IconLine:
         icon_h = (self.icon_px / ar.y) * 100
         _lead_send(SBS, client_id, region_tag, f"{tag}:i", self.ns, self.urn,
                    x, top, x + icon_w, top + icon_h, layer)
-        if self.text:
+        if self.text and self.wrapped:
+            st = self.style.get("style", "font:gui-2;") if isinstance(self.style, dict) else ""
+            tx = x + icon_w + (ICON_GAP_PX / ar.x) * 100
+            y = top
+            for n, (sub, runs) in enumerate(self.wrapped):
+                h = ((measure_line_height(self.font, sub.strip() or "M") or 0) / ar.y) * 100
+                piece = tag if n == 0 else f"{tag}:w{n}"
+                if runs:
+                    _send_runs(SBS, client_id, region_tag, piece, runs, st, self.kind_style,
+                               tx, y, right, y + h, ar, layer)
+                elif sub.strip():
+                    SBS.send_gui_text(client_id, region_tag, piece,
+                                      f"$text:{gui_text_escape(sub.strip())};{st}"
+                                      + _layer_prop(layer), tx, y, right, y + h)
+                y += h
+        elif self.text:
             st = self.style.get("style", "font:gui-2;") if isinstance(self.style, dict) else ""
             tx = x + icon_w + (ICON_GAP_PX / ar.x) * 100
             SBS.send_gui_text(client_id, region_tag, tag,
@@ -740,7 +894,12 @@ class TextArea(Control):
         "p1":{"style":  "font:gui-2;color:#8FA8FF;", "prepend": "", "indent": 0, "height": 20},
         "ul":{"style":  "font:gui-2;color:#8FA8FF;", "prepend": "-", "indent": 2, "height": 20},
         "ol":{"style":  "font:gui-2;color:white;", "prepend": "1", "indent": 2, "height": 20},
-        "_" :{"style":  "font:gui-2;color:white;", "prepend": "", "indent": 0, "height": 20}
+        "_" :{"style":  "font:gui-2;color:white;", "prepend": "", "indent": 0, "height": 20},
+        # Emphasis, with `emphasis=True`: a RUN style, laid over the line's own. Strong
+        # is the line struck twice (`overstrike`), em is the line as it is - see
+        # emphasis_runs for why those are the only two looks the engine can give.
+        "strong": {"style": "", "prepend": "", "indent": 0, "height": 20, "overstrike": 1},
+        "em": {"style": "", "prepend": "", "indent": 0, "height": 20},
         }
     
     # Old style system / new markdown system (style, image, face, ship).
@@ -751,10 +910,14 @@ class TextArea(Control):
     rule_link_ref = RE_LINK_REF
     
     
-    def __init__(self, tag, message, markdown=True, line_styles=None, paragraphs=True) -> None:
+    def __init__(self, tag, message, markdown=True, line_styles=None, paragraphs=True,
+                 emphasis=False) -> None:
         super().__init__(0,0,0,0)
 
         self.content = []
+        # `**strong**` / `*em*` drawn as emphasis rather than as typed (see
+        # emphasis_runs). Off by default. Must be set before self.value, which reads it.
+        self.emphasis = emphasis
         # MARKDOWN PARAGRAPHS (2026-10-14, default on). Consecutive plain lines are one
         # paragraph - a single newline joins them with a space - and a blank line ends
         # it with a half-line gap. `^` and `<br>` stay hard breaks. False keeps the old
@@ -821,6 +984,14 @@ class TextArea(Control):
     def invalidate_regions(self):
         self.region = None
         self.recalc = True
+
+    @property
+    def emphasis_on(self):
+        """Is emphasis drawn? Only for parsed markdown - `markdown=False` is verbatim."""
+        return bool(getattr(self, "emphasis", False)) and bool(getattr(self, "markdown", True))
+
+    def _kind_style(self, kind):
+        return self.styles.get(kind) if kind else None
 
     @property
     def paragraphs_on(self):
@@ -1046,6 +1217,15 @@ class TextArea(Control):
                 line_indent = tstyle.get("indent", 0) or 0
             indent_px = line_indent * (measure_line_width("gui-2", "X") or 0)
             wrap_width = max(1, pixel_width - indent_px)
+            if self.emphasis_on and _has_emphasis(text):
+                # Wrapped as the words WITHOUT their marks, each line keeping which of
+                # its characters were strong - see _wrap_runs.
+                for sub_line, runs in _wrap_runs(tfont, text, wrap_width):
+                    pixel_height = measure_block_height(tfont, sub_line, int(wrap_width))
+                    percent_height = (pixel_height / ar.y) * 100
+                    push(TextLine(sub_line, tstyle, self.bounds.width, percent_height,
+                                  False, runs=runs))
+                return
             for sub_line in wrap_to_width(tfont, text, wrap_width):
                 ll = sub_line.strip().lower()
                 pixel_height = measure_block_height(tfont, sub_line, int(wrap_width))
@@ -1274,7 +1454,8 @@ class TextArea(Control):
                 icon_ns, icon_urn = _split_scheme(list_icon)
                 icon_text = line
             if icon_urn is not None:
-                add_block(IconLine(icon_urn, icon_text, style, ar, pixel_width, ns=icon_ns))
+                add_block(IconLine(icon_urn, icon_text, style, ar, pixel_width, ns=icon_ns,
+                                   emphasis=self._kind_style if self.emphasis_on else None))
                 continue
 
             # If this is a list each line is numbered
@@ -1791,9 +1972,17 @@ class TextArea(Control):
                         tag, props,
                         bounds.left+indent*space_width, bounds.top, bounds.right, bounds.bottom)
 
-                ctx.sbs.send_gui_text(CID, self.local_region_tag,
-                    tag, message + _layer_prop(line_layer),
-                    bounds.left+indent*space_width, bounds.top, bounds.right, bounds.bottom)
+                if getattr(text_line, "runs", None) and "justify" not in (style or ""):
+                    # Emphasis: the line in pieces, laid end to end (see _send_runs). A
+                    # centered or right-justified line cannot be - the engine places it.
+                    _send_runs(ctx.sbs, CID, self.local_region_tag, tag, text_line.runs,
+                               style, self._kind_style,
+                               bounds.left+indent*space_width, bounds.top, bounds.right,
+                               bounds.bottom, ar, line_layer)
+                else:
+                    ctx.sbs.send_gui_text(CID, self.local_region_tag,
+                        tag, message + _layer_prop(line_layer),
+                        bounds.left+indent*space_width, bounds.top, bounds.right, bounds.bottom)
             else:
                 text_line.send_gui(ctx.sbs, CID, self.local_region_tag, tag,
                     bounds.left, bounds.top, bounds.right, bounds.bottom, line_layer)
@@ -1861,7 +2050,10 @@ class TextArea(Control):
             # bullet) still renders as readable text on the fast path.
             if not (message_list[0].startswith("=") or message_list[0].startswith("$")
                     or (self.markdown and _line_has_embed(message_list[0]))
-                    or (self.markdown and _line_is_choice(message_list[0]))):
+                    or (self.markdown and _line_is_choice(message_list[0]))
+                    # EMPHASIS is a third promise the fast path cannot keep: it prints
+                    # the line as one string, asterisks and all.
+                    or (self.emphasis_on and _has_emphasis(message_list[0]))):
                 self.simple_text = True
                 self.content = message_list
                 self.mark_visual_dirty()

@@ -45,7 +45,7 @@ PROFILES = ("author", "player")
 _MACHINERY = frozenset({
     "then", "starts when", "done when", "fails when", "fail on signal", "action",
     "scope", "show", "at start", "on kill", "on collect", "on scan", "on dock",
-    "reveal", "reveals", "parent", "required", "critical", "aka", "tier", "goal",
+    "reveal", "reveals", "parent", "part of", "required", "critical", "aka", "tier", "goal",
     "win", "lose", "fail after",
 })
 
@@ -331,6 +331,10 @@ def _field_html(label, value, desc, ctx):
     printing as `Label: value` and being no easier to read on paper than in the
     editor."""
     kind = (desc or {}).get("type", "text")
+    if (desc or {}).get("bool") and isinstance(value, str)             and not _is_flag_word(value):
+        # A flag that carries a sentence (`Win: The station is saved.`) is prose, not a
+        # pill: drawn as an enum it was marked an unknown value.
+        return esc(value)
     if kind == "color":
         vals = []
         for v in _values(value):
@@ -384,6 +388,71 @@ def _field_html(label, value, desc, ctx):
     return esc(", ".join(str(v) for v in _values(value)))
 
 
+def _norm(label):
+    return str(label).strip().lower().replace("-", " ").replace("_", " ")
+
+
+def _typed_fields(node, arch, traits):
+    """`{runtime key: (label as typed, value as typed)}` from the record's fence.
+
+    `node.data` is keyed by what the RUNTIME stores (`goal`, `when`, `parent`,
+    `scan_of`), because renaming an authored word must never move a stored key. A page
+    that titles those keys teaches an author the retired spellings - `Goal` for the
+    `Done when:` they typed. The fence still has the words they used."""
+    out = {}
+    for _lineno, raw in getattr(node, "fence_lines", ()) or ():
+        line = (raw or "").rstrip()
+        if not line.strip() or line[:1] in " \t":
+            continue
+        label, sep, value = line.partition(":")
+        if not sep or not label.strip():
+            continue
+        try:
+            key = amd_schema.amd_field_key(label.strip(), arch, traits)
+        except Exception:
+            key = label
+        out.setdefault(_norm(key), (label.strip(), value.strip()))
+    return out
+
+
+def _field_names(key, arch, traits):
+    """Every name a stored field answers to, for the `only` / `drop` sets: the runtime
+    key and the canonical authored label. Those sets are written in AUTHORED words
+    (`starts when`, `part of`), and comparing them with runtime keys alone let a quest's
+    `Starts when:` / `Fails when:` / `Part of:` through a player page."""
+    names = {_norm(key)}
+    try:
+        authored = amd_schema.amd_authored_label(key, arch, traits)
+    except Exception:
+        authored = None
+    if authored:
+        names.add(_norm(authored))
+        # A record's own runtime key can collide with another archetype's authored
+        # word (`when` is a quest's start trigger but a scene's surface), so once the
+        # schema has named the field, the runtime key no longer speaks for it.
+        if _norm(authored) != _norm(key):
+            names.discard(_norm(key))
+    return names
+
+
+def _display_label(key, typed, arch, traits):
+    """The label as the writer typed it, else the schema's authored label, else the
+    stored key. Never the stored key when the schema knows better."""
+    if typed:
+        return typed[:1].upper() + typed[1:]
+    try:
+        authored = amd_schema.amd_authored_label(key, arch, traits)
+    except Exception:
+        authored = None
+    text = _norm(authored or key)
+    return text[:1].upper() + text[1:]
+
+
+def _is_flag_word(text):
+    return str(text).strip().lower() in ("yes", "no", "true", "false", "on", "off",
+                                         "1", "0", "")
+
+
 def facts_html(node, ctx, only=None, drop=None, css="facts"):
     """A record's fence as a definition list, in the schema's field order.
 
@@ -404,19 +473,28 @@ def facts_html(node, ctx, only=None, drop=None, css="facts"):
         pass
     ordered = [k for k in amd_schema.template_fields(arch) if k in data]
     ordered += [k for k in data if k not in ordered]
+    typed = _typed_fields(node, arch, traits)
     rows = []
     inner = dict(ctx)
     inner["arch"] = arch
     for label in ordered:
-        if only is not None and label not in only:
+        names = _field_names(label, arch, traits)
+        if only is not None and not names & set(only):
             continue
-        if drop is not None and label in drop:
+        if drop is not None and names & set(drop):
             continue
         desc = amd_schema.field_schema(label, arch, traits)
         if (desc or {}).get("internal") and not ctx.get("show_internal"):
             continue
-        rows.append(f"<dt>{esc(label.title())}</dt>"
-                    f"<dd>{_field_html(label, data[label], desc, inner)}</dd>")
+        shown_label, raw = typed.get(_norm(label), (None, None))
+        value = data[label]
+        if (desc or {}).get("bool") and isinstance(value, bool) and raw \
+                and not _is_flag_word(raw):
+            # `Win: The station is saved.` - a flag that carries its own sentence. The
+            # coerced bool is the least of it; the sentence is what the writer wrote.
+            value = raw
+        rows.append(f"<dt>{esc(_display_label(label, shown_label, arch, traits))}</dt>"
+                    f"<dd>{_field_html(label, value, desc, inner)}</dd>")
     if not rows:
         return ""
     return f'<dl class="{css}">' + "".join(rows) + "</dl>"
@@ -980,8 +1058,11 @@ def _scene(uri, doc, node, blocks, ctx):
     inner["doc"], inner["uri"] = doc, uri
     data = node.data or {}
     when = str(data.get("when") or "").lower()
-    where = {"comms": "INT. COMMS - INCOMING",
-             "hail": "INT. COMMS - OUTGOING"}.get(when, "")
+    # A HAIL IS INCOMING: the mission calls the ship, and the crew answers. `comms` is
+    # the other direction - the crew selects the contact and opens the channel. These
+    # two slugs were the wrong way round.
+    where = {"comms": "INT. COMMS - OUTGOING",
+             "hail": "INT. COMMS - INCOMING"}.get(when, "")
     speaker = data.get("speaker")
     slug_bits = [b for b in (data.get("title"), data.get("side")) if b]
     if speaker:
@@ -1125,11 +1206,15 @@ def _stat_block(item, inbound, outbound, by_uid, node_of, ctx):
 
     life = item.get("lifecycle") or {}
     wires = []
-    for label, key in (("goal", "goal"), ("when", "when"),
-                       ("on accept", "on_accept"), ("on complete", "on_complete"),
-                       ("fail signal", "fail_signal")):
+    # Labelled in the writer's words, not the stored keys: a quest's `goal` is the
+    # `Done when:` they typed, and `when` is `Starts when:` on a quest but the surface
+    # (`When: hail`) on a scene - so the record's own archetype names it.
+    arch = getattr(uri_node[1], "kind", None) if uri_node else None
+    arch = arch or item.get("archetype")
+    for key in ("goal", "when", "on_accept", "on_complete", "fail_signal"):
         if life.get(key):
-            wires.append(f"<dt>{label}</dt><dd>{esc(life[key])}</dd>")
+            label = _display_label(key, None, arch, ()).lower()
+            wires.append(f"<dt>{esc(label)}</dt><dd>{esc(life[key])}</dd>")
     wires.append(_edge_list("reached from", inbound.get(item["uid"]), by_uid,
                             node_of, "from"))
     wires.append(_edge_list("leads to", outbound.get(item["uid"]), by_uid,

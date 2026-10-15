@@ -211,10 +211,11 @@ class TestPlayerProfile(unittest.TestCase):
         self.assertIn("Trade a kind word", player)
 
     def test_machinery_fields_are_dropped_from_a_player_catalog(self):
-        # `Done when:` normalizes to `Goal` - the label the schema produces,
-        # which is what a reader actually sees on the page.
-        self.assertNotIn("Goal", render("catalog", profile="player"))
-        self.assertIn("Goal", render("catalog"))
+        # `Done when:` is STORED as `goal`, but the page titles it the way the writer
+        # typed it - it used to print `Goal`, the retired spelling.
+        self.assertNotIn("Done when", render("catalog", profile="player"))
+        self.assertIn("<dt>Done when</dt>", render("catalog"))
+        self.assertNotIn("Goal", render("catalog"))
 
     def test_the_bible_refuses_a_player_profile(self):
         # Not styling. The bible exists to show the machine.
