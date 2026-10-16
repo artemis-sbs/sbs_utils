@@ -237,7 +237,8 @@ Fields the game acts on by itself, with no route in the story:
 |---|---|---|
 | `Opens with: signal <name>` | a prop | The door opens when that signal is sent, for example by a scene's `; signal <name>`. |
 | `Opens with: cut` | a prop | The door can be cut open: a **CUT** or a **FULL** shot from the xESS Fire app opens it. It is the only thing a weapon does to a prop. |
-| `Hidden until: <name>` | a prop, a person | It is not on the map until that signal is sent. |
+| `Opens with:` (any way) | a prop | When it opens, however it opened, the game sends the quest signal `<key>_opened`, so a quest can wait on it: `Done when: signal strongbox_opened`. |
+| `Hidden until: <name>` | a prop, a person | It is not on the map until that signal is sent. `Hidden until: signal <name>` means the same. |
 | `Scan:` | a prop, a person | What the xESS **Scan** app says about it. Without one, its description. |
 | `Blocks:`, `Once:`, `Calm:` | | `yes` or `no`. Anything else is reported by `sbs lint`. |
 | `Qty:`, `Reach:` | a prop | A whole number, in figures. |
@@ -641,9 +642,9 @@ reported only where it cannot be wrong, so each has a condition:
 | `opens-with-shape` | `Opens with:` in a shape the game skips: `kee pump_key`, `check engineering` with no number, `key pump_key check engineering 8` with the comma missing, `key` or `signal` with no name. | Always. |
 | `item-nothing-gives` | `Opens with: key brass_key`, `if holding tablt`, `Needs: holding crowbr`, `; take tablt` - a thing no pickup has as its `Item:`, nobody `Drops:` and no answer gives with `; give`, in any file of the mission. | No code of the mission, or of an addon it loads, calls `boarding_give`. |
 | `ground-signal-unsent` | `Opens with: signal x` or `Hidden until: x` for a signal nothing sends: no answer in any file, no line of the story or its addons, and not the library itself. A thing an answer shows by its key (`; reveal stash`, `; summon keeper`) is not reported. | In a whole-mission lint (`sbs lint <mission>`). |
-| `hidden-until-shape` | `Hidden until: signal x`. The field takes the name alone. | Always. |
 | `ground-verb-target` | `; calm sentri`, `; summon`, `; dismiss`, `; rouse`, `; open`, `; reveal` naming a key that nothing in the mission has. | No code of the mission puts people or things on the map by hand. |
 | `dangling-scene` | `Talk scene:` (and a prop's `Scene:`) naming no scene. | Always. |
+| `person-talks-but-attacks` | A person with a `Talk scene:` and no `Calm: yes`. A talk scene does not make anybody peaceful: they still hunt the party and attack on sight. Add `Calm: yes` to someone who only talks. | No answer in the mission says `; calm <key>` for them (that is someone meant to fight until talked down). |
 
 A door with `Blocks: yes` and no `Opens with:` is not reported: that is how a wall is
 written.

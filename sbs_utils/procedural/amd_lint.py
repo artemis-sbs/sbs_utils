@@ -28,7 +28,7 @@ engine uses (`document_get_amd_file`).
 """
 import os
 import re
-from sbs_utils.procedural.amd import amd_read_text, RE_HEADING
+from sbs_utils.procedural.amd import amd_read_text, RE_HEADING, amd_hidden_until_signal
 
 ERROR = "error"
 WARNING = "warning"
@@ -1267,8 +1267,9 @@ def _ground_waits(doc):
             continue
         fields = _plain_fields(node)
         for _ln, value in fields.get("hidden until", []):
-            if value:
-                out.add(value.strip().lower())
+            name = amd_hidden_until_signal(value)
+            if name:
+                out.add(name)
         for _ln, value in fields.get("opens with", []):
             for term in value.split(","):
                 words = term.split()
@@ -1278,16 +1279,21 @@ def _ground_waits(doc):
 
 
 def _ground_sends(doc):
-    """Quest signals the people on the ground send BY THEMSELVES: `hostile_down_<key>`
-    when one is put down for good (`boarding_combat.py`). No story line sends it."""
+    """Quest signals the things on the ground send BY THEMSELVES: `hostile_down_<key>`
+    when a person is put down for good (`boarding_combat.py`), and `<key>_opened` when a
+    prop with `Opens with:` opens (`boarding_props.py`). No story line sends them."""
     from sbs_utils.procedural.amd import amd_signal_name
     out = set()
     for node in doc.nodes:
-        if str(getattr(node, "kind", "") or "").strip().lower() != "hostile":
-            continue
+        kind = str(getattr(node, "kind", "") or "").strip().lower()
         key = str(getattr(node, "key", "") or "").strip()
-        if key and node.fence_lines:
+        if not key or not node.fence_lines:
+            continue
+        if kind == "hostile":
             out.add(amd_signal_name("hostile_down_" + key))
+        elif kind == "prop" and "opens with" in _plain_fields(node):
+            # A prop that starts shut sends `<key>_opened` when it opens.
+            out.add(amd_signal_name(key + "_opened"))
     return out
 
 
@@ -1461,6 +1467,7 @@ def amd_lint_ground(doc, keys=None, file_path=None, source_index=None):
     revealed = (_doc_outcome_targets(doc, ("reveal", "summon"))
                 | _mission_union(file_path, "revealed"))
     opened = (_doc_outcome_targets(doc, ("open",)) | _mission_union(file_path, "opened"))
+    calmed = (_doc_outcome_targets(doc, ("calm",)) | _mission_union(file_path, "calmed"))
     by_hand = _mission_says(file_path, "boarding_prop_reveal(", "boarding_hostile_reveal(",
                             "boarding_prop_open(", "boarding_props_signal(")
 
@@ -1530,17 +1537,14 @@ def amd_lint_ground(doc, keys=None, file_path=None, source_index=None):
                         f"never opens that way. Check the spelling against the answer "
                         f"(`; signal {words[1]}`) or the story line that sends it"))
         for lineno, value in fields.get("hidden until", []):
+            # `Hidden until: signal x` waits for `x`, exactly as `Hidden until: x` does:
+            # the game reads both (`amd_hidden_until_signal`). It used to be warned
+            # about as `hidden-until-shape`, when the game read it as a signal called
+            # `signal x`.
+            value = amd_hidden_until_signal(value)
             if not value:
                 continue
-            if value.lower().startswith("signal ") and len(value.split()) == 2:
-                findings.append(AmdFinding(
-                    lineno, WARNING, "hidden-until-shape",
-                    f"`Hidden until:` takes the signal's name by itself, and "
-                    f"`{value}` is read as a signal called all of that - which nothing "
-                    f"sends, so this stays hidden. Write `Hidden until: "
-                    f"{value.split()[1]}`"))
-                continue
-            if (sent is not None and not by_hand and value.lower() not in sent
+            if (sent is not None and not by_hand and value not in sent
                     and key not in revealed):
                 verb = "summon" if kind == "hostile" else "reveal"
                 findings.append(AmdFinding(
@@ -1556,6 +1560,20 @@ def amd_lint_ground(doc, keys=None, file_path=None, source_index=None):
                     lineno, WARNING, "dangling-scene",
                     f"`{node.key}` Talk scene points at `{value}`, which is not a "
                     f"defined node"))
+        # Someone you can talk to who is not `Calm: yes` still hunts the party: a talk
+        # scene does not make a person peaceful (`boarding_combat._hostile_step`). Not
+        # reported when an answer somewhere says `; calm <key>` - that is a person the
+        # writer means to be talked down, fighting until then.
+        from sbs_utils.procedural.amd_schema import amd_yes
+        talks = [ln for ln, v in fields.get("talk scene", []) if v]
+        if (kind == "hostile" and talks and key not in calmed
+                and not any(amd_yes(v, False) for _ln, v in fields.get("calm", []))):
+            findings.append(AmdFinding(
+                talks[0], WARNING, "person-talks-but-attacks",
+                f"`{node.key}` has a `Talk scene:` but not `Calm: yes`, so they attack "
+                f"the party on sight and are only talked to between blows. If they are "
+                f"meant to talk and not fight, add `Calm: yes`. If they are meant to "
+                f"fight until talked down, give an answer `; calm {node.key}`"))
         for lineno, value in fields.get("needs", []):
             m = _GUARD.match(" ".join(value.split()))
             lhs = (m.group("lhs") if m is not None else value).split()
@@ -1646,7 +1664,8 @@ def _file_facts(text):
     from sbs_utils.procedural.amd_core import parse
     facts = {"sends": set(), "waits": set(), "ground": set(), "given": set(),
              "scenes": set(), "sides": set(), "keys": set(), "traits": set(),
-             "sites": set(), "revealed": set(), "opened": set(), "axes": set()}
+             "sites": set(), "revealed": set(), "opened": set(), "axes": set(),
+             "calmed": set()}
     try:
         doc = parse(text)
     except Exception:                                   # noqa: BLE001
@@ -1659,6 +1678,7 @@ def _file_facts(text):
     facts["sites"] = _doc_site_files(doc)
     facts["revealed"] = _doc_outcome_targets(doc, ("reveal", "summon"))
     facts["opened"] = _doc_outcome_targets(doc, ("open",))
+    facts["calmed"] = _doc_outcome_targets(doc, ("calm",))
     facts["axes"] = _doc_axis_words(doc)
     for node in doc.nodes:
         kind = str(getattr(node, "kind", "") or "").strip().lower()

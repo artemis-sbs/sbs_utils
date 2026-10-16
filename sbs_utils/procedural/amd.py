@@ -699,6 +699,19 @@ def amd_signal_name(value):
     return str(value).strip().lower().replace(" ", "_")
 
 
+def amd_hidden_until_signal(value):
+    """The signal a `Hidden until:` waits for, lowercased: `x` and `signal x` are one.
+
+    A writer who has just typed `Opens with: signal x` writes `Hidden until: signal x`,
+    and that used to wait for a signal called `signal x` - which nothing sends, so the
+    thing stayed off the map for good. Lives here because the ground (props and people)
+    and `sbs lint` must read it the same way. Returns "" for nothing."""
+    words = str(value or "").split()
+    if len(words) >= 2 and words[0].lower() == "signal":
+        words = words[1:]
+    return " ".join(words).lower()
+
+
 _COMPACT_DURATION = re.compile(r"^(\d+)\s*([a-zA-Z]*)$")
 _DURATION_PART = re.compile(r"(\d+)\s*([a-z]+)")
 _DURATION_UNITS = {

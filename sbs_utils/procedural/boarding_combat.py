@@ -46,6 +46,7 @@ Signals: ``boarding_hostile_noticed``, ``boarding_hostile_struck``, ``boarding_h
 wait on it with an ordinary ``signal`` goal.
 """
 from .amd_schema import amd_yes
+from .amd import amd_hidden_until_signal
 from .inventory import get_inventory_value, set_inventory_value
 from .query import to_id
 
@@ -238,7 +239,8 @@ def boarding_hostile_records(section):
             "talk": d.get("talk_scene"),
             # The schema's own yes/no parser - the one `Blocks:` on a prop is read by.
             "calm": amd_yes(d.get("calm"), False),
-            "hidden": d.get("hidden_until"),
+            # `Hidden until: x` and `Hidden until: signal x` both wait for `x`.
+            "hidden": amd_hidden_until_signal(d.get("hidden_until")) or None,
             "face": _face(d.get("face")),
             # What the xESS Scan app says; it falls back to the description.
             "scan": d.get("scan"),

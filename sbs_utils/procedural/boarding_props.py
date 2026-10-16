@@ -83,6 +83,12 @@ def _norm(s):
     return str(s or "").strip().lower()
 
 
+def _hidden_until(v):
+    """The signal a `Hidden until:` waits for (`x` or `signal x`), or None."""
+    from .amd import amd_hidden_until_signal
+    return amd_hidden_until_signal(v) or None
+
+
 def _yes(v, default=False):
     """One authored yes/no - the schema's own parser, so there is one reading of it."""
     from .amd_schema import amd_yes
@@ -253,7 +259,8 @@ def boarding_prop_records(section):
                                            _norm(n.get("key")), whole=True),
             "blocks": _yes(g("blocks"), False),
             "opens": _opens(g("opens_with")),
-            "hidden": g("hidden_until"),
+            # `Hidden until: x` and `Hidden until: signal x` both wait for `x`.
+            "hidden": _hidden_until(g("hidden_until")),
             "once": _yes(g("once"), False),
             "needs": g("needs"),
             # What the xESS Scan app says. It read `rec.get("scan")` all along and the
@@ -310,7 +317,7 @@ def boarding_prop_add(key, area, at, **fields):
            "blocks": False, "opens": [], "hidden": None, "once": False, "needs": None,
            "scan": None}
     for k, v in fields.items():
-        rec[k] = _opens(v) if k == "opens" else v
+        rec[k] = _opens(v) if k == "opens" else _hidden_until(v) if k == "hidden" else v
     rec.update({"id": None, "open": not rec["opens"], "taken": False, "used": False,
                 "shown": not rec["hidden"]})
     _saved_apply(rec)
@@ -448,6 +455,11 @@ def boarding_prop_open(key, how="opened"):
                           sprite=rec["open_sprite"] or rec["sprite"], blocks=False)
     from .signal import signal_emit
     signal_emit("boarding_prop_opened", {"BOARDING_PROP": rec["key"], "BOARDING_HOW": how})
+    # ...and `<key>_opened` as a quest signal, the way a relic's barrier sends its own
+    # (`amd_relics.relic_quest_signal`), so `Done when: signal strongbox_opened` needs no
+    # route in the story. Sent once: a prop that is already open returned above.
+    from .amd import amd_signal_name
+    signal_emit("quest_signal", {"SIGNAL_NAME": amd_signal_name(rec["key"] + "_opened")})
     return True
 
 

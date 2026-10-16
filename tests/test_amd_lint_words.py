@@ -429,7 +429,8 @@ A machine.
 """
 
 GROUND_CODES = ("opens-with-shape", "item-nothing-gives", "ground-signal-unsent",
-                "hidden-until-shape", "ground-verb-target", "dangling-scene")
+                "hidden-until-shape", "ground-verb-target", "dangling-scene",
+                "person-talks-but-attacks")
 
 
 class TheGround(_Mission):
@@ -547,10 +548,41 @@ class TheGround(_Mission):
         self.assertIn("relic_built", L._library_signal_names())
         self.assertEqual(self.g("Hidden until: stash_shown", "Hidden until: relic_built"), [])
 
-    def test_hidden_until_takes_the_name_alone(self):
-        got = self.g("Hidden until: stash_shown", "Hidden until: signal stash_shown")
-        self.assertEqual([f.code for f in got], ["hidden-until-shape"])
-        self.assertIn("Write `Hidden until: stash_shown`", got[0].message)
+    def test_hidden_until_signal_x_is_hidden_until_x(self):
+        """The game reads `Hidden until: signal x` as `x` now, so it is not warned."""
+        self.assertEqual(self.g("Hidden until: stash_shown",
+                                "Hidden until: signal stash_shown"), [])
+
+    def test_hidden_until_signal_x_is_still_checked_for_a_sender(self):
+        got = self.g("Hidden until: stash_shown", "Hidden until: signal stash_shwn")
+        self.assertEqual([f.code for f in got], ["ground-signal-unsent"])
+        self.assertIn("waits for the signal `stash_shwn`", got[0].message)
+
+    def test_a_prop_that_opens_sends_key_opened(self):
+        """`Done when: signal sluice_opened` has a sender: the sluice, when it opens."""
+        self.assertIn("sluice_opened", L._ground_sends(amd_core.parse(GROUND)))
+        self.assertNotIn("rubble_opened", L._ground_sends(amd_core.parse(GROUND)))
+
+    # -- a person who talks but is not calm --------------------------------------------
+    def test_A_PERSON_WITH_A_TALK_SCENE_AND_NO_CALM_ATTACKS(self):
+        got = self.g("Calm: yes\nTalk scene: marrow_talk", "Talk scene: marrow_talk")
+        self.assertEqual([f.code for f in got], ["person-talks-but-attacks"])
+        self.assertIn("`marrow` has a `Talk scene:` but not `Calm: yes`", got[0].message)
+        self.assertIn("they attack the party", got[0].message)
+
+    def test_calm_no_is_the_same(self):
+        got = self.g("Calm: yes\nTalk scene", "Calm: no\nTalk scene")
+        self.assertEqual([f.code for f in got], ["person-talks-but-attacks"])
+
+    def test_someone_an_answer_calms_is_meant_to_fight_first(self):
+        """The sentry is talked down by `; calm sentry`: fighting until then is meant."""
+        text = GROUND.replace("Drops: power_cell", "Drops: power_cell\nTalk scene: marrow_talk")
+        self.assertNotEqual(text, GROUND)
+        self.assertEqual(self.found(text, codes=("person-talks-but-attacks",)), [])
+
+    def test_a_prop_with_a_scene_is_not_a_person(self):
+        text = GROUND.replace("Mark: rubble", "Mark: rubble\nTalk scene: marrow_talk")
+        self.assertEqual(self.found(text, codes=("person-talks-but-attacks",)), [])
 
     # -- verbs and scenes --------------------------------------------------------------
     def test_A_VERB_AIMED_AT_NOBODY(self):
