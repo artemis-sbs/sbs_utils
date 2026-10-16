@@ -94,7 +94,12 @@ def _load_sets(mission_root, names):
     for name in names:
         folder = tilemap_preview_find_set(mission_root, name)
         if folder is None:
-            missing.append(name)
+            # `builtin` is the mission's OWN art and is optional - tilemap_preview_sets
+            # puts it first for every mission. A mission without one (the `away`
+            # template) is not missing anything; reporting it put "not found: builtin"
+            # in every editor footer.
+            if name != "builtin":
+                missing.append(name)
             continue
         try:
             with open(os.path.join(folder, "manifest.json"), encoding="utf-8") as fh:
