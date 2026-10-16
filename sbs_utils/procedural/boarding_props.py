@@ -443,6 +443,81 @@ def boarding_props_near(lifeform, reach=1):
     return [k for _, k in sorted(out)]
 
 
+# --- a prop's scene happens AT the prop ------------------------------------------------
+#
+# A side scene happens SOMEWHERE: changing area leaves it (`boarding_tiles._on_signal`,
+# `boarding_world.boarding_site_move`). A prop's scene is narrower than an area - it is at
+# the prop - and it was never left at all while the area stayed the same: the c3-15
+# strongbox scene stayed open on Ross's Act after he walked ~25 cells off, and `Take her
+# as a prize` worked from there (engine-seen, author course 3, sitting 4). The c3-14
+# terminal's scene followed Dr Hale to the landing pad when the downed party came round
+# there, and took her presses from across the yard.
+#
+# THE RULE: a prop's scene holds whoever is within the prop's `Reach:` plus
+# `PROP_SCENE_SLACK` - the ring `boarding_interact` brings companions in from (anyone
+# within 2 of the user) - so nobody it let in is put straight back out. Further than that,
+# or in another area, or off the ground, and they have walked away: their console leaves
+# the scene (`boarding_props_scene_sweep`, once a second on a tile visit), and a press
+# that arrives first is refused (`boarding_answer`). Walking back up and using the prop
+# again joins the scene where it was left, as a second person walking up always has.
+
+#: How far past a prop's `Reach:` its open scene still holds somebody, in steps.
+PROP_SCENE_SLACK = 2
+
+
+def boarding_prop_scene_key(channel):
+    """The prop a scene channel belongs to (``prop:<key>``), or None for any other."""
+    ch = str(channel or "")
+    return ch[len("prop:"):] if ch.startswith("prop:") else None
+
+
+def boarding_prop_scene_holds(client_id, lifeform=None):
+    """Whether this console's crew member is still AT the prop whose scene it is in.
+
+    True for a console in no prop's scene, for nobody to measure, and for a prop no
+    longer on the map (nothing to measure from). ``lifeform`` defaults to the console's
+    primary; ``boarding_answer`` passes whoever is answering.
+    """
+    from .boarding import boarding_channel_of, boarding_me
+    from .tilemap import tilemap_where, tilemap_actor_distance
+    key = boarding_prop_scene_key(boarding_channel_of(client_id))
+    if key is None:
+        return True
+    rec = _PROPS.get(_norm(key))
+    if rec is None or rec["id"] is None:
+        return True
+    lf = lifeform if lifeform is not None else boarding_me(client_id)
+    if lf is None:
+        return True
+    at = tilemap_where(lf)
+    if at is None or at[0] != rec["area"]:
+        return False
+    d = tilemap_actor_distance(rec["id"], at[1], at[2])
+    return d is not None and d <= int(rec["reach"]) + PROP_SCENE_SLACK
+
+
+def boarding_props_scene_sweep():
+    """Every console whose crew have all walked away from the prop whose scene it is in
+    leaves that scene. Returns the consoles that left.
+
+    A console holding several characters stays while any of them is still there."""
+    from .boarding import (boarding_clients, boarding_channel_of, boarding_channel_leave,
+                           boarding_held, _boarding_party_changed)
+    left = []
+    for cid in sorted(boarding_clients()):
+        if boarding_prop_scene_key(boarding_channel_of(cid)) is None:
+            continue
+        if any(boarding_prop_scene_holds(cid, lf) for lf in boarding_held(cid)):
+            continue
+        boarding_channel_leave(cid)
+        left.append(cid)
+    if left:
+        # Every reader re-derives its menu: the leaver's says the scene is over for them,
+        # and a choice somebody was covering for them goes with them.
+        _boarding_party_changed()
+    return left
+
+
 def boarding_prop_reveal(key):
     """A hidden prop can now be found."""
     rec = _PROPS.get(_norm(key))

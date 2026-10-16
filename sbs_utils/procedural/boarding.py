@@ -141,6 +141,17 @@ def boarding_console_down(client_id):
     return bool(held) and all(_is_down(lf) for lf in held)
 
 
+def _at_the_scene(client_id, actor):
+    """Whether ``actor`` is still where this console's scene is happening - for a prop's
+    scene, within its reach (``boarding_props.boarding_prop_scene_holds``). Every other
+    scene is left by changing area, which is handled where the move happens."""
+    try:
+        from .boarding_props import boarding_prop_scene_holds
+        return bool(boarding_prop_scene_holds(client_id, actor))
+    except Exception:                                    # noqa: BLE001
+        return True
+
+
 def boarding_team():
     """Every character currently under a console's control, as a set of ids.
 
@@ -1115,6 +1126,15 @@ def boarding_answer(client_id, index, seq=None, agent=None):
     if actor is not None and _is_down(actor):
         # DOWN, and so refused before the token moves: a button drawn before she fell is
         # still on her screen, and it must do nothing at all.
+        _ANSWERED["refused"] = "down"
+        return False
+    if not _at_the_scene(cid, actor):
+        # WALKED AWAY from the prop whose scene this is (see `boarding_props`): refused
+        # before the token moves, and the console leaves the scene now rather than at
+        # the next sweep - its screen moves on instead of offering the same buttons.
+        _ANSWERED["refused"] = "away"
+        boarding_channel_leave(cid)
+        _boarding_party_changed()
         return False
 
     from_key = rec.get("key")
@@ -1300,8 +1320,33 @@ def _boarding_down_lines(client_id):
     who has fallen needs to be told why her screen will not answer."""
     if not boarding_console_down(client_id):
         return []
-    who = _name_of(boarding_me(client_id))
-    return [f"**{who} is DOWN - needs a medkit.** Nothing can be chosen until then."]
+    return [_down_line(_name_of(boarding_me(client_id)))]
+
+
+def _down_line(who):
+    return f"**{who} is DOWN - needs a medkit.** Nothing can be chosen until then."
+
+
+def boarding_reader_revived(lifeform):
+    """A crew member is back on their feet: a transcript that last said they were DOWN
+    says they are up again.
+
+    Without it the line `Nothing can be chosen until then.` stayed standing ABOVE the
+    choices that came back, so the screen read as a downed member pressing buttons that
+    worked (engine-seen, author course 3 lesson 14, sitting 4: the downed party came
+    round on the landing pad at HP 1, and the Act page still said DOWN over live
+    buttons)."""
+    from .query import to_object
+    who = to_object(lifeform)
+    cid = boarding_client_of(lifeform)
+    state = _READERS.get(cid) if cid is not None else None
+    if who is None or state is None:
+        return False
+    said = _down_line(_name_of(boarding_me(cid)))      # the line names the primary
+    if not str(state.get("text") or "").rstrip().endswith(said):
+        return False
+    boarding_reader_note(cid, f"**{who.name} is back on their feet.**")
+    return True
 
 
 def _boarding_choice_lines(choices, seq, agent=None):
@@ -1503,6 +1548,18 @@ def _boarding_reader_on_pick(name, data):
     audience = boarding_channel_members(boarding_channel_of(cid)) | {cid}
     _ANSWERED.clear()
     accepted = boarding_answer(cid, index, seq, agent=agent)
+    if not accepted and _ANSWERED.get("refused") == "away":
+        # Walked away from the prop: nothing happened, so nothing is settled as chosen.
+        # Her live buttons are dropped and the transcript says the scene is over for her;
+        # whoever is still at the prop carries on, untouched.
+        state = _READERS.get(cid)
+        if state is not None:
+            _boarding_reader_sync(cid)
+            if state.get("in_region"):
+                state["rev"] = state.get("rev", 0) + 1
+            elif state.get("area") is not None:
+                state["area"].value = state["text"]
+        return
     if not accepted and boarding_console_down(cid):
         # A DOWNED crew member's press. Nothing happened, so nothing is settled - writing
         # her pick into the transcript as made would say it had. Her live buttons give
@@ -2679,8 +2736,16 @@ def _visit_tile_tick(visit):
     if visit.get("stories") is not None:
         from .boarding_quests import boarding_quests_grant
         boarding_quests_grant(visit.get("stories"))
-    # EVERYONE ON THE GROUND IS DOWN. Nobody is left to use a medkit, so without this the
-    # visit is over in every way but the one that lets the crew do something else.
+    _visit_tile_revive(visit)
+    # AFTER the revive: a party that comes round is stood at the entry, and a prop's
+    # scene left open where they fell is not theirs any more (see `boarding_props`).
+    from .boarding_props import boarding_props_scene_sweep
+    boarding_props_scene_sweep()
+
+
+def _visit_tile_revive(visit):
+    """EVERYONE ON THE GROUND IS DOWN. Nobody is left to use a medkit, so without this the
+    visit is over in every way but the one that lets the crew do something else."""
     from .boarding_combat import boarding_is_down, boarding_revive
     from .tilemap import tilemap_where, tilemap_entry, tilemap_place
     ground = [(lf, tilemap_where(lf)) for lf in sorted(boarding_team())]

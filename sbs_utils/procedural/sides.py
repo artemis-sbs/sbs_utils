@@ -970,6 +970,11 @@ def side_capture(ship, captor):
     obj.add_role("captured")
     obj.set_inventory_value("origin_side", None)
     obj.data_set.set("surrender_flag", 0, 0)
+    # Taken, so an open menu on her that offers to take her is stale. The comms button
+    # re-runs its own menu, but taking her from ABOARD (her strongbox's `; signal
+    # boarding_deck_take`) left `Take as prize` / `Cancel` on the Comms console
+    # (engine-seen, author course 3 lesson 15, sitting 4).
+    _refresh_comms_on(obj)
 
 
 def side_set_side_icon_index(key_or_id, icon_index)->None:

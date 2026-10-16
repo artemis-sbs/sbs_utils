@@ -161,7 +161,8 @@ def boarding_revive(lifeform, hp=None, by=None):
     tilemap_set_sprite(lf, color=get_inventory_value(lf, "BOARDING_COLOR", None) or "#4cf")
     from .tilemap import tilemap_set_pose
     tilemap_set_pose(lf, None)
-    from .boarding import _boarding_party_changed
+    from .boarding import _boarding_party_changed, boarding_reader_revived
+    boarding_reader_revived(lf)              # her transcript stops saying she is DOWN
     _boarding_party_changed()                # back on her feet: her choices come back
     signal_emit("boarding_crew_revived", {"BOARDING_WHO": lf, "BOARDING_BY": by})
     return True
