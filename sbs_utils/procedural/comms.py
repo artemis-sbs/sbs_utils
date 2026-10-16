@@ -1791,6 +1791,28 @@ def comms_grid_press(origin_id, selected_id, index, client_id=None):
     return True
 
 
+def comms_refresh_selected(sel_ids_or_obj) -> int:
+    """Re-run the comms routes for every OPEN comms menu ON these objects, whoever has
+    it open - :func:`comms_navigate_override` for each open pair whose SELECTED side is
+    one of them. Stays on the current path.
+
+    For a change to the selected object itself - a ship that strikes her colors, one that
+    takes them back - where the console that has her menu open is not known to the code
+    making the change.
+
+    Returns:
+        int: how many open menus were refreshed.
+    """
+    targets = {o.id for o in to_object_list(sel_ids_or_obj) if o is not None}
+    n = 0
+    for (origin_id, selected_id) in list(__comms_promises.keys()):
+        if selected_id not in targets:
+            continue
+        comms_navigate_override(origin_id, selected_id)
+        n += 1
+    return n
+
+
 def comms_refresh_open(ids_or_obj=None) -> int:
     """Re-run the comms routes for every OPEN comms menu, so buttons whose conditions
     changed appear or disappear now instead of on the next selection.

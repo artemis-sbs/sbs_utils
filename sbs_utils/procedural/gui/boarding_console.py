@@ -169,20 +169,41 @@ def _tile_place(tile):
     (`Hidden until:` a signal that has not been sent) is not said - the area's title is,
     as on a cell with no mark - or standing on `@cache` told the crew there was a cache.
     Once the thing is revealed, the mark is a place like any other.
-
-    AN ARRIVAL MARK IS NOT A PLACE either. `entry: pad` and an exit's `@arrive` are where
-    the crew lands, so they stand on one the moment they beam or walk in - and the bar read
-    `pad` / `arrive` until the first step, then the area's title (engine-seen, course 3
-    lectures 7 and 8). The area's title from the start.
     """
-    from ..tilemap import (tilemap_mark_at, tilemap_title, tilemap_exit_target,
-                           tilemap_is_arrival_mark)
+    from ..tilemap import tilemap_mark_at, tilemap_title, tilemap_exit_target
     mark = tilemap_mark_at(*tile)
     if mark and not tilemap_exit_target(tile[0], mark)[0] \
-            and not tilemap_is_arrival_mark(tile[0], mark) \
             and not _mark_keeps_a_secret(tile[0], mark):
-        return mark.replace("_", " ")
+        return _mark_words(tile[0], mark, (tile[1], tile[2]))
     return tilemap_title(tile[0]) or tile[0]
+
+
+def _mark_words(area, mark, cell=None):
+    """A mark as the words the bar says.
+
+    A writer's mark is said as written (`landing_pad` is `landing pad`). A GENERATED
+    deck's marks are the generator's keys - `room:captains-cabin`, `room:brig`, and a
+    bare `door` on every doorway - and the bar printed them raw (engine-seen, author
+    course 3 lesson 15). Those are said as the room's name, `Captains Cabin` / `Brig`,
+    a doorway as `Door`, and the deck's `entry` cell as the room it is in.
+    """
+    import re
+    text = str(mark)
+    if text.lower().startswith("room:"):
+        words = [w for w in re.split(r"[-_\s]+", text[len("room:"):]) if w]
+        return " ".join(w[:1].upper() + w[1:] for w in words) or "Hallway"
+    if text.lower() in ("door", "entry"):
+        from ..boarding_deckplan import boarding_deck_built
+        if boarding_deck_built(area):
+            if text.lower() == "door":
+                return "Door"
+            from ..tilemap import tilemap_marks, tilemap_mark_cells
+            for other in tilemap_marks(area):
+                if other.startswith("room:") and cell is not None \
+                        and tuple(cell) in set(tilemap_mark_cells(area, other)):
+                    return _mark_words(area, other)
+            return "Hallway"
+    return text.replace("_", " ")
 
 
 def _mark_keeps_a_secret(area, mark):

@@ -58,7 +58,7 @@ legend:
 """
 
 # A second area whose exit lands a walker on the yard's `@well` - which makes the well an
-# ARRIVAL mark, loaded only by the test that wants it.
+# ARRIVAL mark, loaded only by the test that wants it. An arrival mark is still a place.
 SHED_AREA = """area: shed
 title: The Shed
 tileset: g
@@ -133,19 +133,16 @@ class PlaceWordsTests(unittest.TestCase):
         return where_text(PLACE_CID)
 
     def test_a_place_mark_is_the_place_word(self):
-        self.assertEqual(self.at("gate_house"), "gate house")
+        self.assertEqual(self.at("landing_pad"), "landing pad")
 
-    def test_the_entry_mark_is_not_a_place(self):
-        """`entry: landing_pad` is where the crew beams in, so they stand on it at once:
-        the bar read `landing pad` (in the engine, `pad` / `arrive`) until the first
-        step. It is the area's title from the start."""
-        self.assertEqual(self.at("landing_pad"), "The Yard")
-
-    def test_a_mark_an_exit_arrives_at_is_not_a_place(self):
-        """`to_yard: yard @well` lands a walker on the yard's `well` mark."""
-        self.assertEqual(self.at("well"), "well")          # nothing arrives there yet
-        T.tilemap_load(SHED_AREA)
-        self.assertEqual(self.at("well"), "The Yard")
+    def test_an_arrival_mark_is_named_too(self):
+        """The bar's third slot names the mark the crew member stands on - the ARRIVAL
+        marks included (`pad`, `arrive`, `landing pad`): that is the feature author course
+        c3-13 teaches. 7ea2c918 hid them behind the area's title; this keeps them said,
+        whether a mark is the `entry:` or where another area's exit lands a walker."""
+        T.tilemap_load(SHED_AREA)                    # `to_yard: yard @well`
+        self.assertEqual(self.at("well"), "well")
+        self.assertEqual(self.at("landing_pad"), "landing pad")
 
     def test_a_mark_that_places_something_hidden_is_not_said(self):
         self.assertEqual(self.at("cache"), "The Yard")

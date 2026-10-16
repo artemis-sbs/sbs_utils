@@ -904,6 +904,19 @@ def side_surrender(ship, combat_role=None):
     if combat_role:
         obj.remove_role(combat_role)
     obj.data_set.set("surrender_flag", 1, 0)
+    _refresh_comms_on(obj)
+
+
+def _refresh_comms_on(obj):
+    """An open Comms menu on her is now stale: what she offers depends on whether she
+    has struck. It kept `Hail` / `Surrender now` until reselected - and reselecting is
+    how the 1.3.15 Comms map was lost (engine-seen, author course 3 lesson 15: the Black
+    Gull struck from a mission card with her menu open). Best effort: no comms, no harm."""
+    try:
+        from .comms import comms_refresh_selected
+        comms_refresh_selected(obj)
+    except Exception:                                    # noqa: BLE001
+        pass
 
 
 def side_unsurrender(ship, combat_role=None):
@@ -927,6 +940,7 @@ def side_unsurrender(ship, combat_role=None):
     if combat_role:
         obj.add_role(combat_role)
     obj.data_set.set("surrender_flag", 0, 0)
+    _refresh_comms_on(obj)
 
 
 def side_capture(ship, captor):

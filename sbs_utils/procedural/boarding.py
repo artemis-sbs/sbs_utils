@@ -115,6 +115,32 @@ def boarding_held(client_id):
     return list(_TEAM.get(to_id(client_id)) or ())
 
 
+def _is_down(lifeform):
+    """Whether a crew member is DOWN on the ground - and so can choose nothing."""
+    from .boarding_combat import boarding_is_down
+    try:
+        return bool(boarding_is_down(lifeform))
+    except Exception:                                    # noqa: BLE001
+        return False
+
+
+def boarding_held_up(client_id):
+    """The characters this console speaks for who are NOT down, primary first.
+
+    A downed crew member is still held - the console still shows her, and a medkit brings
+    her back - but she can take no choice. A scene left open on her screen kept taking
+    her presses and applying them (engine-seen, author course 3 lesson 14: Dr Hale DOWN at
+    the terminal, and `Send the sentry its recognition update` still ran).
+    """
+    return [lf for lf in boarding_held(client_id) if not _is_down(lf)]
+
+
+def boarding_console_down(client_id):
+    """True when this console holds somebody and every one of them is down."""
+    held = boarding_held(client_id)
+    return bool(held) and all(_is_down(lf) for lf in held)
+
+
 def boarding_team():
     """Every character currently under a console's control, as a set of ids.
 
@@ -976,6 +1002,11 @@ def boarding_choices(client_id):
         # No character: the unguarded choices only, which is the right answer for an
         # observer rather than an error.
         return dialogue_choices(parsed, None, speaker)
+    # A DOWNED CHARACTER CHOOSES NOTHING - not her own lines, not the shared ones, not
+    # the forwarded tail. A console whose only character is down has no choices at all.
+    held = [lf for lf in held if not _is_down(lf)]
+    if not held:
+        return []
 
     out = []
     seen = set()
@@ -1026,6 +1057,8 @@ def boarding_choices_for(client_id, lifeform):
     lf_id = to_id(lifeform)
     if lf_id is None or lf_id not in boarding_held(client_id):
         return boarding_choices(client_id)
+    if _is_down(lf_id):
+        return []                       # down: nothing to choose (see `boarding_choices`)
     out = dialogue_choices(parsed, lf_id, rec.get("speaker"))
     for c in out:
         setattr(c, "agent", lf_id)
@@ -1074,15 +1107,20 @@ def boarding_answer(client_id, index, seq=None, agent=None):
     if not isinstance(index, int) or index < 0 or index >= len(choices):
         return False
     choice = choices[index]
+    # The character that OWNS the choice, not the console's primary. With a doubled-up
+    # console those differ, and applying as the primary would credit the wrong body -
+    # and evaluate a cost or a refusal against someone who was not acting.
+    # A forwarded choice carries no agent: the first character still on their feet.
+    actor = choice.get("agent") or (boarding_held_up(cid) or [boarding_me(cid)])[0]
+    if actor is not None and _is_down(actor):
+        # DOWN, and so refused before the token moves: a button drawn before she fell is
+        # still on her screen, and it must do nothing at all.
+        return False
 
     from_key = rec.get("key")
     rec["seq"] = _next_seq()
 
     speaker = rec.get("speaker")
-    # The character that OWNS the choice, not the console's primary. With a doubled-up
-    # console those differ, and applying as the primary would credit the wrong body -
-    # and evaluate a cost or a refusal against someone who was not acting.
-    actor = choice.get("agent") or boarding_me(cid)
     _REDIRECT.clear()
     _ANSWERED["actor"] = actor          # who answered: the reader credits them
     _ANSWERED["label"] = choice.label   # and with what, whatever words the press sent
@@ -1248,11 +1286,22 @@ def _boarding_beat_text(client_id, agent=None):
             image = boarding_line_image(ch)
             lead = _image_md(image, READER_SPEAKER_FACE_LINES) if image else ""
     lines = [f"{lead} {line}" if lead else line]
-    picks = _boarding_choice_lines(choices, seq, agent)
+    picks = _boarding_choice_lines(choices, seq, agent) or _boarding_down_lines(client_id)
     if picks:
         lines.append("")
     lines.extend(picks)
     return "\n".join(lines)
+
+
+def _boarding_down_lines(client_id):
+    """In place of the choices, for a console whose every character is DOWN: say so.
+
+    A beat with nothing under it reads as a scene waiting on somebody else; a crew member
+    who has fallen needs to be told why her screen will not answer."""
+    if not boarding_console_down(client_id):
+        return []
+    who = _name_of(boarding_me(client_id))
+    return [f"**{who} is DOWN - needs a medkit.** Nothing can be chosen until then."]
 
 
 def _boarding_choice_lines(choices, seq, agent=None):
@@ -1287,6 +1336,9 @@ def _boarding_reader_rechoose(client_id, state):
                else boarding_choices(client_id))
     picks = _boarding_choice_lines(choices, boarding_seq(ch), agent)
     text = text.rstrip("\n")
+    if not picks:
+        # Down: said once, however many times the party changes while she lies there.
+        picks = [p for p in _boarding_down_lines(client_id) if not text.endswith(p)]
     if picks:
         text = text + "\n\n" + "\n".join(picks)
     return text
@@ -1451,6 +1503,18 @@ def _boarding_reader_on_pick(name, data):
     audience = boarding_channel_members(boarding_channel_of(cid)) | {cid}
     _ANSWERED.clear()
     accepted = boarding_answer(cid, index, seq, agent=agent)
+    if not accepted and boarding_console_down(cid):
+        # A DOWNED crew member's press. Nothing happened, so nothing is settled - writing
+        # her pick into the transcript as made would say it had. Her live buttons give
+        # way to the line saying why, and nobody else's transcript is touched.
+        state = _READERS.get(cid)
+        if state is not None:
+            state["text"] = _boarding_reader_rechoose(cid, state)
+            if state.get("in_region"):
+                state["rev"] = state.get("rev", 0) + 1
+            elif state.get("area") is not None:
+                state["area"].value = state["text"]
+        return
     # WHO CHOSE, above the choice, for every reader - in a party of several consoles
     # the chip alone does not say. Only for a pick that was taken: a stale press
     # changed nothing, so it credits nobody.
@@ -2297,9 +2361,13 @@ def boarding_duty_client(channel=None):
     The lowest client id in the channel - an arbitrary rule, but a STABLE one, which
     is the property that matters: every console computes the same answer, so a
     forwarded choice appears once rather than on whichever screen repainted last.
+
+    A console whose every character is DOWN cannot catch anything - it chooses nothing -
+    so it is passed over while anybody else in the channel is still standing.
     """
     down = sorted(c for c in boarding_channel_members(channel) if boarding_held(c))
-    return down[0] if down else None
+    up = [c for c in down if boarding_held_up(c)]
+    return (up or down)[0] if down else None
 
 
 def boarding_orphan_choices(channel=None):
@@ -2311,7 +2379,9 @@ def boarding_orphan_choices(channel=None):
     speaker = rec.get("speaker")
     team = set()
     for cid in boarding_channel_members(channel):
-        team.update(boarding_held(cid))
+        # Those still STANDING: a downed medic cannot treat anybody, so her lines go to
+        # whoever is covering, as though she were not there.
+        team.update(boarding_held_up(cid))
     if not team:
         return []
     out = []

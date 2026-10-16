@@ -116,6 +116,10 @@ def boarding_hurt(lifeform, amount=1, by=None):
         # either way.
         from .tilemap import tilemap_set_pose
         tilemap_set_pose(lf, "down")
+        # Her open scene changes with her: a downed crew member can choose nothing, so
+        # every reader re-derives its live menu (hers gives way to the line saying why).
+        from .boarding import _boarding_party_changed
+        _boarding_party_changed()
         signal_emit("boarding_crew_down", {"BOARDING_WHO": lf, "BOARDING_BY": by})
         # Everyone ON THE GROUND - a crew member still aboard is not down there to help.
         from .boarding import boarding_team
@@ -157,6 +161,8 @@ def boarding_revive(lifeform, hp=None, by=None):
     tilemap_set_sprite(lf, color=get_inventory_value(lf, "BOARDING_COLOR", None) or "#4cf")
     from .tilemap import tilemap_set_pose
     tilemap_set_pose(lf, None)
+    from .boarding import _boarding_party_changed
+    _boarding_party_changed()                # back on her feet: her choices come back
     signal_emit("boarding_crew_revived", {"BOARDING_WHO": lf, "BOARDING_BY": by})
     return True
 

@@ -573,9 +573,12 @@ def boarding_interact(client_id, key):
             quest_on_collect(lf, rec["item"])
         except Exception:                                # noqa: BLE001
             pass
-        what = boarding_pickup_text(rec)
+        # The words follow what happened to the PROP: gone from the map, it was the
+        # thing lying there; still standing, it was what the thing came out of.
+        gone = rec["id"] is None
+        what = boarding_pickup_text(rec, gone)
         result, text = "picked", f"Picked up {what}."
-        _pickup_note(client_id, lf, rec)
+        _pickup_note(client_id, lf, rec, gone)
     elif rec["scene"] and _SCENES["doc"] is not None:
         # Whoever is standing with them hears it too.
         from .tilemap import tilemap_actors_near
@@ -595,34 +598,66 @@ def boarding_interact(client_id, key):
     signal_emit("boarding_interacted", {"BOARDING_CLIENT": client_id, "BOARDING_WHO": lf,
                                         "BOARDING_PROP": rec["key"],
                                         "BOARDING_RESULT": result, "BOARDING_TEXT": text})
-    _note(client_id, text)
+    # WHAT LOOK SAYS about it. A prop that opened a scene used to leave its bare NAME
+    # there - `Pump panel`, `Captain's strongbox` where a description belongs (engine-
+    # seen, author course 3 lessons 10 and 15): the scene itself is in Act, so Look
+    # says the prop's description, or nothing. And this interaction's words REPLACE the
+    # last ones even when it has none - a prop with nothing to say left the previous
+    # prop's line (or `Hit by ...`) standing under it.
+    _note_set(client_id, rec["desc"] if result == "scene" else text)
     return result, text
 
 
-def boarding_pickup_text(rec):
-    """What a pickup PUT IN THE PACK, in words: the item and how many, with the prop named
-    only as where it came from.
+#: Words that say a name already carries its count (`Two fuses`, `A pair of gloves`).
+_COUNT_WORDS = {"two", "three", "four", "five", "six", "seven", "eight", "nine", "ten",
+                "eleven", "twelve", "dozen", "pair", "both", "several", "some", "few"}
 
-    It used to be the prop's name alone, so Act said `Dr Ines Hale picked up Toolbox.`
-    while Pack said `fuse x2` - two names for one thing, and the one in the log was not
-    the thing she was now carrying (engine-seen, author course 3 lecture 10). When the
-    prop IS the item (`Coil` holding `coil`) its own name is kept, as the writer cased it.
+
+def _name_has_a_count(name):
+    words = [w.strip(".,;:!?()").lower() for w in str(name).split()]
+    return any(w.isdigit() or w in _COUNT_WORDS for w in words)
+
+
+def boarding_pickup_text(rec, gone=True):
+    """What a pickup was, in words - following what happened to the PROP.
+
+    * **Gone from the map** (``gone``, which is what an ``Item:`` prop does when it is
+      picked up): the prop WAS the thing lying there, so it is said by the name the
+      writer gave it - `Pump house key`, `Two fuses`, `Relay keycard`. When it was worth
+      more than one and its name does not say so, the count goes after it, as the pack
+      will show it: `Toolbox (fuse x2)`.
+    * **Still standing** (a container - a strongbox that stays on the map): the item and
+      how many, with the prop named as where it came from: `fuse x2 from the Toolbox`.
+
+    7ea2c918 said every pickup the second way, which read badly whenever the prop was
+    the thing picked up: `picked up pump key from the Pump house key.` (author course 3
+    lesson 10), and c3-13's `Two fuses` would have been `fuse x2 from the Two fuses.`
+    Before that every pickup was the prop's name alone, so `picked up Toolbox.` named
+    nothing the pack held. When the prop IS the item (`Coil` holding `coil`) it is said
+    once either way.
     """
     item = str(rec.get("item") or "").replace("_", " ").strip()
     name = str(rec.get("name") or "").strip()
     qty = rec.get("qty") or 1
     count = " x%d" % qty if qty != 1 else ""
-    if not item or name.lower().replace("_", " ") == item.lower():
-        return f"{name or item}{count}"
+    same = not item or name.lower().replace("_", " ") == item.lower()
+    if not name:
+        return f"{item}{count}"
+    if same:
+        return f"{name}{count}"
+    if gone:
+        if count and not _name_has_a_count(name):
+            return f"{name} ({item}{count})"
+        return name
     where = name if name.lower().startswith(("the ", "a ", "an ")) else "the " + name
     return f"{item}{count} from {where}"
 
 
-def _pickup_note(client_id, lf, rec):
+def _pickup_note(client_id, lf, rec, gone=True):
     """What was picked up, in this console's Act transcript - with its picture, which is
     the sprite it lay on the map with."""
     from .boarding import boarding_find_note
-    boarding_find_note(client_id, lf, f"picked up {boarding_pickup_text(rec)}.",
+    boarding_find_note(client_id, lf, f"picked up {boarding_pickup_text(rec, gone)}.",
                        rec.get("sprite"))
 
 
@@ -651,6 +686,14 @@ def _note_area(client_id):
 def _note(client_id, text):
     if text:
         _NOTES[client_id] = (text, _note_area(client_id))
+
+
+def _note_set(client_id, text):
+    """Like `_note`, but empty words CLEAR the note rather than leaving the last one."""
+    if text:
+        _note(client_id, text)
+    else:
+        _NOTES.pop(client_id, None)
 
 
 def boarding_last_note(client_id):

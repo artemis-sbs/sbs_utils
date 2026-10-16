@@ -1243,29 +1243,6 @@ def tilemap_exit_target(area, mark):
     return None, None
 
 
-def tilemap_is_arrival_mark(area, mark):
-    """True when `mark` is where somebody ARRIVES in `area`: its `entry:` mark, or the
-    `@mark` another area's exit sends a walker to.
-
-    Such a mark is plumbing, not a place - `pad`, `arrive` - and a crew member stands on it
-    the moment they beam or walk in, so it must never be read out as where they are.
-    """
-    rec = _AREAS.get(_norm(area))
-    mark = _norm(mark)
-    if rec is None or not mark:
-        return False
-    if _norm(rec.get("entry") or "") == mark:
-        return True
-    for other in _AREAS.values():
-        for spec in (other.get("exits") or {}).values():
-            target, _, where = str(spec).partition(" ")
-            where = where.strip()
-            if _norm(target) == rec["key"] and where.startswith("@") \
-                    and _norm(where[1:]) == mark:
-                return True
-    return False
-
-
 def _arrival_cell(area, came_from, where=None):
     """Where somebody walking in stands: beside the way back, never ON it - arriving on
     an exit would send them straight back out."""

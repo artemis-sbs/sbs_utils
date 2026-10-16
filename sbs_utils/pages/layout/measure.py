@@ -261,6 +261,20 @@ def wrap_to_width(font, text, px_width):
         w = width_of(candidate)
         return w is not None and w <= px_width
 
+    def one_line(candidate):
+        """Whether the ENGINE draws `candidate` on one line at this width.
+
+        Its line-width metric and its own wrap do not agree at the margin: a line the
+        width says fits can still be broken by the wrap - which the block height then
+        reports as two lines. The text area sized the row for those two lines, so
+        nothing overlapped; it just left an orphan word, a sentence broken mid-way
+        (engine-seen, author course 3 lesson 13, the Tasks page: `If the beacon cannot
+        be lit, somebody` / `will` / `have to fly a new one down.`). The wrap is what
+        draws, so the wrap decides."""
+        h = measure_block_height(font, candidate, px_width)
+        one = measure_line_height(font, candidate)
+        return h is None or one is None or h <= one
+
     if width_of(text) is None:
         return [text]              # unmeasurable -- let the engine wrap it
 
@@ -307,6 +321,9 @@ def wrap_to_width(font, text, px_width):
         # needs to shrink and never to grow -- so the result is still exact,
         # at ~1-2 measurements per line instead of one per word.
         while j > i + 1 and not fits(" ".join(words[i:j])):
+            j -= 1
+        # And the engine's wrap must agree it is one line (see `one_line`).
+        while j > i + 1 and not one_line(" ".join(words[i:j])):
             j -= 1
         lines.append(" ".join(words[i:j]))
         i = j                       # a word is consumed only by being placed

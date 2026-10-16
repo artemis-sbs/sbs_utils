@@ -796,15 +796,17 @@ def _home(client_id, surface=SURFACE_BOARDING):
     except Exception as e:                               # noqa: BLE001
         _report_once(surface, e, "home_text")
         line = ""
-    if line:
+    apps = xess_apps(client_id, surface)
+    band = _home_line_px(client_id, apps) if line else 0
+    if band:
         # A text area, not a text: prose, several lines, and it scrolls itself rather
         # than spilling over what is under it. CAPPED for the same reason as in ACT - on
         # `1fr` it took every pixel the tiles were not using and pushed them to the foot
         # of the column.
-        gui_row("row-height: %dpx;" % BEAT_PX)
+        gui_row("row-height: %dpx;" % band)
         gui_text_area(gui_text_literal(line), emphasis=True)   # an author's line, not a template
 
-    for app in xess_apps(client_id, surface):
+    for app in apps:
         _tile(client_id, app, surface)
 
     # The slack goes HERE, under the tiles, rather than into the prose or into the last
@@ -812,6 +814,54 @@ def _home(client_id, surface=SURFACE_BOARDING):
     # the tiles are stretched to fill the column.
     gui_row("row-height: 1fr;")
     gui_blank()
+
+
+#: The home sheet's title row, in `em` of gui-2 - what `_home` and `gui_xess_head` ask for.
+HOME_TITLE_EM = 2.2
+#: A tile's padding top + bottom and its margin below, in px - `_tile`'s own style.
+TILE_CHROME_PX = 10 + 10 + 10
+
+
+def _home_line_px(client_id, apps):
+    """How tall the home's scene line may be: what the tiles LEAVE, up to `BEAT_PX`, or 0
+    when that is not even two lines - the line is in Act, whose tile says so.
+
+    THE TILES COME FIRST. The line sat in a fixed `BEAT_PX` band, and a tile is a
+    `content` row - so when the band and eight tiles did not fit, the layout scaled the
+    TILES down, never the band: each title printed over its blurb and the rows shrank to
+    ~0.07 of the screen (engine-seen, author course 3 lessons 12 and 16, Back to the home
+    with a scene's line showing). A ground visit has eight apps, and at 960 tall they
+    fill the column on their own.
+
+    The tiles are measured the way the layout will measure them - one line of each font,
+    asked of the engine - and the app area is the section being built. When either cannot
+    be had, the cap stands as it always did.
+    """
+    from ...gui import get_client_aspect_ratio
+    from ...pages.layout.layout import calc_bounds, get_font_size
+    from ...pages.layout.measure import measure_line_height
+    page = FrameContext.page
+    try:
+        layout = page.get_pending_layout() if page is not None else None
+        ar = get_client_aspect_ratio(client_id)
+        bounds = calc_bounds(getattr(layout, "bounds_style", None), ar,
+                             get_font_size("gui-2"))
+        avail = (bounds.bottom - bounds.top) / 100.0 * ar.y
+    except Exception:                                    # noqa: BLE001
+        return BEAT_PX
+    if not avail or avail <= 0:
+        return BEAT_PX
+    need = HOME_TITLE_EM * get_font_size("gui-2")
+    for app in apps:
+        need += TILE_CHROME_PX + (measure_line_height("gui-3", app.get("title") or "M") or 28)
+        if app.get("blurb"):
+            need += measure_line_height("gui-1", app["blurb"]) or 22
+    # A pixel a tile of slack: the engine's measure and the layout's sum round apart.
+    room = int(avail - need - len(apps))
+    two_lines = 2 * (measure_line_height("gui-2", "Mg") or 24)
+    if room < two_lines:
+        return 0
+    return min(BEAT_PX, room)
 
 
 def _tile(client_id, app, surface=SURFACE_BOARDING):
@@ -934,7 +984,12 @@ def _act_app(client_id):
         choices = []
 
     if not choices:
+        from ..boarding import boarding_console_down
         gui_row("row-height: 1fr;")
+        if boarding_console_down(client_id):
+            gui_text("$text:%s;font:gui-2;color:%s;"
+                     % (_esc("You are DOWN - needs a medkit. Nothing can be chosen."), WARN))
+            return
         gui_text("$text:%s;font:gui-2;color:%s;"
                  % (_esc("Nothing to decide here."), DIM))
         return
