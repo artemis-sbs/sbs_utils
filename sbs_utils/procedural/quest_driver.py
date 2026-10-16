@@ -456,6 +456,22 @@ def quest_mark_complete(agent_id, quest_id):
         return
     quest_set_key(agent_id, quest_id, "state", QuestState.COMPLETE)
     quest_grant_reward(agent_id, data.get("reward"))
+    # ANNOUNCED BEFORE `Then:` RUNS. A `Then: signal x` completes the quest waiting on
+    # `Done when: signal x` right there, inside this call - a signal's route is ticked as
+    # it is emitted - so announcing afterwards put the SECOND quest's line out first and
+    # this one's over it. The strip shows the newest line, so the crew saw only the
+    # first quest complete (engine-seen, author course 3 lesson 5: "Six Names" stayed on
+    # the strip and "Account for the Crew" never appeared, though it was Done). Said in
+    # the order it happened: this quest, then what finishing it caused.
+    _quest_fire_overlays(agent_id, data, "complete_overlay", "on_complete")
+    name = quest_get_display_name(agent_id, quest_id) or quest_id
+    if not _quest_author_announces(data, "complete_overlay", "on_complete"):
+        # Tagged at the SOURCE, so every mission's quest traffic lands in the log's
+        # Mission tab without any mission being edited. `tip` gives a completion its
+        # callout; failures below take `danger`.
+        comms_broadcast(_quest_audience(agent_id),
+                        f"{_quest_noun(data)} complete: {name}", "#0f0",
+                        category="mission", severity="tip")
     # `Then:`. One action is the three keys it always was, run in the order they always
     # ran. Several - a comma list, or `Then:` on more than one line - are under `then`,
     # in the order the writer wrote them, and every one of them runs.
@@ -469,15 +485,6 @@ def quest_mark_complete(agent_id, quest_id):
         _quest_then(agent_id, quest_id, "learn", data.get("learn"))
         _quest_then(agent_id, quest_id, "signal", data.get("signal"))
     signal_emit("quest_succeeded", {"AGENT_ID": agent_id, "QUEST_ID": quest_id, "DATA": data})
-    _quest_fire_overlays(agent_id, data, "complete_overlay", "on_complete")
-    name = quest_get_display_name(agent_id, quest_id) or quest_id
-    if not _quest_author_announces(data, "complete_overlay", "on_complete"):
-        # Tagged at the SOURCE, so every mission's quest traffic lands in the log's
-        # Mission tab without any mission being edited. `tip` gives a completion its
-        # callout; failures below take `danger`.
-        comms_broadcast(_quest_audience(agent_id),
-                        f"{_quest_noun(data)} complete: {name}", "#0f0",
-                        category="mission", severity="tip")
     # A game-ending mission quest wins the game; then bubble up to a parent mission.
     _quest_maybe_end_game(agent_id, quest_id, data, win=True)
     if data.get("parent"):

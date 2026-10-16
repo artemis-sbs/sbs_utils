@@ -470,7 +470,7 @@ class TableLine:
                     elif not itext and a == "r":
                         ix = x + col_pct[c] - iw
                     _lead_send(SBS, client_id, region_tag, f"{tag}:r{ri}c{c}:i", ins, urn,
-                               ix, y, ix + iw, y + ih, layer)
+                               ix, y, ix + iw, y + ih, layer, color)
                     if itext:
                         tx = x + iw + (ICON_GAP_PX / ar.x) * 100
                         style = f"font:{f};justify:left;color:{color};" + lay
@@ -527,14 +527,21 @@ class GaugeLine:
                    self.spec, self.ar, layer)
 
 
-def _icon_send(SBS, client_id, region_tag, tag, urn, left, top, right, bottom, layer=None):
+def _icon_send(SBS, client_id, region_tag, tag, urn, left, top, right, bottom, layer=None,
+               default_color=None):
     """Draw `icon://` art into a rect. The urn is an icon NAME (`check.on`, `wanted`)
     or a sheet INDEX (`137`), plus `?color=`. A name is resolved the way
     `gui_icon_name` resolves it, so a mission that re-skins a name re-skins it here too;
-    a name nobody knows draws nothing (a wrong glyph looks deliberate)."""
+    a name nobody knows draws nothing (a wrong glyph looks deliberate).
+
+    ALWAYS SENT WITH A COLOR. The engine tints an icon with no `color:` MAGENTA - its
+    debug fallback - so an author's `![](icon://hourglass) Ten minutes` drew a magenta
+    hourglass beside blue text (engine-seen on every quest page of author courses 2 and
+    3). With no `?color=` the icon takes `default_color` - the color of the text it
+    leads - and white when there is none."""
     opts = parse_url(urn)
     key = (opts.get("url") or "").strip()
-    color = opts.get("color")
+    color = opts.get("color") or default_color or "white"
     lay = _layer_prop(layer)
     if key.isdigit():
         index, atlas_key = int(key), None
@@ -550,14 +557,17 @@ def _icon_send(SBS, client_id, region_tag, tag, urn, left, top, right, bottom, l
         return
     if index is None:
         return
-    props = f"icon_index:{index};" + (f"color:{color};" if color else "") + lay
+    props = f"icon_index:{index};color:{color};" + lay
     SBS.send_gui_icon(client_id, region_tag, tag, props, left, top, right, bottom)
 
 
-def _lead_send(SBS, client_id, region_tag, tag, ns, urn, left, top, right, bottom, layer=None):
-    """Draw a lead picture of any kind into a square rect."""
+def _lead_send(SBS, client_id, region_tag, tag, ns, urn, left, top, right, bottom, layer=None,
+               default_color=None):
+    """Draw a lead picture of any kind into a square rect. `default_color` is the color
+    of the text beside it, which an uncolored icon takes (see `_icon_send`)."""
     if ns == "icon":
-        _icon_send(SBS, client_id, region_tag, tag, urn, left, top, right, bottom, layer)
+        _icon_send(SBS, client_id, region_tag, tag, urn, left, top, right, bottom, layer,
+                   default_color)
         return
     opts = parse_url(urn)
     key = (opts.get("url") or "").strip()
@@ -641,8 +651,10 @@ class IconLine:
         x = left + (self.indent_px / ar.x) * 100
         icon_w = (self.icon_px / ar.x) * 100
         icon_h = (self.icon_px / ar.y) * 100
+        st = self.style.get("style", "") if isinstance(self.style, dict) else ""
         _lead_send(SBS, client_id, region_tag, f"{tag}:i", self.ns, self.urn,
-                   x, top, x + icon_w, top + icon_h, layer)
+                   x, top, x + icon_w, top + icon_h, layer,
+                   split_props(st or "", "color").get("color"))
         if self.text and self.wrapped:
             st = self.style.get("style", "font:gui-2;") if isinstance(self.style, dict) else ""
             tx = x + icon_w + (ICON_GAP_PX / ar.x) * 100

@@ -803,12 +803,66 @@ def gui_app_badge(app):
     return value or None
 
 
-def _tile(app, dense):
+#: A tile's badge moved under its title costs one gui-1 line.
+TILE_BADGE_PX = 22
+#: A tile's horizontal chrome: its right margin (TILE_GAP) plus its left and right padding.
+TILE_CHROME_PX = 14 + 14 + 14
+#: Width assumed for a client that has not said how wide it is - the smallest common
+#: console, the same safe direction `_grid_fits` takes.
+TILE_ASSUMED_WIDTH_PX = 1024
+#: Slack per column on the title row, so a near miss moves rather than wraps.
+TILE_COL_SLACK_PX = 8
+
+_UNSET = object()
+
+
+def _tile_text_px(client_id, columns):
+    """The pixels a tile has for its title row on this client, chrome taken off."""
+    width = 0
+    if client_id is not None:
+        try:
+            from ...gui import get_client_aspect_ratio
+            width = getattr(get_client_aspect_ratio(client_id), "x", 0) or 0
+        except Exception:                                   # noqa: BLE001
+            width = 0
+    if width <= 0:
+        width = TILE_ASSUMED_WIDTH_PX
+    return width / max(1, columns) - TILE_CHROME_PX
+
+
+def _tile_badge_below(app, badge, text_px):
+    """Does this tile's badge need its own line under the title?
+
+    The title row is ONE LINE by construction, and a badge can be a mission's words -
+    the Boarding Party tile shows the visit's place title. Squeezed in beside the title,
+    "Ferrow Landing" took the room and the title wrapped as "Boardin" / "Party", the
+    word cut (engine-seen, author course 3 lesson 1). So a badge that does not fit beside
+    the title MOVES to a line of its own, and neither the title nor the badge is
+    shortened. A count (`3 new`, `2 reporting`) fits and stays where it always was.
+    """
+    if not badge:
+        return False
+    try:
+        from ...pages.layout.measure import measure_line_width, measure_line_height
+        need = (measure_line_width("gui-4", str(app.get("title") or ""))
+                + measure_line_width("gui-1", str(badge)))
+        if app.get("icon"):
+            need += measure_line_height("gui-4", "M") or 32
+        need += TILE_COL_SLACK_PX * (3 if app.get("icon") else 2)
+    except Exception:                                       # noqa: BLE001
+        return False                # nothing to measure with: the old one-row tile
+    return need > text_px
+
+
+def _tile(app, dense, badge=_UNSET, badge_below=False):
     """One app tile: a clickable panel holding its icon, name and description.
 
     The WHOLE panel is the hit target, not just a button inside it - a sub-section
     with `click_text` emits a click region over its own bounds (Layout._post_present),
     which is the same mechanism the tab strip and the text area's links use.
+
+    ``badge`` is the app's live badge when the caller already asked for it (asked
+    otherwise); ``badge_below`` puts it on its own line - see `_tile_badge_below`.
     """
     from .section import gui_sub_section
     from .row import gui_row
@@ -846,10 +900,16 @@ def _tile(app, dense):
         # height from every other tile, and the engine does not clip - the second
         # line draws over the description.
         gui_text(f"$text:{_esc(title)};font:gui-4;overflow:shrink;")
-        badge = gui_app_badge(app)
-        if badge:
+        if badge is _UNSET:
+            badge = gui_app_badge(app)
+        if badge and not badge_below:
             gui_text(f"$text:{_esc(badge)};font:gui-1;color:{ACCENT};",
                      style="col-width: content;")
+        elif badge:
+            # Its own line, the tile's full width: room for the whole of it, wrapping
+            # if it is longer still, and the title keeps its words.
+            gui_row("row-height: content;")
+            gui_text(f"$text:{_esc(badge)};font:gui-1;color:{ACCENT};")
         if not dense and app.get("description"):
             gui_row("row-height: content;")
             gui_text(f"$text:{_esc(app['description'])};font:gui-1;color:{DIM};")
@@ -892,7 +952,7 @@ def _columns_for(client_id, dense):
     return max(1, min(want, int(width // MIN_TILE_PX)))
 
 
-def _grid_fits(client_id, groups, columns, dense):
+def _grid_fits(client_id, groups, columns, dense, below=()):
     """Whether the tiles fit on this screen without anything being cut off.
 
     There is no scrolling in a grid, and the engine does NOT clip - a band that runs
@@ -916,7 +976,15 @@ def _grid_fits(client_id, groups, columns, dense):
         return True
     available = height - BODY_TOP_PX - BAR_PX - len(groups) * HEADING_PX
     rows = sum(-(-len(apps) // max(1, columns)) for _, apps in groups)
-    return rows * (TILE_PX_DENSE if dense else TILE_PX) <= available
+    # A band holding a tile whose badge moved under its title is one badge line taller
+    # (`below` is the set of such tabs).
+    extra = 0
+    step = max(1, columns)
+    for _, apps in groups:
+        for i in range(0, len(apps), step):
+            if any(a.get("tab") in below for a in apps[i:i + step]):
+                extra += TILE_BADGE_PX
+    return rows * (TILE_PX_DENSE if dense else TILE_PX) + extra <= available
 
 
 def _app_row(item):
@@ -1027,7 +1095,19 @@ def gui_app_home(ship_name=None, columns=None, title="ePADD"):
     # A grid does not scroll and the engine does not clip, so a sheet that overflows
     # draws over itself. Past what fits, the same apps become a scrolling list with
     # collapsible group headers - nothing is hidden either way.
-    if not _grid_fits(getattr(page, "client_id", None), groups, columns, dense):
+    #
+    # Each badge is asked for ONCE per build: whether it fits beside its title decides
+    # both the tile's shape and how tall the grid is.
+    client_id = getattr(page, "client_id", None)
+    text_px = _tile_text_px(client_id, columns)
+    badges = {}
+    below = set()
+    for _, apps in groups:
+        for app in apps:
+            badges[app.get("tab")] = gui_app_badge(app)
+            if _tile_badge_below(app, badges[app.get("tab")], text_px):
+                below.add(app.get("tab"))
+    if not _grid_fits(client_id, groups, columns, dense, below):
         _app_list(groups)
         return
 
@@ -1036,7 +1116,7 @@ def gui_app_home(ship_name=None, columns=None, title="ePADD"):
         gui_text(f"$text:{_esc(name.upper())};font:gui-1;color:{ACCENT};")
         with gui_grid(columns, row_style=TILE_ROW):
             for app in apps:
-                _tile(app, dense)
+                _tile(app, dense, badges.get(app.get("tab")), app.get("tab") in below)
 
 
 def gui_app_home_tick():

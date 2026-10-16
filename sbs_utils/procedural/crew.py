@@ -826,6 +826,39 @@ def _member_by_pick(pick):
     return None, None
 
 
+#: The face KEYWORDS a member's `Face:` may be instead of a face string, as
+#: (race, gender). The bare gender words are terran, as `faces.face_resolve` reads them.
+_STOCK_FACE_WORDS = {
+    "male": ("terran", "male"), "female": ("terran", "female"),
+    "fluid": ("terran", "fluid"), "terran": ("terran", None),
+    "terran_male": ("terran", "male"), "terran_female": ("terran", "female"),
+    "terran_fluid": ("terran", "fluid"), "terran_civilian": ("terran_civilian", None),
+    "kralien": ("kralien", None), "arvonian": ("arvonian", None),
+    "skaraan": ("skaraan", None), "torgoth": ("torgoth", None), "ximni": ("ximni", None),
+}
+
+
+def _face_keyword(spec):
+    """(race, gender) when a `Face:` value is a keyword rather than a face string, else None.
+
+    A face string is never one bare word - it is `alias #color col row;...` - so a single
+    word is a keyword when it is a stock race / gender word or a race a mod registered.
+    Anything else passes through untouched, exactly as `face_resolve` treats it.
+    """
+    word = str(spec or "").strip().lower()
+    if not word or any(c in word for c in " #;"):
+        return None
+    if word in _STOCK_FACE_WORDS:
+        return _STOCK_FACE_WORDS[word]
+    try:
+        from ..faces import face_registered_races
+        if word in [str(r).lower() for r in (face_registered_races() or ())]:
+            return (word, None)
+    except Exception:
+        pass
+    return None
+
+
 def _member_face(roster, member):
     """This member's face, DERIVED ONCE AND KEPT.
 
@@ -837,10 +870,23 @@ def _member_face(roster, member):
     roster is declared.
     """
     face = member.get("face") or ""
-    if face:
-        return face
-    face = member.get("__face__") or ""
-    if face:
+    keyword = _face_keyword(face) if face else None
+    if face and keyword is None:
+        return face             # a literal face string - drawn as written
+    cached = member.get("__face__") or ""
+    if cached:
+        return cached
+    if keyword is not None:
+        # `Face: terran_male` is a face KEYWORD, which crew.md says a member may write -
+        # and it used to be handed to send_gui_face as the face string "terran_male",
+        # which draws nothing. So a roster member had no face anywhere in a boarding
+        # visit while an unrostered officer beside them had one. Rolled ONCE and kept
+        # on the record, the same as a Race: face, so a repaint does not change it.
+        race, gender = keyword
+        from ..faces import random_face
+        gender = gender or member.get("gender") or crew_name_gender(member.get("name"))
+        face = random_face(race, gender=gender, civilian=False) or ""
+        setattr(member, "__face__", face)
         return face
     race = roster.get("race")
     if not race:

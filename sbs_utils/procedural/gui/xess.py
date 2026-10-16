@@ -429,16 +429,20 @@ def xess_revision(client_id=None, surface=SURFACE_BOARDING):
 
 def _boarding_revision(client_id):
     """The handheld's own half of the revision - see :func:`xess_revision`."""
-    from ..boarding import boarding_seq_for, boarding_reader_revision
+    from ..boarding import (boarding_seq_for, boarding_reader_revision,
+                            boarding_party_revision)
     from ..boarding_site import boarding_armed, boarding_setting
     from ..eva_tools import eva_armed
     # _team_health: the Crew app shows each member's HP, which nothing else here moves.
     # boarding_reader_revision: Act's transcript scrolled or was picked from, and a text
     # area in this region cannot redraw itself - the rebuild here is its repaint.
+    # boarding_party_revision: somebody joined or left, which changes who is offered what
+    # (a covering choice goes the moment its owner beams down) on the SAME beat.
     from .xess_ground import xess_ground_revision
     return (boarding_seq_for(client_id), xess_ground_revision(client_id),
             boarding_armed(client_id), boarding_setting(client_id),
-            eva_armed(client_id), _team_health(), boarding_reader_revision(client_id))
+            eva_armed(client_id), _team_health(), boarding_reader_revision(client_id),
+            boarding_party_revision())
 
 
 def xess_panel_revision(client_id=None, surface=SURFACE_BOARDING):

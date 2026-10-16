@@ -69,9 +69,12 @@ def boarding_assign(client_id, lifeform):
     cid = to_id(client_id)
     lf_id = to_id(lifeform)
     if lf_id is None:
-        _TEAM.pop(cid, None)
+        if _TEAM.pop(cid, None) is not None:
+            _boarding_party_changed()
         return None
-    _TEAM[cid] = [lf_id]
+    if _TEAM.get(cid) != [lf_id]:
+        _TEAM[cid] = [lf_id]
+        _boarding_party_changed()
     return lf_id
 
 
@@ -93,6 +96,7 @@ def boarding_assign_also(client_id, lifeform):
     if lf_id in boarding_team():
         return None
     _TEAM.setdefault(cid, []).append(lf_id)
+    _boarding_party_changed()
     return lf_id
 
 
@@ -196,7 +200,43 @@ def boarding_client_of(lifeform):
 
 def boarding_team_clear():
     """Drop the whole team - beam-up, or the per-mission reset."""
-    _TEAM.clear()
+    if _TEAM:
+        _TEAM.clear()
+        _boarding_party_changed()
+
+
+# WHO IS IN THE PARTY decides what every member is offered: a job nobody present holds is
+# forwarded, as "(covering for medical)", to one console - and the moment the medic beams
+# down it is hers and nobody else's. A beat's choices were derived once, when the beat
+# opened, so a console whose menu was already on screen kept offering the covering choice
+# until the party moved rooms (engine-seen, author course 3 lesson 3: Engineering beamed
+# down, then Dr Hale; Engineering still offered her reading). The party moving is now a
+# reason to rebuild every member's current menu, the same as a new beat is.
+_PARTY_REV = [0]
+
+
+def boarding_party_revision():
+    """Moves whenever somebody joins, leaves, beams down or beams up. Poll it beside
+    :func:`boarding_seq` - the choices on screen depend on both."""
+    return _PARTY_REV[0]
+
+
+def _boarding_party_changed():
+    """The party changed: every reader's live menu is re-derived for the new party."""
+    _PARTY_REV[0] += 1
+    for client_id, state in list(_READERS.items()):
+        if state.get("in_region"):
+            # A region's owner polls the revision and rebuilds in band - never write a
+            # region's area out of band (see `_boarding_reader_on_pick`).
+            state["rev"] = state.get("rev", 0) + 1
+            continue
+        area = state.get("area")
+        if area is None:
+            continue
+        try:
+            area.value = _boarding_reader_sync(client_id)
+        except Exception:                                   # noqa: BLE001
+            pass
 
 
 def boarding_team_count():
@@ -1192,7 +1232,6 @@ READER_CHOOSER_FACE_LINES = 2
 def _boarding_beat_text(client_id, agent=None):
     """This beat as markdown: the line - with the face of whoever says it, when someone
     in particular does - then this console's choices as signal lines."""
-    from .amd import amd_choice_label
     ch = boarding_channel_of(client_id)
     if not boarding_is_open(ch):
         return "The conversation is over."
@@ -1209,8 +1248,17 @@ def _boarding_beat_text(client_id, agent=None):
             image = boarding_line_image(ch)
             lead = _image_md(image, READER_SPEAKER_FACE_LINES) if image else ""
     lines = [f"{lead} {line}" if lead else line]
-    if choices:
+    picks = _boarding_choice_lines(choices, seq, agent)
+    if picks:
         lines.append("")
+    lines.extend(picks)
+    return "\n".join(lines)
+
+
+def _boarding_choice_lines(choices, seq, agent=None):
+    """This console's choices for the beat, as `signal://` lines - one per choice."""
+    from .amd import amd_choice_label
+    lines = []
     agent_q = f"&agent={to_id(agent)}" if agent is not None else ""
     for i, ch in enumerate(choices):
         label = amd_choice_label(ch.get('label'))
@@ -1223,7 +1271,25 @@ def _boarding_beat_text(client_id, agent=None):
             label = "%s (covering for %s)" % (label, str(covering).split(">=")[0].strip())
         lines.append(f"[{label}]"
                      f"(signal://{BOARDING_PICK_SIGNAL}?i={i}&seq={seq}{agent_q})")
-    return "\n".join(lines)
+    return lines
+
+
+def _boarding_reader_rechoose(client_id, state):
+    """The same beat, a different party: drop the live choices and offer this console's
+    current ones in their place. The line, and every pick already made, stay as written."""
+    from .amd import amd_choices_settle
+    ch = boarding_channel_of(client_id)
+    text = amd_choices_settle(state["text"], None) if state["text"] else ""
+    if not boarding_is_open(ch):
+        return text
+    agent = state.get("agent")
+    choices = (boarding_choices_for(client_id, agent) if agent is not None
+               else boarding_choices(client_id))
+    picks = _boarding_choice_lines(choices, boarding_seq(ch), agent)
+    text = text.rstrip("\n")
+    if picks:
+        text = text + "\n\n" + "\n".join(picks)
+    return text
 
 
 def _boarding_reader_sync(client_id, chosen=None, by=None):
@@ -1238,6 +1304,13 @@ def _boarding_reader_sync(client_id, chosen=None, by=None):
                                             "area": None})
     ch = boarding_channel_of(client_id)
     seq = boarding_seq(ch)
+    party = _PARTY_REV[0]
+    if (state["seq"] == seq and chosen is None and state.get("party_rev", party) != party
+            and state.get("channel", PARTY) == ch):
+        # Same beat, but somebody joined or left: the choices on screen were derived for
+        # a party that no longer exists.
+        state["text"] = _boarding_reader_rechoose(client_id, state)
+    state["party_rev"] = party
     if state["seq"] != seq or chosen is not None:
         text = amd_choices_settle(state["text"], chosen, before=by) if state["text"] else ""
         if state["seq"] != seq:
@@ -1415,8 +1488,9 @@ def boarding_reader_count():
 
 def boarding_clear():
     """The per-mission reset: no team, no beat, resolver handed back."""
+    _READERS.clear()            # first: dropping the team would repaint them
     boarding_team_clear()
-    _READERS.clear()
+    _PARTY_REV[0] = 0
     _ANSWERED.clear()
     signal_unobserve(_boarding_reader_on_pick)
     _boarding_scenes_clear()
