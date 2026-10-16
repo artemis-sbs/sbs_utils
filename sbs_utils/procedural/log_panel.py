@@ -38,6 +38,16 @@ LOG_FONT = "gui-1"          # plain lines
 # console has better uses for the space than a second copy of it. Callers that want more
 # pass a count.
 LOG_TAIL_LINES = 1
+# ...and because it is ONE line, a line that arrives right behind another REPLACED it before
+# anyone could read it. Two quests completing together (a `Then: signal` finishing the
+# next one) put the first `Quest complete:` up for under half a second in the engine. So the
+# strip QUEUES: a line it has put up stays at least this many (sim) seconds before the next
+# replaces it. A line arriving after a quiet spell still shows at once - only a line that
+# would cut another short waits. Seconds of sim time, the clock the strip's timer runs on.
+LOG_TAIL_HOLD = 3.0
+# A burst longer than this is not replayed line by line (that would leave the strip a
+# minute behind the game): the strip skips ahead to the last few.
+LOG_TAIL_QUEUE_MAX = 4
 # ...and the reason the tail exists at all: the ENGINE waterfall's background cannot be
 # controlled from script, and it is too dark. A MAST text area's can.
 #
@@ -84,8 +94,10 @@ def log_clear():
     _LOG.clear()
     _SEEN.clear()
     try:
-        from .gui.log_panel_gui import _TAILS
+        from .gui.log_panel_gui import _TAILS, _TAIL_CURSOR, _TAIL_DUE
         _TAILS.clear()
+        _TAIL_CURSOR.clear()
+        _TAIL_DUE[0] = None
     except Exception:
         pass
     _SEQ[0] = 0

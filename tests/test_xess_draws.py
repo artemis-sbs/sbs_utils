@@ -673,5 +673,90 @@ await gui()
             p for _, p in self.order[-3:]))
 
 
+class TextThatDoesNotFitItsRowMoves(_DrawBase):
+    """Two wraps the engine drew over their neighbors (author course 3, lecture 7).
+
+    * The bar's job `medical, science` wrapped onto a second line over the app's title.
+      Its `col-width: content` was written into the TEXT's props, where no layout reads
+      it, so the sub row split three equal ways and the job got a third of it.
+    * Fire's armed hint is a sentence two lines long in this column, in a one-line row:
+      its second line drew over Make safe.
+    """
+
+    def _px_wide(self, rect):
+        from sbs_utils.gui import get_client_aspect_ratio
+        ar = get_client_aspect_ratio(CID)
+        return (rect[4] - rect[2]) / 100.0 * ar.x, (rect[5] - rect[3]) / 100.0 * ar.y
+
+    def test_the_job_gets_the_width_its_words_need(self):
+        from sbs_utils.pages.layout.measure import measure_line_width
+        from sbs_utils.procedural.inventory import set_inventory_value
+        jobs = ["medical", "science"]                  # Dr Ines Hale's, c3-07
+        set_inventory_value(self.who.id, A.JOBS_KEY, jobs)
+        self.build()
+        job = self.emitted.saying("medical, science")
+        self.assertTrue(job, "the job did not draw")
+        width, _ = self._px_wide(job[0])
+        need = measure_line_width("gui-1", ", ".join(jobs))
+        self.assertGreaterEqual(width, need,
+                                "the job's column is narrower than its words, so it "
+                                "wraps over the app below (%.0f < %.0f px)" % (width, need))
+
+    def test_the_armed_hint_is_as_tall_as_its_text_and_clear_of_make_safe(self):
+        from sbs_utils.pages.layout.measure import measure_block_height
+        X.xess_open(CID, X.APP_FIRE)
+        B.boarding_arm(CID)
+        self.build()
+        hint = self.emitted.saying("The next click on the map is a shot")
+        safe = self.emitted.saying("Make safe")
+        self.assertTrue(hint and safe, "the armed Fire app did not draw")
+        width, height = self._px_wide(hint[0])
+        text = "The next click on the map is a shot. One shot, then safe."
+        need = measure_block_height("gui-1", text, max(1, int(width)))
+        self.assertGreaterEqual(height + 0.5, need,
+                                "a %.0f px row holds %.0f px of text" % (height, need))
+        self.assertLessEqual(hint[0][5], safe[0][3] + 0.001,
+                             "the hint runs into Make safe")
+
+
+class TasksShowsWhatIsAsked(_DrawBase):
+    """The Tasks app listed each quest's title and state and nothing a crew member could
+    act on: the Objective the writer typed was on the Quest Log's detail pane only, and a
+    click on a row did nothing visible (engine-seen, author course 3 lecture 11)."""
+
+    QUESTS = """# [Mission](mission)
+
+## [Side Stories](side)
+
+### [The Thing in the Sump](sump)
+---
+For: science
+Starts when: at once
+Objective: Clear the cistern walkway
+Done when: signal crawler_down
+---
+Something lives down there.
+"""
+
+    def test_the_objective_is_on_the_tasks_app(self):
+        from sbs_utils.procedural.amd_doc import amd_document
+        from sbs_utils.procedural.amd_quest import amd_quest_data
+        from sbs_utils.procedural.boarding_quests import (boarding_quests_grant,
+                                                          boarding_quests_clear)
+        self.addCleanup(boarding_quests_clear)
+        doc = amd_document(self.QUESTS, data_parser=amd_quest_data)
+        side = doc["children"][0]["children"][0]        # __root__ > mission > side
+        self.assertEqual("side", side.get("key"))
+        granted = boarding_quests_grant(side, team=[self.who.id])
+        self.assertIn("sump", granted, "fixture: the quest was handed to nobody")
+        X.xess_open(CID, "tasks")
+        self.assertEqual("tasks", X.xess_opened(CID), "fixture: no Tasks app")
+        self.build()
+        self.assertTrue(self.emitted.saying("The Thing in the Sump"),
+                        "the quest is not listed")
+        self.assertTrue(self.emitted.saying("Clear the cistern walkway"),
+                        "the Objective is not on the Tasks app")
+
+
 if __name__ == "__main__":
     unittest.main()

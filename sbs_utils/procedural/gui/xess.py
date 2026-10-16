@@ -507,13 +507,19 @@ def gui_xess_panel(client_id=None, surface=SURFACE_BOARDING,
         # roster, an auto-namer or a mission.
         gui_row("row-height: %dpx; background: %s; padding: 0, 6px, 0, 14px;"
                 % (NAME_PX, PANEL_HEAD))
-        w_name = gui_text(bar[0])
+        w_name = gui_text(bar[0], BAR_NAME_COLUMN)
 
         gui_row("row-height: %dpx; background: %s; padding: 0, 0, 4px, 14px;"
                 % (SUB_PX, PANEL_HEAD))
-        w_job = gui_text(bar[1])
+        # The job and the place HUG THEIR TEXT, with the gap between them taking the rest.
+        # That is a COLUMN style, so it goes in gui_text's second argument: written into
+        # the text's props (where it sat until 2026-10-16) it was never read, the row
+        # split three equal ways, and a 16-letter `medical, science` wrapped inside its
+        # third and drew its second line over the app's title (engine-seen, author course
+        # 3 lecture 7; `The Dry Gully - HP 1/3` wrapped onto Back the same way, lecture 9).
+        w_job = gui_text(bar[1], BAR_SLOT_COLUMN)
         gui_blank()
-        w_at = gui_text(bar[2])
+        w_at = gui_text(bar[2], BAR_SLOT_COLUMN)
 
     app = gui_region(_area(app_area or sdef.get("app_area")))
     with app:
@@ -671,6 +677,13 @@ def _identity(client_id):
     return who.name, boarding_job_text(who, default="aboard"), where_text(client_id)
 
 
+#: The bar's COLUMN styles, applied once at build - `.update()` replaces a widget's props
+#: and never its column, so these cannot ride in the style strings below. `overflow: shrink`
+#: is the last resort for a slot that still cannot fit at its own size.
+BAR_NAME_COLUMN = "overflow: shrink;"
+BAR_SLOT_COLUMN = "col-width: content; overflow: shrink;"
+
+
 def _dim_style(text):
     """The third slot, for a surface that has nothing special to say with it.
 
@@ -681,18 +694,16 @@ def _dim_style(text):
     worldlet to produce ore and gas."), and a mission's sentence is not ours to keep
     short. Seen in the engine, 2026-09-19.
     """
-    return ("$text:%s;font:gui-1;color:%s;col-width: content;overflow:shrink;"
-            % (_esc(text), DIM))
+    return "$text:%s;font:gui-1;color:%s;" % (_esc(text), DIM)
 
 
 def _name_style(name):
-    return "$text:%s;font:gui-2;overflow:shrink;" % _esc(name)
+    return "$text:%s;font:gui-2;" % _esc(name)
 
 
 def _job_style(job):
     # Shrink for the same reason as the third slot: two rows, and nothing clips.
-    return ("$text:%s;font:gui-1;color:%s;col-width: content;overflow:shrink;"
-            % (_esc(job), ACCENT))
+    return "$text:%s;font:gui-1;color:%s;" % (_esc(job), ACCENT)
 
 
 def _at_style(client_id, at):
@@ -704,9 +715,9 @@ def _at_style(client_id, at):
     """
     from ..boarding_site import boarding_armed, boarding_setting
     if boarding_armed(client_id):
-        return ("$text:%s;font:gui-1;color:%s;col-width: content;"
+        return ("$text:%s;font:gui-1;color:%s;"
                 % (_esc("ARMED - " + str(boarding_setting(client_id)).upper()), ARMED))
-    return "$text:%s;font:gui-1;color:%s;col-width: content;" % (_esc(at), DIM)
+    return "$text:%s;font:gui-1;color:%s;" % (_esc(at), DIM)
 
 
 # --- the app area -------------------------------------------------------------------------
@@ -1505,7 +1516,12 @@ def _fire_app(client_id):
     gui_row("row-height: 1fr; padding: 6px, 6px, 6px, 6px;")
     gui_text_area(gui_text_literal(boarding_setting_text(setting)), emphasis=True)
 
-    gui_row("row-height: 1.4em; font:gui-1;")
+    # AS TALL AS ITS TEXT. A one-line row held a sentence two lines long in this column,
+    # and the engine does not clip: `The next click on the map is a shot...` drew its
+    # second line over Make safe (engine-seen, author course 3 lecture 7). The row asks
+    # the engine how tall the text is at the width it gets; the description above gives
+    # up the room.
+    gui_row("row-height: content; font:gui-1; padding: 0, 2px, 0, 4px;")
     if armed:
         gui_text("$text:%s;font:gui-1;color:%s;"
                  % (_esc("The next click on the map is a shot. One shot, then safe."),

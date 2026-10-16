@@ -409,6 +409,19 @@ def boarding_prop_at(area, x, y):
     return None
 
 
+def boarding_prop_is_spent(rec):
+    """True for a `Once: yes` prop that has had its one use.
+
+    A spent prop is still on the map, and a click on it still reads its description - but
+    nothing OFFERS it any more. Look went on listing `Use Brittle notice` after the scene
+    had played, a button that could only ever repeat the description (engine-seen, author
+    course 3 lecture 10). Once is the party's: whoever used it, it is used.
+    """
+    if isinstance(rec, str):
+        rec = _PROPS.get(_norm(rec))
+    return bool(rec and rec.get("once") and rec.get("used"))
+
+
 def boarding_props_near(lifeform, reach=1):
     """Props within ``reach`` of this character, nearest first. Scenery is left out. A big
     prop is measured to its nearest cell, so the far end of a car is as near as the end
@@ -560,7 +573,8 @@ def boarding_interact(client_id, key):
             quest_on_collect(lf, rec["item"])
         except Exception:                                # noqa: BLE001
             pass
-        result, text = "picked", f"Picked up {rec['name']}."
+        what = boarding_pickup_text(rec)
+        result, text = "picked", f"Picked up {what}."
         _pickup_note(client_id, lf, rec)
     elif rec["scene"] and _SCENES["doc"] is not None:
         # Whoever is standing with them hears it too.
@@ -585,11 +599,31 @@ def boarding_interact(client_id, key):
     return result, text
 
 
+def boarding_pickup_text(rec):
+    """What a pickup PUT IN THE PACK, in words: the item and how many, with the prop named
+    only as where it came from.
+
+    It used to be the prop's name alone, so Act said `Dr Ines Hale picked up Toolbox.`
+    while Pack said `fuse x2` - two names for one thing, and the one in the log was not
+    the thing she was now carrying (engine-seen, author course 3 lecture 10). When the
+    prop IS the item (`Coil` holding `coil`) its own name is kept, as the writer cased it.
+    """
+    item = str(rec.get("item") or "").replace("_", " ").strip()
+    name = str(rec.get("name") or "").strip()
+    qty = rec.get("qty") or 1
+    count = " x%d" % qty if qty != 1 else ""
+    if not item or name.lower().replace("_", " ") == item.lower():
+        return f"{name or item}{count}"
+    where = name if name.lower().startswith(("the ", "a ", "an ")) else "the " + name
+    return f"{item}{count} from {where}"
+
+
 def _pickup_note(client_id, lf, rec):
     """What was picked up, in this console's Act transcript - with its picture, which is
     the sprite it lay on the map with."""
     from .boarding import boarding_find_note
-    boarding_find_note(client_id, lf, f"picked up {rec['name']}.", rec.get("sprite"))
+    boarding_find_note(client_id, lf, f"picked up {boarding_pickup_text(rec)}.",
+                       rec.get("sprite"))
 
 
 def _needs_ok(needs, lf):
@@ -603,14 +637,37 @@ def _needs_ok(needs, lf):
 _NOTES = {}
 
 
+def _note_area(client_id):
+    """The area this console's crew member is standing in, or None."""
+    try:
+        from .boarding import boarding_me
+        from .tilemap import tilemap_where
+        at = tilemap_where(boarding_me(client_id))
+    except Exception:                                    # noqa: BLE001
+        return None
+    return at[0] if at else None
+
+
 def _note(client_id, text):
     if text:
-        _NOTES[client_id] = text
+        _NOTES[client_id] = (text, _note_area(client_id))
 
 
 def boarding_last_note(client_id):
-    """The last thing this console was told by a prop - for the device to show."""
-    return _NOTES.get(client_id, "")
+    """The last thing this console was told by a prop - for the device to show.
+
+    ONLY IN THE AREA IT WAS SAID IN. A note is about something within reach, and Look kept
+    the trail sign's line under the gully's own list after the crew member walked through
+    the exit (engine-seen, author course 3 lectures 9 and 10: a stale `Pump panel` in the
+    cistern). Leaving the area is the end of it.
+    """
+    note = _NOTES.get(client_id)
+    if not note:
+        return ""
+    text, area = note
+    if area is not None and _note_area(client_id) != area:
+        return ""
+    return text
 
 
 def boarding_prop_click(client_id, area, x, y):

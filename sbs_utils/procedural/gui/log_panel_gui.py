@@ -12,6 +12,7 @@ from ...helpers import FrameContext
 from ..log_panel import (log_entries_union, log_render, log_tail_render, log_newest_seq_union,
                          log_mark_seen, TAB_LOG, TAB_SHIP, TAB_MISSION,
                          LOG_TAIL_LINES, LOG_TAIL_BACKGROUND)
+from .. import log_panel as _log_panel
 from .text import gui_text_area
 from .gui import gui_page_for_client
 
@@ -153,7 +154,7 @@ def gui_log_tail(count=None, background=None, tab=TAB_LOG, style=None):
         style (str, optional): extra style for the text area.
     """
     cid = FrameContext.client_id
-    entries = log_entries_union([_ship_of(cid), cid], tab)
+    entries = _tail_visible(cid, log_entries_union([_ship_of(cid), cid], tab), building=True)
     count = LOG_TAIL_LINES if count is None else count
     if count > 0:
         entries = entries[-count:]
@@ -181,6 +182,86 @@ def gui_log_tail(count=None, background=None, tab=TAB_LOG, style=None):
 
 # client id -> (text area, tab, count, page). Per-mission, so log_clear() drops it.
 _TAILS = {}
+# client id -> [newest seq the strip has PUT UP, sim seconds it went up (None = not
+# holding)]. Kept apart from _TAILS and NOT dropped with a stale strip: a console that
+# rebuilds its layout in the middle of a burst must carry on from the line it was showing,
+# not lose the queue. log_clear() drops it.
+_TAIL_CURSOR = {}
+# Sim seconds the pending strip re-check is due, or None. A due time rather than an "already
+# scheduled" flag, so a timer lost to a reset can never latch the queue shut.
+_TAIL_DUE = [None]
+
+
+def _tail_now():
+    """Sim seconds, the clock the TickDispatcher runs on; None with no sim."""
+    ctx = FrameContext.context
+    sim = getattr(ctx, "sim", None) if ctx is not None else None
+    if sim is None:
+        return None
+    try:
+        from ...tickdispatcher import TickDispatcher
+        return float(sim.time_tick_counter) / TickDispatcher.tps
+    except Exception:
+        return None
+
+
+def _tail_schedule(delay):
+    """Re-run log_tail_refresh after `delay` sim seconds (one timer for every strip)."""
+    now = _tail_now()
+    if now is None:
+        return
+    due = now + max(0.0, delay)
+    pending = _TAIL_DUE[0]
+    if pending is not None and now < pending <= due:
+        return                          # an earlier re-check is already on its way
+    try:
+        from ...tickdispatcher import TickDispatcher
+
+        def _fire(_t):
+            _TAIL_DUE[0] = None
+            log_tail_refresh()
+        TickDispatcher.do_once(_fire, max(0.0, delay))
+        _TAIL_DUE[0] = due
+    except Exception:
+        pass
+
+
+def _tail_visible(cid, entries, building=False):
+    """The entries this console's strip may show NOW - the QUEUE.
+
+    The strip is one line, so each new line used to replace the last at once: two quests
+    completing together put the first `Quest complete:` up for under half a second in the
+    engine (author course 3, lesson 5 - Six Names was never seen). Now a line that has been
+    put up stays LOG_TAIL_HOLD seconds before the next replaces it; the next waits its turn
+    and a timer brings it in. A line arriving after a quiet spell is not held at all.
+
+    `building` is the console laying itself out. Then a queue that is still running is
+    carried on (a rebuild mid-burst must not drop a line), but a console that has been away
+    longer than a hold starts from the newest line - it does not replay old traffic.
+    """
+    hold = _log_panel.LOG_TAIL_HOLD
+    now = _tail_now()
+    newest = entries[-1]["seq"] if entries else 0
+    if now is None or hold <= 0:
+        _TAIL_CURSOR[cid] = [newest, None]
+        return entries
+    shown_seq, shown_at = _TAIL_CURSOR.get(cid) or [None, None]
+    held = shown_at is not None and now - shown_at < hold
+    if shown_seq is None or (building and not held):
+        # What is already in the log when the strip is built is not news: show the newest
+        # and hold nothing, so a console never opens by replaying history.
+        _TAIL_CURSOR[cid] = [newest, None]
+        return entries
+    pending = [e for e in entries if e["seq"] > shown_seq]
+    if pending and not held:
+        cap = max(1, int(_log_panel.LOG_TAIL_QUEUE_MAX))
+        step = pending[-cap] if len(pending) > cap else pending[0]
+        shown_seq, shown_at = step["seq"], now
+        _TAIL_CURSOR[cid] = [shown_seq, shown_at]
+        pending = [e for e in pending if e["seq"] > shown_seq]
+    if pending:
+        _tail_schedule(shown_at + hold - now)
+    return [e for e in entries if e["seq"] <= shown_seq]
 
 
 def _tail_is_live(area, page):
@@ -240,7 +321,7 @@ def log_tail_refresh(scope=None):
             # re-registers the moment that console lays itself out again.
             _TAILS.pop(cid, None)
             continue
-        entries = log_entries_union([_ship_of(cid), cid], tab)
+        entries = _tail_visible(cid, log_entries_union([_ship_of(cid), cid], tab))
         if count and count > 0:
             entries = entries[-count:]
         text, styles = log_tail_render(list(reversed(entries)))

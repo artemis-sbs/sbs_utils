@@ -169,10 +169,17 @@ def _tile_place(tile):
     (`Hidden until:` a signal that has not been sent) is not said - the area's title is,
     as on a cell with no mark - or standing on `@cache` told the crew there was a cache.
     Once the thing is revealed, the mark is a place like any other.
+
+    AN ARRIVAL MARK IS NOT A PLACE either. `entry: pad` and an exit's `@arrive` are where
+    the crew lands, so they stand on one the moment they beam or walk in - and the bar read
+    `pad` / `arrive` until the first step, then the area's title (engine-seen, course 3
+    lectures 7 and 8). The area's title from the start.
     """
-    from ..tilemap import tilemap_mark_at, tilemap_title, tilemap_exit_target
+    from ..tilemap import (tilemap_mark_at, tilemap_title, tilemap_exit_target,
+                           tilemap_is_arrival_mark)
     mark = tilemap_mark_at(*tile)
     if mark and not tilemap_exit_target(tile[0], mark)[0] \
+            and not tilemap_is_arrival_mark(tile[0], mark) \
             and not _mark_keeps_a_secret(tile[0], mark):
         return mark.replace("_", " ")
     return tilemap_title(tile[0]) or tile[0]

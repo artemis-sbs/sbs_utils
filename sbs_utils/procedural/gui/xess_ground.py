@@ -32,13 +32,15 @@ def _on_ground(client_id):
 def _near(client_id):
     """[(kind, key, name)] within reach: props, then talkable hostiles, then crew."""
     from ..boarding import boarding_me, boarding_team
-    from ..boarding_props import boarding_props_near, boarding_prop
+    from ..boarding_props import boarding_props_near, boarding_prop, boarding_prop_is_spent
     from ..boarding_combat import _BY_ID as HOSTILE_IDS, boarding_hostile
     from ..tilemap import tilemap_actors_near
     me = boarding_me(client_id)
     out = []
     for key in boarding_props_near(me, 1):
         rec = boarding_prop(key)
+        if boarding_prop_is_spent(rec):
+            continue                    # `Once: yes`, and used: nothing left to offer
         out.append(("prop", key, rec["name"]))
     team = set(boarding_team())
     for aid in tilemap_actors_near(me, 1):
@@ -281,7 +283,7 @@ APP_BEAM = "beam"
 def _tasks_app(client_id):
     """This crew member's own quests, then the party's."""
     from .row import gui_row
-    from .text import gui_text
+    from .text import gui_text, gui_text_area
     from .listbox import gui_list_box
     from ..boarding import boarding_me
     from ..quest import quest_log_build_items, quest_log_template
@@ -294,9 +296,55 @@ def _tasks_app(client_id):
         gui_row("row-height: 2em; font:gui-2;")
         gui_text("$text:%s;color:%s;" % (_esc("Nothing asked of you yet."), DIM))
         return
+    # A LIST AND A DETAIL, the house pattern - the Crew app's own shape. The list alone
+    # showed each quest's title and state and nothing a crew member could act on: the
+    # `Objective:` the writer typed ("Clear the cistern walkway") was on the Quest Log's
+    # detail pane and nowhere on the handheld, and clicking a row did nothing visible
+    # (engine-seen, author course 3 lesson 11). The detail is the Quest Log's own pane
+    # text, so the two can never describe one quest differently.
+    from .message import gui_message_callback
+    from .xess import xess_focus, xess_set_focus
+    from ..quest import quest_log_row_key, quest_log_pane_show
+    focus = xess_focus(client_id)
+    index = next((i for i, it in enumerate(items) if quest_log_row_key(it) == focus), None)
+    if index is None:
+        index = _tasks_default_index(items)
     gui_row("row-height: 1fr; padding: 4px, 6px, 4px, 6px;")
-    gui_list_box(items, "row-height: 2.6em;", item_template=quest_log_template)
+    lb = gui_list_box(items, "row-height: 2.6em;", item_template=quest_log_template,
+                      select=True, collapsible=True, reveal=True)
+    if index is not None:
+        lb.set_selected_index(index, False)
+
+    def _pick(event, sender):
+        item = lb.get_value()
+        if item is not None:
+            xess_set_focus(client_id, quest_log_row_key(item))
+
+    gui_message_callback(lb, _pick)
+    gui_row("row-height: 1fr; padding: 4px, 8px, 4px, 8px;")
+    area = gui_text_area(" ", "padding: 4px, 6px, 4px, 6px;", emphasis=True)
+    quest_log_pane_show(area, items[index] if index is not None else None,
+                        "Pick a task to see what it asks.")
     _leads(client_id)
+
+
+def _tasks_default_index(items):
+    """The row Tasks opens on: the first quest still to do (this crew member's own come
+    first in the list), else the first quest of any state. Never a bare group header -
+    its pane has nothing to say."""
+    from ..quest import QuestState
+    from .listbox import gui_list_box_is_header
+    first = None
+    for i, item in enumerate(items):
+        data = getattr(item, "data", None) if gui_list_box_is_header(item) else item
+        get = getattr(data, "get", None)
+        if get is None or get("key") is None:
+            continue
+        if first is None:
+            first = i
+        if int(get("state") or 0) == int(QuestState.ACTIVE):
+            return i
+    return first
 
 
 LEAD_ROWS = 4

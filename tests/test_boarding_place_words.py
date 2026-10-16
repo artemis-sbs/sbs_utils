@@ -49,11 +49,31 @@ legend:
   S: dirt @sentry
   A: dirt @ambush
   G: dirt @gate_house
+  W: dirt @well
 ---
 ############
 #.P.C.K.S..#
-#.A.G......#
+#.A.G.W....#
 ############
+"""
+
+# A second area whose exit lands a walker on the yard's `@well` - which makes the well an
+# ARRIVAL mark, loaded only by the test that wants it.
+SHED_AREA = """area: shed
+title: The Shed
+tileset: g
+entry: inside
+exits:
+  to_yard: yard @well
+legend:
+  .: dirt
+  #: rock
+  I: dirt @inside
+  Y: dirt @to_yard
+---
+#####
+#.IY#
+#####
 """
 
 PLACE_KINDS = {"dirt": {"cell": "g:dirt"}, "rock": {"cell": "g:rock", "walk": False}}
@@ -113,7 +133,19 @@ class PlaceWordsTests(unittest.TestCase):
         return where_text(PLACE_CID)
 
     def test_a_place_mark_is_the_place_word(self):
-        self.assertEqual(self.at("landing_pad"), "landing pad")
+        self.assertEqual(self.at("gate_house"), "gate house")
+
+    def test_the_entry_mark_is_not_a_place(self):
+        """`entry: landing_pad` is where the crew beams in, so they stand on it at once:
+        the bar read `landing pad` (in the engine, `pad` / `arrive`) until the first
+        step. It is the area's title from the start."""
+        self.assertEqual(self.at("landing_pad"), "The Yard")
+
+    def test_a_mark_an_exit_arrives_at_is_not_a_place(self):
+        """`to_yard: yard @well` lands a walker on the yard's `well` mark."""
+        self.assertEqual(self.at("well"), "well")          # nothing arrives there yet
+        T.tilemap_load(SHED_AREA)
+        self.assertEqual(self.at("well"), "The Yard")
 
     def test_a_mark_that_places_something_hidden_is_not_said(self):
         self.assertEqual(self.at("cache"), "The Yard")
