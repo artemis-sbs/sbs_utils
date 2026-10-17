@@ -18,6 +18,21 @@ from ..pages.layout.icon import Icon
 from ..helpers import gui_text_escape
 
 
+def _apply_command_line_seed():
+    """Seed `random` from a `seed=` launch argument, if there is one. -> the seed, or None.
+
+    Only when one was given: with no argument the mission's randomness is left alone, as
+    it always was. A bad value is reported by settings_seed_apply and the setting used.
+    """
+    from ..procedural.command_line import command_line_get
+    if not command_line_get("seed"):
+        return None
+    from ..procedural.settings import settings_seed_apply
+    seed = settings_seed_apply()
+    log(f"rng seed {seed} (from seed= on the command line)")
+    return seed
+
+
 def _is_main_screen(client_id, console):
     """Whether this console is the shared view rather than one person's station.
 
@@ -376,6 +391,14 @@ class StoryPage(Page):
                 label = self.start_label
 
             self.story_scheduler.page = self
+            #
+            # `seed=` on the engine's command line, before the server runs any top-level
+            # code: nothing else applies it on the engine (the headless runner seeds from
+            # its own --seed), so `sbs run ... seed=7` repeated nothing - faces, names and
+            # spawns all came out different each launch.
+            #
+            if client_id == 0:
+                _apply_command_line_seed()
             #
             # signals need this to be set
             #

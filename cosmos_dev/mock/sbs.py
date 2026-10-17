@@ -559,8 +559,11 @@ def set_command_line(args) -> None:
 face_sheets: dict = {}
 
 
-def add_face_bitmap_sheet(tag: str, filename: str) -> None:
+def add_face_bitmap_sheet(tag: str, filename: str, sizeW: int = 512, sizeH: int = 512) -> None:
     """Register a face sheet under a tag a face string can name (engine 1.3.15).
+
+    `sizeW`/`sizeH` arrived later in 1.3.15 (seen in script_documentation.txt of 2026-10-17),
+    both defaulting to 512; the mock accepts and ignores them.
 
     `filename` is a path with NO suffix - from the Cosmos root (`data/missions/...`) or
     relative to `data/graphics` - and the engine appends `.png`.

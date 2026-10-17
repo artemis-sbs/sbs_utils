@@ -2,8 +2,8 @@ def add_client_tag() -> None:
     """stub; does nothing yet."""
 def add_extra_ship_data(arg0: str) -> None:
     """load another set of ships from a data file (just for this mission). string argument of fully-pathed filename(plus suffix)."""
-def add_face_bitmap_sheet(tag: str, filename: str) -> None:
-    """this allows the script to add a new face bitmap sheet to the game.  Args are tag and filename."""
+def add_face_bitmap_sheet(tag: str, filename: str, sizeW: int = 512, sizeH: int = 512) -> None:
+    """this allows the script to add a new face bitmap sheet to the game.  Args are tag, filename, sizeW, and sizeH."""
 def add_particle_emittor(spaceObject: sbs.space_object, lifeSpan: int, descriptorString: str) -> int:
     """creates a complex particle emittor and attaches it to a space object."""
 def app_milliseconds() -> int:
