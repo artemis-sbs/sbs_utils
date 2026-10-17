@@ -1,10 +1,11 @@
 # sbs_utils — Library Reference for Claude
 
-@MAST_CLAUDE.md
-
-Eight references load ON DEMAND as skills rather than every session - invoke them
+Nine references load ON DEMAND as skills rather than every session - invoke them
 when the work is theirs:
 
+- **`mast-language`** - the MAST language itself (`MAST_CLAUDE.md`): labels, flow,
+  scope, metadata, addons, routes, comms, handlers. Invoke before writing or judging
+  any `.mast`. (It was an `@` import, loaded into every request; 58 KB.)
 - **`writing-a-mission`** - writing a mission, an addon (`.mastlib`), or a `@map`
   label: folder layout, `story.mast` structure, sides, spawning, fleets, terrain,
   tile maps, consoles, prefabs, PyMAST.
