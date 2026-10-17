@@ -202,6 +202,18 @@ class PrefabResolveTests(unittest.TestCase):
         base = L.landmark_object("base")
         self.assertTrue(has_role(base.id, "mission_station"))   # the MAST prefab won
 
+    def test_nothing_placed_reaches_the_runtime_log(self):
+        # A wreck with no Art: places nothing. The author reads mast.runtime.log, not the
+        # console, so the warning must land there (course c5-05: it only reached stderr).
+        sec = self._section("### [The Tern](the_tern)\n---\nPrefab: wreck\n---\n"
+                            "### [Ghost](ghost)\n---\nPrefab: no_such_prefab_xyz\n---\n")
+        with self.assertLogs("mast.runtime", level="WARNING") as cm:
+            self.assertEqual(L.landmarks_spawn(sec), [])
+        text = "\n".join(cm.output)
+        self.assertIn("the_tern", text)
+        self.assertIn("needs Art:", text)
+        self.assertIn("no_such_prefab_xyz", text)
+
     # -- the other families --------------------------------------------------------
 
     def test_inline_spec_shapes(self):

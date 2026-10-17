@@ -4076,12 +4076,7 @@ def amd_lint_mission_reads(doc, file_path=None, mast_sources=None, source_index=
         if prefab_word == "point":
             continue                 # a ZONE: a position the mission reads, not an object
         where = node.display_span or node.span
-        from sbs_utils.procedural.amd_schema import PREFAB_DEFAULTS
-        if (PREFAB_DEFAULTS.get(prefab_word) or {}).get("needs_art") and "art" not in fields:
-            findings.append(AmdFinding.at(
-                where, WARNING, "landmark-no-art",
-                f"`{node.display}` has no `Art:` line, and the library's `{prefab_word}` "
-                f"prefab never guesses one, so it is not placed in the game at all"))
+        # landmark-no-art is amd_lint_prefabs': it holds however the landmark is placed.
         if "loc" in fields:
             ln, value = fields["loc"][0]
             got = len(_relic_nums(value))
@@ -5976,6 +5971,17 @@ def amd_lint_prefabs(doc, mast_sources=None):
                     f"`Prefab: {pre['value']}` is a {made_for}'s prefab, and {owner} is "
                     f"read as a {record_kind} because of where it sits. Is it under the "
                     f"wrong `##` heading?"))
+            # A library default never guesses an art key (a bad one crashes the engine),
+            # so with no Art: it places nothing - whoever places it, landmarks_spawn or a
+            # mission's own builder (Open Universe).
+            has_art = "art" in by or (data is not None and any(
+                c["label"].strip().lower() == "art" for c in data["children"]))
+            if (how == "default" and scope is top and record_kind == "landmark"
+                    and PREFAB_DEFAULTS[t].get("needs_art") and not has_art):
+                findings.append(AmdFinding(
+                    pre["line"], WARNING, "landmark-no-art",
+                    f"{owner} has no `Art:` line, and the library's `{t}` prefab never "
+                    f"guesses one, so it is not placed in the game at all"))
             if t is None and how.startswith("ambiguous"):
                 findings.append(AmdFinding(
                     pre["line"], WARNING, "ambiguous-prefab",

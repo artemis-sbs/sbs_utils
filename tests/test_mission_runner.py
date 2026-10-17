@@ -48,6 +48,35 @@ class TestFindMissionsRoot(unittest.TestCase):
             os.makedirs(os.path.join(tmp, "__lib__"))
             self.assertEqual(_find_missions_root(tmp), os.path.abspath(tmp))
 
+    def test_linked_lib_resolves_to_the_real_missions_root(self):
+        # data/missions/_sandbox/__lib__ is a junction to data/missions/__lib__ so the
+        # ENGINE loads a mission nested there. The runner must still take data/missions
+        # as the root - else exe_dir lands on data/ and every mastlib fails to load.
+        with tempfile.TemporaryDirectory() as tmp:
+            root = os.path.join(tmp, "data", "missions")
+            os.makedirs(os.path.join(root, "__lib__"))
+            mission_dir = os.path.join(root, "_sandbox", "MyMission")
+            os.makedirs(mission_dir)
+            link = os.path.join(root, "_sandbox", "__lib__")
+            if sys.platform == "win32":
+                import subprocess
+                made = subprocess.run(["cmd", "/c", "mklink", "/J", link,
+                                       os.path.join(root, "__lib__")],
+                                      capture_output=True).returncode == 0
+            else:
+                try:
+                    os.symlink(os.path.join(root, "__lib__"), link)
+                    made = True
+                except OSError:
+                    made = False
+            if not made:
+                self.skipTest("cannot make a directory link here")
+            try:
+                self.assertEqual(os.path.normcase(_find_missions_root(mission_dir)),
+                                 os.path.normcase(os.path.realpath(root)))
+            finally:
+                os.rmdir(link) if sys.platform == "win32" else os.unlink(link)
+
     def test_raises_when_no_lib_dir_found(self):
         with tempfile.TemporaryDirectory() as tmp:
             mission_dir = os.path.join(tmp, "MyMission")

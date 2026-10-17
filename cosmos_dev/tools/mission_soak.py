@@ -230,7 +230,10 @@ def _missions_root(mission_dir):
     """Walk up to the folder that holds `__lib__/` - the runner's own rule."""
     d = os.path.abspath(mission_dir)
     for _ in range(6):
-        if os.path.isdir(os.path.join(d, "__lib__")):
+        lib = os.path.join(d, "__lib__")
+        if os.path.isdir(lib):
+            if os.path.islink(lib) or getattr(os.path, "isjunction", lambda p: False)(lib):
+                return os.path.dirname(os.path.realpath(lib))
             return d
         parent = os.path.dirname(d)
         if parent == d:

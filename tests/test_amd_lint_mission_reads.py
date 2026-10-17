@@ -135,6 +135,20 @@ class ALandmarkTheSpawnerWillNotPlaceTests(unittest.TestCase):
     def test_no_art(self):
         self.assertIn("landmark-no-art", _codes(_swap("Art: wreck\n", "")))
 
+    def test_no_art_reported_once(self):
+        self.assertEqual(_codes(_swap("Art: wreck\n", "")).count("landmark-no-art"), 1)
+
+    def test_no_art_when_the_mission_places_landmarks_its_own_way(self):
+        # Open Universe places a landmark from its own builder, never landmarks_spawn,
+        # and the library default still needs Art: (course c5-05: lint was clean and
+        # nothing was placed).
+        story = STORY.replace('    landmarks_spawn(amd_section(MISSION_DOC, "landmarks"))\n', "")
+        self.assertIn("landmark-no-art", _codes(_swap("Art: wreck\n", ""), story=story))
+
+    def test_art_in_data_counts(self):
+        text = _swap("Art: wreck\n", "Data:\n  Art: wreck\n")
+        self.assertNotIn("landmark-no-art", _codes(text))
+
     def test_no_loc(self):
         self.assertIn("landmark-no-loc", _codes(_swap("Loc: 6000, 0, 6000\n", "")))
 
@@ -164,8 +178,11 @@ class ALandmarkTheSpawnerWillNotPlaceTests(unittest.TestCase):
         self.assertEqual(_codes(text), [])
 
     def test_a_mission_that_places_its_own_is_left_alone(self):
+        # ...except for Art:. `Prefab: wreck` is read only by the library default, which
+        # places nothing with no art whoever calls it - see the test above.
         story = STORY.replace("landmarks_spawn(amd_section", "my_places(amd_section")
-        self.assertEqual(_codes(_swap("Art: wreck\n", ""), story=story), [])
+        self.assertEqual(_codes(_swap("Loc: 6000, 0, 6000\n", ""), story=story), [])
+        self.assertEqual(_codes(_swap("Art: wreck\n", ""), story=story), ["landmark-no-art"])
 
 
 class AKeyWhereTheGameWantsARoleTests(unittest.TestCase):

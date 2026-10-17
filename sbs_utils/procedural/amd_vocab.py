@@ -269,7 +269,16 @@ def declared_addon_paths(mission_root):
             return out
         with open(story) as f:
             data = json.load(f) or {}
-        lib_dir = os.path.join(os.path.dirname(mission_root), "__lib__")
+        # Walk up for `__lib__`: a mission nested below data/missions (`_sandbox/x/y`)
+        # has it several folders up, not beside it.
+        lib_dir, d = None, os.path.dirname(os.path.abspath(mission_root))
+        while lib_dir is None:
+            if os.path.isdir(os.path.join(d, "__lib__")):
+                lib_dir = os.path.join(d, "__lib__")
+            elif os.path.dirname(d) == d:
+                lib_dir = os.path.join(os.path.dirname(mission_root), "__lib__")
+            else:
+                d = os.path.dirname(d)
         for name in (data.get("mastlib") or []):
             parts = str(name).split(".", 3)
             folder = os.path.join(mission_root, parts[2]) if len(parts) >= 4 else None

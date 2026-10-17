@@ -302,12 +302,20 @@ def _mast_prefabs():
     return out
 
 
+def _author_warning(message, name="prefab"):
+    """A warning about the AUTHOR's content: to the named logger and to mast.runtime.log,
+    which is the file an author reads. The named logger alone reaches only the console."""
+    from .execution import log
+    import logging
+    log(message, name, "warning")
+    logging.getLogger("mast.runtime").warning(message)
+
+
 def _warn_once(spec, message):
     if spec in _WARNED:
         return
     _WARNED.add(spec)
-    from .execution import log
-    log(message, "prefab", "warning")
+    _author_warning(message)
 
 
 def prefab_resolve(spec, warn=True):
@@ -399,10 +407,9 @@ def prefab_data(authored, aliases=None, where=None):
         if aliases and nk in aliases:
             nk = aliases[nk]
         if nk in _OWNED_ARGS or nk in MastGlobals.EXPRESSION_BUILTINS:
-            from .execution import log
-            log(f"prefab argument '{k}'{' in ' + str(where) if where else ''} is reserved "
-                f"(it would hide a MAST name in the prefab body) - dropped. Rename it.",
-                "prefab", "warning")
+            _author_warning(f"prefab argument '{k}'{' in ' + str(where) if where else ''} is "
+                            f"reserved (it would hide a MAST name in the prefab body) - "
+                            f"dropped. Rename it.")
             continue
         out[nk] = v
     return out

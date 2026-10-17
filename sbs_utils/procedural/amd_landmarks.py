@@ -34,7 +34,8 @@ Mission-specific extras on the record (guards, terrain, radius...) stay in the r
 from sbs_utils.procedural.amd import amd_parse_facts, amd_coords
 from sbs_utils.procedural.spawn import npc_spawn, terrain_spawn
 from sbs_utils.procedural.prefab import (
-    prefab_register, prefab_create, prefab_data, prefab_key_role, prefab_object)
+    prefab_register, prefab_create, prefab_data, prefab_key_role, prefab_object,
+    _author_warning)
 from sbs_utils.mast.mast_node import MastDataObject
 
 # The prefab family landmark keys are tracked under (prefab_key_role("landmark", key)).
@@ -232,9 +233,8 @@ def landmark_spawn(record):
     spec = record.get("prefab")
     key = record.get("key")
     if not spec:
-        from sbs_utils.procedural.execution import log
-        log(f"landmark '{key}' has no Prefab: - nothing placed. Write Prefab: station, "
-            f"derelict, point... or a prefab type.", "landmarks", "warning")
+        _author_warning(f"landmark '{key}' has no Prefab: - nothing placed. Write Prefab: "
+                        f"station, derelict, point... or a prefab type.", "landmarks")
         return None
     return prefab_create(spec, landmark_prefab_data(record), family=LANDMARK_FAMILY,
                          key=key, where=f"landmark {key}")
@@ -270,9 +270,8 @@ def _default_spawner(spawn, behavior):
         art = data.get("art")
         if not art:
             # A bad or missing art key crashes the engine, so a default never guesses one.
-            from sbs_utils.procedural.execution import log
-            log(f"'{data.get('AMD_KEY') or data.get('NAME')}' needs Art: for this prefab "
-                f"- nothing placed", "landmarks", "warning")
+            _author_warning(f"'{data.get('AMD_KEY') or data.get('NAME')}' needs Art: for "
+                            f"this prefab - nothing placed", "landmarks")
             return None
         return spawn(data.get("START_X", 0), data.get("START_Y", 0), data.get("START_Z", 0),
                      data.get("NAME"), _role_csv(data), art,

@@ -114,10 +114,17 @@ def _log_exc(prefix: str) -> None:
 
 
 def _find_missions_root(start: str) -> str:
-    """Walk up from start until we find a directory that contains __lib__/."""
+    """Walk up from start until we find a directory that contains __lib__/.
+
+    A linked __lib__ (the junction `data/missions/_sandbox/__lib__` that lets the engine
+    load a mission nested there) answers with the folder it points INTO, so exe_dir is
+    still the install and not `data/`."""
     path = os.path.abspath(start)
     while True:
-        if os.path.isdir(os.path.join(path, "__lib__")):
+        lib = os.path.join(path, "__lib__")
+        if os.path.isdir(lib):
+            if os.path.islink(lib) or getattr(os.path, "isjunction", lambda p: False)(lib):
+                return os.path.dirname(os.path.realpath(lib))
             return path
         parent = os.path.dirname(path)
         if parent == path:
