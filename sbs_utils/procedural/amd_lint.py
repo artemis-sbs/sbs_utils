@@ -5946,7 +5946,7 @@ def amd_lint_prefabs(doc, mast_sources=None):
     `type: prefab/` label was seen), so an unbuilt mastlib is silence, not noise.
     """
     from sbs_utils.procedural.amd_schema import (PREFAB_DEFAULTS, PREFAB_STANDARD_ARGS,
-                                                 prefab_default_for)
+                                                 prefab_default_for, amd_section_is_catalog)
     from sbs_utils.mast.mast_globals import MastGlobals
     findings = []
     table = mast_prefab_table(mast_sources)
@@ -6034,7 +6034,13 @@ def amd_lint_prefabs(doc, mast_sources=None):
             continue
         tree = _fence_tree(node)
         record_kind, top = str(getattr(node, "kind", "") or "").lower() or None, tree
-        if str(getattr(node, "kind", "") or "").lower() == "landmark":
+        up, catalog = node.parent, False
+        while up is not None and not catalog:
+            catalog = amd_section_is_catalog(getattr(up, "key", None))
+            up = up.parent
+        if catalog:
+            record_kind = None       # a TYPE the mission reads by key: nothing places it
+        elif record_kind == "landmark":
             labels = {i["label"].lower(): i for i in tree}
             if "kind" in labels:
                 kind = labels["kind"]

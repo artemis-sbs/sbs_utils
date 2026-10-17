@@ -1146,6 +1146,10 @@ GLOBAL = {
 
 
 # --- archetype resolution ---------------------------------------------------
+# Section keys whose records are TYPES read by key, never placed (amd_register_section_names
+# with catalog=True). Empty in the library itself.
+_CATALOG_SECTIONS = set()
+
 # A conventional section key names its archetype directly (## Items -> item).
 _SECTION_ALIASES = {
     "quests": "quest", "quest": "quest", "objectives": "quest",
@@ -1877,6 +1881,7 @@ def amd_vocabulary_snapshot():
         "traits": {k: dict(v) for k, v in TRAITS.items()},
         "archetype_traits": dict(ARCHETYPE_TRAITS),
         "sections": dict(_SECTION_ALIASES),
+        "catalogs": set(_CATALOG_SECTIONS),
         "parsers": dict(_PARSERS),
     }
 
@@ -1893,7 +1898,14 @@ def amd_vocabulary_restore(snap):
                         (_PARSERS, snap["parsers"])):
         live.clear()
         live.update(saved)
+    _CATALOG_SECTIONS.clear()
+    _CATALOG_SECTIONS.update(snap.get("catalogs", ()))
     _schema_changed()
+
+
+def amd_section_is_catalog(key):
+    """True for a section registered `catalog=True`: its records are types, not things."""
+    return str(key or "").strip().lower() in _CATALOG_SECTIONS
 
 
 def amd_register_fields(archetype, table, domain=None):
@@ -1921,10 +1933,14 @@ def amd_register_fields(archetype, table, domain=None):
     return existing
 
 
-def amd_register_section_names(names, archetype, domain=None):
+def amd_register_section_names(names, archetype, domain=None, catalog=False):
     """Teach the section-name table that sections called any of `names` hold records of
     `archetype` - so authors name a section the way their story names it (`Contracts`,
-    `Bounties`) and never have to write a kind line."""
+    `Bounties`) and never have to write a kind line.
+
+    `catalog=True`: the records are TYPES the mission reads by key (Open Universe's
+    `## Worldlets`, what each kind of world yields), never things it places. They take
+    the archetype's fields, and lint stops asking them for `Prefab:` / `Art:`."""
     for n in names:
         key = str(n).strip().lower()
         prior = _SECTION_ALIASES.get(key)
@@ -1933,6 +1949,8 @@ def amd_register_section_names(names, archetype, domain=None):
             raise ValueError(
                 f"AMD section name '{n}'{who} already means '{prior}', not '{archetype}'.")
         _SECTION_ALIASES[key] = archetype
+        if catalog:
+            _CATALOG_SECTIONS.add(key)
     # Section names feed kind resolution rather than _declared, so no memo here
     # depends on them today. Routed through the one invalidator anyway, so the
     # next registrar added to this module cannot be the one that forgets.

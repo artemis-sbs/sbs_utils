@@ -127,3 +127,40 @@ class PrefabLintTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class CatalogSectionTests(unittest.TestCase):
+    """A section an addon registers as a CATALOG holds types the mission reads by key
+    (Open Universe's `## Worldlets`: what a worldlet yields), not things it places. Its
+    records are landmarks for their fields, and nothing creates them, so `Prefab:` is
+    never asked for there (course c5-14/c5-15: the warning taught a line that did nothing).
+    """
+    def setUp(self):
+        from sbs_utils.procedural.amd_schema import (amd_vocabulary_snapshot,
+                                                     amd_register_section_names)
+        self._snap = amd_vocabulary_snapshot()
+        amd_register_section_names(("worldlets",), "landmark", domain="test", catalog=True)
+
+    def tearDown(self):
+        from sbs_utils.procedural.amd_schema import amd_vocabulary_restore
+        amd_vocabulary_restore(self._snap)
+
+    def _codes(self, text):
+        return [f.code for f in amd_lint(file_path="m.amd", content=text, mast_sources=[MAST],
+                                         cross_file=False) if f.code in CODES]
+
+    def test_a_catalog_record_needs_no_prefab(self):
+        self.assertEqual(self._codes("# [Root](root)\n## [Worldlets](worldlets)\n"
+                                     "### [Cinder](cinder)\n---\nArt: x\n---\n"), [])
+
+    def test_a_placed_landmark_still_does(self):
+        self.assertEqual(self._codes("# [Root](root)\n## [Landmarks](landmarks)\n"
+                                     "### [Cinder](cinder)\n---\nArt: x\n---\n"),
+                         ["landmark-no-prefab"])
+
+    def test_restore_forgets_the_catalog(self):
+        from sbs_utils.procedural.amd_schema import (amd_vocabulary_restore,
+                                                     amd_section_is_catalog)
+        self.assertTrue(amd_section_is_catalog("worldlets"))
+        amd_vocabulary_restore(self._snap)
+        self.assertFalse(amd_section_is_catalog("worldlets"))

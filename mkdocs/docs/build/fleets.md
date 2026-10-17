@@ -16,10 +16,11 @@ prefab_spawn(prefab_fleet_raider, {"race": "kralien", "fleet_difficulty": DIFFIC
                                    "START_X": pos.x, "START_Y": pos.y, "START_Z": pos.z})
 ```
 
-!!! warning "Keep the dict on one line"
-    MAST parses line by line, so a `{` broken across lines is an unclosed brace — and the
-    error cascades through the rest of the file. Bind it to a variable first if it gets
-    long. See [Common gotchas](../mast/gotchas.md).
+!!! note "A long dict may span lines"
+    The compiler joins a `{...}` that is broken after a comma back into one line before
+    it reads it, so the example above compiles as written. Do **not** wrap the dict in
+    `~~ ... ~~`: that is a statement form, and inside a call it is a compile error that
+    leaves the whole story empty. See [Common gotchas](../mast/gotchas.md).
 
 | Key | Default | What it does |
 |---|---|---|
