@@ -105,7 +105,8 @@ class TestMockDamage(unittest.TestCase):
         _drain_raw()
         sbs.apply_damage(oid2, 25, source_id=999, kind="beam")
         ev2 = _drain_raw()
-        self.assertEqual(ev2[0], ("damage", "destroyed", 999, oid2, {"sub_float": 25.0}))
+        # (after the station_killed: killed first, as the engine sends it)
+        self.assertEqual(ev2[1], ("damage", "destroyed", 999, oid2, {"sub_float": 25.0}))
 
     def test_npc_ship_destroyed_via_systems(self):
         # NPC ship has no armor; a lethal hit maxes all 4 SHPSYS -> npc_killed.
@@ -114,14 +115,25 @@ class TestMockDamage(unittest.TestCase):
         sbs.apply_damage(oid, 1000, source_id=999)
         ev = _drain()
         self.assertEqual(ev, [
-            ("damage", "destroyed", 999, oid),
             # origin = WHAT DEALT THE DAMAGE, selected = the victim. Measured raw
             # against engine 1.3.5 (data/missions/event_probe): a beam kill carries
             # origin=the shooter; a torpedo kill carries origin=the torpedo and
             # parent=the launching ship. This asserted the victim in BOTH fields,
             # which made "who killed it" unanswerable in the mock alone.
+            #
+            # KILLED FIRST, then destroyed - the engine's order (same probe). The
+            # mock had destroyed first, and that event removes the victim's Agent, so
+            # //damage/killed found no victim: `destroy N enemies` never advanced
+            # headless (course re-measure, 2026-10-17).
             ("npc_killed", "", 999, oid),
+            ("damage", "destroyed", 999, oid),
         ])
+        # ...and the body is still there while those events are handled. The runner
+        # reaps it after its drain, as the engine removes it a few ticks later.
+        self.assertIn(oid, self.sim.space_objects)
+        sbs.apply_damage(oid, 1000, source_id=999)     # a dying ship takes no more
+        self.assertEqual(_drain(), [])
+        sbs._reap_dying()
         self.assertNotIn(oid, self.sim.space_objects)
 
     def test_npc_ship_partial_system_damage(self):
@@ -247,9 +259,9 @@ class TestMockDamage(unittest.TestCase):
         _drain()
         sbs.apply_damage(oid, 80)
         ev = _drain()
-        self.assertEqual(ev, [
-            ("damage", "destroyed", 0, oid),
+        self.assertEqual(ev, [                 # killed first, as for an NPC ship
             ("station_killed", "", oid, oid),
+            ("damage", "destroyed", 0, oid),
         ])
 
     def test_no_hull_is_invulnerable(self):
@@ -325,7 +337,8 @@ class TestMockDamage(unittest.TestCase):
         aid, a = self._beamer(tid, rng=1000, dmg=30)
         _drain()
         sbs._physics_beams(self.sim, [(aid, a), (tid, t)], dt=0.5)
-        self.assertEqual(self._tags(_drain()), ["damage", "station_killed"])
+        self.assertEqual(self._tags(_drain()), ["station_killed", "damage"])
+        sbs._reap_dying()
         self.assertNotIn(tid, self.sim.space_objects)
 
     def test_beam_no_target_no_fire(self):

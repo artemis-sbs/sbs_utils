@@ -50,6 +50,7 @@ class TestCombatTTK(unittest.TestCase):
         sbs.resume_sim()
         for k in range(int(secs / 0.5)):
             sbs.physics_tick(dt=0.5)
+            sbs._reap_dying()      # the runner's step after its drain: the dead leave
             if aid not in self.sim.space_objects:
                 return (k + 1) * 0.5, "A"
             if bid not in self.sim.space_objects:

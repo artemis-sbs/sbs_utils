@@ -255,6 +255,7 @@ def create_new_sim() -> None:
     _blasts.clear()
     _beam_fires.clear()
     _beam_active.clear()
+    _DYING.clear()          # ids recycle across a reset; a stale one would reap a new ship
     _broad_hash = {"key": None, "grid": None}   # drop the old mission's spatial hash
     # Drop every ship's hull map too. hull_map_objects is a MODULE global keyed by ship id;
     # sim.__init__ recycles space-object ids, so without this a new ship reuses an old id and
@@ -376,6 +377,25 @@ def delete_object(ID: int) -> None:
         # `value_tag` carries the victim's SIDE - measured raw in engine 1.3.5, and the
         # only part of the victim still readable once it is gone.
         _pending_physics_events.put(("damage", "destroyed", 0, ID, 0, "", {"value_tag": side}))
+
+
+# Bodies killed in combat whose removal waits for the runner (_reap_dying). The engine
+# announces `npc_killed` while the victim still exists and removes it a few ticks later
+# (measured, engine 1.3.5 event_probe); //damage/killed routes read the victim - its side
+# for `destroy N enemies`, its hullpoints for a wreck - so it must still be there.
+_DYING = []
+
+
+def _die(ID: int) -> None:
+    if ID not in _DYING:
+        _DYING.append(ID)
+
+
+def _reap_dying() -> None:
+    """Remove the bodies killed since the last call. The runner calls this after it has
+    dispatched the queued events, so the kill routes saw the victim."""
+    while _DYING:
+        _delete_object_quiet(_DYING.pop(0))
 
 
 def _delete_object_quiet(ID: int) -> bool:
@@ -3349,8 +3369,8 @@ def apply_damage(target_id: int, amount: float, source_id: int = 0, kind: str = 
     if sim is None or amount <= 0:
         return
     obj = sim.space_objects.get(target_id)
-    if obj is None:
-        return
+    if obj is None or target_id in _DYING:
+        return                 # a dying body takes no more hits (and dies only once)
     _apply_damage_calls += 1   # dev diagnostic (mission_runner --test report)
     hit_amount = float(amount)   # raw weapon damage -> //damage EVENT.sub_float
 
@@ -3416,10 +3436,11 @@ def apply_damage(target_id: int, amount: float, source_id: int = 0, kind: str = 
             _dmg()
             return
         ds.set("armor", 0.0)
-        _dmg(destroyed=True)
+        # KILLED, then destroyed, then the body goes - the engine's order (see _die).
         _pending_physics_events.put(("station_killed", "", target_id, target_id))
+        _dmg(destroyed=True)
         _bump_exciting(sim.space_objects.get(source_id), _EXCITE_KILL)
-        _delete_object_quiet(target_id)     # the death is already announced above
+        _die(target_id)
         return
 
     # NPC ship: distribute the hit as node damage across the 4 SHPSYS (filling the
@@ -3439,7 +3460,6 @@ def apply_damage(target_id: int, amount: float, source_id: int = 0, kind: str = 
                and (ds.get("system_damage", i) or 0.0) >= (ds.get("system_max_damage", i) or 0.0)
                for i in range(4))
     if dead:
-        _dmg(destroyed=True)
         # origin = WHAT DEALT THE DAMAGE, selected = the victim. Measured raw in engine
         # 1.3.5: a beam kill carries origin=the shooter, parent=0; a torpedo kill carries
         # origin=the TORPEDO and parent=the launching ship. The mock had the victim in
@@ -3453,8 +3473,9 @@ def apply_damage(target_id: int, amount: float, source_id: int = 0, kind: str = 
         # torpedo in the engine. Fixing it properly means modelling projectiles as real
         # objects, which is a bigger change than this one deserves on its own.
         _pending_physics_events.put(("npc_killed", "", source_id or target_id, target_id))
+        _dmg(destroyed=True)
         _bump_exciting(sim.space_objects.get(source_id), _EXCITE_KILL)
-        _delete_object_quiet(target_id)     # the death is already announced above
+        _die(target_id)
     else:
         _dmg()
 

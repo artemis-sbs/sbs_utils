@@ -271,7 +271,8 @@ class TestMockProjectiles(unittest.TestCase):
         _drain()                                          # consume the launch event
         sbs._physics_projectiles(self.sim, dt=0.5)
         tags = [e[0] for e in _drain()]
-        self.assertEqual(tags, ["damage", "station_killed"])
+        self.assertEqual(tags, ["station_killed", "damage"])
+        sbs._reap_dying()
         self.assertNotIn(tid, self.sim.space_objects)
 
     # --- autonomous fire: torpedoes are PLAYER-only, drones are NPC (elite) -----

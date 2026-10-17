@@ -682,6 +682,8 @@ def _drain_physics_events(sim, cosmos_event_handler, FakeEvent) -> None:
             cosmos_event_handler(sim, ev)
         except Exception as e:
             _log_exc(f"physics event error ({tag}/{sub_tag}): {e}")
+    # Combat kills leave the body until now, so //damage/killed saw the victim.
+    _mock._reap_dying()
 
 
 def _drain_client_strings(sim, cosmos_event_handler, FakeEvent) -> None:

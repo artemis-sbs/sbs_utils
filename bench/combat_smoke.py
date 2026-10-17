@@ -113,6 +113,7 @@ def main():
                 n_killed += 1
                 if first_kill_tick is None:
                     first_kill_tick = t
+        sbs._reap_dying()      # what the runner does after its drain: the dead leave now
         reds_alive = sum(1 for oid in red_ids if oid in sim.space_objects)
         blues_alive = sum(1 for oid in blue_ids if oid in sim.space_objects)
         if reds_alive == 0 or blues_alive == 0:

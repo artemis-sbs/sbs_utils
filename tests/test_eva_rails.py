@@ -110,6 +110,27 @@ class ThePartyDoesNotFlySingleFile(_Base):
         self.assertGreater(max(gaps), 20.0,
                            "the two suits flew the same line - the drift did nothing")
 
+    def test_a_replanned_route_flies_the_centerline(self):
+        """The drift is decoration, and once it has cost a stall it is dropped. It is the
+        same angle every re-plan, so a suit whose drift aimed it into a passage mouth hit
+        the same wall six times and gave up (course c4-08: The Way In to The Altar)."""
+        for cid in CONSOLES[:2]:
+            self.suit_up(cid)
+            self.assertTrue(E.eva_goto(cid, "east end"))
+        E.set_inventory_value(CONSOLES[1], E.KEY_REPLAN, 1)     # as after one stall
+        self.assertTrue(E.eva_goto(CONSOLES[1], "east end", _replan=True))
+        track = self.fly(45, CONSOLES[:2])
+
+        def off_axis(points):
+            mid = [p for p in points if p[0] > -2000]       # well into the hall
+            return max((p[1] ** 2 + p[2] ** 2) ** 0.5 for p in mid) if mid else None
+
+        drifted, replanned = off_axis(track[CONSOLES[0]]), off_axis(track[CONSOLES[1]])
+        self.assertIsNotNone(drifted)
+        self.assertIsNotNone(replanned)
+        self.assertLess(replanned, drifted / 3.0,
+                        f"re-planned suit still drifts: {replanned:.0f} vs {drifted:.0f}")
+
     def test_the_drift_is_the_same_every_tick_for_one_suit(self):
         """A drift that wandered would read as a suit that cannot hold a course. It is a
         pure function of the suit's id, so there is nothing to wander."""

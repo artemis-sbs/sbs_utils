@@ -1228,8 +1228,13 @@ def eva_tick(t=None):
         # `room_now` is the clearance HERE; the leg may narrow ahead of the suit, and a
         # drift sized on the wide end carries it into the narrow one. The smaller of the
         # two is the honest figure.
-        aim = _eva_drift(suit, here, aim, eva_my_volume(cid),
-                         min(room_now, _eva_room(cid, room_now, 1.0)))
+        # NOT ON A RE-PLANNED ROUTE. The drift is the same angle every time, so a suit it
+        # had aimed into a passage mouth re-planned straight back into the same wall, six
+        # times, and gave up (course c4-08). Once a stall has cost a re-plan, the suit
+        # flies the line the router proved clear; eva_goto from the crew resets that.
+        if not (get_inventory_value(cid, KEY_REPLAN, 0) or 0):
+            aim = _eva_drift(suit, here, aim, eva_my_volume(cid),
+                             min(room_now, _eva_room(cid, room_now, 1.0)))
         # AND STAY ON THE RAIL. `volume_nearest_inside` only promises "inside the ruin
         # somewhere", which is a weak promise in a chamber the size of a hangar; the leg
         # itself was solved clear, so a suit that has wandered off it is pulled back to it.
