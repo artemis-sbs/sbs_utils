@@ -29,6 +29,12 @@ EVA_CONSOLE = "eva_crew"
 RETURN_KEY = "EVA_RETURN"
 HOME_KEY = "EVA_HOME_SHIP"
 
+# Seconds between spawning a suit and handing it to the console. Measured in the engine
+# (2026-10-17, exe 2026-10-14): a client assigned to a PLAYER ship in the frame the ship
+# was spawned crashes (0xC0000005, 3 of 3, whatever the hull); one or two seconds later it
+# survives (6 of 6). 2 leaves room for a client across a real network.
+EVA_ASSIGN_DELAY = 2.0
+
 
 def _client(client_id=None):
     if client_id is not None:
@@ -84,6 +90,37 @@ def eva_go_out(client_id, relic_key=None):
     if suit is None:
         return False
 
+    # NOT IN THIS FRAME. The suit was spawned just now; a client handed a player ship it
+    # has not been sent yet crashes (see EVA_ASSIGN_DELAY). The handover - the assignment,
+    # the autopilot watch and `eva_went_out`, which brings in the suit console - waits.
+    from ...tickdispatcher import TickDispatcher
+    suit_id = to_id(suit)
+    TickDispatcher.do_once(lambda _t: _hand_over(client_id, suit_id, key), EVA_ASSIGN_DELAY)
+    return True
+
+
+def _hand_over(client_id, suit_id, key):
+    """The second half of `eva_go_out`, once the suit has reached the clients.
+
+    A tick callback that raises freezes the whole mission, so this one never does: a suit
+    that is gone by now (the ruin cleared, the crew came in) hands over nothing.
+    """
+    try:
+        _hand_over_now(client_id, suit_id, key)
+    except Exception as e:                                       # noqa: BLE001
+        from ..execution import log
+        log(f"eva: handing suit {suit_id} to console {client_id} failed: {e}",
+            "mast.runtime", "warning")
+
+
+def _hand_over_now(client_id, suit_id, key):
+    from ..boarding import boarding_me
+    from ..eva import eva_watch
+    from ..query import is_client_id, object_exists, to_id
+    from ..signal import signal_emit
+    suit = suit_id
+    if not object_exists(suit_id):
+        return
     if is_client_id(client_id) or client_id == 0:
         # AFTER the door, and unconditionally for a real console: `gui_console_enter`
         # returns False and does nothing when the type is unchanged, so a console moving
