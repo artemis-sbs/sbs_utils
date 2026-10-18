@@ -251,7 +251,27 @@ class HailListTests(HailViewBase):
         self.offer()
         V.hail_choice_strip(self.ship, self.comms)
         style = [e for e in self.trace if e[0] == "listbox"][0][2]
-        self.assertIn("row-height: 1.6em", style)
+        self.assertIn(V.LIST_PENDING_ROW_HEIGHT, style)   # waiting: two-line titles
+
+    def test_an_open_hails_answers_are_one_line_each(self):
+        self.offer()
+        H.hail_accept(self.ship)
+        self.trace.clear()
+        V.hail_choice_strip(self.ship, self.comms)
+        style = [e for e in self.trace if e[0] == "listbox"][0][2]
+        self.assertIn(V.LIST_ROW_HEIGHT, style)
+
+    def test_a_long_title_shrinks_onto_one_line(self):
+        # Wrapped, its second line was drawn over the row below it.
+        seen = []
+        from sbs_utils.procedural.gui import text as TEXTMOD
+        real = TEXTMOD.gui_text
+        TEXTMOD.gui_text = lambda props, *a, **k: seen.append(props)
+        try:
+            V._hail_row({"label": "Surveyor Rook - A recording at the altar"})
+        finally:
+            TEXTMOD.gui_text = real
+        self.assertTrue(seen and "overflow:shrink;" in seen[0], seen)
 
     def test_the_list_opens_its_OWN_row(self):
         # A listbox joins whatever row is open, so without this it lands beside the

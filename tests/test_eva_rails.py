@@ -370,6 +370,24 @@ class TheWebIsSolvedOnceNotPerTrip(_Base):
         self.assertIsNone(RL.rail_get(RELIC))
 
 
+class SettingOffLeavesThePlace(_Base):
+    """Engine-seen: the xESS home kept The Altar's line all the way across The Nave."""
+
+    def test_a_route_out_leaves_the_places_conversation(self):
+        from sbs_utils.procedural import boarding as A
+        self.suit_up(CONSOLES[0])
+        A.boarding_channel_join(CONSOLES[0], "place:%s:west end" % RELIC)
+        self.assertTrue(E.eva_goto(CONSOLES[0], "east end"))
+        self.assertEqual(A.boarding_channel_of(CONSOLES[0]), A.PARTY)
+
+    def test_a_side_conversation_that_is_not_a_place_is_kept(self):
+        from sbs_utils.procedural import boarding as A
+        self.suit_up(CONSOLES[0])
+        A.boarding_channel_join(CONSOLES[0], "talk:guard")
+        self.assertTrue(E.eva_goto(CONSOLES[0], "east end"))
+        self.assertEqual(A.boarding_channel_of(CONSOLES[0]), "talk:guard")
+
+
 if __name__ == "__main__":
     unittest.main()
 
@@ -453,3 +471,20 @@ class TurningIsNotStalling(_Base):
         self.assertTrue(E.eva_goto(cid, "east end"))
         self._tick(E.STALL_TICKS + 3, 1.0)                  # flying, and going nowhere
         self.assertGreaterEqual(E.get_inventory_value(cid, E.KEY_REPLAN, 0) or 0, 1)
+
+
+class ARefusedPickRepaintsNav(_Base):
+    """Engine-seen (C4-08): "No way through to niche from here." was built but never
+    shown - nothing the device watches moved when the router said no."""
+
+    def test_a_refusal_and_a_route_move_the_revision(self):
+        from sbs_utils.procedural.gui.xess import _boarding_revision
+        cid = CONSOLES[0]
+        self.suit_up(cid)
+        before = _boarding_revision(cid)
+        from sbs_utils.procedural.inventory import set_inventory_value
+        set_inventory_value(cid, E.KEY_NOWAY, "the niche")
+        refused = _boarding_revision(cid)
+        self.assertNotEqual(before, refused)
+        self.assertTrue(E.eva_goto(cid, "east end"))
+        self.assertNotEqual(refused, _boarding_revision(cid))

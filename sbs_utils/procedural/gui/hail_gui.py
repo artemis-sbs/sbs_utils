@@ -80,6 +80,18 @@ LIST_TITLE_STYLE = ("row-height: 1.0;padding: 2px,2px,2px,2px;"
                     f"background:{LIST_TITLE_BACKGROUND};")
 
 _STYLE_ROW = "row-height: 2.2em;"
+# One item of the hail list. 1.25em, not 1.6em: LM's comms column leaves the list about
+# 130px at 1280x960, which at 1.6em held the title, `Back` and ONE answer - the second
+# answer, and the third, were only reachable by scrolling, and a player does not know to
+# scroll a list that looks finished (author course 4: "Take it aboard.", the Dace entry).
+LIST_ROW_HEIGHT = "row-height: 1.25em;"
+# A WAITING hail's row is a caller AND a title ("Surveyor Rook - A recording at the
+# altar"), which wraps in the comms column. At one line's height the second line was
+# drawn over the row below (engine-seen); `overflow:shrink` does not stop a list item
+# wrapping. So a waiting row keeps 1.6em and draws its title in the small font, where two
+# lines fit inside it; the answers are one line each.
+LIST_PENDING_ROW_HEIGHT = "row-height: 1.6em;"
+LIST_PENDING_FONT = "font:gui-1;"
 # NO PERCENT SIGN. A bare number IS a percentage to the style parser; `30%` raises
 # "Invalid syntax on token %" from LayoutAreaParser.lex, at RUNTIME, when the row
 # is built - so it only fires on the console that actually draws the conversation.
@@ -177,7 +189,11 @@ def _hail_row(entry):
     from .row import gui_row
     from .text import gui_text
     gui_row()
-    gui_text(_hail_text(entry.get("label") or ""))
+    # ONE LINE, SHRUNK TO FIT. A title that wrapped drew its second line over the next
+    # row ("Surveyor Rook - A recording at the / altar" across the row below it, seen
+    # on a bridge); the row is one item tall and the text has to stay inside it.
+    small = LIST_PENDING_FONT if entry.get("hail_kind") == "accept" else ""
+    gui_text(_hail_text(entry.get("label") or "") + small + "overflow:shrink;")
 
 
 def _hail_row_pick(event, item):
@@ -257,6 +273,11 @@ def hail_list_title(ship):
     return "Incoming Hails"
 
 
+def _list_row_height(ship):
+    """One line for an open hail's answers; two for the waiting hails' titles."""
+    return LIST_ROW_HEIGHT if hail_is_active(ship) else LIST_PENDING_ROW_HEIGHT
+
+
 def hail_choice_strip(ship, client_id=None, style=None, row_style=None):
     """The hail list: waiting hails to answer, or the open conversation's replies.
 
@@ -286,7 +307,7 @@ def hail_choice_strip(ship, client_id=None, style=None, row_style=None):
         return 0
     gui_row(row_style or "row-height: 8em;")
     listbox = gui_list_box(rows,
-                           style or f"row-height: 1.6em;background:{LIST_BACKGROUND};",
+                           style or f"{_list_row_height(ship)}background:{LIST_BACKGROUND};",
                            item_template=_hail_row,
                            title_template=hail_list_title(ship),
                            title_section_style=LIST_TITLE_STYLE, select=True)

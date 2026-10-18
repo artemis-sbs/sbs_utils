@@ -1006,12 +1006,26 @@ def eva_point_hint(client_id, name, leads=None, finds=None):
 
 
 def eva_where(client_id):
-    """The chamber this console's suit is in, in words. "adrift" when there is no suit."""
+    """The room this console's suit is in, in words. "adrift" when there is no suit.
+
+    The room's HEADING, as the author wrote it ("The Mouth"), never its record key: the
+    header read "mouth" and "yard_area" on a bridge. A box room counts as much as a
+    chamber: the volume's own lookup knows only chambers (and answers the NEAREST), so a
+    suit standing in the Gallery was told it was in The Nave.
+    """
     from .volume import volume_chamber_at
     here = _pos(eva_my_suit(client_id))
     if here is None:
         return "adrift"
-    return volume_chamber_at(eva_my_volume(client_id), here) or "open space"
+    key = eva_my_relic(client_id)
+    name = None
+    if key:
+        from .amd_relics import relic_part_at, relic_part_info
+        name = relic_part_at(key, here)
+        if name is not None:
+            return relic_part_info(key, name).get("display") or name
+    name = volume_chamber_at(eva_my_volume(client_id), here)
+    return name or "open space"
 
 
 # --- flying there ---------------------------------------------------------------------
@@ -1098,8 +1112,19 @@ def eva_goto(client_id, point_name, _replan=False):
     set_inventory_value(client_id, KEY_GAP, None)
     if not _replan:
         set_inventory_value(client_id, KEY_REPLAN, 0)
+        _eva_leave_place(client_id)
     eva_watch()
     return True
+
+
+def _eva_leave_place(client_id):
+    """Setting off for somewhere else leaves the PLACE's conversation, the way walking
+    out of an area leaves a ground scene. The scene stays open on its channel - coming
+    back rejoins it (`eva_place_arrive`) - but this console stops reading it: the xESS
+    home kept The Altar's line on screen all the way across The Nave."""
+    from .boarding import boarding_channel_of, boarding_channel_leave
+    if str(boarding_channel_of(client_id)).startswith("place:"):
+        boarding_channel_leave(client_id)
 
 
 def eva_stop(client_id):

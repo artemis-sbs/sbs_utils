@@ -327,10 +327,16 @@ def boarding_home_ship(client_id):
     `viewscreen_home_ship` cannot answer once a console is boarded: it falls back to
     `sbs.get_ship_of_client`, and boarding has just pointed that at the site. So the real
     answer is captured on the way down and kept here.
+
+    A console out in a SUIT is the same story: the suit records the ship it came from.
+    Falling through to the current ship answered the suit itself, and the xESS Crew list's
+    ship row read the wearer's name - the crew member listed twice.
     """
+    from ..eva import eva_my_home
     from ..inventory import get_inventory_value
     from .viewscreen import viewscreen_home_ship
-    return get_inventory_value(client_id, HOME_KEY, None) or viewscreen_home_ship(client_id)
+    return (get_inventory_value(client_id, HOME_KEY, None) or eva_my_home(client_id)
+            or viewscreen_home_ship(client_id))
 
 
 def boarding_go_down(client_id, host=None, at=None):

@@ -438,11 +438,16 @@ def _boarding_revision(client_id):
     # area in this region cannot redraw itself - the rebuild here is its repaint.
     # boarding_party_revision: somebody joined or left, which changes who is offered what
     # (a covering choice goes the moment its owner beams down) on the SAME beat.
+    # eva_no_way / eva_dest: a Nav pick the router refused, and a route set or ended.
+    # Nothing else here moves when they do, so "No way through to the niche" was built
+    # and never shown (engine-seen, C4-08): the row just highlighted and nothing happened.
+    # NOT the distance to go, which changes every tick.
+    from ..eva import eva_no_way, eva_dest
     from .xess_ground import xess_ground_revision
     return (boarding_seq_for(client_id), xess_ground_revision(client_id),
             boarding_armed(client_id), boarding_setting(client_id),
             eva_armed(client_id), _team_health(), boarding_reader_revision(client_id),
-            boarding_party_revision())
+            boarding_party_revision(), eva_no_way(client_id), eva_dest(client_id))
 
 
 def xess_panel_revision(client_id=None, surface=SURFACE_BOARDING):
@@ -1700,13 +1705,17 @@ def _work_app(client_id):
 
         gui_message_callback(lb, _use)
 
-    gui_row("row-height: 1.4em; font:gui-1;")
+    work_line = " WORK tries it by hand." if VERB_WORK in tools else ""
+    repair_line = (" A Repair takes the tool it names."
+                   if any(row[2] == "repair" for row in targets) else "")
+    # ROOM FOR EVERY LINE IT WRAPS TO. One line's height (1.4em) held a hint that wraps
+    # to two in the device's column, and the second line was drawn under Stow
+    # (engine-seen, C4-08). Two lines for the base sentence, one more for the extras.
+    lines = 2 + (1 if work_line or repair_line else 0)
+    gui_row("row-height: %.2fem; font:gui-1;" % (1.25 * lines))
     gui_text("$text:%s;font:gui-1;color:%s;"
              % (_esc("Reach %d. BEAM cuts a way open; TETHER hauls a find in.%s%s"
-                     % (int(eva_reach(client_id)),
-                        " WORK tries it by hand." if VERB_WORK in tools else "",
-                        " A Repair takes the tool it names."
-                        if any(row[2] == "repair" for row in targets) else "")), DIM))
+                     % (int(eva_reach(client_id)), work_line, repair_line)), DIM))
 
     gui_row("row-height: 2.2em; font:gui-2;")
     gui_button("Stow", on_press=lambda _cid=client_id: eva_disarm(_cid))

@@ -249,6 +249,16 @@ As shipped (measured 2026-08-13):
 - **`<root>1024.png` / `<root>256.png` are radar sprites whose alpha IS the icon shape.**
   Flattening their alpha turns every radar blip into a solid square. Only `_diffuse` should be
   made opaque.
+- **The 2026-08-13 normals-fixed OBJs were exported OFF-CENTER** - from one Blender scene
+  with the shapes laid side by side, so each kept its lineup offset in +x (cube 150 local
+  = 3000 world at meshscale 20, torus 1180, dodecahedron 1924). Every piece drew that far
+  to one side: The Ring and every `Walls: blocks` room were invisible in the C4 course
+  ruins. Re-centered 2026-10-18 onto the stock 1.3.7 centers (only `v` lines moved,
+  `.paxmesh` deleted and rebuilt by the engine), engine-verified: the ring and the
+  Gallery's panelled walls draw. Shipped as `cosmos-generics-recentered.zip`; the old
+  `cosmos-generics-normals-fixed.zip` still holds the offset OBJs. **Before exporting a
+  primitive, zero its location** - and compare bounds with the stock copy in
+  `E:/a/OLD/Cosmos-1-3-7/data/graphics/ships/`.
 - **Colors are a debug palette**, one per shape (rectangle/cylinder orange, cube/octohedron red,
   sphere/disk green, hexagon cyan, cone magenta, torus purple, tetrahedron/dodecahedron yellow,
   icosahedron blue).
