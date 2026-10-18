@@ -1783,11 +1783,17 @@ def _nav_app(client_id):
 
     gui_xess_head(client_id, "Nav")
 
+    # The places by their NAMES. `eva_route` and `eva_no_way` answer the place's KEY, and
+    # the screen said "Under way: gallery_door" and "No way through to niche" (engine-seen).
+    places = eva_points(client_id)
+    names = {name: label for name, label, _pos in places}
+
     dest, legs, togo = eva_route(client_id)
     if dest:
         gui_row("row-height: 1.8em; padding: 4px, 8px, 2px, 8px;")
         gui_text("$text:%s;font:gui-2;color:%s;"
-                 % (_esc("Under way: %s, %d out" % (dest, int(togo))), ACCENT))
+                 % (_esc("Under way: %s, %d out" % (names.get(dest, dest), int(togo))),
+                    ACCENT))
         gui_row("row-height: 2.2em; padding: 2px, 8px, 4px, 8px;")
         # ZERO-ARG CLOSURE WITH THE CLIENT BOUND BY DEFAULT ARG. `MessageHandler` calls a
         # callable handler as `self.handler()` with no arguments and `data=` never reaches
@@ -1801,9 +1807,8 @@ def _nav_app(client_id):
     if stuck and not dest:
         gui_row("row-height: 1.8em; padding: 4px, 8px, 2px, 8px;")
         gui_text("$text:%s;font:gui-1;color:%s;overflow:shrink;"
-                 % (_esc("No way through to %s from here." % stuck), DIM))
+                 % (_esc("No way through to %s from here." % names.get(stuck, stuck)), DIM))
 
-    places = eva_points(client_id)
     if not places:
         gui_row("row-height: 1fr;")
         gui_text("$text:%s;font:gui-2;color:%s;"

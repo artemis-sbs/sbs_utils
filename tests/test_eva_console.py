@@ -329,6 +329,22 @@ class NavIsOnlyThereWhenYouAreFlying(_DrawBase):
         self.assertTrue(self.emitted.saying("Under way"))
         self.assertTrue(self.emitted.saying("Hold station"))
 
+    def test_under_way_names_the_place_not_its_key(self):
+        """Engine-seen: "Under way: gallery_door, 3399 out"."""
+        E.eva_goto(CID, "the cradle")
+        X.xess_open(CID, X.APP_NAV)
+        self.build()
+        self.assertTrue(self.emitted.saying("Under way: The Cradle"),
+                        [t[1] for t in self.emitted.texts])
+
+    def test_a_refused_pick_names_the_place_not_its_key(self):
+        from sbs_utils.procedural.inventory import set_inventory_value
+        set_inventory_value(CID, E.KEY_NOWAY, "the cradle")
+        X.xess_open(CID, X.APP_NAV)
+        self.build()
+        self.assertTrue(self.emitted.saying("No way through to The Cradle"),
+                        [t[1] for t in self.emitted.texts])
+
 
 class TheSuitsOtherApps(_DrawBase):
     """Scan and Tasks follow the crew member into a suit, and the Fire app offers WORK
