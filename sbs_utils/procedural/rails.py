@@ -102,6 +102,10 @@ RAIL_TIGHT_PENALTY = 6.0
 #: relic, so this can afford to be honest; an 8-sample version missed the pinch in the
 #: middle of a long diagonal, which is precisely the leg worth catching.
 RAIL_CLEAR_SAMPLES = 9
+#: ...and nine was not honest either on a long leg: the samples are at most this far apart,
+#: so a corner pinch cannot fall between two of them unseen. Capped so one leg stays cheap.
+RAIL_CLEAR_SPACING = 20.0
+RAIL_CLEAR_SAMPLES_MAX = 128
 
 #: Hill-climbing a node toward the middle of the room it is in. Six axis probes per
 #: round, halving the reach each time.
@@ -305,12 +309,20 @@ def _rail_center(vol, pos, lane, rounds=RAIL_CENTER_ROUNDS):
     return best, have
 
 
-def _rail_leg_clearance(vol, a, b, samples=RAIL_CLEAR_SAMPLES):
+def _rail_leg_clearance(vol, a, b, samples=None):
     """The TIGHTEST point along a leg. What decides whether it is a comfortable run.
 
     Both ends are already known clear - they are nodes - so this is looking for the pinch
     in the middle: the corner a straight line clips on its way past.
+
+    At least one sample every RAIL_CLEAR_SPACING. A fixed nine straddled the pinch of a
+    leg cutting the concave corner between a room and its passage - read 43.7 where the
+    true minimum was 27.7 - so that leg cost little and won the route, and in the engine
+    the suit's containment caught it at that corner on every re-plan (course c4-08).
     """
+    if samples is None:
+        samples = min(RAIL_CLEAR_SAMPLES_MAX,
+                      max(RAIL_CLEAR_SAMPLES, int(_vol_dist(a, b) / RAIL_CLEAR_SPACING) + 1))
     lo = min(_rail_clearance(vol, a), _rail_clearance(vol, b))
     for i in range(1, samples):
         t = i / float(samples)

@@ -32,8 +32,10 @@ HOME_KEY = "EVA_HOME_SHIP"
 # Seconds between spawning a suit and handing it to the console. Measured in the engine
 # (2026-10-17, exe 2026-10-14): a client assigned to a PLAYER ship in the frame the ship
 # was spawned crashes (0xC0000005, 3 of 3, whatever the hull); one or two seconds later it
-# survives (6 of 6). 2 leaves room for a client across a real network.
-EVA_ASSIGN_DELAY = 2.0
+# survives (6 of 6). 2 was then seen to fail once in 11 SUIT UP runs; 10 s survived 9 of 9.
+# 5 is the margin: a client across a real network is slower still, and to the crew it
+# reads as the time it takes to suit up.
+EVA_ASSIGN_DELAY = 5.0
 
 
 def _client(client_id=None):

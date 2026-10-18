@@ -110,26 +110,39 @@ class ThePartyDoesNotFlySingleFile(_Base):
         self.assertGreater(max(gaps), 20.0,
                            "the two suits flew the same line - the drift did nothing")
 
-    def test_a_replanned_route_flies_the_centerline(self):
-        """The drift is decoration, and once it has cost a stall it is dropped. It is the
-        same angle every re-plan, so a suit whose drift aimed it into a passage mouth hit
-        the same wall six times and gave up (course c4-08: The Way In to The Altar)."""
-        for cid in CONSOLES[:2]:
-            self.suit_up(cid)
-            self.assertTrue(E.eva_goto(cid, "east end"))
-        E.set_inventory_value(CONSOLES[1], E.KEY_REPLAN, 1)     # as after one stall
-        self.assertTrue(E.eva_goto(CONSOLES[1], "east end", _replan=True))
-        track = self.fly(45, CONSOLES[:2])
+    def test_each_replan_tries_a_different_side(self):
+        """A stall re-plans the route, and a re-plan that flies the SAME line hits the same
+        thing again. The engine has solid obstacles the rail web does not know (a debris
+        rock in a passage mouth): six re-plans on one line - first the suit's own drift,
+        then the centerline - stopped the suit in The Nave every time (course c4-08, The
+        Way In to The Altar), while a crew's fresh pick from where it stood got through.
+        So each re-plan turns the drift to a new side."""
+        suit = self.suit_up(CONSOLES[0])
+        here, aim = (0.0, 0.0, 0.0), (1000.0, 0.0, 0.0)
+        lines = [E._eva_drift(suit, here, aim, RELIC, 400.0, turn=n) for n in range(4)]
+        for a in range(4):
+            for b in range(a + 1, 4):
+                self.assertGreater(_dist(lines[a], lines[b]), 20.0,
+                                   f"re-plans {a} and {b} fly the same line")
+        self.assertEqual(lines[0], E._eva_drift(suit, here, aim, RELIC, 400.0))
 
-        def off_axis(points):
-            mid = [p for p in points if p[0] > -2000]       # well into the hall
-            return max((p[1] ** 2 + p[2] ** 2) ** 0.5 for p in mid) if mid else None
+    def test_the_tick_turns_the_drift_by_the_replan_count(self):
+        seen = []
+        real = E._eva_drift
 
-        drifted, replanned = off_axis(track[CONSOLES[0]]), off_axis(track[CONSOLES[1]])
-        self.assertIsNotNone(drifted)
-        self.assertIsNotNone(replanned)
-        self.assertLess(replanned, drifted / 3.0,
-                        f"re-planned suit still drifts: {replanned:.0f} vs {drifted:.0f}")
+        def spy(suit, here, aim, volume, room, turn=0):
+            seen.append(turn)
+            return real(suit, here, aim, volume, room, turn=turn)
+
+        self.suit_up(CONSOLES[0])
+        self.assertTrue(E.eva_goto(CONSOLES[0], "east end"))
+        E.set_inventory_value(CONSOLES[0], E.KEY_REPLAN, 2)          # as after two stalls
+        self.assertTrue(E.eva_goto(CONSOLES[0], "east end", _replan=True))
+        from unittest import mock
+        with mock.patch.object(E, "_eva_drift", spy):
+            self.fly(2, CONSOLES[:1])
+        self.assertTrue(seen)
+        self.assertEqual(set(seen), {2})
 
     def test_the_drift_is_the_same_every_tick_for_one_suit(self):
         """A drift that wandered would read as a suit that cannot hold a course. It is a
@@ -359,3 +372,52 @@ class TheWebIsSolvedOnceNotPerTrip(_Base):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class AStallStepsAside(_Base):
+    """A REPEATED stall backs off and steps to one side, alternating sides.
+
+    The rail web knows the volume, not the debris: `Debris:` rocks are asteroids, solid in
+    the engine and invisible to the mock and the rails. In C4-08 the suit stopped against
+    one in the middle of The Nave, six re-plans running, on every line tried (2026-10-17).
+    """
+    def _stall(self, cid):
+        from unittest import mock
+        with mock.patch.object(E, "_alignment", lambda *a: 1.0):
+            for _ in range(E.STALL_TICKS + 2):
+                E.eva_tick()                     # no physics: the gap never shrinks
+
+    def test_the_replan_starts_with_a_step_aside(self):
+        cid = CONSOLES[0]
+        suit = self.suit_up(cid)
+        self.assertTrue(E.eva_goto(cid, "east end"))
+        here = tuple(to_object(suit).pos.xyz) if hasattr(to_object(suit).pos, "xyz") else (
+            to_object(suit).pos.x, to_object(suit).pos.y, to_object(suit).pos.z)
+        ahead = tuple(E.get_inventory_value(cid, E.KEY_ROUTE)[0])
+        self._stall(cid)                         # the first: a plain re-plan, as before
+        self.assertEqual(tuple(E.get_inventory_value(cid, E.KEY_ROUTE)[0]), ahead)
+        self._stall(cid)                         # the second: something solid
+        first = tuple(E.get_inventory_value(cid, E.KEY_ROUTE)[0])
+        # Off the line it was stuck on, and not further along it.
+        hx, hz = ahead[0] - here[0], ahead[2] - here[2]
+        n = (hx * hx + hz * hz) ** 0.5
+        side = abs((first[0] - here[0]) * (-hz / n) + (first[2] - here[2]) * (hx / n))
+        along = (first[0] - here[0]) * (hx / n) + (first[2] - here[2]) * (hz / n)
+        self.assertGreater(side, 50.0, f"the replan did not step aside: {first}")
+        self.assertLessEqual(along, 0.0, f"the step aside went forward, into it: {first}")
+
+    def test_the_next_stall_steps_to_the_other_side(self):
+        cid = CONSOLES[0]
+        suit = self.suit_up(cid)
+        self.assertTrue(E.eva_goto(cid, "east end"))
+        p = to_object(suit).pos
+        here = (p.x, p.y, p.z)
+        ahead = tuple(E.get_inventory_value(cid, E.KEY_ROUTE)[0])
+        hx, hz = ahead[0] - here[0], ahead[2] - here[2]
+        sides = []
+        self._stall(cid)                         # the first stall only re-plans
+        for _ in range(2):
+            self._stall(cid)
+            first = tuple(E.get_inventory_value(cid, E.KEY_ROUTE)[0])
+            sides.append((first[0] - here[0]) * -hz + (first[2] - here[2]) * hx)
+        self.assertLess(sides[0] * sides[1], 0.0, f"both steps went the same way: {sides}")

@@ -55,6 +55,7 @@ KEY_HOME = "EVA_HOME"        # the ship to put the console back on
 KEY_STALL = "EVA_STALL"      # ticks since the gap to the next waypoint last shrank
 KEY_GAP = "EVA_GAP"          # what that gap was
 KEY_REPLAN = "EVA_REPLAN"    # how many times this route has been re-planned
+KEY_ESCAPE = "EVA_ESCAPE"    # the step aside a stall put at the head of the route
 KEY_NOWAY = "EVA_NOWAY"      # a place the router could not reach, so the app can say so
 KEY_SPEED = "EVA_SPEED"      # how hard this console flies: a key into SPEEDS
 KEY_LEG = "EVA_LEG"          # where the current leg STARTED - the other end of the rope
@@ -276,12 +277,51 @@ def _eva_frame(d):
     return ((ux, uy, uz), (vx, vy, vz))
 
 
-def _eva_drift(suit, here, aim, volume, room):
+#: A stalled suit's escape: this far back from what stopped it, and this far to one side.
+ESCAPE_BACK = 100.0
+ESCAPE_SIDE = 160.0
+
+
+def _eva_step_aside(client_id, here, blocked, tries):
+    """Put a waypoint behind and beside the suit at the head of its new route.
+
+    The side alternates with the stall count, so two stalls try both sides of whatever is
+    in the way. The point is pulled inside the volume, so in a passage too narrow for the
+    whole step it steps as far as the walls allow.
+    """
+    import math
+    from .volume import volume_nearest_inside
+    hx, hz = blocked[0] - here[0], blocked[2] - here[2]
+    n = math.hypot(hx, hz)
+    if n < 1e-6:
+        return None
+    hx, hz = hx / n, hz / n
+    sign = 1.0 if tries % 2 == 0 else -1.0
+    want = (here[0] - hx * ESCAPE_BACK - hz * ESCAPE_SIDE * sign, here[1],
+            here[2] - hz * ESCAPE_BACK + hx * ESCAPE_SIDE * sign)
+    vol = eva_my_volume(client_id)
+    step = _pos(volume_nearest_inside(vol, want, ROUTE_MARGIN)) if vol else want
+    if step is None:
+        return None
+    route = list(get_inventory_value(client_id, KEY_ROUTE, None) or [])
+    set_inventory_value(client_id, KEY_ROUTE, [tuple(step)] + route)
+    set_inventory_value(client_id, KEY_ESCAPE, tuple(step))
+    # The rope pulls a suit back onto its leg, so the leg has to be this step's.
+    _eva_set_leg(client_id, tuple(here), tuple(step), vol)
+    return step
+
+
+def _eva_drift(suit, here, aim, volume, room, turn=0):
     """Nudge the aim to one side, the same way for this suit every tick.
 
     No RNG object and no state: the offset is a pure function of the suit's id, so it
     cannot drift between ticks, does not need seeding, and has nothing to reset. Two
     suits get different angles; one suit gets the same angle for the whole trip.
+
+    `turn` is how many times this route has been re-planned after a stall. Each one turns
+    the angle by the golden angle, so a re-plan tries a side it has not tried: the engine
+    has solid things the rail web does not know (a debris rock in a passage mouth), and
+    a re-plan on the same line hits the same rock.
     """
     import math
     span = min(DRIFT_MAX, max(0.0, room - ROUTE_MARGIN) * DRIFT_FRACTION)
@@ -291,7 +331,7 @@ def _eva_drift(suit, here, aim, volume, room):
     if frame is None:
         return aim
     h = (int(to_id(suit) or 0) * 2654435761) & 0xFFFFFFFF
-    ang = (h % 1024) / 1024.0 * 2.0 * math.pi
+    ang = (h % 1024) / 1024.0 * 2.0 * math.pi + turn * 2.399963   # golden angle
     mag = span * (0.45 + ((h >> 10) % 256) / 256.0 * 0.55)
     (ux, uy, uz), (vx, vy, vz) = frame
     ca, sa = math.cos(ang) * mag, math.sin(ang) * mag
@@ -760,7 +800,7 @@ def eva_release(client_id):
     # into the next one hands somebody a suit that flies differently for no reason they
     # can see, and the reused-interpreter trap makes that a run-2 mystery.
     for key in (KEY_SUIT, KEY_RELIC, KEY_VOLUME, KEY_HOME, KEY_STALL, KEY_GAP,
-                KEY_REPLAN, KEY_NOWAY, KEY_SPEED):
+                KEY_REPLAN, KEY_NOWAY, KEY_SPEED, KEY_ESCAPE):
         set_inventory_value(client_id, key, None)
 
 
@@ -1156,6 +1196,21 @@ def eva_tick(t=None):
             if dest and tries < REPLAN_LIMIT:
                 set_inventory_value(cid, KEY_REPLAN, tries + 1)
                 eva_goto(cid, dest, _replan=True)
+                # STEP ASIDE FIRST. The web knows the volume, not the debris: a `Debris:`
+                # rock is solid in the engine and on no rail, and a re-plan from where the
+                # suit stopped runs straight back into it (C4-08: six re-plans, The Nave).
+                # Back off and step to one side - the other side on the next stall - then
+                # fly the new route from there.
+                # The way it was going is the real route's, not a step aside's: a suit that
+                # stalls on its way to the step would otherwise step along the old line.
+                # From the SECOND stall: one stall is often just a bad moment, and a plain
+                # re-plan clears it; a second on the same trip means something solid.
+                if tries >= 1:
+                    ahead = route[0]
+                    escape = get_inventory_value(cid, KEY_ESCAPE, None)
+                    if escape is not None and len(route) > 1 and _dist(route[0], escape) < 1.0:
+                        ahead = route[1]
+                    _eva_step_aside(cid, here, ahead, tries)
                 continue
             # Out of tries: stop rather than grind at a wall forever, and say so.
             signal_emit("eva_stuck", {"EVA_CLIENT": cid, "EVA_SUIT": suit,
@@ -1228,13 +1283,13 @@ def eva_tick(t=None):
         # `room_now` is the clearance HERE; the leg may narrow ahead of the suit, and a
         # drift sized on the wide end carries it into the narrow one. The smaller of the
         # two is the honest figure.
-        # NOT ON A RE-PLANNED ROUTE. The drift is the same angle every time, so a suit it
-        # had aimed into a passage mouth re-planned straight back into the same wall, six
-        # times, and gave up (course c4-08). Once a stall has cost a re-plan, the suit
-        # flies the line the router proved clear; eva_goto from the crew resets that.
-        if not (get_inventory_value(cid, KEY_REPLAN, 0) or 0):
-            aim = _eva_drift(suit, here, aim, eva_my_volume(cid),
-                             min(room_now, _eva_room(cid, room_now, 1.0)))
+        # A NEW SIDE ON EACH RE-PLAN. The same line every re-plan hit the same obstacle six
+        # times and gave up (course c4-08) - first with the suit's own drift, then on the
+        # centerline, since the engine has rocks the rail web does not. eva_goto from the
+        # crew resets the count.
+        aim = _eva_drift(suit, here, aim, eva_my_volume(cid),
+                         min(room_now, _eva_room(cid, room_now, 1.0)),
+                         turn=get_inventory_value(cid, KEY_REPLAN, 0) or 0)
         # AND STAY ON THE RAIL. `volume_nearest_inside` only promises "inside the ruin
         # somewhere", which is a weak promise in a chamber the size of a hangar; the leg
         # itself was solved clear, so a suit that has wandered off it is pulled back to it.
