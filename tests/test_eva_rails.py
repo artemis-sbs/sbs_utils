@@ -421,3 +421,35 @@ class AStallStepsAside(_Base):
             first = tuple(E.get_inventory_value(cid, E.KEY_ROUTE)[0])
             sides.append((first[0] - here[0]) * -hz + (first[2] - here[2]) * hx)
         self.assertLess(sides[0] * sides[1], 0.0, f"both steps went the same way: {sides}")
+
+
+class TurningIsNotStalling(_Base):
+    """Time spent coming round must not count toward a stall once the suit flies again.
+
+    The turn and the stall shared one counter: a suit that took 9-15 s to come about
+    (the engine's suit turns slowly) started flying with the count already near
+    STALL_TICKS, and was declared stuck a few ticks later - six times running in C4-08,
+    each step-aside pointing it away so it had to turn again (engine trace, 2026-10-18).
+    """
+    def _tick(self, n, align):
+        from unittest import mock
+        with mock.patch.object(E, "_alignment", lambda *a: align):
+            for _ in range(n):
+                E.eva_tick()
+
+    def test_a_long_turn_then_flying_is_not_a_stall(self):
+        cid = CONSOLES[0]
+        self.suit_up(cid)
+        self.assertTrue(E.eva_goto(cid, "east end"))
+        self._tick(1, 1.0)                                  # flying: the gap is recorded
+        self._tick(E.STALL_TICKS + 10, 0.0)                 # a long turn, holding station
+        self._tick(5, 1.0)                                  # flying again
+        self.assertEqual(E.get_inventory_value(cid, E.KEY_REPLAN, 0) or 0, 0,
+                         "the turn was counted as a stall")
+
+    def test_a_real_stall_still_counts(self):
+        cid = CONSOLES[0]
+        self.suit_up(cid)
+        self.assertTrue(E.eva_goto(cid, "east end"))
+        self._tick(E.STALL_TICKS + 3, 1.0)                  # flying, and going nowhere
+        self.assertGreaterEqual(E.get_inventory_value(cid, E.KEY_REPLAN, 0) or 0, 1)

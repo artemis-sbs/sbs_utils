@@ -56,6 +56,7 @@ KEY_STALL = "EVA_STALL"      # ticks since the gap to the next waypoint last shr
 KEY_GAP = "EVA_GAP"          # what that gap was
 KEY_REPLAN = "EVA_REPLAN"    # how many times this route has been re-planned
 KEY_ESCAPE = "EVA_ESCAPE"    # the step aside a stall put at the head of the route
+KEY_TURN = "EVA_TURN"        # ticks spent holding station to come round
 KEY_NOWAY = "EVA_NOWAY"      # a place the router could not reach, so the app can say so
 KEY_SPEED = "EVA_SPEED"      # how hard this console flies: a key into SPEEDS
 KEY_LEG = "EVA_LEG"          # where the current leg STARTED - the other end of the rope
@@ -800,7 +801,7 @@ def eva_release(client_id):
     # into the next one hands somebody a suit that flies differently for no reason they
     # can see, and the reused-interpreter trap makes that a run-2 mystery.
     for key in (KEY_SUIT, KEY_RELIC, KEY_VOLUME, KEY_HOME, KEY_STALL, KEY_GAP,
-                KEY_REPLAN, KEY_NOWAY, KEY_SPEED, KEY_ESCAPE):
+                KEY_REPLAN, KEY_NOWAY, KEY_SPEED, KEY_ESCAPE, KEY_TURN):
         set_inventory_value(client_id, key, None)
 
 
@@ -1093,6 +1094,7 @@ def eva_goto(client_id, point_name, _replan=False):
     _eva_set_leg(client_id, tuple(here) if here else start,
                  route[0] if route else None, eva_my_volume(client_id))
     set_inventory_value(client_id, KEY_STALL, 0)
+    set_inventory_value(client_id, KEY_TURN, 0)
     set_inventory_value(client_id, KEY_GAP, None)
     if not _replan:
         set_inventory_value(client_id, KEY_REPLAN, 0)
@@ -1177,16 +1179,24 @@ def eva_tick(t=None):
         # counter only runs while the suit is actually trying to fly.
         flying = _alignment(suit, here, route[0]) >= ALIGN_GO
         best = get_inventory_value(cid, KEY_GAP, None)
+        # ITS OWN COUNTER. The turn used to tick KEY_STALL too, so a suit that took 9-15 s
+        # to come about (the engine's suit turns slowly) began flying with the count near
+        # STALL_TICKS and was "stuck" a few ticks later - six times running in C4-08. A
+        # turn also clears the baseline gap: progress is measured from where it STARTS
+        # flying, not from wherever it was before it stopped to turn.
         if not flying:
-            stalled = (get_inventory_value(cid, KEY_STALL, 0) or 0) + 1
-            set_inventory_value(cid, KEY_STALL, stalled)
-            turning = stalled
+            turning = (get_inventory_value(cid, KEY_TURN, 0) or 0) + 1
+            set_inventory_value(cid, KEY_TURN, turning)
+            set_inventory_value(cid, KEY_STALL, 0)
+            set_inventory_value(cid, KEY_GAP, None)
             stalled = 0
         elif best is None or best - gap >= STALL_EPS:
             stalled = turning = 0
+            set_inventory_value(cid, KEY_TURN, 0)
             set_inventory_value(cid, KEY_GAP, gap)
             set_inventory_value(cid, KEY_STALL, 0)
         else:
+            set_inventory_value(cid, KEY_TURN, 0)
             stalled = turning = (get_inventory_value(cid, KEY_STALL, 0) or 0) + 1
             set_inventory_value(cid, KEY_STALL, stalled)
         if stalled >= STALL_TICKS:
