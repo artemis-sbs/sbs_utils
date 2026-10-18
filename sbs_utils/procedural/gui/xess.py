@@ -1696,13 +1696,7 @@ def _work_app(client_id):
             item = lb.get_value()
             if item is None:
                 return
-            # SELECTING AIMS; a second press works. Locking on a thing and cutting it are
-            # two decisions, the same way choosing a verb and using it are - and a list
-            # where touching a row fires a beam is a list nobody can browse.
-            if item[0] == aimed:
-                eva_use(client_id, item[0])
-            else:
-                eva_aim(client_id, item[0])
+            _fire_press(client_id, item[0])
 
         gui_message_callback(lb, _use)
 
@@ -1716,6 +1710,25 @@ def _work_app(client_id):
 
     gui_row("row-height: 2.2em; font:gui-2;")
     gui_button("Stow", on_press=lambda _cid=client_id: eva_disarm(_cid))
+
+
+def _fire_press(client_id, key):
+    """One press of a row in the Fire app. Returns "use" or "aim".
+
+    SELECTING AIMS; a second press works. Locking on a thing and cutting it are two
+    decisions, the same way choosing a verb and using it are - and a list where touching
+    a row fires a beam is a list nobody can browse.
+
+    The aim is read NOW. It used to be the value captured when the screen was built, and
+    nothing rebuilds the screen when the aim changes - so in the engine the second press
+    only aimed again, and "select the row, and press it again" (C4-08, C4-09) never cut.
+    """
+    from .. import eva_tools as T
+    if key == T.eva_selected_target(client_id):
+        T.eva_use(client_id, key)
+        return "use"
+    T.eva_aim(client_id, key)
+    return "aim"
 
 
 def _work_badge():
