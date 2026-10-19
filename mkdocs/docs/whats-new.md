@@ -820,7 +820,8 @@ inside the cast instead of falling through to automatic names half way down the 
 
 The ship list on that screen also offers only the ships that will **actually fly** —
 picking a hull that was about to be parked out from under your console is no longer
-possible.
+possible — and shows each one as a crisp **[ship portrait](#ship-portraits)**, so a
+full bridge of consoles is no longer drawing a spinning 3D model on every row.
 
 Docs: [Crew rosters](build/crew.md).
 
@@ -1847,6 +1848,50 @@ download, so a fetch no longer drags along 27 MB nothing reads.
 
 **272 MB reclaimed.** Guide: **[Shared media](build/shared-media.md)**.
 
+**The library brings its own art, too.** The things sbs_utils itself draws — the ship
+portraits, the ePADD and xESS icons, the EVA suit and turret hulls, the casino decks —
+ride in the library's own pack, which comes with the library: nothing to add to
+`story.json`, and a mission that ships its own copy of any of them still wins.
+
+---
+
+#### 🖼️ Ship portraits — a picture of every hull, and a face for every ship { #ship-portraits }
+
+<figure markdown="span">
+  ![A ship as unknown contact, silhouette, portrait and captain](media/whats-new/ship_portrait_stages.webp){ loading=lazy }
+  <figcaption>One ship, four stages: unknown, a shape on the scope, the hull, its captain.</figcaption>
+</figure>
+
+Every hull in the game now has a **portrait**: a picture taken once and kept on a sheet.
+Put a ship in a list, a roster or a card and it draws as cheaply as an icon — where
+`gui_ship` would have run a live 3D view for every row, on every console.
+
+```python
+gui_ship_portrait("tsn_light_cruiser")           # a picture of the hull
+gui_ship_portrait(ship_id)                       # ...or of whatever that ship is flying
+```
+
+`![](ship://tsn_light_cruiser)` in a text area is a portrait too, and so is the ship on
+an overlay card. Want the model to turn? `gui_ship` still draws it live, and
+`ship://...?live=1` keeps a text-area ship in 3D.
+
+**A ship can have a face.** The portrait sheet is a face sheet, so a hull goes anywhere a
+face goes — and it can grow as the crew learns more:
+
+```python
+ship_portrait_stage_face(ship_id, "unknown")     # a ring and a question mark
+ship_portrait_stage_face(ship_id, "contact")     # its silhouette, in any color
+ship_portrait_stage_face(ship_id, "hull")        # the ship itself
+ship_portrait_stage_face(ship_id, "captain", captain=get_face(ship_id))
+```
+
+A station gets a face of its own the same way. Every stock hull is on the sheet already,
+and the TNG and Venus mods ship sheets for theirs. A mod builds its own with one command
+— see [`sbs art portraits`](#sbs-art) — and a hull without a portrait simply draws in 3D
+as before, so nothing ever goes blank.
+
+Guide: **[Ship portraits](cosmos/ship_portraits.md)**.
+
 ---
 
 #### 🌐 Web pages, written in MAST
@@ -2193,7 +2238,7 @@ not a fault, and one combined number would make a healthy machine look broken.
 
 ---
 
-#### 🎨 `sbs art` — the art the game builds for itself
+#### 🎨 `sbs art` — the art the game builds for itself { #sbs-art }
 
 Some of a ship's art is not drawn by an artist. The engine builds it the first time it
 shows that hull — a `.paxmesh` and the flat `1024`/`256` sprites — and saves it beside
@@ -2225,6 +2270,19 @@ already happened is one that cannot go wrong mid-match.
 A hull listed as **not yet drawn is normal**, not a fault: it is simply art nobody has
 looked at. `sbs doctor` runs the same check as part of its report. See
 [the CLI](tooling/cli.md#repairing-engine-baked-art).
+
+**`sbs art portraits` takes the [ship portraits](#ship-portraits).** It photographs every
+hull — the base game, or a mod's own with `sbs art portraits MyMod` — onto one sheet,
+with a silhouette of each beside it. Nothing to install: it borrows a browser that is
+already there. Run it again after changing a hull and it retakes only that one; every
+other ship keeps its place on the sheet. `sbs art check` now says when a sheet is out
+of date.
+
+```
+sbs art portraits                  # the base game's sheet
+sbs art portraits MyMod            # a mod's own, into its media pack
+sbs art portraits MyMod --check    # anything out of date?
+```
 
 ---
 
