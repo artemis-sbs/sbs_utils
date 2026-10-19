@@ -137,9 +137,69 @@ def _log_pack(message):
     print(message)
 
 
+def library_media_pack(sbslib_pins):
+    """The library's OWN media pack for the sbs_utils a story pins, or None.
+
+    `artemis-sbs.sbs_utils.v1.4.0.sbslib` -> `artemis-sbs.sbs_utils.media.v1.4.0`. No
+    mission declares it: art the LIBRARY needs (the xESS icons, the EVA suit, ship
+    portraits) must not depend on a mission remembering a `shared_media` line, which is
+    how library code came to lean on LegendaryMissions' pack. `sbs.pyz` derives the same
+    name for fetch and prune (`media_cmd.library_media_for`) - keep the two in step.
+    """
+    import re
+    if isinstance(sbslib_pins, str):
+        sbslib_pins = [sbslib_pins]
+    for pin in sbslib_pins or []:
+        m = re.match(r"^(?P<user>[^.]+)\.sbs_utils\.(?P<line>v[\w.]+?)\.sbslib$",
+                     str(pin).strip())
+        if m:
+            return f"{m.group('user')}.sbs_utils.media.{m.group('line')}"
+    return None
+
+
+def _library_tree_media():
+    """The working tree's `media/` when the library runs from source, else None.
+
+    `__file__` is safe HERE (a library module, not script.py - see fs.test_set_exe_dir).
+    Inside a .sbslib it points into the zip, which is not a directory, so this is None.
+    """
+    import sbs_utils
+    tree = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(sbs_utils.__file__))),
+                        "media")
+    return tree if os.path.isdir(tree) else None
+
+
+def _library_media_root(lib_media):
+    """Where the library's own art is, or None.
+
+    The library running from a WORKING TREE (`--use-working-tree`, unit tests) reads its
+    repo's `media/` folder, so art added there is seen before any `sbs lib`. A packaged
+    `.sbslib` has no such folder (the package is inside a zip), so it reads the pack
+    derived from the sbslib the mission pins.
+    """
+    tree = _library_tree_media()
+    if tree is not None:
+        return tree
+    story = get_mission_dir_filename("story.json")
+    try:
+        with open(story, "r", encoding="utf-8") as f:
+            pins = (json.load(f) or {}).get("sbslib")
+    except Exception:
+        return None
+    pack = library_media_pack(pins)
+    if pack is None:
+        return None
+    _ensure_unpacked(lib_media, pack)
+    root = os.path.join(lib_media, pack)
+    return root if os.path.isdir(root) else None
+
+
 def media_roots():
     """Every root a logical media path may resolve against, nearest first: this mission,
-    then each pack it pinned."""
+    then each pack it pinned, then the library's own art.
+
+    The library comes LAST so a mission - or a pinned LegendaryMissions pack that still
+    carries the same folders - always wins over it."""
     global _LIB_MEDIA, _MISSION
     mission = _mission_dir()
     if _LIB_MEDIA is not None and _MISSION == mission:
@@ -149,6 +209,9 @@ def media_roots():
     for pack in _pinned_packs():
         _ensure_unpacked(lib_media, pack)
         roots.append(os.path.join(lib_media, pack))
+    library = _library_media_root(lib_media)
+    if library is not None and library not in roots:
+        roots.append(library)
     _LIB_MEDIA, _MISSION = roots, mission
     return roots
 

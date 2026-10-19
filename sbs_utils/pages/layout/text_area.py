@@ -250,6 +250,10 @@ class ShipLine:
         self.text = url_data.get("url")
         height = to_float(url_data.get("height"), 50.0)
         self.align = url_data.get("align")
+        # `?live=1` keeps the live 3D render. Otherwise a hull with a pre-rendered
+        # portrait (procedural/ship_portraits.py) draws as that image - a tile's cost,
+        # not a 3D view's, which is the whole point in a list of them.
+        self.live = _truthy(url_data.get("live"))
 
         self.height = 0
         self.is_sec_end = False
@@ -258,15 +262,16 @@ class ShipLine:
 
     def send_gui(self, SBS, client_id, region_tag, tag, left, top, right, bottom, layer=None):
         # clientID: int, parent: str, tag: str, style: str, left: float, top: float, right: float, bottom: float) -> None:
-        props = f"hull_tag:{self.text};" + _layer_prop(layer)
         if self.align == "center":
             mid = left+ (right-left)/2
             half = self.width /2
-            SBS.send_gui_3dship(client_id, region_tag, tag, props, mid-half, top, mid+half, bottom)
+            left, right = mid-half, mid+half
         elif self.align == "right":
-            SBS.send_gui_3dship(client_id, region_tag, tag, props, right-self.width, top, right, bottom)
+            left = right-self.width
         else:
-            SBS.send_gui_3dship(client_id, region_tag, tag, props, left, top, left+self.width, bottom)
+            right = left+self.width
+        _ship_send(SBS, client_id, region_tag, tag, self.text, left, top, right, bottom,
+                   layer, getattr(self, "live", False))
         #print(f"hull_tag:{self.text} {self.height} {left},{top},{right},{bottom}")
 
 
@@ -584,8 +589,32 @@ def _lead_send(SBS, client_id, region_tag, tag, ns, urn, left, top, right, botto
         # the backdrop can cover it.
         SBS.send_gui_face(client_id, region_tag, tag, key, left, top, right, bottom)
     elif ns == "ship":
-        SBS.send_gui_3dship(client_id, region_tag, tag, f"hull_tag:{key};" + _layer_prop(layer),
-                            left, top, right, bottom)
+        _ship_send(SBS, client_id, region_tag, tag, key, left, top, right, bottom, layer,
+                   _truthy(opts.get("live")))
+
+
+def _truthy(value):
+    return str(value).strip().lower() in ("1", "true", "yes", "on") if value is not None         else False
+
+
+def _ship_send(SBS, client_id, region_tag, tag, hull, left, top, right, bottom, layer=None,
+               live=False):
+    """A hull as its PORTRAIT when it has one, else as a live 3D ship.
+
+    The fallback is what makes a stale or missing portrait sheet safe: the hull still
+    draws, it just costs a 3D view. `live` asks for the 3D view regardless.
+    """
+    if not live:
+        from ...procedural.ship_portraits import ship_portrait_image
+        from ...procedural.gui.image import ImageAtlas, IMAGE_KEEP_ASPECT_CENTER
+        key = ship_portrait_image(hull)
+        if key is not None:
+            ImageAtlas.all[key].send_gui_image(SBS, client_id, region_tag, tag,
+                                               IMAGE_KEEP_ASPECT_CENTER, left, top, right,
+                                               bottom, None, layer)
+            return
+    SBS.send_gui_3dship(client_id, region_tag, tag, f"hull_tag:{hull};" + _layer_prop(layer),
+                        left, top, right, bottom)
 
 
 # How many text lines tall a lead picture is by default. A face one line tall is a

@@ -166,6 +166,7 @@
 <div id="dbg-log-panel"    class="log-panel"></div>
 
 <script src="/three.min.js"></script>
+<script src="/ship_render.js"></script>
 <script src="/face.js"></script>
 <script>
 // Register any MOD face sheets the ENGINE knows about, from the table the server
@@ -176,7 +177,13 @@
   var t = window.MOD_FACE_ALIASES || {};
   Object.keys(t).forEach(function (a) {
     if (FaceRender.ALIAS[a]) return;              // never shadow a stock sheet
-    FaceRender.registerAlias(a, t[a], 8, 8);      // mod sheets are 8x8; only ter is 15
+    var v = t[a];
+    if (v && typeof v === 'object') {             // registered at runtime, with its cell
+      var c = v.cell || [512, 512];
+      FaceRender.registerAlias(a, v.url, 8, 8, c[0], c[1]);
+    } else {
+      FaceRender.registerAlias(a, v, 8, 8);       // allFaceFiles.txt: 8x8; only ter is 15
+    }
   });
 })();
 </script>
@@ -457,101 +464,24 @@ function _buildImageWidget(s) {
 }
 
 // ── 3D ship rendering ────────────────────────────────────────────────────────
-// Minimal OBJ parser — handles v/vt/vn/f, triangulates polygons, flips UV.V.
-function _parseOBJ(text) {
-  const pos = [], tc = [], nrm = [];
-  const posOut = [], uvOut = [], nrmOut = [];
-  const idxOut = [];
-  const vmap = new Map();
-  let vi = 0;
-  let hasNormals = false;
-
-  const addVert = key => {
-    if (vmap.has(key)) return vmap.get(key);
-    const parts = key.split('/');
-    const pi = +parts[0] - 1;
-    const ti = parts.length > 1 && parts[1] ? +parts[1] - 1 : -1;
-    const ni = parts.length > 2 && parts[2] ? +parts[2] - 1 : -1;
-    const p = pos[pi] || [0, 0, 0];
-    posOut.push(p[0], p[1], p[2]);
-    const t = ti >= 0 && tc[ti] ? tc[ti] : [0, 0];
-    uvOut.push(t[0], t[1]);
-    if (ni >= 0 && nrm[ni]) {
-      nrmOut.push(nrm[ni][0], nrm[ni][1], nrm[ni][2]);
-      hasNormals = true;
-    } else {
-      nrmOut.push(0, 1, 0);
-    }
-    vmap.set(key, vi);
-    return vi++;
-  };
-
-  for (const rawLine of text.split('\n')) {
-    const p = rawLine.trim().split(/\s+/);
-    switch (p[0]) {
-      case 'v':  pos.push([+p[1], +p[2], +p[3]]); break;
-      // NO manual V flip. OBJ's V origin is bottom-left and three.js reconciles that
-      // with TextureLoader's flipY, which defaults to true and is never turned off here -
-      // so `1 - v` on top of it flipped the texture TWICE and hung it upside down. three's
-      // own OBJLoader does not flip for exactly this reason, and these hulls are stock
-      // Blender exports, so there is no non-standard convention for it to correct.
-      case 'vt': tc.push([+p[1], +p[2]]); break;
-      case 'vn': nrm.push([+p[1], +p[2], +p[3]]); break;
-      case 'f': {
-        const verts = p.slice(1).map(addVert);
-        for (let i = 1; i < verts.length - 1; i++)
-          idxOut.push(verts[0], verts[i], verts[i + 1]);
-        break;
-      }
-    }
-  }
-  return { posOut, uvOut, nrmOut, idxOut, hasNormals };
-}
+// The OBJ parser and mesh builder live in ship_render.js, SHARED with the ship portrait
+// renderer (portrait.html) so a portrait looks exactly like the hull does here.
+const _parseOBJ = (text) => ShipRender.parseOBJ(text);
 
 // ── Ship mesh loader (shared, cached) ─────────────────────────────────────────
-// Loads /ships/<art>.obj once per art root, builds a centered geometry + Phong
-// material with diffuse/specular/emissive maps, and resolves a base THREE.Mesh.
-// Callers clone() it (clone shares geometry+material — cheap per instance).
-// base.userData.maxDim is the model's largest dimension, for scaling/framing.
+// Loads /ships/<art>.obj once per art root and resolves a base THREE.Mesh
+// (ShipRender.buildShipMesh). Callers clone() it (clone shares geometry+material -
+// cheap per instance). base.userData.maxDim is the model's largest dimension, for
+// scaling/framing.
 const _shipMeshCache = new Map();   // art → Promise<THREE.Mesh|null>
 function loadShipMesh(art) {
   if (!art || typeof THREE === 'undefined') return Promise.resolve(null);
   let p = _shipMeshCache.get(art);
   if (p) return p;
-  // `artfileroot` IS A PATH NOW - the 2026-08-15 engine writes `ships/<name>` in
-  // shipData.yaml where earlier builds wrote `<name>`. Prefixing unconditionally
-  // asked for `ships/ships/<name>.obj`, so every ship in the 3D view lost its mesh.
-  // Bare roots still arrive from mod and mission ship-data files, so accept both.
-  const root = art.indexOf('/') >= 0 ? art : 'ships/' + art;
+  const root = ShipRender.shipRoot(art);
   p = fetch('/' + root + '.obj')
     .then(r => { if (!r.ok) throw new Error(`${r.status} ${r.statusText}`); return r.text(); })
-    .then(text => {
-      const { posOut, uvOut, nrmOut, idxOut, hasNormals } = _parseOBJ(text);
-      const geo = new THREE.BufferGeometry();
-      geo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(posOut), 3));
-      geo.setAttribute('uv',       new THREE.BufferAttribute(new Float32Array(uvOut), 2));
-      geo.setAttribute('normal',   new THREE.BufferAttribute(new Float32Array(nrmOut), 3));
-      geo.setIndex(new THREE.BufferAttribute(new Uint32Array(idxOut), 1));
-      if (!hasNormals) geo.computeVertexNormals();
-      // Center geometry at origin.
-      geo.computeBoundingBox();
-      const box = geo.boundingBox;
-      geo.translate(-(box.max.x + box.min.x) / 2,
-                    -(box.max.y + box.min.y) / 2,
-                    -(box.max.z + box.min.z) / 2);
-      geo.computeBoundingBox();
-      const size = new THREE.Vector3(); geo.boundingBox.getSize(size);
-      const maxDim = Math.max(size.x, size.y, size.z) || 1;
-
-      const mat = new THREE.MeshPhongMaterial({ color: 0xaaaaaa, shininess: 40, specular: 0x444444 });
-      _loadTex(root + '_diffuse.png',  tex => { if (tex) { mat.map = tex; mat.color.setHex(0xffffff); mat.needsUpdate = true; } });
-      _loadTex(root + '_specular.png', tex => { if (tex) { mat.specularMap = tex; mat.needsUpdate = true; } });
-      _loadTex(root + '_emissive.png', tex => { if (tex) { mat.emissiveMap = tex; mat.emissive.setHex(0xffffff); mat.emissiveIntensity = 1.5; mat.needsUpdate = true; } });
-
-      const base = new THREE.Mesh(geo, mat);
-      base.userData.maxDim = maxDim;
-      return base;
-    })
+    .then(text => ShipRender.buildShipMesh(THREE, text, root, _loadTex))
     .catch(e => { log(`[mesh] load failed: ${root} — ${e}`, 'err'); return null; });
   _shipMeshCache.set(art, p);
   return p;
@@ -769,6 +699,18 @@ function _fieldHealthTick() {
 setInterval(_fieldHealthTick, 1000);
 
 // ── Dispatch ──────────────────────────────────────────────────────────────────
+// A face sheet registered at runtime (add_face_bitmap_sheet): a mod's faces, a ship
+// portrait set. Registered by CELL size, so face.js reads the grid off the image.
+function cmdFaceSheet(msg) {
+  if (typeof FaceRender === 'undefined' || !msg.alias || !msg.file) return;
+  let url = String(msg.file).split('\\').join('/');
+  if (url.toLowerCase().endsWith('.png')) url = url.slice(0, -4);
+  if (url.startsWith('data/')) url = url.slice(5);
+  while (url.startsWith('../')) url = url.slice(3);
+  const c = msg.cell || [512, 512];
+  FaceRender.registerAlias(msg.alias, '/' + url.replace(/^\/+/, ''), 8, 8, c[0], c[1]);
+}
+
 function dispatch(msg) {
   // In client mode, ignore GUI commands addressed to the server (clientID "0") or any
   // other client. The server rebuilds and broadcasts its own frame every tick; without
@@ -780,7 +722,7 @@ function dispatch(msg) {
       msg.cmd !== 'skybox' && msg.cmd !== 'colors' && msg.cmd !== 'fx' && msg.cmd !== 'batch' &&
       msg.cmd !== 'ship_data' && msg.cmd !== 'target_data' &&
       msg.cmd !== 'text_msg' && msg.cmd !== 'text_active' && msg.cmd !== 'world_reset' &&
-    msg.cmd !== 'run_marker') {
+    msg.cmd !== 'run_marker' && msg.cmd !== 'face_sheet') {
     if (msg.clientID !== CLIENT_ID) return;
   }
   switch (msg.cmd) {
@@ -791,6 +733,7 @@ function dispatch(msg) {
     case 'radar':        cmdRadar(msg);       break;
     case 'radar_terrain':cmdRadarTerrain(msg);break;
     case 'world_reset':  cmdWorldReset(msg);   break;
+    case 'face_sheet':   cmdFaceSheet(msg);    break;
     case 'run_marker':   cmdRunMarker(msg);    break;
     case 'widget_rect':  cmdWidgetRect(msg);  break;
     case 'cinematic':    cmdCinematic(msg);   break;

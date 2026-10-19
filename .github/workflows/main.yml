@@ -58,10 +58,16 @@ jobs:
         filename: '${{ github.event.repository.name }}.${{ github.ref_name }}.types.zip'
         path: "typings"
 
+    # The library's own art (xESS icons, EVA suit, ship portraits, casino decks). No
+    # mission names it: media_paths.library_media_pack / sbs.pyz library_media_for derive
+    # this exact name from the sbslib a story pins. Flat, matching `sbs lib`.
+    - name: Archive media
+      run: python .github/zip_flat.py media "${{ github.event.repository.owner.name }}.${{ github.event.repository.name }}.media.${{ github.ref_name }}.zip"
+
     - name: Upload Release
       uses: ncipollo/release-action@v1
       with:
-        artifacts: "${{ github.event.repository.owner.name }}.${{ github.event.repository.name }}.${{ github.ref_name }}.sbslib,${{ github.event.repository.owner.name }}.cosmos_dev.${{ github.ref_name }}.sbslib,${{ github.event.repository.name }}.${{ github.ref_name }}.types.zip"
+        artifacts: "${{ github.event.repository.owner.name }}.${{ github.event.repository.name }}.${{ github.ref_name }}.sbslib,${{ github.event.repository.owner.name }}.cosmos_dev.${{ github.ref_name }}.sbslib,${{ github.event.repository.name }}.${{ github.ref_name }}.types.zip,${{ github.event.repository.owner.name }}.${{ github.event.repository.name }}.media.${{ github.ref_name }}.zip"
         token: ${{ secrets.GITHUB_TOKEN }}
         # A rolling tag (v1.4.0 is re-pointed as work lands) means the Release usually
         # already exists. Without allowUpdates the action only ever tries to CREATE and

@@ -94,10 +94,12 @@ class TestLeadPictures(_Base):
         self.assertEqual(calls[0][1][3], self.FACE)
 
     def test_face_is_two_lines_and_ship_four(self):
-        ta = self._calc(f"![](face://{self.FACE}) A\n![](icon://137) B\n[](ship://tsn_battle_cruiser) C")
+        ta = self._calc(f"![](face://{self.FACE}) A\n![](icon://137) B\n[](ship://tsn_battle_cruiser?live=1) C")
         face, icon, ship = [ln for ln in ta.lines if isinstance(ln, IconLine)]
         self.assertAlmostEqual(face.icon_px, 2 * icon.icon_px)
         self.assertAlmostEqual(ship.icon_px, 4 * icon.icon_px)
+        # `live=1` keeps the 3D ship; without it a hull with a portrait draws the image
+        # (tests/test_ship_portraits.py).
         self.assertEqual([n for n, _ in self._draw(ship)][0], "send_gui_3dship")
 
     def test_size_option(self):

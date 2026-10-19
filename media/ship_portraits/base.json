@@ -1,0 +1,476 @@
+{
+ "alias": "shp_base",
+ "cell": [
+  256,
+  256
+ ],
+ "cells": {
+  "arvonian_carrier": {
+   "art": "ships/ArvoCarrier2",
+   "col": 1,
+   "page": 0,
+   "row": 0,
+   "sig": "cb8c38a6af5c8e1d0eee119e5b868cf8e0910e66"
+  },
+  "arvonian_destroyer": {
+   "art": "ships/Arvonian_des",
+   "col": 2,
+   "page": 0,
+   "row": 0,
+   "sig": "08ee613e117fe308a0b9660ab2cefedaaf8ae490"
+  },
+  "arvonian_fighter": {
+   "art": "ships/ArvoFighter",
+   "col": 3,
+   "page": 0,
+   "row": 0,
+   "sig": "3463cb9f68707c1120f8aa06c879ce285b94fd55"
+  },
+  "arvonian_light_carrier": {
+   "art": "ships/ArvoCarrier1",
+   "col": 4,
+   "page": 0,
+   "row": 0,
+   "sig": "fc156c76c5581483a84bc78420b22a97bfb22a57"
+  },
+  "biomech_a": {
+   "art": "ships/Drone1",
+   "col": 5,
+   "page": 0,
+   "row": 0,
+   "sig": "bb013e1c906e2377513fd09ed0d1c5a8a2de741c"
+  },
+  "biomech_b": {
+   "art": "ships/Drone2",
+   "col": 6,
+   "page": 0,
+   "row": 0,
+   "sig": "c67f5984509e36a234976e65a8d097ff5d04b3b8"
+  },
+  "biomech_c": {
+   "art": "ships/Drone3",
+   "col": 7,
+   "page": 0,
+   "row": 0,
+   "sig": "6885fb57dc811ac8470fefcd06c3ace071517985"
+  },
+  "biomech_d": {
+   "art": "ships/Drone4",
+   "col": 8,
+   "page": 0,
+   "row": 0,
+   "sig": "2d81eba766e24c9b5a176fee643cdbc318f90673"
+  },
+  "cargo_ship": {
+   "art": "ships/cargo",
+   "col": 9,
+   "page": 0,
+   "row": 0,
+   "sig": "000284caa049f3d965c4962eb0beac4983dd9b08"
+  },
+  "kralien_battleship": {
+   "art": "ships/kralien_battleship",
+   "col": 10,
+   "page": 0,
+   "row": 0,
+   "sig": "87b6785632968c4560a48d699d27a171b20e296d"
+  },
+  "kralien_cruiser": {
+   "art": "ships/kralien_cruiser",
+   "col": 11,
+   "page": 0,
+   "row": 0,
+   "sig": "2cf14051e7b382eb42ec6905b428b109757e33bc"
+  },
+  "kralien_dreadnought": {
+   "art": "ships/kralien_dreadnought",
+   "col": 12,
+   "page": 0,
+   "row": 0,
+   "sig": "c88d205c5eb7f06e267fddd38398742c043270f8"
+  },
+  "luxury_liner": {
+   "art": "ships/leisure_vessel",
+   "col": 13,
+   "page": 0,
+   "row": 0,
+   "sig": "c2f8549d342240dbd0fe162d69b6c355bd8dfb7c"
+  },
+  "pirate_brigantine": {
+   "art": "ships/Brigantine",
+   "col": 14,
+   "page": 0,
+   "row": 0,
+   "sig": "85c16d66f2233d677a8b95c036176f28d875582c"
+  },
+  "pirate_fighter": {
+   "art": "ships/pirate_fighter",
+   "col": 15,
+   "page": 0,
+   "row": 0,
+   "sig": "da951ecde0cc14d70c6b88cca9409df2ec2c65cd"
+  },
+  "pirate_longbow": {
+   "art": "ships/longbow",
+   "col": 0,
+   "page": 0,
+   "row": 1,
+   "sig": "21351f3fd138f025deb4d0d488f50efa9818517a"
+  },
+  "pirate_strongbow": {
+   "art": "ships/strongbow",
+   "col": 1,
+   "page": 0,
+   "row": 1,
+   "sig": "97b78509ec369f5a4e70c3338a7dc6e6125fd5c2"
+  },
+  "science_ship": {
+   "art": "ships/science_vessel",
+   "col": 2,
+   "page": 0,
+   "row": 1,
+   "sig": "667f5e8d561e00ef4e75c214969136fb27a81e65"
+  },
+  "skaraan_defiler": {
+   "art": "ships/skaraan_defiler",
+   "col": 3,
+   "page": 0,
+   "row": 1,
+   "sig": "2e3919ec339153328b9158356cc77590f6214db2"
+  },
+  "skaraan_enforcer": {
+   "art": "ships/skaraan_enforcer",
+   "col": 4,
+   "page": 0,
+   "row": 1,
+   "sig": "6e266020bff426d7f8b251912fef0c309f42168a"
+  },
+  "skaraan_executor": {
+   "art": "ships/skaraan_executor",
+   "col": 5,
+   "page": 0,
+   "row": 1,
+   "sig": "6a84c1ca18dec4715acf00a4d1c98202558d3f75"
+  },
+  "starbase_arvonian": {
+   "art": "ships/arvonian_station",
+   "col": 6,
+   "page": 0,
+   "row": 1,
+   "sig": "ca2ad3755f571a5129c08d78a2c3578c3cce2880"
+  },
+  "starbase_civil": {
+   "art": "ships/civil_station",
+   "col": 7,
+   "page": 0,
+   "row": 1,
+   "sig": "542838bd2f746d3880145ad72b27132546972665"
+  },
+  "starbase_command": {
+   "art": "ships/tsn-big-base",
+   "col": 8,
+   "page": 0,
+   "row": 1,
+   "sig": "b1bff07d1de410ed24299d229a380ddf4803c50d"
+  },
+  "starbase_industry": {
+   "art": "ships/industry_station",
+   "col": 9,
+   "page": 0,
+   "row": 1,
+   "sig": "a84135649f882e9b8fce94a14aab4ad60acc6fdf"
+  },
+  "starbase_kralien": {
+   "art": "ships/kralien_station",
+   "col": 10,
+   "page": 0,
+   "row": 1,
+   "sig": "9eace2de1995d8c62a1ef997a845b012bbb0157d"
+  },
+  "starbase_science": {
+   "art": "ships/science_station",
+   "col": 11,
+   "page": 0,
+   "row": 1,
+   "sig": "4d6110a1bbe2f57959a1b1710faaa5d57a1e5403"
+  },
+  "starbase_skaraan": {
+   "art": "ships/skaraan_station",
+   "col": 12,
+   "page": 0,
+   "row": 1,
+   "sig": "81ee476eb1e2fdcdaf3b1eb84406191515d9e55c"
+  },
+  "starbase_torgoth": {
+   "art": "ships/torgoth_station",
+   "col": 13,
+   "page": 0,
+   "row": 1,
+   "sig": "ef454af23ea6d29d665095e92f714522cf83aee4"
+  },
+  "torgoth_behemoth": {
+   "art": "ships/Torgoth_Behemoth",
+   "col": 14,
+   "page": 0,
+   "row": 1,
+   "sig": "703b047802cda87468333c899c9766a95a3c39c9"
+  },
+  "torgoth_destroyer": {
+   "art": "ships/Torgoth_Destroyer",
+   "col": 15,
+   "page": 0,
+   "row": 1,
+   "sig": "b3f260ef9d81ade1f4cc8a36334ab0acf1465852"
+  },
+  "torgoth_goliath": {
+   "art": "ships/Torgoth_Goliath",
+   "col": 0,
+   "page": 0,
+   "row": 2,
+   "sig": "0cc84d7762a2fe5a615836302a2be638f30f166a"
+  },
+  "torgoth_leviathan": {
+   "art": "ships/Torgoth_Leviathan",
+   "col": 1,
+   "page": 0,
+   "row": 2,
+   "sig": "836885b97636cffce93bceba238bdbd65a0fdece"
+  },
+  "transport_ship": {
+   "art": "ships/transport",
+   "col": 2,
+   "page": 0,
+   "row": 2,
+   "sig": "b0971cefcfa96ea314c9ef0e30e9ede2b341e4ea"
+  },
+  "tsn_battle_cruiser": {
+   "art": "ships/TSN_BattleCruiser",
+   "col": 3,
+   "page": 0,
+   "row": 2,
+   "sig": "9ccc931dbea8d7076ec60882133bc587b93f8e83"
+  },
+  "tsn_battleship": {
+   "art": "ships/TSNBattleship",
+   "col": 4,
+   "page": 0,
+   "row": 2,
+   "sig": "5fe87678418781dd095fd9cff75e9124c24c173b"
+  },
+  "tsn_bomber": {
+   "art": "ships/TSN_Bomber",
+   "col": 5,
+   "page": 0,
+   "row": 2,
+   "sig": "1944537bbc5a06ca438d5ece9903baecc1bf831a"
+  },
+  "tsn_carrier": {
+   "art": "ships/TSNCarrier",
+   "col": 6,
+   "page": 0,
+   "row": 2,
+   "sig": "54531a9cc4202b88d14abb0fe4361bc5acdb04da"
+  },
+  "tsn_destroyer": {
+   "art": "ships/TSN_Destroyer",
+   "col": 7,
+   "page": 0,
+   "row": 2,
+   "sig": "c923ae393c28832d5aaf0697383ce983ac69c68e"
+  },
+  "tsn_dreadnought": {
+   "art": "ships/TSN_Dreadnought",
+   "col": 8,
+   "page": 0,
+   "row": 2,
+   "sig": "a8bad0fe102f5e3d225ffc759d99e0752682543c"
+  },
+  "tsn_escort": {
+   "art": "ships/TSN_Escort",
+   "col": 9,
+   "page": 0,
+   "row": 2,
+   "sig": "3f9ebb5477c5cf677b4c9a5d9e66fdc9773e3bfe"
+  },
+  "tsn_fighter": {
+   "art": "ships/TSNfighter",
+   "col": 10,
+   "page": 0,
+   "row": 2,
+   "sig": "9db38267210c5c628959c46bca02f6d80a750c90"
+  },
+  "tsn_heavy_cruiser": {
+   "art": "ships/TSN_Heavy_Cruiser",
+   "col": 11,
+   "page": 0,
+   "row": 2,
+   "sig": "0269a4ceda5bb199b90ec358205d49acead42b4a"
+  },
+  "tsn_juggernaut": {
+   "art": "ships/TSN_Juggernaut",
+   "col": 12,
+   "page": 0,
+   "row": 2,
+   "sig": "7ac97b4f2f62f036ba3846b825d7d59c05f623e8"
+  },
+  "tsn_light_carrier": {
+   "art": "ships/TSN_light_Carrier",
+   "col": 13,
+   "page": 0,
+   "row": 2,
+   "sig": "10c1853d00ba7b2a323b95d9d951b5597d203901"
+  },
+  "tsn_light_cruiser": {
+   "art": "ships/tsn_light_cruiser",
+   "col": 14,
+   "page": 0,
+   "row": 2,
+   "sig": "2927bc45ad3ac6c5e6813a83be839a775627d5ac"
+  },
+  "tsn_mine_layer": {
+   "art": "ships/TSN_MineLayer",
+   "col": 15,
+   "page": 0,
+   "row": 2,
+   "sig": "f50b00792990230b8e47015eaa650e5cbf501dee"
+  },
+  "tsn_missile_cruiser": {
+   "art": "ships/tsn_missile_cruiser",
+   "col": 0,
+   "page": 0,
+   "row": 3,
+   "sig": "7e684ac5263d8e5b97348060597b9e67ebaa6123"
+  },
+  "tsn_scout": {
+   "art": "ships/TSN_Scout",
+   "col": 1,
+   "page": 0,
+   "row": 3,
+   "sig": "365d195d053b1dcc5ffabe24623d7b9e50dfc7ed"
+  },
+  "tsn_shuttle": {
+   "art": "ships/TSNshuttle",
+   "col": 2,
+   "page": 0,
+   "row": 3,
+   "sig": "57441eff9333be175256b8775eae0f592e4f92ec"
+  },
+  "tsn_warpster": {
+   "art": "ships/TSN_Warpster",
+   "col": 3,
+   "page": 0,
+   "row": 3,
+   "sig": "09093c9ddbe62c05b18fe2f74d4a5a7bad12895f"
+  },
+  "unknown": {
+   "art": "ships/unknown",
+   "col": 4,
+   "page": 0,
+   "row": 3,
+   "sig": "9372dfa45884bc23ed227b924f0283545d24c6cb"
+  },
+  "xim_avenger": {
+   "art": "ships/ximni_avenger",
+   "col": 5,
+   "page": 0,
+   "row": 3,
+   "sig": "1fa8baaae858ebabe900f79e29b056276b89cc8a"
+  },
+  "xim_battleship": {
+   "art": "ships/ximni_battleship",
+   "col": 6,
+   "page": 0,
+   "row": 3,
+   "sig": "b30483259734f400d9c9278575aeafd5974c09af"
+  },
+  "xim_carrier": {
+   "art": "ships/ximni_carrier",
+   "col": 7,
+   "page": 0,
+   "row": 3,
+   "sig": "42787b653235cd203ada9eab55c02e5eaa15ab6e"
+  },
+  "xim_corsair": {
+   "art": "ships/ximni_corsair",
+   "col": 8,
+   "page": 0,
+   "row": 3,
+   "sig": "f0e69cb55e7a532657e3b3cc49acb03d059cc944"
+  },
+  "xim_corvette": {
+   "art": "ships/Ximni_Corvette",
+   "col": 9,
+   "page": 0,
+   "row": 3,
+   "sig": "bc5df0faef491ba5f16b8211e4bb89e578836f93"
+  },
+  "xim_destroyer": {
+   "art": "ships/ximni_destroyer",
+   "col": 10,
+   "page": 0,
+   "row": 3,
+   "sig": "b9f1d5d0fb34efc58508c406e0604cadd0aa5bf9"
+  },
+  "xim_dreadnought": {
+   "art": "ships/Ximni_Dreadnought",
+   "col": 11,
+   "page": 0,
+   "row": 3,
+   "sig": "3fb306ebac493a3bb6926708b2d06870a04a0f31"
+  },
+  "xim_escort": {
+   "art": "ships/ximni_escort",
+   "col": 12,
+   "page": 0,
+   "row": 3,
+   "sig": "96a0f6fe1d7f1942d115276924e007dd8df007d4"
+  },
+  "xim_light_carrier": {
+   "art": "ships/ximni_light_carrier",
+   "col": 13,
+   "page": 0,
+   "row": 3,
+   "sig": "043acfc450d3a38b1d3efd7ba41ddf146dcf9264"
+  },
+  "xim_light_cruiser": {
+   "art": "ships/Ximni_light_cruiser",
+   "col": 14,
+   "page": 0,
+   "row": 3,
+   "sig": "796244cf83a295ec467839d1974c76b05b34c812"
+  },
+  "xim_missile_cruiser": {
+   "art": "ships/Ximni_missle_cruiser",
+   "col": 15,
+   "page": 0,
+   "row": 3,
+   "sig": "7ee918f7e652537129605aaa2bc7e92f5023ed9b"
+  },
+  "xim_scout": {
+   "art": "ships/Ximni_scout",
+   "col": 0,
+   "page": 0,
+   "row": 4,
+   "sig": "dfecb257fe957ef8425980f95d0b945a7324876e"
+  }
+ },
+ "cols": 16,
+ "extras": {
+  "unknown": {
+   "col": 0,
+   "page": 0,
+   "row": 0,
+   "sig": "fc67f1192dc975ac35b3b4d7a403fb2d9b7f844f"
+  }
+ },
+ "format": 1,
+ "pages": [
+  {
+   "file": "base_0",
+   "rows": 5
+  }
+ ],
+ "preset": "three-quarter/1",
+ "renderer": "browser-three/1",
+ "set": "base"
+}

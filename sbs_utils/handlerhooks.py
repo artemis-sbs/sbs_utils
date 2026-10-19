@@ -160,6 +160,9 @@ def reset_mission_state():
     # the engine is no longer told about.
     from .faces import face_mod_reset
     face_mod_reset()
+    # Ship portrait sets, for the same reason: their face aliases are mod sheets.
+    from .procedural.ship_portraits import ship_portrait_clear
+    ship_portrait_clear()
     # Crew rosters read from AMD, and the seats they filled. Per-mission for exactly the
     # reason above: a roster names hull keys and portrait atlas cells that exist only while
     # THAT mod is loaded, so carrying it into the next mission staffs consoles with people
@@ -514,6 +517,8 @@ from .procedural.gui.gui import await_gui_site_count as _await_gui_sites
 register_reset_state("off-gui-task await warnings", _await_gui_sites)
 from .faces import face_mod_size as _face_mod_size
 register_reset_state("mod face registry", _face_mod_size)
+from .procedural.ship_portraits import ship_portrait_size as _ship_portrait_size
+register_reset_state("ship portraits", _ship_portrait_size)
 # ePADD app registrations. These live on Agent.SHARED, which clear_shared() rebuilds, so
 # this should always report 0 - registered so a future move off SHARED cannot go unnoticed.
 from .procedural.gui.epadd import _apps_count as _epadd_apps_count

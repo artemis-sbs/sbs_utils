@@ -1,0 +1,226 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Ship portraits</title>
+<!--
+  The ship PORTRAIT renderer. `sbs art portraits` serves this page with a job, opens it in
+  a headless browser, and receives the finished sheet pages back.
+
+  The hull is built by ship_render.js - the SAME loader the browser mock draws 3dship
+  widgets with - so a portrait looks exactly like the hull does there.
+
+  Protocol (all on the server that served this page):
+    GET  /job.json            what to draw: cell size, grid, preset, pages, cells
+    GET  /art/<path>          hull art, by path from the Cosmos root
+    POST /page/<n>            the finished page PNG
+    POST /done                {"rendered": [...], "failed": [{key, error}]}
+-->
+<style>
+  body { margin: 0; background: #222; color: #ccc; font: 12px monospace; }
+  #log { white-space: pre; padding: 8px; }
+  canvas { display: block; }
+</style>
+</head>
+<body>
+<div id="log"></div>
+<script src="/three.min.js"></script>
+<script src="/ship_render.js"></script>
+<script>
+'use strict';
+const logEl = document.getElementById('log');
+function say(t) { logEl.textContent += t + '\n'; }
+
+// One fixed camera for every hull, so a fleet of portraits reads as a set. Versioned in
+// the job (`preset`): changing these numbers is a new look, and the builder re-renders
+// every cell whose recorded preset differs.
+const PRESETS = {
+  'three-quarter/1': { yaw: 0.75 * Math.PI, pitch: 0.38, fov: 30, fill: 0.92 },
+};
+
+function loadTexFor(loader) {
+  return (src, cb) => loader.load('/art/' + src, tex => cb(tex), undefined, () => cb(null));
+}
+
+async function renderHull(renderer, THREE, item, cell, preset) {
+  const res = await fetch('/art/' + item.root + '.obj');
+  if (!res.ok) throw new Error('obj ' + res.status);
+  const text = await res.text();
+  const mesh = ShipRender.buildShipMesh(THREE, text, item.root, loadTexFor(new THREE.TextureLoader()));
+  await mesh.userData.ready;
+
+  const scene = new THREE.Scene();
+  // The mock's own lights (client.html _build3dship), so the look is the mock's look.
+  scene.add(new THREE.AmbientLight(0xffffff, 0.5));
+  const sun = new THREE.DirectionalLight(0xffffff, 0.9);
+  sun.position.set(2, 3, 2);
+  scene.add(sun);
+  mesh.rotation.y = preset.yaw;
+  scene.add(mesh);
+
+  // Frame the BOUNDING SPHERE, so every hull fills its cell the same way whatever its
+  // proportions - a long cruiser and a round station both touch the frame.
+  mesh.updateMatrixWorld(true);
+  const box = new THREE.Box3().setFromObject(mesh);
+  const sphere = box.getBoundingSphere(new THREE.Sphere());
+  const camera = new THREE.PerspectiveCamera(preset.fov, 1, 0.1, 1e8);
+  const dist = sphere.radius / Math.sin((preset.fov * Math.PI / 180) / 2) * preset.fill;
+  camera.position.set(0, Math.sin(preset.pitch) * dist, Math.cos(preset.pitch) * dist);
+  camera.position.add(sphere.center);
+  camera.near = dist * 0.01;
+  camera.far = dist * 10;
+  camera.lookAt(sphere.center);
+  camera.updateProjectionMatrix();
+  // Then TIGHTEN to what the camera actually sees. The sphere fits any hull at any
+  // angle, which leaves a long cruiser seen from three-quarters using half its cell.
+  // Project the hull's own VERTICES (not its box: the world box of a rotated hull has
+  // corners far outside it - measured, that framed every hull at 64% of its cell), and
+  // pull in until the widest sits at `fill` of the frame. Three passes, since perspective
+  // makes each step an approximation.
+  const corners = [];
+  const posAttr = mesh.geometry.attributes.position;
+  const step = Math.max(1, Math.floor(posAttr.count / 4000));
+  for (let i = 0; i < posAttr.count; i += step) {
+    corners.push(new THREE.Vector3().fromBufferAttribute(posAttr, i).applyMatrix4(mesh.matrixWorld));
+  }
+  for (let pass = 0; pass < 3; pass++) {
+    camera.updateMatrixWorld(true);
+    let reach = 0;
+    for (const c of corners) {
+      const p = c.clone().project(camera);
+      reach = Math.max(reach, Math.abs(p.x), Math.abs(p.y));
+    }
+    if (reach <= 0) break;
+    const k = reach / preset.fill;
+    const offset = camera.position.clone().sub(sphere.center).multiplyScalar(k);
+    camera.position.copy(sphere.center).add(offset);
+    camera.near = offset.length() * 0.01;
+    camera.far = offset.length() * 10;
+    camera.updateProjectionMatrix();
+  }
+
+  // Rendered at SUPERSAMPLE x the cell, then fitted (below): sharper edges, and room to
+  // centre what perspective framed off-centre.
+  renderer.setSize(cell[0] * SUPERSAMPLE, cell[1] * SUPERSAMPLE, false);
+  renderer.setClearColor(0x000000, 0);
+  renderer.clear();
+  renderer.render(scene, camera);
+  mesh.geometry.dispose();
+  return renderer.domElement;
+}
+
+const SUPERSAMPLE = 2;
+
+// Draw `src` into the cell by its OPAQUE bounds, centred, the larger side at `fill` of
+// the cell. Perspective puts the near end of a three-quarter hull further from centre
+// than the far end, so camera framing alone leaves every ship pushed to one side.
+function fitInto(ctx, src, x, y, w, h, fill) {
+  const tmp = document.createElement('canvas');
+  tmp.width = src.width; tmp.height = src.height;
+  const t = tmp.getContext('2d', { willReadFrequently: true });
+  t.drawImage(src, 0, 0);
+  const d = t.getImageData(0, 0, tmp.width, tmp.height).data;
+  let x0 = tmp.width, y0 = tmp.height, x1 = -1, y1 = -1;
+  for (let py = 0; py < tmp.height; py++) {
+    for (let px = 0; px < tmp.width; px++) {
+      if (d[(py * tmp.width + px) * 4 + 3] > 8) {
+        if (px < x0) x0 = px; if (px > x1) x1 = px;
+        if (py < y0) y0 = py; if (py > y1) y1 = py;
+      }
+    }
+  }
+  if (x1 < x0) return;                                  // nothing drawn
+  const bw = x1 - x0 + 1, bh = y1 - y0 + 1;
+  const s = Math.min(w * fill / bw, h * fill / bh);
+  const dw = bw * s, dh = bh * s;
+  ctx.imageSmoothingQuality = 'high';
+  ctx.drawImage(tmp, x0, y0, bw, bh, x + (w - dw) / 2, y + (h - dh) / 2, dw, dh);
+}
+
+// The generic UNKNOWN CONTACT cell: a radar blip and a question mark, drawn rather than
+// rendered because there is no hull to render.
+function drawUnknown(ctx, x, y, w, h) {
+  const cx = x + w / 2, cy = y + h / 2, r = Math.min(w, h) * 0.38;
+  ctx.save();
+  ctx.strokeStyle = 'rgba(120, 200, 255, 0.9)';
+  ctx.lineWidth = Math.max(2, w / 64);
+  for (const k of [1, 0.66, 0.33]) {
+    ctx.globalAlpha = k;
+    ctx.beginPath(); ctx.arc(cx, cy, r * k, 0, Math.PI * 2); ctx.stroke();
+  }
+  ctx.globalAlpha = 1;
+  ctx.fillStyle = 'rgba(200, 235, 255, 1)';
+  ctx.font = 'bold ' + Math.round(h * 0.42) + 'px sans-serif';
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillText('?', cx, cy + h * 0.02);
+  ctx.restore();
+}
+
+function loadImage(url) {
+  return new Promise(resolve => {
+    const img = new Image();
+    img.onload = () => resolve(img);
+    img.onerror = () => resolve(null);
+    img.src = url;
+  });
+}
+
+async function main() {
+  const job = await (await fetch('/job.json')).json();
+  const cell = job.cell, cols = job.cols;
+  const preset = PRESETS[job.preset];
+  const rendered = [], failed = [];
+  if (!preset) {
+    failed.push({ key: '*', error: 'unknown preset ' + job.preset });
+    await fetch('/done', { method: 'POST', body: JSON.stringify({ rendered, failed }) });
+    return;
+  }
+  const renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true,
+                                             preserveDrawingBuffer: true, premultipliedAlpha: false });
+  renderer.setPixelRatio(1);
+
+  for (const page of job.pages) {
+    const canvas = document.createElement('canvas');
+    canvas.width = cols * cell[0];
+    canvas.height = page.rows * cell[1];
+    const ctx = canvas.getContext('2d');
+    if (page.existing) {
+      const img = await loadImage(page.existing);
+      if (img) ctx.drawImage(img, 0, 0);
+    }
+    // Free slots and every cell about to be redrawn start transparent.
+    for (const c of page.clear || []) {
+      ctx.clearRect(c.col * cell[0], c.row * cell[1], cell[0], cell[1]);
+    }
+    for (const item of page.items) {
+      const x = item.col * cell[0], y = item.row * cell[1];
+      ctx.clearRect(x, y, cell[0], cell[1]);
+      try {
+        if (item.extra === 'unknown') {
+          drawUnknown(ctx, x, y, cell[0], cell[1]);
+        } else {
+          const src = await renderHull(renderer, THREE, item, cell, preset);
+          fitInto(ctx, src, x, y, cell[0], cell[1], preset.fill);
+        }
+        rendered.push(item.key);
+        say('ok   ' + item.key);
+      } catch (e) {
+        failed.push({ key: item.key, error: String(e && e.message || e) });
+        say('FAIL ' + item.key + ' ' + e);
+      }
+    }
+    const blob = await new Promise(r => canvas.toBlob(r, 'image/png'));
+    await fetch('/page/' + page.index, { method: 'POST', body: blob });
+  }
+  await fetch('/done', { method: 'POST', body: JSON.stringify({ rendered, failed }) });
+  say('done');
+}
+
+main().catch(e => {
+  say('FATAL ' + e);
+  fetch('/done', { method: 'POST',
+                   body: JSON.stringify({ rendered: [], failed: [{ key: '*', error: String(e) }] }) });
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,157 @@
+{
+  "#about": "Turret hulls, declared to the engine through ship_data_add_extra. Shipped in the sbs_utils media pack. Load-bearing: a behav_station object fires its beams ONLY when its hull was declared by an add-on (engine-measured 1.3.5). Strict JSON, not YAML: the engine parses ship data as HJSON. Keep the final newline. Every entry is complete on purpose. Beam stats are fixed at the hull: a variant needs a new entry, and its beam range must match turret_make(range=). roles is 'turret', not 'station', so turrets do not inherit docking, market or protect-the-station objectives.",
+  "#ship-list": [
+    {
+      "key": "lm_turret_beam",
+      "name": "Defense Turret",
+      "origin": "Terran",
+      "side": "USFP",
+      "artfileroot": "ships/tsn-big-base",
+      "meshscale": 6.0,
+      "radarscale": 0.6,
+      "internalmapscale": 1.0,
+      "internalmapw": 10,
+      "internalmaph": 10,
+      "internalsymmetry": 1,
+      "exclusionradius": 60.0,
+      "shields": [
+        220
+      ],
+      "hullpoints": 60,
+      "roles": "turret",
+      "hull_port_sets": {
+        "beam Primary Beams": [
+          {
+            "position": [
+              0,
+              4.277,
+              0.033
+            ],
+            "color": "red",
+            "arccolor": "#090",
+            "cycle_time": 5,
+            "damage_coeff": 1,
+            "range": 2500,
+            "arcwidth": 360,
+            "barrel_angle": 0
+          }
+        ]
+      },
+      "torpedostart": []
+    },
+    {
+      "key": "lm_turret_heavy",
+      "name": "Heavy Defense Turret",
+      "origin": "Terran",
+      "side": "USFP",
+      "artfileroot": "ships/tsn-big-base",
+      "meshscale": 9.0,
+      "radarscale": 0.8,
+      "internalmapscale": 1.0,
+      "internalmapw": 10,
+      "internalmaph": 10,
+      "internalsymmetry": 1,
+      "exclusionradius": 90.0,
+      "shields": [
+        400
+      ],
+      "hullpoints": 120,
+      "roles": "turret",
+      "hull_port_sets": {
+        "beam Primary Beams": [
+          {
+            "position": [
+              0,
+              4.277,
+              0.033
+            ],
+            "color": "orange",
+            "arccolor": "#090",
+            "cycle_time": 8,
+            "damage_coeff": 2.2,
+            "range": 3500,
+            "arcwidth": 360,
+            "barrel_angle": 0
+          }
+        ]
+      },
+      "torpedostart": []
+    },
+    {
+      "key": "lm_turret_mount",
+      "name": "Turret Mount",
+      "origin": "Terran",
+      "side": "USFP",
+      "artfileroot": "ships/TSNfighter",
+      "meshscale": 1.2,
+      "radarscale": 0.2,
+      "internalmapscale": 1.0,
+      "internalmapw": 4,
+      "internalmaph": 4,
+      "internalsymmetry": 1,
+      "exclusionradius": 0.0,
+      "shields": [
+        40
+      ],
+      "hullpoints": 12,
+      "roles": "turret",
+      "hull_port_sets": {
+        "beam Primary Beams": [
+          {
+            "position": [
+              0,
+              0.5,
+              0
+            ],
+            "color": "#0cf",
+            "arccolor": "#090",
+            "cycle_time": 3,
+            "damage_coeff": 0.4,
+            "range": 1200,
+            "arcwidth": 360,
+            "barrel_angle": 0
+          }
+        ]
+      },
+      "torpedostart": []
+    },
+    {
+      "key": "lm_turret_crate",
+      "name": "Turret Kit",
+      "origin": "Terran",
+      "side": "USFP",
+      "artfileroot": "ships/TSNfighter",
+      "meshscale": 1.6,
+      "radarscale": 0.4,
+      "internalmapscale": 1.0,
+      "internalmapw": 4,
+      "internalmaph": 4,
+      "internalsymmetry": 1,
+      "exclusionradius": 20.0,
+      "shields": [
+        30
+      ],
+      "hullpoints": 20,
+      "roles": "turret_crate",
+      "hull_port_sets": {
+        "beam Primary Beams": [
+          {
+            "position": [
+              0,
+              0,
+              0
+            ],
+            "color": "white",
+            "arccolor": "#090",
+            "cycle_time": 60,
+            "damage_coeff": 0,
+            "range": 0,
+            "arcwidth": 360,
+            "barrel_angle": 0
+          }
+        ]
+      },
+      "torpedostart": []
+    }
+  ]
+}

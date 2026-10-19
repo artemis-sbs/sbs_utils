@@ -1,0 +1,67 @@
+{
+  "#about": "The EVA boarding suit, as a hull. Owned by sbs_utils (procedural/eva.py), shipped in its media pack. Strict JSON, not YAML: the engine parses ship data as HJSON. Keep the final newline - the engine rejects a file without one. artfileroot is the whole path into the sbs_utils media pack; the pack version is part of it. The entry is complete on purpose: a hull missing hull_port_sets or torpedostart has crashed the engine at load. Small exclusionradius and fast turn_rate are deliberate - see the LegendaryMissions history of lm_eva_ships.yaml.",
+  "#ship-list": [
+    {
+      "key": "lm_eva_suit",
+      "name": "EVA Suit",
+      "origin": "TSN",
+      "side": "tsn",
+      "artfileroot": "data/missions/__lib__/media/artemis-sbs.sbs_utils.media.v1.4.0/ships/LM_CrewExosuitSeated",
+      "meshscale": 10.0,
+      "radarscale": 1.0,
+      "exclusionradius": 6.0,
+      "meshrotate": 0,
+      "turn_rate": 2.0,
+      "speed_coeff": 1.0,
+      "shields": [
+        10,
+        10
+      ],
+      "hullpoints": 2,
+      "scan_strength_coeff": 1,
+      "ship_energy_cost": 0.1,
+      "warp_energy_cost": 1.0,
+      "jump_energy_cost": 1.0,
+      "tubecount": 0,
+      "baycount": 0,
+      "torpedostart": [
+        {
+          "Homing": 0
+        },
+        {
+          "Nuke": 0
+        },
+        {
+          "EMP": 0
+        },
+        {
+          "Mine": 0
+        }
+      ],
+      "hull_port_sets": {
+        "beam Primary Beams": [
+          {
+            "position": [
+              0,
+              0,
+              7.0
+            ],
+            "color": "white",
+            "arccolor": "#099",
+            "cycle_time": 8,
+            "damage_coeff": 0.1,
+            "range": 400,
+            "arcwidth": 60,
+            "barrel_angle": 0
+          }
+        ]
+      },
+      "internalmapscale": 1.0,
+      "internalmapw": 1,
+      "internalmaph": 1,
+      "internalsymmetry": 0,
+      "roles": "eva_hull",
+      "long_desc": "A hard suit with thruster packs, flown by one crew member inside a ruin."
+    }
+  ]
+}

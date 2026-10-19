@@ -272,8 +272,16 @@ async def _broadcast(payload: dict, _record_only: bool = False):
     # clear/complete carry the region tag in 'tag'; widget commands carry it in 'parent'
     region_tag = payload.get("tag", "") if cmd in ("clear", "complete") else payload.get("parent", "")
 
+    if cmd == "face_sheet":
+        # Kept for tabs that load LATER (folded into the page's alias table), and sent
+        # live to the ones already open. Not a frame command: it registers, it draws
+        # nothing, and a replayed frame must not depend on it arriving first.
+        _runtime_face_sheets[str(payload.get("alias"))] = {
+            "url": _face_sheet_url(payload.get("file", "")),
+            "cell": payload.get("cell") or [512, 512]}
+
     if cmd in ("log", "radar", "radar_terrain", "widget_rect", "cinematic", "skybox",
-               "colors", "reticle"):
+               "colors", "reticle", "face_sheet"):
         # Transient messages: broadcast to all live browsers but never recorded
         # in frames (must not replay to a newly connected tab).
         async with _get_lock():
@@ -483,6 +491,23 @@ def _ci_match(abs_path: str):
     return None
 
 
+#: alias -> {"url", "cell"} for sheets registered at runtime (add_face_bitmap_sheet).
+_runtime_face_sheets: dict = {}
+
+
+def _face_sheet_url(filename: str) -> str:
+    """The URL for a sheet path in the engine's shape (`data/missions/...`, no suffix).
+    `_serve_static` serves `data/` as a root, so `data/missions/x` is `/missions/x`."""
+    rel = str(filename).replace("\\", "/")
+    if rel.lower().endswith(".png"):
+        rel = rel[:-4]
+    if rel.startswith("data/"):
+        rel = rel[len("data/"):]
+    while rel.startswith("../"):
+        rel = rel[3:]
+    return "/" + rel.lstrip("/")
+
+
 def _face_alias_table() -> dict:
     """`{alias: url}` from the engine's own data/graphics/allFaceFiles.txt.
 
@@ -496,11 +521,14 @@ def _face_alias_table() -> dict:
     browser collapses to `/missions/__lib__/media/...` - already served, because
     _serve_static allows data/ as a root for exactly this reason.
     """
-    if not _cosmos_dir:
-        return {}
-    path = os.path.join(_cosmos_dir, "data", "graphics", "allFaceFiles.txt")
+    # No install known: no allFaceFiles.txt to read (never one relative to the cwd), but
+    # runtime registrations below still count.
+    path = os.path.join(_cosmos_dir, "data", "graphics", "allFaceFiles.txt") \
+        if _cosmos_dir else None
     out = {}
     try:
+        if path is None:
+            raise OSError("no Cosmos install")
         with open(path, "r", encoding="utf-8") as f:
             for line in f:
                 parts = line.split()
@@ -519,7 +547,10 @@ def _face_alias_table() -> dict:
                     rel = rel[3:]
                 out[alias] = "/" + rel.lstrip("/")
     except OSError:
-        return {}
+        out = {}
+    # Runtime registrations win: the engine re-points an alias it is told about again.
+    for alias, sheet in _runtime_face_sheets.items():
+        out[alias] = sheet
     return out
 
 

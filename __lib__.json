@@ -3,5 +3,8 @@
     "sbslib": [
         "sbs_utils",
         "cosmos_dev"
+    ],
+    "zip": [
+        "media"
     ]
 }

@@ -73,6 +73,16 @@ def pinned_packs(mission_dir):
     return out
 
 
+def library_pack(mission_dir):
+    """The sbs_utils media pack implied by the sbslib `story.json` pins, or None."""
+    from .media_paths import library_media_pack
+    try:
+        with open(os.path.join(mission_dir, "story.json"), "r", encoding="utf-8") as f:
+            return library_media_pack((json.load(f) or {}).get("sbslib"))
+    except Exception:
+        return None
+
+
 def graphics_dir(mission_dir):
     """The engine's `data/graphics`, found by walking up from the mission.
 
@@ -108,6 +118,10 @@ def media_roots(mission_dir):
         if os.path.isdir(lib):
             for pack in pinned_packs(mission_dir):
                 roots.append(os.path.join(lib, pack))
+            # The library's own pack, which no story.json names (media_paths.media_roots).
+            library = library_pack(mission_dir)
+            if library:
+                roots.append(os.path.join(lib, library))
             roots.append(lib)
             break
         parent = os.path.dirname(here)

@@ -117,6 +117,48 @@ ICON_ALIAS = {
 ICON_DOMAIN = "icon"
 
 
+#: Icon sheets the LIBRARY ships in its own media pack (`sbs_utils/media`), as
+#: (logical path, cols, rows, cell px, names row-major). The xESS and its ground panel ask
+#: for `epadd.*`, so those names cannot depend on a mission having pinned LegendaryMissions'
+#: pack, where this sheet used to live. LM's `consoles/epadd.mast` still registers the same
+#: names; whichever claims a name first keeps it - nothing here overwrites a claim.
+LIBRARY_ICON_SHEETS = (
+    ("epadd/icons", 4, 6, 128, (
+        "epadd.cargo", "epadd.fabricate", "epadd.upgrades", "epadd.quests",
+        "epadd.library", "epadd.help", "epadd.airwing", "epadd.casino",
+        "epadd.damage", "epadd.hangar", "epadd.comms_log", "epadd.standings",
+        "epadd.debug", "epadd.mast", "epadd.brain", "epadd.coverage",
+        "epadd.messages", "epadd.status", "epadd.boarding", "lm.star",
+        "lm.star_outline")),
+)
+_LIBRARY_ICON_NAMES = {n for sheet in LIBRARY_ICON_SHEETS for n in sheet[4]}
+#: The mission the library sheets were last offered for. Keyed by mission rather than
+#: a latch, so a restart into another mission re-offers them and nothing needs a reset.
+_library_icons_for = None
+
+
+def _offer_library_icons():
+    """Register the library's own icon sheets, once per mission, never over a claim."""
+    global _library_icons_for
+    try:
+        from ..media_paths import media_shared, media_shared_exists, _mission_dir
+        mission = _mission_dir()
+    except Exception:                                    # noqa: BLE001
+        return
+    if _library_icons_for == mission:
+        return
+    _library_icons_for = mission
+    from .image import ImageAtlas, gui_image_add_atlas_grid
+    for path, cols, rows, cell, names in LIBRARY_ICON_SHEETS:
+        if not media_shared_exists(path):
+            continue
+        free = [n if ImageAtlas.qualify(n, ICON_DOMAIN) not in ImageAtlas.all else None
+                for n in names]
+        if any(free):
+            gui_image_add_atlas_grid(media_shared(path), cols, rows, free, cell, None,
+                                     ICON_DOMAIN)
+
+
 def icon_resolve(name):
     """A name -> (icon_index, atlas_key). Exactly one of the two is set.
 
@@ -140,6 +182,8 @@ def icon_resolve(name):
         seen.add(key)
         key = ICON_ALIAS[key]
     claimed = ImageAtlas.qualify(key, ICON_DOMAIN)
+    if claimed not in ImageAtlas.all and key in _LIBRARY_ICON_NAMES:
+        _offer_library_icons()           # the library's own sheet, on first use
     if claimed in ImageAtlas.all:        # a sheet deliberately claimed this look
         return None, claimed
     idx = ICON_INDEX.get(key)

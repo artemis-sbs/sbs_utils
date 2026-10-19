@@ -119,6 +119,35 @@ class TestSheetGoesToTheEngine(unittest.TestCase):
         self.assertEqual(face_registered_sheets()["tng1"]["file"], "media/faces_tng/TNG_Faces_1")
         self.assertEqual(self.said, [])
 
+    def test_a_CELL_SIZE_reaches_the_engine(self):
+        """Ship portraits are 256 px cells; the engine slices by the size it is told."""
+        self.sbs.face_sheet_cells.clear()
+        self.assertTrue(face_register_sheet("shp0", 16, 12, filename="media/ship_portraits/base_0",
+                                            cell_w=256, cell_h=256))
+        self.assertEqual(self.sbs.face_sheet_cells["shp0"], (256, 256))
+        self.assertEqual(face_registered_sheets()["shp0"]["cell"], (256, 256))
+
+    def test_a_512_sheet_is_sent_WITHOUT_a_size(self):
+        """So a stock-sized sheet still registers on an exe from before sizeW/sizeH."""
+        calls = []
+        real = self.sbs.add_face_bitmap_sheet
+        self.sbs.add_face_bitmap_sheet = lambda *a: calls.append(a)
+        self.addCleanup(setattr, self.sbs, "add_face_bitmap_sheet", real)
+        face_register_sheet("tng1", filename="media/faces_tng/TNG_Faces_1")
+        self.assertEqual(len(calls[0]), 2)
+
+    def test_an_exe_that_cannot_take_a_size_refuses_a_non_512_sheet(self):
+        def _old(tag, filename):
+            pass
+        real = self.sbs.add_face_bitmap_sheet
+        self.sbs.add_face_bitmap_sheet = _old
+        self.addCleanup(setattr, self.sbs, "add_face_bitmap_sheet", real)
+        self.assertFalse(face_register_sheet("shp0", 16, 12, filename="media/x", cell_w=256,
+                                             cell_h=256))
+        self.assertEqual(len(self.said), 1)
+        self.assertIn("256x256", self.said[0])
+        self.assertEqual(face_sheet_grid("shp0"), (16, 12))   # the browser still knows it
+
     def test_a_mission_swap_forgets_the_mocks_sheets_but_a_new_sim_does_not(self):
         """The engine keeps a registered sheet across create_new_sim (measured)."""
         face_register_sheet("tng1", filename="media/faces_tng/TNG_Faces_1")

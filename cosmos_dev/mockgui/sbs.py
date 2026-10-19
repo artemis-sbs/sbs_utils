@@ -264,6 +264,16 @@ def send_gui_face(clientID: int, parent: str, tag: str, face_string: str,
           parent=parent, tag=tag, face_string=face_string,
           left=left, top=top, right=right, bottom=bottom)
 
+def add_face_bitmap_sheet(tag: str, filename: str, sizeW: int = 512, sizeH: int = 512) -> None:
+    """Register the sheet (base mock) AND tell the browser, so a face from a sheet
+    registered at RUNTIME composites there too - a mod sheet, a ship portrait set. The
+    page otherwise knows only data/graphics/allFaceFiles.txt, read when it loads, and a
+    face naming any other alias drew as a blank square."""
+    _base_mock.add_face_bitmap_sheet(tag, filename, sizeW, sizeH)
+    _send(0, "face_sheet", alias=str(tag), file=str(filename),
+          cell=[int(sizeW), int(sizeH)])
+
+
 def send_story_dialog(clientID: int, title: str, text: str, face: str, color: str) -> None:
     """Stream a story dialog (title + text + composited face) to the client's
     browser. The engine renders this in C++; the base mock is a no-op, so this

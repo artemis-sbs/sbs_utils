@@ -684,8 +684,9 @@ def eva_suit_spawn(lifeform, relic_key, x, y, z, hull=None, name=None, side=None
     return suit
 
 
-#: The suit a boarder wears: the crew exosuit, declared by LegendaryMissions' `boarding`
-#: addon (`ship_data_add_extra("lm_eva_ships")`) from its media pack.
+#: The suit a boarder wears: the crew exosuit. Its hull file (`lm_eva_ships.json`) and art
+#: ship in the LIBRARY's media pack, so any mission can declare it with
+#: `ship_data_add_extra("lm_eva_ships")` - LegendaryMissions' `boarding` addon does.
 EVA_SUIT_HULL = "lm_eva_suit"
 
 #: What a suit is drawn as when the hull it asked for is not in this mission's ship data.
@@ -708,9 +709,10 @@ def eva_suit_hull(hull=None):
     THE CHECK IS NOT POLITENESS. A hull the engine was never given does not fail where
     it is asked for: it draws the `unknown` placeholder, or the spawn dies inside the
     engine with `bad allocation` minutes later against an unrelated line. The exosuit
-    comes from a mod file, so it is absent whenever the mission turned `EXTRA_SHIP_DATA`
-    off (it is on by default), the `boarding` addon is not loaded, or the media pack
-    holding `lm_eva_ships` is not in the mission's `shared_media`.
+    comes from an extra ship-data file, so it is absent whenever the mission turned
+    `EXTRA_SHIP_DATA` off (it is on by default) or nothing called
+    `ship_data_add_extra("lm_eva_ships")` (the `boarding` addon does). The file itself is
+    in the library's own media pack, so no `shared_media` line is needed.
 
     A FUNCTION because MAST only sees functions.
     """
@@ -723,10 +725,10 @@ def eva_suit_hull(hull=None):
         Agent.SHARED.set_inventory_value(_HULL_WARNED_KEY, told)
         from .execution import log
         note = (f"EVA: the suit hull '{want}' is not in this mission's ship data, so "
-                f"suits are drawn as '{EVA_SUIT_FALLBACK}'. The exosuit needs three "
-                f"things: the LegendaryMissions `boarding` addon, the LegendaryMissions "
-                f"media pack in story.json `shared_media`, and `EXTRA_SHIP_DATA` left on "
-                f"(it is on by default; `EXTRA_SHIP_DATA: false` turns it off).")
+                f"suits are drawn as '{EVA_SUIT_FALLBACK}'. The exosuit needs two "
+                f"things: `ship_data_add_extra(\"lm_eva_ships\")` (the LegendaryMissions "
+                f"`boarding` addon calls it), and `EXTRA_SHIP_DATA` left on (it is on by "
+                f"default; `EXTRA_SHIP_DATA: false` turns it off).")
         log(note, "eva", "warning")
         try:
             # debug.log as well: `log()` has no handler in the engine, and this is a

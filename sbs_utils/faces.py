@@ -1148,9 +1148,12 @@ def face_sheet_engine_path(filename):
     return engine_file(text)
 
 
-def _sheet_tell_engine(alias, filename):
+def _sheet_tell_engine(alias, filename, cell_w=512, cell_h=512):
     """Hand one sheet to the engine. True if it took it, False if it could not, None when
-    there is no engine to ask (no frame context - an import, a unit test with no sim)."""
+    there is no engine to ask (no frame context - an import, a unit test with no sim).
+
+    The CELL size travels only when it is not the engine's default 512, so a stock-sized
+    sheet still registers on an exe that predates `sizeW`/`sizeH` (1.3.15, 2026-10-17)."""
     from .helpers import FrameContext
     ctx = FrameContext.context
     sbs = getattr(ctx, "sbs", None) if ctx is not None else None
@@ -1175,8 +1178,21 @@ def _sheet_tell_engine(alias, filename):
     if add is None:
         _say("this engine has no add_face_bitmap_sheet (it arrived in 1.3.15)")
         return False
+    sized = (int(cell_w), int(cell_h)) != (512, 512)
     try:
-        add(str(alias), path)
+        if sized:
+            add(str(alias), path, int(cell_w), int(cell_h))
+        else:
+            add(str(alias), path)
+    except TypeError as e:
+        if not sized:
+            _say("%s: %s" % (type(e).__name__, e))
+            return False
+        # An exe from before sizeW/sizeH. Registering anyway would slice this sheet as
+        # 512 px cells - every face drawn from it the wrong picture - so refuse.
+        _say("this engine cannot take a %dx%d cell size (TypeError: %s); it slices every "
+             "sheet as 512 px cells" % (int(cell_w), int(cell_h), e))
+        return False
     except Exception as e:                                   # noqa: BLE001
         # Measured on the 1.3.15 exe of 2026-10-13: a tag the engine did not already
         # know raised `ValueError: null rec from faceGen.recordMap[tag]`, while a tag
@@ -1188,11 +1204,16 @@ def _sheet_tell_engine(alias, filename):
     return True
 
 
-def face_register_sheet(alias, cols=8, rows=8, filename=None):
+def face_register_sheet(alias, cols=8, rows=8, filename=None, cell_w=512, cell_h=512):
     """Declare a mod atlas alias, its cell grid, and - with `filename` - its art.
 
     `alias` is the short name in a face string ("tng1"). The grid teaches the library and
     the browser compositor how to read cells out of the sheet.
+
+    `cell_w`/`cell_h` are the CELL size in pixels, which the engine slices by (1.3.15 exe
+    of 2026-10-17 on; 512 before, and still the default). A ship portrait sheet uses 256 so
+    the whole base game fits on one 4096 sheet. On an exe that cannot take a size, a
+    non-512 sheet is NOT registered (it would slice wrong) and this returns False.
 
     `filename` hands the sheet to the engine with `sbs.add_face_bitmap_sheet` (engine
     1.3.15), so a mod's faces need no line pasted into data/graphics/allFaceFiles.txt.
@@ -1207,11 +1228,11 @@ def face_register_sheet(alias, cols=8, rows=8, filename=None):
         log; None when no filename was given or there is no engine to ask.
     """
     alias = str(alias)
-    entry = {"cols": int(cols), "rows": int(rows)}
+    entry = {"cols": int(cols), "rows": int(rows), "cell": (int(cell_w), int(cell_h))}
     told = None
     if filename:
         entry["file"] = str(filename)
-        told = _sheet_tell_engine(alias, filename)
+        told = _sheet_tell_engine(alias, filename, cell_w, cell_h)
         entry["engine"] = told
     _MOD_SHEETS[alias] = entry
     return told

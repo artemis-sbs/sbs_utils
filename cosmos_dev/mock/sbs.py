@@ -577,13 +577,16 @@ def set_command_line(args) -> None:
 # across create_new_sim (measured), so this is NOT cleared there - only when the mission
 # is swapped, which is a new process in the engine (pop_next_mission).
 face_sheets: dict = {}
+# tag -> (sizeW, sizeH): the cell size the engine was told, so a test can see it was passed.
+face_sheet_cells: dict = {}
 
 
 def add_face_bitmap_sheet(tag: str, filename: str, sizeW: int = 512, sizeH: int = 512) -> None:
     """Register a face sheet under a tag a face string can name (engine 1.3.15).
 
     `sizeW`/`sizeH` arrived later in 1.3.15 (seen in script_documentation.txt of 2026-10-17),
-    both defaulting to 512; the mock accepts and ignores them.
+    both defaulting to 512 - the CELL size, so a sheet need not be 512 px cells or 8x8.
+    The mock records them (`face_sheet_cells`); the browser slices by the registered grid.
 
     `filename` is a path with NO suffix - from the Cosmos root (`data/missions/...`) or
     relative to `data/graphics` - and the engine appends `.png`.
@@ -592,6 +595,7 @@ def add_face_bitmap_sheet(tag: str, filename: str, sizeW: int = 512, sizeH: int 
     raised `ValueError: null rec from faceGen.recordMap[tag]` for a tag allFaceFiles.txt
     did not already name - an engine defect, since fixed, so the mock does not copy it.)"""
     face_sheets[str(tag)] = str(filename)
+    face_sheet_cells[str(tag)] = (int(sizeW), int(sizeH))
 
 
 def add_extra_ship_data(file: str) -> None:
@@ -1373,6 +1377,7 @@ def pop_next_mission():
     if folder is not None:
         # A new mission is a new engine process: its face sheets start from the file.
         face_sheets.clear()
+        face_sheet_cells.clear()
     return folder
 
 def send_client_widget_list(clientID: int, consoleType: str, widgetList: str) -> None:

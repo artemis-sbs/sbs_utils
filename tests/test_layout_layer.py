@@ -230,14 +230,27 @@ class TestMarkdownSegmentsCarryTheLayer(unittest.TestCase):
         from sbs_utils.pages.layout.text_area import ShipLine
         seg = ShipLine.__new__(ShipLine)
         seg.text, seg.align, seg.width = "tsn_scout", "left", 10.0
+        seg.live = True             # the 3D path; the portrait path is the next test
         rec = _Rec()
         seg.send_gui(rec, 1, "r", "t", 0.0, 0.0, 100.0, 100.0, 22000)
         self.assertIn("draw_layer:22000;", rec.props("send_gui_3dship")[0])
+
+    def test_ship_PORTRAIT_segment_carries_it_too(self):
+        from sbs_utils.pages.layout.text_area import ShipLine
+        from sbs_utils.procedural.ship_portraits import ship_portrait_has
+        if not ship_portrait_has("tsn_scout"):
+            self.skipTest("no base ship portrait sheet in this checkout")
+        seg = ShipLine.__new__(ShipLine)
+        seg.text, seg.align, seg.width = "tsn_scout", "left", 10.0
+        rec = _Rec()
+        seg.send_gui(rec, 1, "r", "t", 0.0, 0.0, 100.0, 100.0, 22000)
+        self.assertIn("draw_layer:22000;", rec.props("send_gui_image")[0])
 
     def test_ship_segment_unraised_is_untouched(self):
         from sbs_utils.pages.layout.text_area import ShipLine
         seg = ShipLine.__new__(ShipLine)
         seg.text, seg.align, seg.width = "tsn_scout", "left", 10.0
+        seg.live = True
         rec = _Rec()
         seg.send_gui(rec, 1, "r", "t", 0.0, 0.0, 100.0, 100.0)
         self.assertEqual(rec.props("send_gui_3dship")[0], "hull_tag:tsn_scout;")

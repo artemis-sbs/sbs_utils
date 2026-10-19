@@ -41,12 +41,27 @@
   // Sheets registered at runtime. A MOD declares its own, because nothing guarantees a
   // mod uses 8x8 - it only happens that the TNG sheets do.
   const _GRID = {};
+  // A sheet registered by CELL SIZE (the engine's add_face_bitmap_sheet sizeW/sizeH -
+  // ship portraits are 256 px cells) has its grid read off the loaded image, exactly as
+  // the engine slices it. Before the image loads there is nothing to draw anyway.
+  function _cellGrid(alias, axis) {
+    const g = _GRID[alias];
+    const img = _cache[alias] && _cache[alias].img;
+    if (!g || !img) return 0;
+    const cell = axis === 'x' ? g.cellW : g.cellH;
+    if (!cell) return 0;
+    return Math.max(1, Math.round((axis === 'x' ? img.width : img.height) / cell));
+  }
   function gridCols(alias) {
+    const byCell = _cellGrid(alias, 'x');
+    if (byCell) return byCell;
     if (_GRID[alias]) return _GRID[alias].cols;
     if (STOCK_GRID[alias]) return STOCK_GRID[alias].cols;
     return 8;
   }
   function gridRows(alias) {
+    const byCell = _cellGrid(alias, 'y');
+    if (byCell) return byCell;
     if (_GRID[alias]) return _GRID[alias].rows;
     if (STOCK_GRID[alias]) return STOCK_GRID[alias].rows;
     return GRID_ROWS;
@@ -57,10 +72,11 @@
   // file cannot see that, so a mod atlas used to render as nothing here - in the
   // browser mock, the AMD static site and the VS Code preview alike - while working
   // perfectly in the engine.
-  function registerAlias(alias, filename, cols, rows) {
+  function registerAlias(alias, filename, cols, rows, cellW, cellH) {
     if (!alias || !filename) return;
     FACE_ALIAS[alias] = filename;
-    _GRID[alias] = { cols: cols || 8, rows: rows || GRID_ROWS };
+    _GRID[alias] = { cols: cols || 8, rows: rows || GRID_ROWS,
+                     cellW: cellW || 0, cellH: cellH || cellW || 0 };
     delete _cache[alias];        // a re-register must not answer from the old sheet
   }
 

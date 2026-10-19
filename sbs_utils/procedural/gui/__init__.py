@@ -108,7 +108,7 @@ from .image import gui_image_add_atlas_grid, gui_image, gui_image_button, gui_im
 from .input import gui_input
 from .options_button import gui_options_button, gui_options_button_flag, gui_options_button_clear
 from .radio import gui_radio, gui_vradio
-from .ship import gui_ship
+from .ship import gui_ship, gui_ship_portrait
 from .slider import gui_int_slider, gui_slider
 from .text import (gui_text, gui_text_area, gui_text_area_append, gui_text_escape,
                    gui_text_literal)
