@@ -983,6 +983,7 @@ def hail_close(ship, declined=False):
 
     _hail_viewer_release(ship_id)
     _hail_echo(ship_id, rec, declined)
+    _hail_echo_comms(ship_id, rec, declined)
     _hail_emit(ship_id, "declined" if declined else "closed", rec)
     return True
 
@@ -1029,6 +1030,101 @@ def hail_echo_reset():
     """Back to the shipped default (called by reset_mission_state)."""
     _ECHO[0] = HAIL_ECHO_DEFAULT
     _ECHO[1] = True
+    _ECHO_COMMS[0] = HAIL_ECHO_COMMS_DEFAULT
+
+
+# --- the comms timeline ---------------------------------------------------------
+# A hail is the surface for what matters or wants an answer; the comms WATERFALL is
+# where the comms officer reads everything else. When a conversation ends, what was
+# said and what the crew chose is written into the waterfall too, under the caller,
+# so the crew has a timeline of their calls next to the rest of their traffic - and a
+# call nobody picked up still leaves a line saying it came.
+#
+# ON by default: the waterfall is the comms officer's own record, and a hail that left
+# no trace there was the gap. hail_echo_comms_enable(False) turns it off.
+HAIL_ECHO_COMMS_DEFAULT = True
+
+_ECHO_COMMS = [HAIL_ECHO_COMMS_DEFAULT]
+
+
+def hail_echo_comms_enable(on=True):
+    """Write each finished conversation into the comms waterfall (default on)."""
+    _ECHO_COMMS[0] = bool(on)
+    return True
+
+
+def _hail_contact(ship_id, rec):
+    """The space object the conversation files under: the caller as something in the
+    world (a station, a ship), or None for a caller who is only a name."""
+    candidates = []
+    subject = rec.get("subject")
+    if subject and not isinstance(subject, str):
+        candidates.append(subject)
+    speaker = rec.get("speaker")
+    if speaker:
+        if to_object(speaker) is not None:
+            candidates.append(speaker)
+        try:
+            from .amd_action import amd_action_actors
+            candidates.extend(amd_action_actors(str(speaker)))
+        except Exception:
+            pass
+    for agent_id in candidates:
+        obj = to_object(agent_id)
+        if obj is not None and obj.id != ship_id:
+            return obj
+    return None
+
+
+def _hail_echo_comms(ship_id, rec, declined):
+    """Write the conversation into the comms waterfall. Never raises."""
+    if not _ECHO_COMMS[0]:
+        return False
+    try:
+        from .comms import comms_message
+        ship = to_object(ship_id)
+        if ship is None:
+            return False
+        contact = _hail_contact(ship_id, rec)
+        caller = rec.get("name") or hail_speaker(rec.get("speaker"), ship_id).get("name") or ""
+        face = rec.get("face")
+        color = rec.get("color")
+
+        def _said(text):
+            # Already-final text: the slots were filled when it was spoken, so a brace
+            # an author wrote must not be read as a second {var}. comms_message formats
+            # only inside a task, so only escape when it will.
+            if FrameContext.task is None:
+                return str(text)
+            return str(text).replace("{", "{{").replace("}", "}}")
+
+        def _incoming(text, name):
+            if contact is not None:
+                comms_message(_said(text), contact, ship, None, face, None, color, True, name or None)
+            else:
+                comms_message(_said(text), ship, ship, None, face, None, color, True, name or caller or None)
+
+        def _outgoing(text):
+            if contact is not None:
+                comms_message(_said(text), ship, contact, None, None, None, None, False)
+            else:
+                comms_message(_said(text), ship, ship, None, None, None, None, False, caller or None)
+
+        if declined and not (rec.get("transcript") or []):
+            _incoming(hail_echo_text(rec, True), caller)
+            return True
+        for entry in rec.get("transcript") or []:
+            text = (entry or {}).get("text") or ""
+            if not str(text).strip():
+                continue
+            if entry.get("kind") == "choice":
+                _outgoing(text)
+            else:
+                _incoming(text, entry.get("name") or caller)
+        return True
+    except Exception as e:
+        DEBUG(f"[hail] comms echo failed: {e}")
+        return False
 
 
 def hail_echo_text(record, declined=False):

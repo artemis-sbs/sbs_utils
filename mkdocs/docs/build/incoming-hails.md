@@ -131,6 +131,19 @@ read a hail through and present it later, when the captain is ready. Answered
 conversations stay in the info panel and can be replayed &mdash; a replay can never change
 what was chosen.
 
+When a conversation ends it is also written into the **comms waterfall**, the conversation
+list on the Comms console: the caller's lines as messages received, the crew's answer as a
+message sent. It is filed under the caller when the caller is something in the world (a
+station, a ship, a landmark named by `Subject:` or by the speaker's key), and on the ship's
+own channel when the caller is only a name. So the crew has a timeline of their calls next
+to the rest of their traffic, and a call they picked up and then dropped still leaves its
+line there. `hail_echo_comms_enable(False)` turns it off.
+
+Which surface to use: a message that matters, or that offers the crew a choice of replies,
+is an incoming hail. Chatter that the comms officer should read and react to goes straight
+into the waterfall (`comms_receive`, `comms_message`). The info panel is not a message
+surface.
+
 `Presentation:` decides how it is drawn:
 
 | Value | Shows | Also needs |

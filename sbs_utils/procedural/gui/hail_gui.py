@@ -273,7 +273,7 @@ def hail_list_title(ship):
     return "Incoming Hails"
 
 
-def _list_row_height(ship):
+def _hail_list_row_height(ship):
     """One line for an open hail's answers; two for the waiting hails' titles."""
     return LIST_ROW_HEIGHT if hail_is_active(ship) else LIST_PENDING_ROW_HEIGHT
 
@@ -307,7 +307,7 @@ def hail_choice_strip(ship, client_id=None, style=None, row_style=None):
         return 0
     gui_row(row_style or "row-height: 8em;")
     listbox = gui_list_box(rows,
-                           style or f"{_list_row_height(ship)}background:{LIST_BACKGROUND};",
+                           style or f"{_hail_list_row_height(ship)}background:{LIST_BACKGROUND};",
                            item_template=_hail_row,
                            title_template=hail_list_title(ship),
                            title_section_style=LIST_TITLE_STYLE, select=True)
