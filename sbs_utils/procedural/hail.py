@@ -1102,13 +1102,16 @@ def _hail_echo_comms(ship_id, rec, declined):
             if contact is not None:
                 comms_message(_said(text), contact, ship, None, face, None, color, True, name or None)
             else:
-                comms_message(_said(text), ship, ship, None, face, None, color, True, name or caller or None)
+                # The ship's own channel carries many callers: the engine names the tab
+                # after the sender, so the sender is the ship and the title names the caller.
+                comms_message(_said(text), ship, ship, (name or caller or None), face, None, color,
+                              True, None)
 
         def _outgoing(text):
             if contact is not None:
                 comms_message(_said(text), ship, contact, None, None, None, None, False)
             else:
-                comms_message(_said(text), ship, ship, None, None, None, None, False, caller or None)
+                comms_message(_said(text), ship, ship, None, None, None, None, False, None)
 
         if declined and not (rec.get("transcript") or []):
             _incoming(hail_echo_text(rec, True), caller)

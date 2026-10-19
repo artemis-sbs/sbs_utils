@@ -35,7 +35,7 @@ class Timeline(unittest.TestCase):
 
         def tap(contactID, playerID, otherID, faceDesc, titleText, titleColor,
                 bodyText, bodyColor, tagset, name="unset"):
-            self.sent.append({"contact": contactID, "player": playerID,
+            self.sent.append({"contact": contactID, "player": playerID, "title": titleText,
                               "text": bodyText, "tag": tagset, "name": name})
         sbs.send_comms_message_to_player_ship = tap
 
@@ -70,7 +70,8 @@ class Timeline(unittest.TestCase):
     def test_a_caller_who_is_only_a_name_is_the_ships_own_channel(self):
         self._talk(subject=None)
         self.assertEqual(len(self.sent), 2)
-        self.assertEqual(self.sent[0]["name"], "DS 1")
+        # The ship's own channel: the tab is the ship, the title names the caller.
+        self.assertEqual((self.sent[0]["name"], self.sent[0]["title"]), ("Artemis", "DS 1"))
         for m in self.sent:
             self.assertEqual(m["player"], self.ship)
 
