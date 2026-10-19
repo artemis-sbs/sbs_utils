@@ -49,6 +49,17 @@ Mission-local first is what makes overriding one file easy: drop your own
     mission breaks the next time the pack is re-released. That is the whole reason
     `media_shared()` exists.
 
+## The library's own pack
+
+sbs_utils carries a pack of its own - the art the **library** needs, which no mission
+should have to remember to declare: the ship portrait sheet, the ePADD and xESS icons,
+the EVA suit and turret hulls, the casino decks and the cockpit overlay. It is pinned by
+pinning the library: `artemis-sbs.sbs_utils.v1.4.0.sbslib` in `story.json` brings
+`artemis-sbs.sbs_utils.media.v1.4.0` with it, and `sbs fetch` downloads it alongside.
+
+It is searched **last**, after the mission's own `media/` and every pack it pins, so a
+mission or a mod that ships a file of the same name still wins.
+
 ## `shared_media` vs `resources`
 
 Both declare a dependency on a media zip. The difference is who copies it.

@@ -315,6 +315,19 @@ sbs web-static . scores -o scores.html --query title=Standings
 See [Serving web pages](web-proxy.md) and the [Web pages](../build/web-pages.md)
 cookbook.
 
+## Ship portraits
+
+```
+sbs art portraits                       the base game's sheet (sbs_utils/media)
+sbs art portraits MyMod --set mymod     a mod's own sheet, in its media pack
+sbs art portraits MyMod --check         stale or missing cells? exit 1 if any
+```
+
+Renders a sheet of pre-drawn hull pictures - a portrait and a silhouette per hull - that
+draw at the cost of an image instead of a live 3D ship. Only hulls whose art changed are
+redrawn, and cells never move between runs. `sbs art check` includes the portrait sheets
+in its report. See [Ship portraits](../cosmos/ship_portraits.md).
+
 ## Repairing engine-baked art
 
 A hull's `.paxmesh` and its `<root>1024.png` / `<root>256.png` are not authored -

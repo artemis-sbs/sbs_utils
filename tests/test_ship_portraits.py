@@ -29,13 +29,16 @@ from sbs_utils.procedural import ship_portraits as P
 from sbs_utils.procedural.gui.image import ImageAtlas
 
 
-def _manifest(folder, set_name, cells, extras=None, alias=None, rows=2):
+def _manifest(folder, set_name, cells, extras=None, alias=None, rows=2, silhouettes=None):
     os.makedirs(folder, exist_ok=True)
     data = {"format": 1, "set": set_name, "cell": [256, 256], "cols": 16,
             "pages": [{"file": f"{set_name}_0", "rows": rows}],
             "cells": {k: {"page": 0, "col": c, "row": r} for k, (c, r) in cells.items()},
             "extras": {k: {"page": 0, "col": c, "row": r}
                        for k, (c, r) in (extras or {}).items()}}
+    if silhouettes is not None:
+        data["silhouettes"] = {k: {"page": 0, "col": c, "row": r}
+                               for k, (c, r) in silhouettes.items()}
     if alias:
         data["alias"] = alias
     with open(os.path.join(folder, set_name + ".json"), "w") as f:
@@ -202,6 +205,42 @@ class TestTextAreaUsesThePortrait(_Base):
         rec = _Rec()
         _lead_send(rec, 1, "r", "t", "ship", "tsn_light_cruiser", 0, 0, 10, 10)
         self.assertEqual(rec.calls[0][0], "send_gui_image")
+
+
+class TestSilhouettes(_Base):
+    def setUp(self):
+        super().setUp()
+        _manifest(os.path.join(self.libmedia, "ship_portraits"), "base",
+                  {"tsn_light_cruiser": (1, 0)}, extras={"unknown": (0, 0)},
+                  silhouettes={"tsn_light_cruiser": (2, 0)})
+
+    def test_THE_CONTACT_STAGE_IS_THE_SILHOUETTE_IN_ITS_COLOR(self):
+        self.assertEqual(P.ship_portrait_stage_face("tsn_light_cruiser", "contact"),
+                         "shp_base0 #9ab 2 0;")
+        self.assertEqual(P.ship_portrait_stage_face("tsn_light_cruiser", "contact",
+                                                    silhouette_color="#f00"),
+                         "shp_base0 #f00 2 0;")
+        # the other stages are untouched
+        self.assertEqual(P.ship_portrait_stage_face("tsn_light_cruiser", "hull"),
+                         "shp_base0 #fff 1 0;")
+
+    def test_silhouette_image_is_its_own_domain(self):
+        from sbs_utils.procedural.gui.image import ImageAtlas
+        key = P.ship_portrait_silhouette_image("tsn_light_cruiser")
+        self.assertEqual(key, "ship.silhouette:tsn_light_cruiser")
+        self.assertIn("sub_rect:512,0,768,256", ImageAtlas.all[key].get_props("#9ab"))
+
+    def test_no_silhouette_falls_back_to_unknown(self):
+        self.assertIsNone(P.ship_portrait_silhouette_face("kralien_cruiser"))
+        self.assertEqual(P.ship_portrait_stage_face("kralien_cruiser", "contact"),
+                         "shp_base0 #fff 0 0;")
+
+
+class TestOldSheetHasNoSilhouettes(_Base):
+    def test_a_sheet_without_the_section_still_loads(self):
+        _manifest(os.path.join(self.mission, "media", "sp"), "old", {"a": (0, 0)})
+        self.assertEqual(P.ship_portrait_load("media/sp/old"), 1)
+        self.assertIsNone(P.ship_portrait_silhouette_face("a"))
 
 
 class TestReset(_Base):

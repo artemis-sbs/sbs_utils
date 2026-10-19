@@ -137,6 +137,18 @@ function fitInto(ctx, src, x, y, w, h, fill) {
   ctx.drawImage(tmp, x0, y0, bw, bh, x + (w - dw) / 2, y + (h - dh) / 2, dw, dh);
 }
 
+// A SILHOUETTE: the hull's own render flattened to WHITE, alpha kept - the shape the crew
+// can make out before a scan says what it is. White because the engine's only face tint is
+// a multiply, which can darken but never lighten: a white cell takes any color it is given.
+function whiten(ctx, x, y, w, h) {
+  const px = ctx.getImageData(x, y, w, h);
+  const d = px.data;
+  for (let i = 0; i < d.length; i += 4) {
+    d[i] = d[i + 1] = d[i + 2] = 255;
+  }
+  ctx.putImageData(px, x, y);
+}
+
 // The generic UNKNOWN CONTACT cell: a radar blip and a question mark, drawn rather than
 // rendered because there is no hull to render.
 function drawUnknown(ctx, x, y, w, h) {
@@ -201,6 +213,7 @@ async function main() {
         } else {
           const src = await renderHull(renderer, THREE, item, cell, preset);
           fitInto(ctx, src, x, y, cell[0], cell[1], preset.fill);
+          if (item.silhouette) whiten(ctx, x, y, cell[0], cell[1]);
         }
         rendered.push(item.key);
         say('ok   ' + item.key);

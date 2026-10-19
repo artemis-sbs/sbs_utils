@@ -33,6 +33,11 @@ import os
 _PORTRAITS = {}
 #: Extra cells by name ("unknown") -> (alias, col, row, atlas key).
 _EXTRAS = {}
+#: The hull key -> (face alias, col, row) of its SILHOUETTE: the same render as the
+#: portrait, flattened to white with its alpha kept, for the "contact" stage - the crew
+#: can see a shape but not what it is. WHITE because a face tint only darkens (multiply),
+#: so a white shape takes any color the caller asks for.
+_SILHOUETTES = {}
 #: The mission the base set was last offered for; keyed, not latched, so a restart into
 #: another mission offers it again without a reset.
 _base_offered_for = None
@@ -133,6 +138,9 @@ def ship_portrait_load(manifest, replace=True):
     # Extras ("unknown") in their own domain, so a hull that happens to be keyed
     # `unknown` cannot be confused with the generic contact.
     _place(data.get("extras") or {}, _EXTRAS, SHIP_PORTRAIT_DOMAIN + ".extra")
+    # Optional: a sheet built before silhouettes existed simply has none, and the
+    # "contact" stage falls back to the unknown cell.
+    _place(data.get("silhouettes") or {}, _SILHOUETTES, SHIP_PORTRAIT_DOMAIN + ".silhouette")
     return count
 
 
@@ -234,6 +242,40 @@ def ship_portrait_props(ship, color=None, layer=None):
     return ImageAtlas.all[atlas].get_props(color, layer) if atlas else None
 
 
+def ship_portrait_silhouette_face(ship, color="#9ab"):
+    """The hull's SILHOUETTE as a face string, tinted `color`, or None.
+
+    For the stage where the crew can make out a shape but not a ship: sensors have a
+    contact, nobody has scanned it. The cell is white, so `color` is the color it draws.
+    """
+    key = _hull_key(ship)
+    if not key:
+        return None
+    hit = _SILHOUETTES.get(key)
+    if hit is None:
+        _ensure_base()
+        hit = _SILHOUETTES.get(key)
+    if hit is None:
+        return None
+    alias, col, row = hit
+    return f"{alias} {color} {col} {row};"
+
+
+def ship_portrait_silhouette_image(ship):
+    """The image-atlas key of the hull's silhouette (draw with `gui_image` and a
+    color), or None."""
+    from .gui.image import ImageAtlas
+    key = _hull_key(ship)
+    if not key:
+        return None
+    if key not in _SILHOUETTES:
+        _ensure_base()
+    if key not in _SILHOUETTES:
+        return None
+    atlas = ImageAtlas.qualify(key, SHIP_PORTRAIT_DOMAIN + ".silhouette")
+    return atlas if atlas in ImageAtlas.all else None
+
+
 def ship_portrait_unknown_face(color="#fff"):
     """The generic UNKNOWN CONTACT face, or None when no set carries one."""
     _ensure_base()
@@ -244,12 +286,15 @@ def ship_portrait_unknown_face(color="#fff"):
     return f"{alias} {color} {col} {row};"
 
 
-def ship_portrait_stage_face(ship, stage="hull", captain=None, color="#fff"):
+def ship_portrait_stage_face(ship, stage="hull", captain=None, color="#fff",
+                             silhouette_color="#9ab"):
     """The face to show for a ship at a stage of what the crew knows about it.
 
     The mission decides the stage (scanned yet? hailed yet?); this only builds the face:
 
         "unknown"  -> the generic contact (the hull, if there is no unknown cell)
+        "contact"  -> the hull's SILHOUETTE in `silhouette_color` - a shape, not a ship
+                      (unknown when the sheet has no silhouettes)
         "hull"     -> the hull's portrait (unknown when there is none)
         "captain"  -> `captain` when given, else the hull
 
@@ -260,6 +305,9 @@ def ship_portrait_stage_face(ship, stage="hull", captain=None, color="#fff"):
         return captain
     if stage == "unknown":
         return ship_portrait_unknown_face(color) or ship_portrait_face(ship, color)
+    if stage == "contact":
+        return (ship_portrait_silhouette_face(ship, silhouette_color)
+                or ship_portrait_unknown_face(color) or ship_portrait_face(ship, color))
     return ship_portrait_face(ship, color) or ship_portrait_unknown_face(color)
 
 
@@ -274,13 +322,14 @@ def ship_portrait_clear():
     global _base_offered_for
     _PORTRAITS.clear()
     _EXTRAS.clear()
+    _SILHOUETTES.clear()
     _MISSING_TOLD.clear()
     _base_offered_for = None
 
 
 def ship_portrait_size():
     """Entries held, for the reset ledger."""
-    return len(_PORTRAITS) + len(_EXTRAS) + len(_MISSING_TOLD)
+    return len(_PORTRAITS) + len(_EXTRAS) + len(_SILHOUETTES) + len(_MISSING_TOLD)
 
 
 def _tell_missing(key):
