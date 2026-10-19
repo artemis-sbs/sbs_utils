@@ -18,7 +18,7 @@ OBJ art. A set is `ship_portraits/<set>.json` beside its page PNGs:
 WHERE: the base game's set ships in the LIBRARY's media pack and loads itself on first
 use. A mod builds its own set into its own media pack and loads it from its addon:
 
-    ship_portrait_load(media_shared("ship_portraits/tng"))
+    ship_portrait_load("ship_portraits/tng")     # a LOGICAL path, found in any pack
 
 A mod's set WINS over the base for a hull both have. The base never overrides.
 
@@ -51,7 +51,8 @@ def ship_portrait_load(manifest, replace=True):
 
     Args:
         manifest (str): the set's path WITHOUT `.json` - normally
-            `media_shared("ship_portraits/<set>")`, relative to the mission, or absolute.
+            the LOGICAL path `"ship_portraits/<set>"` (searched in every media root),
+            or a path relative to the mission, or absolute.
         replace (bool): whether this set's cells replace a hull another set already
             gave. True for a mod (its art wins); the base set loads with False.
 
@@ -68,6 +69,17 @@ def ship_portrait_load(manifest, replace=True):
     if stem.lower().endswith(".json"):
         stem = stem[:-5]
     full = stem if os.path.isabs(stem) else os.path.join(get_mission_dir(), stem)
+    if not os.path.isfile(full + ".json") and not os.path.isabs(stem):
+        # A LOGICAL path. media_shared() probes for a .png or a folder, so it cannot see
+        # a manifest and hands back the mission-local fallback (`media/<path>`) - which is
+        # what `media_shared("ship_portraits/tng")` returns in every mission but the
+        # mod's own. Search the media roots for the manifest itself instead.
+        rel = stem.replace("\\", "/")
+        if rel.startswith("media/"):
+            rel = rel[len("media/"):]
+        found = _find_manifest(rel)
+        if found is not None:
+            stem = full = found
     try:
         with open(full + ".json", "r", encoding="utf-8") as f:
             data = json.load(f) or {}
@@ -122,6 +134,20 @@ def ship_portrait_load(manifest, replace=True):
     # `unknown` cannot be confused with the generic contact.
     _place(data.get("extras") or {}, _EXTRAS, SHIP_PORTRAIT_DOMAIN + ".extra")
     return count
+
+
+def _find_manifest(rel):
+    """The first media root holding `<rel>.json`, as an absolute stem, or None."""
+    try:
+        from .media_paths import media_roots
+        roots = media_roots()
+    except Exception:                                        # noqa: BLE001
+        return None
+    for root in roots:
+        stem = os.path.join(root, *rel.split("/"))
+        if os.path.isfile(stem + ".json"):
+            return stem
+    return None
 
 
 def _ensure_base():

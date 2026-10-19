@@ -716,9 +716,17 @@ class TestOverlayHeroVisuals(OverlayTestBase):
         self.assertTrue([a for a in self.calls("send_gui_face") if a[1] == self.HERO])
 
     def test_hero_with_ship(self):
+        # A ship is drawn as its PORTRAIT (an image) when the hull has one, else live 3D.
         self._present(ship="tsn_battle_cruiser")
-        self.assertTrue([a for a in self.calls("send_gui_3dship") if a[1] == self.HERO]
-                        or [a for a in self.calls("send_gui_ship") if a[1] == self.HERO])
+        from sbs_utils.procedural.ship_portraits import ship_portrait_has
+        sent = "send_gui_image" if ship_portrait_has("tsn_battle_cruiser") else "send_gui_3dship"
+        self.assertTrue([a for a in self.calls(sent) if a[1] == self.HERO], sent)
+        if sent == "send_gui_image":
+            self.assertFalse(self.calls("send_gui_3dship"), "a portrait must not also draw 3D")
+
+    def test_hero_with_a_hull_without_a_portrait_is_live_3d(self):
+        self._present(ship="no_such_portrait_hull")
+        self.assertTrue([a for a in self.calls("send_gui_3dship") if a[1] == self.HERO])
 
     def test_hero_with_icon(self):
         self._present(icon=137)

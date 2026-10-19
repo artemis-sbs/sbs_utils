@@ -862,7 +862,7 @@ def _hero_builder(client_id, content):
     from .text import gui_text
     from .image import gui_image_keep_aspect_ratio_center
     from .face import gui_face
-    from .ship import gui_ship
+    from .ship import gui_ship_portrait
     from .icon import gui_icon
     from .row import gui_row
     from .section import gui_sub_section
@@ -884,7 +884,8 @@ def _hero_builder(client_id, content):
         gui_face(face)
     elif ship:
         gui_row(f"row-height: 8em;{row_bg}")
-        gui_ship(ship)
+        # A portrait (a picture of the hull), live 3D only for a hull without one.
+        gui_ship_portrait(ship)
     elif icon is not None:
         gui_row(f"row-height: 8em;{row_bg}")
         gui_icon(f"icon_index: {icon}; color: white;")
@@ -974,7 +975,7 @@ def overlay_hero(title, subtitle=None, image=None, face=None, ship=None, icon=No
                  slot="center_hero", to=None, consoles=None, seconds=None,
                  background=None, letterbox=False, bar=4):
     """Show a big centered hero / chapter card with an optional visual above the
-    title (first set wins): ``face`` (a face string), ``ship`` (a ship-type key),
+    title (first set wins): ``face`` (a face string), ``ship`` (a ship-type key or id, as its portrait),
     ``icon`` (an icon index), or ``image`` (an image key). Auto-dismiss after
     ``seconds`` if set.
 
@@ -1428,7 +1429,7 @@ class ButtonResultLike:
 def _lower_third_portrait_builder(client_id, content):
     from .text import gui_text
     from .face import gui_face
-    from .ship import gui_ship
+    from .ship import gui_ship_portrait
     from .icon import gui_icon
     from .image import gui_image_keep_aspect_ratio_center
     from .blank import gui_blank
@@ -1461,7 +1462,7 @@ def _lower_third_portrait_builder(client_id, content):
         if face:
             gui_face(face, style=SQUARE_STYLE)
         elif ship:
-            gui_ship(ship, style=SQUARE_STYLE)
+            gui_ship_portrait(ship, style=SQUARE_STYLE)
         elif icon:
             gui_icon(icon, style=SQUARE_STYLE)
         elif image:
@@ -1582,8 +1583,9 @@ def overlay_lower_third_portrait(name, line, face=None, ship=None, icon=None,
             played in **timed parts** (measured against the strip MINUS the
             square), like ``overlay_lower_third``.
         face (str, optional): a face string - ``get_face(id)`` or a lifeform face.
-        ship (str, optional): a ship-type key (e.g. ``"tsn_battle_cruiser"``) -
-            a live 3D render.
+        ship (str | int, optional): a ship-type key (e.g. ``"tsn_battle_cruiser"``)
+            or a ship id - drawn as its pre-rendered PORTRAIT (live 3D only when the
+            hull has none; see ``ship_portraits``).
         icon (str, optional): an icon property string or key.
         image (str, optional): an image key - letterboxed inside the square.
         align (str): ``"left"`` (default) or ``"right"`` - which side the visual

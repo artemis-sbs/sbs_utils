@@ -92,6 +92,21 @@ class TestLoad(_Base):
         P.ship_portrait_load("media/sp/venus")
         self.assertTrue(P.ship_portrait_face("v1").startswith("shp_venus0 "))
 
+    def test_a_LOGICAL_path_finds_the_manifest_in_any_pack(self):
+        """Two packs both with ship_portraits/ - each set is found by its own manifest,
+        not by whichever folder media_shared("ship_portraits") would answer first."""
+        lib = os.path.join(self.root, "__lib__", "media")
+        _manifest(os.path.join(lib, "u.A.media.v1", "ship_portraits"), "aaa", {"a1": (0, 0)})
+        _manifest(os.path.join(lib, "u.B.media.v1", "ship_portraits"), "bbb", {"b1": (1, 0)})
+        with open(os.path.join(self.mission, "story.json"), "w") as f:
+            json.dump({"sbslib": [], "shared_media": ["u.A.media.v1.zip", "u.B.media.v1.zip"]}, f)
+        MP._LIB_MEDIA = MP._MISSION = None
+        self.assertEqual(P.ship_portrait_load("ship_portraits/bbb"), 1)
+        self.assertEqual(P.ship_portrait_load("ship_portraits/aaa"), 1)
+        self.assertEqual(P.ship_portrait_face("b1"), "shp_bbb0 #fff 1 0;")
+        # media_shared's own fallback spelling resolves the same way
+        self.assertEqual(P.ship_portrait_load("media/ship_portraits/bbb"), 1)
+
     def test_a_missing_manifest_is_zero_not_an_exception(self):
         self.assertEqual(P.ship_portrait_load("media/nope/none"), 0)
 
