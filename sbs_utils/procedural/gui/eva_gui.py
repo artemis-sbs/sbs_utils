@@ -33,9 +33,9 @@ HOME_KEY = "EVA_HOME_SHIP"
 # (2026-10-17, exe 2026-10-14): a client assigned to a PLAYER ship in the frame the ship
 # was spawned crashes (0xC0000005, 3 of 3, whatever the hull); one or two seconds later it
 # survives (6 of 6). 2 was then seen to fail once in 11 SUIT UP runs; 10 s survived 9 of 9.
-# 5 is the margin: a client across a real network is slower still, and to the crew it
-# reads as the time it takes to suit up.
-EVA_ASSIGN_DELAY = 5.0
+# FIXED in exe 2026-10-19 10:18: assigning in the spawn frame survived 3 of 3, so the wait
+# is now just "not this frame". On an older exe 0.1 s is NOT enough - those need 5.
+EVA_ASSIGN_DELAY = 0.1
 
 
 def _client(client_id=None):
