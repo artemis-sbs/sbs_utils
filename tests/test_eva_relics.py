@@ -681,13 +681,15 @@ class SuitHull(_Base):
         self.addCleanup(SD.extra_ship_data_force, None)
 
     def _declare_the_exosuit(self):
-        """The production path: the setting on, and the boarding addon's own file."""
+        """The production path: the setting on, and the file the boarding addon names -
+        shipped in the LIBRARY's media pack since 2026-10-19."""
         import os
-        from sbs_utils import fs
+        import sbs_utils
         SD.extra_ship_data_force(True)
-        media = os.path.join(fs.get_missions_dir(), "LegendaryMissions", "media")
+        media = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(
+            sbs_utils.__file__))), "media")
         self.assertTrue(SD.add_extra("lm_eva_ships", path=media),
-                        "LegendaryMissions/media/lm_eva_ships must load")
+                        "sbs_utils/media/lm_eva_ships must load")
 
     def test_without_its_ship_data_the_suit_is_a_stock_hull_and_says_so_once(self):
         self.assertIsNone(SD.get_ship_data_for("lm_eva_suit"),
