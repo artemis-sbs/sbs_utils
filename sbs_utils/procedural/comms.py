@@ -14,6 +14,7 @@ from ..mast_sbs.story_nodes.button import Button
 from .gui import gui_properties_set, gui_info_panel_send_message
 from .signal import signal_emit
 from .science import science_is_unknown
+from .ship_portraits import ship_portrait_fallback_face, ship_portrait_stage_face
 
 
 class CommsOverride:
@@ -324,7 +325,8 @@ def comms_message(msg, from_ids_or_obj, to_ids_or_obj, title=None, face=None, co
 
 
             if face_now is None:
-                face_now = faces.get_face(from_obj.get_id())
+                # Its own face, else its hull's portrait: a station speaks with a face.
+                face_now = ship_portrait_fallback_face(from_obj.get_id())
             
             if life:
                 if from_obj is None:
@@ -743,6 +745,16 @@ def comms_receive_internal(msg, ids_or_obj=None, from_name=None,  title=None, fa
         comms_message(msg, ship, ship,  title, face, color, title_color, True, from_name)
         
         
+def comms_selection_face(origin_id, selected_id, unknown=False):
+    """The face Comms shows for a selection: its own, else its hull's portrait - the
+    silhouette until the crew has scanned it (see ship_portrait_fallback_face). An
+    UNKNOWN selection shows only the silhouette, never a face of its own. '' when there
+    is nothing to show, which is what every send passed before portraits."""
+    if unknown:
+        return ship_portrait_stage_face(selected_id, "contact") or ""
+    return ship_portrait_fallback_face(selected_id, origin_id)
+
+
 def comms_info(name, face=None, color=None) -> None:
     """Update the comms selection info panel with a name and portrait.
 
@@ -778,7 +790,7 @@ def comms_info(name, face=None, color=None) -> None:
         name = to_so.comms_id
 
     if face is None:    
-        face = faces.get_face(to_so.id) 
+        face = comms_selection_face(from_so.id, to_so.id)
 
     
     if to_so.is_grid_object:
@@ -1047,7 +1059,7 @@ class CommsPromise(ButtonPromise):
             
             self.comms_id = selected_so.comms_id
             if self.face_override is None: 
-                self.face = faces.get_face(self.selected_id)
+                self.face = comms_selection_face(self.origin_id, self.selected_id)
             else: 
                 self.face = self.face_override
         else:
@@ -1082,7 +1094,7 @@ class CommsPromise(ButtonPromise):
         #if prev != self.selected_id and prev != 0:
         self.set_path("comms")
         self.set_face_override(None)
-        self.face = faces.get_face(event.selected_id)
+        self.face = comms_selection_face(event.origin_id, event.selected_id)
         if event.selected_id == 0:
             self.face = faces.get_face(event.origin_id)
         
@@ -1133,7 +1145,11 @@ class CommsPromise(ButtonPromise):
             unk = science_is_unknown(oo,so)
             
             if unk:
-                FrameContext.context.sbs.send_comms_selection_info(origin_id, "", "white", "unknown")
+                # A stranger shows its SHAPE (what the scope already shows) - never its
+                # own face, its name or its buttons.
+                FrameContext.context.sbs.send_comms_selection_info(
+                    origin_id, comms_selection_face(origin_id, selected_id, unknown=True),
+                    "white", "unknown")
                 self.is_unknown = True
                 return
             else:

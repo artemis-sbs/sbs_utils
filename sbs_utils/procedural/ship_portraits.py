@@ -311,6 +311,40 @@ def ship_portrait_stage_face(ship, stage="hull", captain=None, color="#fff",
     return ship_portrait_face(ship, color) or ship_portrait_unknown_face(color)
 
 
+def ship_portrait_fallback_face(target, origin=None):
+    """The face to show for `target` on Comms or in a hail: its OWN face when it has
+    one, else its hull's portrait - the SILHOUETTE while `origin` has not scanned it, the
+    hull once it has (or when no `origin` is given). '' when there is nothing to show.
+
+    This is what gives a station a face. Open Universe spawns its stations with none, so
+    every station, side voice and captain drew a blank. A player ship is never given a
+    portrait face (its crew has faces), nor anything that is not a space object. No sheet,
+    or an exe too old for portrait faces, answers '' - callers behave as they always did.
+    """
+    try:
+        from ..faces import get_face
+        from ..spaceobject import SpaceObject
+        from .query import to_object
+        obj = to_object(target)
+        if obj is None:
+            return ""
+        own = get_face(obj.id)
+        if own:
+            return own
+        from .roles import has_role
+        if not isinstance(obj, SpaceObject) or obj.is_player or has_role(obj.id, "__player__"):
+            return ""
+        stage = "hull"
+        if origin is not None:
+            from .science import science_is_unknown
+            seer = to_object(origin)
+            if seer is not None and seer.id != obj.id and science_is_unknown(seer, obj):
+                stage = "contact"
+        return ship_portrait_stage_face(obj, stage) or ""
+    except Exception:                                        # noqa: BLE001
+        return ""
+
+
 def ship_portrait_keys():
     """Every hull key with a portrait, the base set included."""
     _ensure_base()

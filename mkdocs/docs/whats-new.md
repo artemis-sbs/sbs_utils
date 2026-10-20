@@ -1890,6 +1890,10 @@ and the TNG and Venus mods ship sheets for theirs. A mod builds its own with one
 — see [`sbs art portraits`](#sbs-art) — and a hull without a portrait simply draws in 3D
 as before, so nothing ever goes blank.
 
+**A station has a face now.** A ship or station with no face of its own shows its
+portrait on Comms, in its messages and when it hails you - as a silhouette until Science
+has scanned it, then the hull.
+
 Guide: **[Ship portraits](cosmos/ship_portraits.md)**.
 
 ---

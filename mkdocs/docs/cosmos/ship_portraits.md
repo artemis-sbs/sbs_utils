@@ -47,6 +47,14 @@ and goes anywhere a face does - comms, a crew card, `face://` in a text area:
 face = ship_portrait_face("kralien_battleship")        # "shp_base0 #fff 10 0;"
 ```
 
+### A ship with no face of its own
+
+A ship or station that nobody gave a face shows its **portrait** wherever a face is
+drawn for it: selected on Comms, in the messages it sends, and on the hail screen when it
+calls. Until the crew has scanned it on Science, Comms shows only its **silhouette**; after
+the scan, the hull. Anything with a face of its own keeps it, and a player ship is never
+given one. The rule is `ship_portrait_fallback_face(target, origin)`.
+
 ### What the crew knows: stages
 
 `ship_portrait_stage_face(ship, stage, captain=None)` builds the face for how much the

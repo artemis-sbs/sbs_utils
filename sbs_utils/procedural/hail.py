@@ -254,9 +254,11 @@ def hail_speaker(speaker_key, ship_id=None):
             obj = to_object(agent_id)
             if obj is None:
                 continue
-            from ..faces import get_face
+            from .ship_portraits import ship_portrait_fallback_face
+            # Its own face, else its hull's portrait - a station that calls the crew
+            # has a face on the hail screen, not a blank.
             return MastDataObject({"name": getattr(obj, "name", None) or key,
-                                   "face": get_face(agent_id), "color": None,
+                                   "face": ship_portrait_fallback_face(agent_id), "color": None,
                                    "key": key,
                                    # A character's `Side:`, else the side the speaking
                                    # object itself is on (a station, a ship).
