@@ -824,6 +824,46 @@ def side_set_hostile_to_players(faction_key, relation=None):
             side_set_relations(ps, faction_key, relation)
 
 
+def side_stand_down(ships):
+    """Clear the weapons target of every ship aimed at a side it is no longer hostile to.
+
+    A ceasefire or an alliance changes the RELATION, and the brains stop choosing that side
+    as a new target - but the engine keeps firing at whatever `target_id` a ship already
+    holds. Seen in the engine: a ceasefired fleet turned neutral on every display and
+    shot the crew dead. This clears the target (and stops the ship where it is) when the
+    two sides are NEUTRAL or ALLIED. A side with no relations at all (UNKNOWN - feral
+    monsters) is left alone: that is not a truce.
+
+    Args:
+        ships: ship ids, objects, or a set/list of them.
+
+    Returns:
+        list[int]: the ids whose target was cleared.
+    """
+    from .query import get_side
+    from .space_objects import clear_target
+    sbs = FrameContext.context.sbs
+    calm = (sbs.DIPLOMACY.NEUTRAL, sbs.DIPLOMACY.ALLIED)
+    cleared = []
+    for ship in to_object_list(ships):
+        try:
+            aim = ship.data_set.get("target_id", 0)
+        except Exception:                                    # noqa: BLE001
+            continue
+        if not aim:
+            continue
+        aimed = to_object(aim)
+        if aimed is None:
+            continue
+        mine, theirs = get_side(ship), get_side(aimed)
+        if not mine or not theirs or mine == theirs:
+            continue
+        if side_get_relations(mine, theirs) in calm:
+            clear_target(ship)
+            cleared.append(ship.id)
+    return cleared
+
+
 def players_ceasefire(relation=None):
     """End the attack: make every side currently HOSTILE to a player side NEUTRAL.
 
