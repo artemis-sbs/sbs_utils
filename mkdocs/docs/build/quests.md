@@ -55,7 +55,7 @@ it is — is in [The AMD file format](amd-format.md).
 | `Fatal:` | Failing this FAILS the quest it is `Part of:`. That loses the game only if the parent says `Lose:`. | `Critical:` |
 | `Win:` | Completing this WINS the mission. |  |
 | `Lose:` | FAILING this loses the game. Completing it does not. |  |
-| `Citation:` | The commendation read out on the end screen. |  |
+| `Citation:` | The closing words, printed on the end screen under the `Win:` / `Lose:` sentence. |  |
 | `Scan says:` | What a SCAN of the target reads out. Not `Then: reveal`, which unlocks another quest - same word, two concepts. | `Reveals:`, `Scan text:` |
 | `Show:` | WHEN this quest is listed. `when done` runs it unseen and shows it once it resolves, reading as history; `with children` earns a row only while something under it is listed; `never` drives its events invisibly. Not the same as `Starts when: revealed`, which also stops the triggers. |  |
 | `Accept on:` | Restrict which CONSOLES may Accept or Abandon this job, overriding the mission default. |  |

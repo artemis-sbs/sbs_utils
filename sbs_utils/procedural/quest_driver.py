@@ -307,7 +307,11 @@ def _quest_maybe_end_game(agent_id, quest_id, data, win):
     if not data.get("end_win" if win else "end_lose"):
         return
     text = data.get("win_text" if win else "lose_text") or quest_get_display_name(agent_id, quest_id) or quest_id
+    # CITATION: the goal's `Citation:`, printed on the end screen under TEXT. It used to
+    # be the line of a VICTORY hail sent in the same frame the end screen came up, so
+    # no crew ever read it.
     signal_emit("game_over", {"WIN": bool(win), "TEXT": str(text),
+                              "CITATION": str(data.get("citation") or "").strip(),
                               "AGENT_ID": to_id(agent_id), "QUEST_ID": quest_id})
 
 

@@ -73,6 +73,24 @@ class QuestEndGameTests(unittest.TestCase):
         self.assertFalse(gos[0]["WIN"])
         self.assertEqual(gos[0]["TEXT"], "The bases fell.")
 
+    def test_the_citation_rides_game_over(self):
+        # The end screen prints a goal's `Citation:` under its `Win:` sentence, so the
+        # signal that brings the screen up has to carry it.
+        quest_add(SH, "goal", "Break the Pile", "", state=QuestState.ACTIVE,
+                  data={"end_win": True, "win_text": "The Pile is broken.",
+                        "citation": "Forty years late, counted.",
+                        "on_kill": {"role": "raider", "count": 1}})
+        QD.quest_on_kill_shared(self._raider())
+        gos = self._game_overs()
+        self.assertEqual(len(gos), 1)
+        self.assertEqual(gos[0]["TEXT"], "The Pile is broken.")
+        self.assertEqual(gos[0]["CITATION"], "Forty years late, counted.")
+
+    def test_no_citation_is_an_empty_string(self):
+        self._mission()
+        QD.quest_on_signal("base_lost")
+        self.assertEqual(self._game_overs()[0]["CITATION"], "")
+
     def test_unrelated_signal_does_not_end_game(self):
         self._mission()
         QD.quest_on_signal("some_other_thing")
