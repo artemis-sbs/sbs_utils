@@ -282,7 +282,7 @@ class ABareWordThatIsNotAKindTests(unittest.TestCase):
         self.assertIn("Prefab: wreck", mine[0].message)
 
     def test_real_kind_words_are_quiet(self):
-        for word in ("crew", "Arc", "Beat", "Job", "Quest", "Characters"):
+        for word in ("crew", "Arc", "Beat", "Job", "Quest", "Characters", "Objective"):
             text = _swap("Scope: shared\n", word + "\nScope: shared\n")
             self.assertNotIn("unknown-kind-line", _codes(text), word)
 

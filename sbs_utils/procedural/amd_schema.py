@@ -1152,7 +1152,7 @@ _CATALOG_SECTIONS = set()
 
 # A conventional section key names its archetype directly (## Items -> item).
 _SECTION_ALIASES = {
-    "quests": "quest", "quest": "quest", "objectives": "quest",
+    "quests": "quest", "quest": "quest", "objectives": "quest", "objective": "quest",
     "lifeforms": "lifeform", "lifeform": "lifeform", "cast": "lifeform",
     "characters": "lifeform", "character": "lifeform",
     # CREW is not CAST. `cast` and `character` stay on lifeform - those are the NPC words -

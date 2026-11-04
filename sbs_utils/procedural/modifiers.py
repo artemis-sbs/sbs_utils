@@ -526,8 +526,15 @@ def modifier_exists(id, source_or_modifier)->bool:
     if isinstance(source_or_modifier, Modifier):
         return source_or_modifier in all_mods
     # TODO: Determine under what conditions we want to consider a modifier to "exist". If the target and source match, what do we do with that? Do we reset the timer, if it exists? Do we only allow one instance of a modifier with a given source for any single ship?
+    if isinstance(id, Agent):
+        id = id.id
     for mod in all_mods:
-        if id in mod.id and mod.source == source_or_modifier:
+        # The modifier's TARGET is the object (or set of objects) it is applied to;
+        # `mod.id` is the modifier's own id and says nothing about what it modifies.
+        if mod.source != source_or_modifier:
+            continue
+        target = mod.target
+        if target == id or (isinstance(target, (set, frozenset, list, tuple)) and id in target):
             return True
     return False
 
