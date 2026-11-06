@@ -73,5 +73,9 @@ jobs:
         # already exists. Without allowUpdates the action only ever tries to CREATE and
         # dies with 422 already_exists, so every re-release after the first one failed
         # and the published .sbslib silently stayed at the previous build.
+        # v1.5.0 is a PRE-RELEASE while it is in development: GitHub keeps v1.4.0 as the
+        # Latest release. Delete these two lines when 1.5.0 is declared final.
+        prerelease: true
+        makeLatest: false
         allowUpdates: true
         replacesArtifacts: true

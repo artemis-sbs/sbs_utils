@@ -6,7 +6,7 @@
       "name": "EVA Suit",
       "origin": "TSN",
       "side": "tsn",
-      "artfileroot": "data/missions/__lib__/media/artemis-sbs.sbs_utils.media.v1.4.0/ships/LM_CrewExosuitSeated",
+      "artfileroot": "data/missions/__lib__/media/artemis-sbs.sbs_utils.media.v1.5.0/ships/LM_CrewExosuitSeated",
       "meshscale": 10.0,
       "radarscale": 1.0,
       "exclusionradius": 6.0,
