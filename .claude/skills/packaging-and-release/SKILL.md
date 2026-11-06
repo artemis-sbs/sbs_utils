@@ -151,8 +151,8 @@ a mission repo, run `git ls-files --eol <paths>`.
 
 | repo | commit / push to | notes |
 |---|---|---|
-| sbs_utils | `v1.4.0_dev`, push `origin v1.4.0_dev` | never PR or merge into `master` - the maintainer controls that |
-| LegendaryMissions, OpenUniverse | `v1.4.0_dev` | never PR/merge to `main`. LM's branch is shared - fetch and check ahead/behind before pushing |
+| sbs_utils | `v1.5.0_dev`, push `origin v1.5.0_dev` | `master` IS the released v1.4.0 (since 2026-11-06); never PR or merge into it - the maintainer controls that. `v1.3.0_fixes` is the 1.3.0 maintenance branch |
+| LegendaryMissions, OpenUniverse | `v1.5.0_dev` | `main` IS the released v1.4.0; never PR/merge to it. LM's `v1.3.0` branch is the 1.3.0 line. LM's branch is shared - fetch and check ahead/behind before pushing |
 | sbs_cli | `main` directly | PR only to fix a GitHub issue or when asked. Not a lib: no `__lib__.json`, never released with `sbs release` |
 | mod repos (Cosmos-TNG-Mod and siblings) | `main` directly, no feature branch | a stray branch leaves the release tag dangling off `main` |
 | StormsBeacon | `main` | **not tagged** - push and stop |
@@ -194,7 +194,7 @@ Gotchas:
 - **`git push --tags` pushes EVERY local tag**, and every workflow here triggers on
   `tags: "*"`. Stray local marker tags get pushed (and fire a release run) too.
 - The message is interpolated into the command line: ASCII, no double quotes.
-- It tags the **checked-out** HEAD, so on a `v1.4.0_dev` tree it can only roll `v1.4.0`.
+- It tags the **checked-out** HEAD, so on a `v1.5.0_dev` tree it can only roll `v1.5.0`; **never run it on a tree whose `__lib__.json` still says a released version** (it moves that release tag).
 - A repo whose `__lib__.json` version does not match its tag line (StormsBeacon uses a
   separate `vEA*` line) would get a NEW tag created, not an existing one moved - which is
   why it is not a release target.
@@ -306,8 +306,8 @@ parse, signal/namespace lint, ship-data wrapper). "Does PR #N pass?" still means
 the full suite by hand.
 
 - **Test the MERGE, not the PR head.** A contributor branch is usually behind
-  `v1.4.0_dev`, so its head runs fewer tests and can fail on things already fixed.
-  `git fetch origin pull/<n>/head:pr<n>`, merge `v1.4.0_dev` into it, run
+  `v1.5.0_dev`, so its head runs fewer tests and can fail on things already fixed.
+  `git fetch origin pull/<n>/head:pr<n>`, merge `v1.5.0_dev` into it, run
   `python -m unittest discover -s tests` on the result.
 - **Cheapest correct setup: a temp branch in the real repo**, then check the original
   branch out again (in a shared tree, ask first).
@@ -331,11 +331,11 @@ branch decides the tag.
 | branch | version / tag | tag moved by |
 |---|---|---|
 | `master` | `v1.3.0` | by hand from a master ref: delete tag, `git tag -a` at master's tip, push |
-| `v1.4.0_dev` | `v1.4.0` | `python sbs.pyz release sbs_utils "<msg>" -u` |
+| `v1.5.0_dev` | `v1.5.0` | `python sbs.pyz release sbs_utils "<msg>" -u` |
 
-- **Keep `master` an ancestor of `v1.4.0_dev`.** After anything lands on master, merge it
-  into `v1.4.0_dev` (conflicts resolve to ours - v1.4.0_dev is the superset) and check
-  `git merge-base --is-ancestor master v1.4.0_dev`. That keeps a future merge a pure
+- **Keep `master` an ancestor of `v1.5.0_dev`.** After anything lands on master, merge it
+  into `v1.5.0_dev` (conflicts resolve to ours - v1.5.0_dev is the superset) and check
+  `git merge-base --is-ancestor master v1.5.0_dev`. That keeps a future merge a pure
   fast-forward.
 - The release job runs no tests (mock tests need Cosmos data files; master's v1.3.0 code
   also imports `ctypes.WinDLL` at module scope and cannot import on Linux). The workflow
