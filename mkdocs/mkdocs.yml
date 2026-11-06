@@ -226,9 +226,9 @@ nav:
       - DamageDispatcher: api/dispatch/damage_dispatcher.md
       - ConsoleDispatcher: api/dispatch/console_dispatcher.md
 
-  - LegendaryMissions: '!import https://github.com/artemis-sbs/LegendaryMissions?branch=v1.4.0_dev&config=mkdocs/mkdocs.yml&docs_dir=mkdocs/docs'
+  - LegendaryMissions: '!import https://github.com/artemis-sbs/LegendaryMissions?branch=v1.5.0_dev&config=mkdocs/mkdocs.yml&docs_dir=mkdocs/docs'
 
-  - OpenUniverse: '!import https://github.com/artemis-sbs/OpenUniverse?branch=v1.4.0_dev&config=mkdocs/mkdocs.yml&docs_dir=mkdocs/docs'
+  - OpenUniverse: '!import https://github.com/artemis-sbs/OpenUniverse?branch=v1.5.0_dev&config=mkdocs/mkdocs.yml&docs_dir=mkdocs/docs'
 
   - About:
     - about/index.md
